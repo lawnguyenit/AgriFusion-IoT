@@ -1,0 +1,55 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.6.1 Chrome/142.0.7444.265 Electron/39.8.0 Safari/537.36" version="29.6.1">
+  <diagram name="Trang-1" id="Ii6PpNjfo7ewokoASEsX">
+    <mxGraphModel dx="1033" dy="601" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="QI9sHKwSaOquqooXMwA_-2" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Raw data" vertex="1">
+          <mxGeometry height="41" width="93" x="12" y="261" as="geometry" />
+        </mxCell>
+        <mxCell id="QI9sHKwSaOquqooXMwA_-4" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=30;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" value="Output json" vertex="1">
+          <mxGeometry height="120" width="140" x="184" y="228" as="geometry" />
+        </mxCell>
+        <mxCell id="QI9sHKwSaOquqooXMwA_-5" parent="QI9sHKwSaOquqooXMwA_-4" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;whiteSpace=wrap;html=1;" value="Data SHT 30" vertex="1">
+          <mxGeometry height="30" width="140" y="30" as="geometry" />
+        </mxCell>
+        <mxCell id="QI9sHKwSaOquqooXMwA_-6" parent="QI9sHKwSaOquqooXMwA_-4" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;whiteSpace=wrap;html=1;" value="Data NPK" vertex="1">
+          <mxGeometry height="30" width="140" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="QI9sHKwSaOquqooXMwA_-7" parent="QI9sHKwSaOquqooXMwA_-4" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;whiteSpace=wrap;html=1;" value="Data health sensor" vertex="1">
+          <mxGeometry height="30" width="140" y="90" as="geometry" />
+        </mxCell>
+        <mxCell id="QI9sHKwSaOquqooXMwA_-8" edge="1" parent="1" source="QI9sHKwSaOquqooXMwA_-2" style="endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="QI9sHKwSaOquqooXMwA_-5" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="218" y="371" as="sourcePoint" />
+            <mxPoint x="268" y="321" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="QI9sHKwSaOquqooXMwA_-9" edge="1" parent="1" source="QI9sHKwSaOquqooXMwA_-2" style="endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="QI9sHKwSaOquqooXMwA_-6" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="185" y="306" as="sourcePoint" />
+            <mxPoint x="264" y="297" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="QI9sHKwSaOquqooXMwA_-10" edge="1" parent="1" source="QI9sHKwSaOquqooXMwA_-2" style="endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="QI9sHKwSaOquqooXMwA_-7" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="149" y="316" as="sourcePoint" />
+            <mxPoint x="228" y="307" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="QI9sHKwSaOquqooXMwA_-11" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="NPK agent" vertex="1">
+          <mxGeometry height="60" width="120" x="396" y="184" as="geometry" />
+        </mxCell>
+        <mxCell id="QI9sHKwSaOquqooXMwA_-13" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="SHT30 agent" vertex="1">
+          <mxGeometry height="60" width="120" x="396" y="277" as="geometry" />
+        </mxCell>
+        <mxCell id="QI9sHKwSaOquqooXMwA_-14" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Health sensor agent" vertex="1">
+          <mxGeometry height="60" width="120" x="396" y="382" as="geometry" />
+        </mxCell>
+        <mxCell id="QI9sHKwSaOquqooXMwA_-15" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="API weather data" vertex="1">
+          <mxGeometry height="60" width="120" x="12" y="511" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

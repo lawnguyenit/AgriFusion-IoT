@@ -1,0 +1,25 @@
+# Global local-only files
+Temp/
+Secrets/
+/.vscode/
+/.idea/
+.DS_Store
+Thumbs.db
+
+# Python caches and environments
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.venv/
+venv/
+.env
+.env.*
+
+# Backend
+Backend/.vscode/
+Backend/Firebase_data/
+
+# Docs
+Docs/Dataset_Durian/
+Docs/Papers/

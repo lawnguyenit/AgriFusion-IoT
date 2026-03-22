@@ -1,0 +1,472 @@
+﻿<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Agri-Connect UI Prototype</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div class="page-bg" aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div>
+      <p class="eyebrow">UI Prototype / Layout-first</p>
+      <h1>AGRI-CONNECT Web Mockup (tham chieu bo cuc app)</h1>
+      <p class="site-sub">
+        Ban nay tap trung vao bo tri thanh phan, hinh anh nen, va tuong tac giao dien. RTDB se gan sau.
+      </p>
+    </div>
+    <div class="header-actions" aria-label="View mode">
+      <button class="chip is-active" type="button" data-focus="all">All screens</button>
+      <button class="chip" type="button" data-focus="login">Login</button>
+      <button class="chip" type="button" data-focus="monitor">Monitoring</button>
+      <button class="chip" type="button" data-focus="detail">Detail</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="phones" id="prototypeShowcase" aria-label="App screens prototype">
+      <article class="phone phone--login" data-screen="login">
+        <div class="phone__chrome">
+          <span>12:45</span>
+          <div class="phone__icons" aria-hidden="true">
+            <span></span><span></span><span></span>
+          </div>
+        </div>
+
+        <div class="phone__body phone__body--hero">
+          <div class="hero-overlay"></div>
+          <div class="hero-content">
+            <div class="logo-mark" aria-hidden="true">
+              <svg viewBox="0 0 96 96" role="img">
+                <path d="M18 63c10 4 22 1 29-8 6-8 10-21 8-35-13 4-22 11-28 20-5 7-8 15-9 23Z" fill="currentColor" opacity=".92"/>
+                <path d="M50 62c8-1 16-6 21-13 8-11 10-25 7-39-12 3-20 9-25 17-5 8-6 19-3 35Z" fill="currentColor"/>
+                <path d="M55 22c13 0 24 8 28 20" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+                <path d="M61 14c15 0 27 10 31 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" opacity=".9"/>
+              </svg>
+            </div>
+
+            <div class="hero-brand">
+              <h2>AGRI-CONNECT</h2>
+              <p>Smart Farming, Sustainable Future</p>
+            </div>
+
+            <form class="login-form" id="loginForm">
+              <label class="field">
+                <span class="sr-only">Username</span>
+                <input type="text" placeholder="Username" />
+                <span class="field__icon" aria-hidden="true">USR</span>
+              </label>
+              <label class="field">
+                <span class="sr-only">Password</span>
+                <input type="password" placeholder="Password" />
+                <span class="field__icon" aria-hidden="true">KEY</span>
+              </label>
+              <button class="cta" type="submit">LOGIN</button>
+            </form>
+
+            <div class="hero-links">
+              <button class="text-link" type="button">Forgot Password?</button>
+              <button class="text-link" type="button">Create Account</button>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="phone phone--monitor is-primary" data-screen="monitor">
+        <div class="phone__chrome">
+          <span>12:45</span>
+          <div class="phone__icons" aria-hidden="true">
+            <span></span><span></span><span></span>
+          </div>
+        </div>
+
+        <div class="app-header">
+          <div class="app-brand">
+            <div class="app-brand__leaf" aria-hidden="true">AG</div>
+            <div>
+              <div class="app-brand__title">AGRI-CONNECT</div>
+              <div class="app-brand__sub">Smart Farming Dashboard</div>
+            </div>
+          </div>
+          <div class="app-header__actions">
+            <button class="icon-btn" type="button" aria-label="Profile">U</button>
+            <button class="icon-btn" type="button" aria-label="Settings">S</button>
+          </div>
+        </div>
+
+        <div class="screen-title">
+          <h2>Field Monitoring</h2>
+          <p>Card overview + quick control + map zone</p>
+        </div>
+
+        <div class="card-grid">
+          <button class="sensor-card is-selected" type="button" data-sensor="temperature" data-label="Temperature" data-value="28C" data-status="On track" data-note="Tang nhe buoi trua" data-detail-note="Nhiet do dang on dinh, khong can can thiep." data-unit="C">
+            <div class="sensor-card__head">
+              <span>Temperature</span>
+              <span class="sensor-icon">TMP</span>
+            </div>
+            <div class="sensor-card__value" data-bind="telemetry/temperature/value">28C</div>
+            <div class="sensor-card__sub">
+              <span data-bind="telemetry/temperature/baseline">24-32C</span>
+              <span class="spark">
+                <svg viewBox="0 0 90 28" aria-hidden="true">
+                  <path d="M2 22c9 0 10-10 18-10s8 12 18 12 10-14 18-14 8 9 16 9 9-7 16-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+              </span>
+            </div>
+          </button>
+
+          <button class="sensor-card" type="button" data-sensor="humidity" data-label="Humidity" data-value="65%" data-status="Healthy" data-note="Do am khong khi tot" data-detail-note="Do am khong khi phu hop cho van hanh hien tai." data-unit="%">
+            <div class="sensor-card__head">
+              <span>Humidity</span>
+              <span class="sensor-icon">HUM</span>
+            </div>
+            <div class="sensor-card__value" data-bind="telemetry/humidity/value">65%</div>
+            <div class="sensor-card__sub">
+              <span data-bind="telemetry/humidity/baseline">Target 60-70%</span>
+              <div class="drops" aria-hidden="true"><span></span><span></span><span></span></div>
+            </div>
+          </button>
+
+          <button class="sensor-card" type="button" data-sensor="soil" data-label="Soil Moisture" data-value="45%" data-status="Slightly dry" data-note="Nen tuoi nhe" data-detail-note="Dat bat dau kho. Goi y bat irrigation hoac manual cycle 15m." data-unit="%">
+            <div class="sensor-card__head">
+              <span>Soil Moisture</span>
+              <span class="sensor-icon">SOIL</span>
+            </div>
+            <div class="sensor-card__value" data-bind="telemetry/soilMoisture/value">45%</div>
+            <div class="sensor-card__sub">
+              <span>Sunny, chance of rain 20%</span>
+              <span class="weather-pair" aria-hidden="true">SUN / CLD</span>
+            </div>
+          </button>
+
+          <article class="sensor-card sensor-card--control" aria-labelledby="pesticideControlTitle">
+            <div class="sensor-card__head">
+              <span id="pesticideControlTitle">Weather / Pesticide</span>
+              <span class="sensor-icon">CTRL</span>
+            </div>
+            <p class="control-copy">Quick action card. Toggle demo only (no relay write yet).</p>
+            <button class="switch" type="button" role="switch" aria-checked="true" data-switch="pesticide">
+              <span class="switch__label">Pesticide Control</span>
+              <span class="switch__track"><span class="switch__thumb"></span></span>
+            </button>
+          </article>
+        </div>
+
+        <section class="map-panel" aria-labelledby="mapTitle">
+          <div class="map-panel__head">
+            <h3 id="mapTitle">Farm Zones</h3>
+            <span class="pill pill--soft">Map placeholder</span>
+          </div>
+          <div class="map-view" role="img" aria-label="Map placeholder with field markers">
+            <div class="road road--a"></div>
+            <div class="road road--b"></div>
+            <div class="parcel parcel--1"></div>
+            <div class="parcel parcel--2"></div>
+            <div class="parcel parcel--3"></div>
+            <button class="marker marker--warn" type="button" data-zone="Zone A" style="left:10%; top:46%;">2</button>
+            <button class="marker marker--ok" type="button" data-zone="Zone B" style="left:47%; top:28%;">1</button>
+            <button class="marker marker--ok" type="button" data-zone="Zone C" style="left:58%; top:56%;">3</button>
+            <button class="marker marker--info" type="button" data-zone="Pump" style="left:74%; top:33%;">4</button>
+            <button class="marker marker--err" type="button" data-zone="Valve 18" style="left:83%; top:62%;">18</button>
+          </div>
+        </section>
+
+        <nav class="bottom-nav" aria-label="Main">
+          <button class="bottom-nav__item is-active" type="button" data-nav="dashboard"><span class="bottom-nav__icon">HM</span><span>Dashboard</span></button>
+          <button class="bottom-nav__item" type="button" data-nav="reports"><span class="bottom-nav__icon">RP</span><span>Reports</span></button>
+          <button class="bottom-nav__item" type="button" data-nav="tasks"><span class="bottom-nav__icon">TK</span><span>Tasks</span></button>
+          <button class="bottom-nav__item" type="button" data-nav="settings"><span class="bottom-nav__icon">ST</span><span>Settings</span></button>
+        </nav>
+      </article>
+
+      <article class="phone phone--detail" data-screen="detail">
+        <div class="phone__chrome">
+          <span>12:45</span>
+          <div class="phone__icons" aria-hidden="true">
+            <span></span><span></span><span></span>
+          </div>
+        </div>
+
+        <div class="app-header">
+          <div class="app-brand">
+            <div class="app-brand__leaf" aria-hidden="true">AG</div>
+            <div>
+              <div class="app-brand__title">AGRI-CONNECT</div>
+              <div class="app-brand__sub">Reading Details / Control</div>
+            </div>
+          </div>
+          <div class="app-header__actions">
+            <button class="icon-btn" type="button" aria-label="Profile">U</button>
+            <button class="icon-btn" type="button" aria-label="Settings">S</button>
+          </div>
+        </div>
+
+        <div class="screen-title">
+          <h2>Detailed Readings &amp; Control</h2>
+          <p id="detailContext">Dang xem: Temperature</p>
+        </div>
+
+        <section class="detail-card detail-card--chart">
+          <div class="detail-card__head">
+            <h3 id="detailChartTitle">Temperature</h3>
+            <div class="segmented" role="tablist" aria-label="Chart range">
+              <button class="segmented__btn is-active" type="button" data-range="6h">6h</button>
+              <button class="segmented__btn" type="button" data-range="24h">24h</button>
+              <button class="segmented__btn" type="button" data-range="7d">7d</button>
+            </div>
+          </div>
+          <div class="mini-chart" id="detailChart" data-range="6h">
+            <svg viewBox="0 0 320 120" preserveAspectRatio="none" aria-hidden="true">
+              <defs>
+                <linearGradient id="fillArea" x1="0" x2="0" y1="0" y2="1">
+                  <stop offset="0%" stop-color="#9fcf69" stop-opacity="0.35"></stop>
+                  <stop offset="100%" stop-color="#9fcf69" stop-opacity="0.02"></stop>
+                </linearGradient>
+              </defs>
+              <g class="grid-lines">
+                <path d="M0 95H320M0 70H320M0 45H320M0 20H320" />
+                <path d="M40 0V120M95 0V120M150 0V120M205 0V120M260 0V120" />
+              </g>
+              <path class="area-path" d="M0 88 C40 80, 60 85, 90 74 C120 62, 145 70, 170 58 C205 40, 236 45, 260 34 C285 25, 300 28, 320 22 L320 120 L0 120 Z"></path>
+              <path class="line-path" d="M0 88 C40 80, 60 85, 90 74 C120 62, 145 70, 170 58 C205 40, 236 45, 260 34 C285 25, 300 28, 320 22"></path>
+            </svg>
+            <div class="chart-axis">
+              <span>12:00</span><span>15:00</span><span>18:00</span><span>21:00</span><span>24:00</span>
+            </div>
+          </div>
+        </section>
+
+        <div class="detail-split">
+          <article class="detail-card detail-card--metric" id="detailPrimaryMetric">
+            <h3 id="detailMetricTitle">Temperature</h3>
+            <div class="detail-metric__value" id="detailMetricValue" data-bind="telemetry/temperature/value">28C</div>
+            <p class="detail-metric__note" id="detailMetricNote">Tang nhe buoi trua</p>
+            <div class="detail-metric__spark">
+              <svg viewBox="0 0 110 28" aria-hidden="true">
+                <path d="M2 22c8 0 10-9 18-9 8 0 9 10 18 10 9 0 11-13 20-13 9 0 10 8 18 8 8 0 10-7 18-7s11 5 14 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </div>
+          </article>
+
+          <article class="detail-card detail-card--metric">
+            <h3>Irrigation Readiness</h3>
+            <div class="detail-metric__value"><span id="irrigationStateLabel">Auto ON</span></div>
+            <p class="detail-metric__note" id="irrigationHintText">He thong san sang kich hoat theo nguong do am.</p>
+            <div class="status-dots" aria-hidden="true">
+              <span class="is-on"></span><span></span><span></span>
+            </div>
+          </article>
+        </div>
+
+        <section class="detail-card detail-card--control">
+          <div class="detail-card__head detail-card__head--stack">
+            <div>
+              <h3>Irrigation Control</h3>
+              <p class="control-note"><strong>State:</strong> <span id="irrigationModeText">Auto mode enabled (mock UI).</span></p>
+            </div>
+            <button class="switch" type="button" role="switch" aria-checked="true" data-switch="irrigation">
+              <span class="switch__label">Automated Watering</span>
+              <span class="switch__track"><span class="switch__thumb"></span></span>
+            </button>
+          </div>
+          <div class="control-actions">
+            <button class="soft-btn" type="button" data-manual="5">Manual Cycle (5 min)</button>
+            <button class="soft-btn soft-btn--primary" type="button" data-manual="15">Manual Cycle (15 min)</button>
+            <button class="soft-btn" type="button" data-manual="30">Manual Cycle (30 min)</button>
+          </div>
+        </section>
+
+        <nav class="bottom-nav" aria-label="Main">
+          <button class="bottom-nav__item is-active" type="button" data-nav="dashboard"><span class="bottom-nav__icon">HM</span><span>Dashboard</span></button>
+          <button class="bottom-nav__item" type="button" data-nav="reports"><span class="bottom-nav__icon">RP</span><span>Reports</span></button>
+          <button class="bottom-nav__item" type="button" data-nav="tasks"><span class="bottom-nav__icon">TK</span><span>Tasks</span></button>
+          <button class="bottom-nav__item" type="button" data-nav="settings"><span class="bottom-nav__icon">ST</span><span>Settings</span></button>
+        </nav>
+      </article>
+    </section>
+
+    <aside class="spec-panel" aria-labelledby="specPanelTitle">
+      <div class="spec-panel__head">
+        <h2 id="specPanelTitle">Layout Mapping (de gan RTDB sau)</h2>
+        <span class="pill pill--soft">No backend yet</span>
+      </div>
+
+      <div class="spec-block">
+        <h3>Thanh phan dang focus</h3>
+        <p class="spec-highlight">
+          <strong id="inspectorLabel">Temperature</strong>
+          <span id="inspectorValue">28C</span>
+        </p>
+        <p id="inspectorNote">Nhiet do dang on dinh, khong can can thiep.</p>
+      </div>
+
+      <div class="spec-block">
+        <h3>De xuat bo tri web (tu app -> web)</h3>
+        <ul class="spec-list">
+          <li><strong>Header:</strong> ten he thong + timestamp + user/settings.</li>
+          <li><strong>Login hero:</strong> chi hien khi chua dang nhap; nen anh nong trai + form.</li>
+          <li><strong>Overview cards:</strong> 2x2 cho temperature, humidity, soil, quick action.</li>
+          <li><strong>Map/Zone:</strong> ben duoi overview cards; marker click de chon vung.</li>
+          <li><strong>Detail panel:</strong> chart + KPI + irrigation control theo sensor dang chon.</li>
+        </ul>
+      </div>
+
+      <div class="spec-block">
+        <h3>Placeholder RTDB keys (goi y)</h3>
+        <ul class="spec-list mono">
+          <li><code>telemetry/temperature/value</code></li>
+          <li><code>telemetry/humidity/value</code></li>
+          <li><code>telemetry/soilMoisture/value</code></li>
+          <li><code>devices/irrigation/autoEnabled</code></li>
+          <li><code>devices/pesticide/enabled</code></li>
+          <li><code>farm/zones/*/status</code></li>
+        </ul>
+      </div>
+    </aside>
+  </main>
+
+  <div class="toast" id="toast" aria-live="polite" aria-atomic="true"></div>
+
+  <script>
+    (function () {
+      const body = document.body;
+      const toast = document.getElementById('toast');
+      const detailChartTitle = document.getElementById('detailChartTitle');
+      const detailContext = document.getElementById('detailContext');
+      const detailMetricTitle = document.getElementById('detailMetricTitle');
+      const detailMetricValue = document.getElementById('detailMetricValue');
+      const detailMetricNote = document.getElementById('detailMetricNote');
+      const inspectorLabel = document.getElementById('inspectorLabel');
+      const inspectorValue = document.getElementById('inspectorValue');
+      const inspectorNote = document.getElementById('inspectorNote');
+      const irrigationModeText = document.getElementById('irrigationModeText');
+      const irrigationStateLabel = document.getElementById('irrigationStateLabel');
+      const irrigationHintText = document.getElementById('irrigationHintText');
+
+      const linePaths = {
+        '6h': 'M0 88 C40 80, 60 85, 90 74 C120 62, 145 70, 170 58 C205 40, 236 45, 260 34 C285 25, 300 28, 320 22',
+        '24h': 'M0 94 C30 90, 50 78, 76 80 C102 82, 120 70, 145 68 C175 66, 200 52, 226 44 C256 34, 286 38, 320 30',
+        '7d': 'M0 98 C28 72, 52 84, 78 64 C105 45, 125 69, 154 58 C183 47, 206 41, 232 49 C257 57, 286 31, 320 26'
+      };
+
+      function showToast(message) {
+        toast.textContent = message;
+        toast.classList.add('is-visible');
+        clearTimeout(showToast._t);
+        showToast._t = setTimeout(() => toast.classList.remove('is-visible'), 1800);
+      }
+
+      document.querySelectorAll('.chip[data-focus]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.chip[data-focus]').forEach((b) => b.classList.remove('is-active'));
+          btn.classList.add('is-active');
+          body.dataset.focus = btn.dataset.focus;
+        });
+      });
+
+      document.getElementById('loginForm')?.addEventListener('submit', (e) => {
+        e.preventDefault();
+        body.dataset.focus = 'monitor';
+        document.querySelectorAll('.chip[data-focus]').forEach((b) => {
+          b.classList.toggle('is-active', b.dataset.focus === 'monitor');
+        });
+        const monitor = document.querySelector('[data-screen="monitor"]');
+        monitor?.classList.add('flash');
+        setTimeout(() => monitor?.classList.remove('flash'), 700);
+        showToast('Mock login ok. Move to Field Monitoring.');
+        monitor?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      });
+
+      document.querySelectorAll('.sensor-card[data-sensor]').forEach((card) => {
+        card.addEventListener('click', () => {
+          document.querySelectorAll('.sensor-card[data-sensor]').forEach((c) => c.classList.remove('is-selected'));
+          card.classList.add('is-selected');
+
+          const label = card.dataset.label || 'Sensor';
+          const value = card.dataset.value || '--';
+          const note = card.dataset.note || '';
+          const detailNote = card.dataset.detailNote || note;
+
+          detailChartTitle.textContent = label;
+          detailContext.textContent = 'Dang xem: ' + label;
+          detailMetricTitle.textContent = label;
+          detailMetricValue.textContent = value;
+          detailMetricNote.textContent = note;
+          inspectorLabel.textContent = label;
+          inspectorValue.textContent = value;
+          inspectorNote.textContent = detailNote;
+          showToast('Selected ' + label + ' for detail panel.');
+        });
+      });
+
+      document.querySelectorAll('.segmented__btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const segmented = btn.closest('.segmented');
+          segmented.querySelectorAll('.segmented__btn').forEach((b) => b.classList.remove('is-active'));
+          btn.classList.add('is-active');
+          const range = btn.dataset.range;
+          const chart = document.getElementById('detailChart');
+          const line = chart.querySelector('.line-path');
+          const area = chart.querySelector('.area-path');
+          const d = linePaths[range] || linePaths['6h'];
+          line.setAttribute('d', d);
+          area.setAttribute('d', d + ' L320 120 L0 120 Z');
+          chart.dataset.range = range;
+          showToast('Chart range: ' + range + ' (mock)');
+        });
+      });
+
+      document.querySelectorAll('.switch').forEach((sw) => {
+        sw.addEventListener('click', () => {
+          const checked = sw.getAttribute('aria-checked') === 'true';
+          sw.setAttribute('aria-checked', String(!checked));
+          const key = sw.dataset.switch || 'control';
+
+          if (key === 'irrigation') {
+            irrigationModeText.textContent = !checked
+              ? 'Auto mode enabled (mock UI).'
+              : 'Auto mode disabled, manual trigger available.';
+            irrigationStateLabel.textContent = !checked ? 'Auto ON' : 'Auto OFF';
+            irrigationHintText.textContent = !checked
+              ? 'He thong san sang kich hoat theo nguong do am.'
+              : 'Can theo doi dashboard va kich hoat bang tay.';
+          }
+
+          showToast(key + ': ' + (!checked ? 'ON' : 'OFF'));
+        });
+      });
+
+      document.querySelectorAll('.bottom-nav').forEach((nav) => {
+        nav.addEventListener('click', (e) => {
+          const btn = e.target.closest('.bottom-nav__item');
+          if (!btn) return;
+          nav.querySelectorAll('.bottom-nav__item').forEach((i) => i.classList.remove('is-active'));
+          btn.classList.add('is-active');
+          showToast('Bottom nav: ' + btn.dataset.nav + ' (layout demo)');
+        });
+      });
+
+      document.querySelectorAll('.marker').forEach((marker) => {
+        marker.addEventListener('click', () => {
+          showToast('Selected ' + (marker.dataset.zone || 'zone') + ' (mock)');
+        });
+      });
+
+      document.querySelectorAll('[data-manual]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('[data-manual]').forEach((b) => b.classList.remove('is-running'));
+          btn.classList.add('is-running');
+          showToast('Manual irrigation ' + btn.dataset.manual + ' min (mock trigger)');
+          setTimeout(() => btn.classList.remove('is-running'), 1200);
+        });
+      });
+    })();
+  </script>
+</body>
+</html>
