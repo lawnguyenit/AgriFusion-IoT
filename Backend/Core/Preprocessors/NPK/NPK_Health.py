@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from ..common import clamp, safe_float, severity_from_confidence, summarize_issues
+from ..Untils.common import clamp, safe_float, severity_from_confidence, summarize_issues
 
 # These weights are internal confidence penalties for downstream agents.
 # They are not vendor-provided percentages. The structure comes from:

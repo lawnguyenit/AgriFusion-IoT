@@ -1,0 +1,170 @@
+{
+  "schema_version": 1,
+  "layer": "layer2",
+  "processor_name": "sht30_preprocessor",
+  "agent_name": "sht30_agent",
+  "sensor_id": "sht30_1",
+  "sensor_type": "sht30_air",
+  "source": {
+    "event_key": "1774109135_024",
+    "date_key": "2026-03-21",
+    "path": "Node2/telemetry/2026-03-21/1774109135_024",
+    "origin": "history"
+  },
+  "timestamps": {
+    "ts_device": 1774109062,
+    "ts_server": 1774109135,
+    "observed_at_local": "2026-03-21T23:05:35+07:00"
+  },
+  "perception": {
+    "temp_air_c": 24.29,
+    "humidity_air_pct": 81.79,
+    "sensor_quality": 0.971
+  },
+  "health": {
+    "status": "ok",
+    "confidence": 0.971,
+    "severity": "info",
+    "issues": [],
+    "summary": "SHT30 sensor health is stable",
+    "evidence": {
+      "sht_read_ok": true,
+      "sht_sample_valid": true,
+      "sht_invalid_streak": 0,
+      "sht_retry_count": 0,
+      "battery_v": 12.11,
+      "quality": 0.971
+    }
+  },
+  "memory": {
+    "window_hours": [
+      3,
+      8,
+      24
+    ],
+    "windows": {
+      "3h": {
+        "count": 4,
+        "sampling_interval_sec_median": 3521,
+        "coverage_hours": 2.977,
+        "temp_air_c": {
+          "count": 4,
+          "current": 24.29,
+          "min": 24.29,
+          "max": 25.25,
+          "avg": 24.705,
+          "delta_from_start": -0.96,
+          "trend": "falling",
+          "trend_per_hour": -0.3224
+        },
+        "humidity_air_pct": {
+          "count": 4,
+          "current": 81.79,
+          "min": 80.28,
+          "max": 81.79,
+          "avg": 81.2625,
+          "delta_from_start": 0.48,
+          "trend": "stable",
+          "trend_per_hour": 0.1612
+        }
+      },
+      "8h": {
+        "count": 9,
+        "sampling_interval_sec_median": 3561,
+        "coverage_hours": 7.964,
+        "temp_air_c": {
+          "count": 9,
+          "current": 24.29,
+          "min": 24.29,
+          "max": 27.41,
+          "avg": 25.3444,
+          "delta_from_start": -3.12,
+          "trend": "falling",
+          "trend_per_hour": -0.3917
+        },
+        "humidity_air_pct": {
+          "count": 9,
+          "current": 81.79,
+          "min": 76.18,
+          "max": 90.61,
+          "avg": 82.3244,
+          "delta_from_start": 5.61,
+          "trend": "rising",
+          "trend_per_hour": 0.7044
+        }
+      },
+      "24h": {
+        "count": 25,
+        "sampling_interval_sec_median": 3595,
+        "coverage_hours": 24.0,
+        "temp_air_c": {
+          "count": 25,
+          "current": 24.29,
+          "min": 24.29,
+          "max": 28.57,
+          "avg": 26.1364,
+          "delta_from_start": -0.36,
+          "trend": "falling",
+          "trend_per_hour": -0.015
+        },
+        "humidity_air_pct": {
+          "count": 25,
+          "current": 81.79,
+          "min": 67.01,
+          "max": 90.61,
+          "avg": 77.3916,
+          "delta_from_start": 4.85,
+          "trend": "rising",
+          "trend_per_hour": 0.2021
+        }
+      }
+    }
+  },
+  "context": {
+    "hour_of_day": "23",
+    "sample_interval_ms": 53,
+    "macro_humidity_trend_24h": "rising",
+    "transport": "sim",
+    "battery_v": 12.11
+  },
+  "inference_hints": {
+    "status": "ok",
+    "summary": "Air-climate stream is stable for the domain agent.",
+    "flags": {
+      "humidity_spike": false,
+      "condensation_risk": false,
+      "heat_stress": false,
+      "sensor_fault_possible": false
+    },
+    "signals": {
+      "air_stress_score": 0.0895,
+      "weather_driven_likelihood": 0.3924,
+      "sensor_confidence": 0.971,
+      "condensation_risk": 0.0,
+      "macro_humidity_trend": "rising",
+      "temp_trend_8h": "falling"
+    }
+  },
+  "layer3_interface": {
+    "agent_name": "sht30_agent",
+    "timestamp": "2026-03-21T23:05:35+07:00",
+    "status": "ok",
+    "confidence": 0.971,
+    "severity": "info",
+    "summary": "Air-climate stream is stable for the domain agent.",
+    "payload": {
+      "air_stress_score": 0.0895,
+      "weather_driven_likelihood": 0.3924,
+      "sensor_confidence": 0.971,
+      "condensation_risk": 0.0,
+      "macro_humidity_trend": "rising",
+      "temp_trend_8h": "falling"
+    }
+  },
+  "handoff": {
+    "target_layer": "layer3_domain_agent",
+    "target_agent": "sht30_agent",
+    "ready": true,
+    "reason": "Air-climate stream is stable for the domain agent."
+  }
+}

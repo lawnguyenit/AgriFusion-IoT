@@ -1,0 +1,460 @@
+{
+  "schema_version": 1,
+  "layer": "layer2",
+  "processor_name": "meteo_preprocessor",
+  "agent_name": "meteo_agent",
+  "sensor_id": "open_meteo_10.0853_105.8678",
+  "sensor_type": "open_meteo_hourly",
+  "source": {
+    "event_key": "1775145600",
+    "date_key": "2026-04-02",
+    "path": "weather/open_meteo_10.0853_105.8678/2026-04-02/1775145600",
+    "origin": "latest"
+  },
+  "timestamps": {
+    "ts_device": 1775145600,
+    "ts_server": 1775145600,
+    "ts_hour_bucket": 1775145600,
+    "observed_at_local": "2026-04-02T23:00:00+07:00",
+    "observed_at_hour_local": "2026-04-02T23:00:00+07:00"
+  },
+  "perception": {
+    "temp_air_c": null,
+    "humidity_air_pct": null,
+    "rain_mm": null,
+    "precipitation_mm": null,
+    "dew_point_c": null,
+    "cloud_cover_pct": null,
+    "cloud_cover_high_pct": null,
+    "soil_temp_0_7cm_c": null,
+    "et0_mm": null,
+    "weather_code": null,
+    "is_day": 0.0,
+    "sensor_quality": 0.06
+  },
+  "health": {
+    "status": "fault",
+    "confidence": 0.06,
+    "severity": "high",
+    "issues": [
+      "Missing core weather metric: temperature_2m",
+      "Missing core weather metric: relative_humidity_2m",
+      "Missing core weather metric: precipitation",
+      "Missing secondary weather metric: cloud_cover",
+      "Missing secondary weather metric: et0_fao_evapotranspiration",
+      "Missing secondary weather metric: soil_temperature_0_to_7cm",
+      "Missing secondary weather metric: weather_code"
+    ],
+    "summary": "Missing core weather metric: temperature_2m; Missing core weather metric: relative_humidity_2m; Missing core weather metric: precipitation",
+    "evidence": {
+      "core_metrics_present": {
+        "temperature_2m": false,
+        "relative_humidity_2m": false,
+        "precipitation": false
+      },
+      "secondary_metrics_present": {
+        "cloud_cover": false,
+        "et0_fao_evapotranspiration": false,
+        "soil_temperature_0_to_7cm": false,
+        "weather_code": false
+      }
+    }
+  },
+  "memory": {
+    "window_hours": [
+      3,
+      6,
+      24,
+      72
+    ],
+    "windows": {
+      "3h": {
+        "count": 4,
+        "sampling_interval_sec_median": 3600,
+        "coverage_hours": 3.0,
+        "temp_air_c": {
+          "count": 0,
+          "current": null,
+          "min": null,
+          "max": null,
+          "avg": null,
+          "delta_from_start": null,
+          "trend": "unknown",
+          "trend_per_hour": null
+        },
+        "humidity_air_pct": {
+          "count": 0,
+          "current": null,
+          "min": null,
+          "max": null,
+          "avg": null,
+          "delta_from_start": null,
+          "trend": "unknown",
+          "trend_per_hour": null
+        },
+        "rain_mm": {
+          "count": 0,
+          "current": null,
+          "min": null,
+          "max": null,
+          "avg": null,
+          "delta_from_start": null,
+          "trend": "unknown",
+          "trend_per_hour": null
+        },
+        "precipitation_mm": {
+          "count": 0,
+          "current": null,
+          "min": null,
+          "max": null,
+          "avg": null,
+          "delta_from_start": null,
+          "trend": "unknown",
+          "trend_per_hour": null
+        },
+        "dew_point_c": {
+          "count": 0,
+          "current": null,
+          "min": null,
+          "max": null,
+          "avg": null,
+          "delta_from_start": null,
+          "trend": "unknown",
+          "trend_per_hour": null
+        },
+        "cloud_cover_pct": {
+          "count": 0,
+          "current": null,
+          "min": null,
+          "max": null,
+          "avg": null,
+          "delta_from_start": null,
+          "trend": "unknown",
+          "trend_per_hour": null
+        },
+        "soil_temp_0_7cm_c": {
+          "count": 0,
+          "current": null,
+          "min": null,
+          "max": null,
+          "avg": null,
+          "delta_from_start": null,
+          "trend": "unknown",
+          "trend_per_hour": null
+        },
+        "et0_mm": {
+          "count": 0,
+          "current": null,
+          "min": null,
+          "max": null,
+          "avg": null,
+          "delta_from_start": null,
+          "trend": "unknown",
+          "trend_per_hour": null
+        }
+      },
+      "6h": {
+        "count": 7,
+        "sampling_interval_sec_median": 3600,
+        "coverage_hours": 6.0,
+        "temp_air_c": {
+          "count": 0,
+          "current": null,
+          "min": null,
+          "max": null,
+          "avg": null,
+          "delta_from_start": null,
+          "trend": "unknown",
+          "trend_per_hour": null
+        },
+        "humidity_air_pct": {
+          "count": 0,
+          "current": null,
+          "min": null,
+          "max": null,
+          "avg": null,
+          "delta_from_start": null,
+          "trend": "unknown",
+          "trend_per_hour": null
+        },
+        "rain_mm": {
+          "count": 0,
+          "current": null,
+          "min": null,
+          "max": null,
+          "avg": null,
+          "delta_from_start": null,
+          "trend": "unknown",
+          "trend_per_hour": null
+        },
+        "precipitation_mm": {
+          "count": 0,
+          "current": null,
+          "min": null,
+          "max": null,
+          "avg": null,
+          "delta_from_start": null,
+          "trend": "unknown",
+          "trend_per_hour": null
+        },
+        "dew_point_c": {
+          "count": 0,
+          "current": null,
+          "min": null,
+          "max": null,
+          "avg": null,
+          "delta_from_start": null,
+          "trend": "unknown",
+          "trend_per_hour": null
+        },
+        "cloud_cover_pct": {
+          "count": 0,
+          "current": null,
+          "min": null,
+          "max": null,
+          "avg": null,
+          "delta_from_start": null,
+          "trend": "unknown",
+          "trend_per_hour": null
+        },
+        "soil_temp_0_7cm_c": {
+          "count": 0,
+          "current": null,
+          "min": null,
+          "max": null,
+          "avg": null,
+          "delta_from_start": null,
+          "trend": "unknown",
+          "trend_per_hour": null
+        },
+        "et0_mm": {
+          "count": 0,
+          "current": null,
+          "min": null,
+          "max": null,
+          "avg": null,
+          "delta_from_start": null,
+          "trend": "unknown",
+          "trend_per_hour": null
+        }
+      },
+      "24h": {
+        "count": 25,
+        "sampling_interval_sec_median": 3600,
+        "coverage_hours": 24.0,
+        "temp_air_c": {
+          "count": 0,
+          "current": null,
+          "min": null,
+          "max": null,
+          "avg": null,
+          "delta_from_start": null,
+          "trend": "unknown",
+          "trend_per_hour": null
+        },
+        "humidity_air_pct": {
+          "count": 0,
+          "current": null,
+          "min": null,
+          "max": null,
+          "avg": null,
+          "delta_from_start": null,
+          "trend": "unknown",
+          "trend_per_hour": null
+        },
+        "rain_mm": {
+          "count": 0,
+          "current": null,
+          "min": null,
+          "max": null,
+          "avg": null,
+          "delta_from_start": null,
+          "trend": "unknown",
+          "trend_per_hour": null
+        },
+        "precipitation_mm": {
+          "count": 0,
+          "current": null,
+          "min": null,
+          "max": null,
+          "avg": null,
+          "delta_from_start": null,
+          "trend": "unknown",
+          "trend_per_hour": null
+        },
+        "dew_point_c": {
+          "count": 0,
+          "current": null,
+          "min": null,
+          "max": null,
+          "avg": null,
+          "delta_from_start": null,
+          "trend": "unknown",
+          "trend_per_hour": null
+        },
+        "cloud_cover_pct": {
+          "count": 0,
+          "current": null,
+          "min": null,
+          "max": null,
+          "avg": null,
+          "delta_from_start": null,
+          "trend": "unknown",
+          "trend_per_hour": null
+        },
+        "soil_temp_0_7cm_c": {
+          "count": 0,
+          "current": null,
+          "min": null,
+          "max": null,
+          "avg": null,
+          "delta_from_start": null,
+          "trend": "unknown",
+          "trend_per_hour": null
+        },
+        "et0_mm": {
+          "count": 0,
+          "current": null,
+          "min": null,
+          "max": null,
+          "avg": null,
+          "delta_from_start": null,
+          "trend": "unknown",
+          "trend_per_hour": null
+        }
+      },
+      "72h": {
+        "count": 73,
+        "sampling_interval_sec_median": 3600,
+        "coverage_hours": 72.0,
+        "temp_air_c": {
+          "count": 0,
+          "current": null,
+          "min": null,
+          "max": null,
+          "avg": null,
+          "delta_from_start": null,
+          "trend": "unknown",
+          "trend_per_hour": null
+        },
+        "humidity_air_pct": {
+          "count": 0,
+          "current": null,
+          "min": null,
+          "max": null,
+          "avg": null,
+          "delta_from_start": null,
+          "trend": "unknown",
+          "trend_per_hour": null
+        },
+        "rain_mm": {
+          "count": 0,
+          "current": null,
+          "min": null,
+          "max": null,
+          "avg": null,
+          "delta_from_start": null,
+          "trend": "unknown",
+          "trend_per_hour": null
+        },
+        "precipitation_mm": {
+          "count": 0,
+          "current": null,
+          "min": null,
+          "max": null,
+          "avg": null,
+          "delta_from_start": null,
+          "trend": "unknown",
+          "trend_per_hour": null
+        },
+        "dew_point_c": {
+          "count": 0,
+          "current": null,
+          "min": null,
+          "max": null,
+          "avg": null,
+          "delta_from_start": null,
+          "trend": "unknown",
+          "trend_per_hour": null
+        },
+        "cloud_cover_pct": {
+          "count": 0,
+          "current": null,
+          "min": null,
+          "max": null,
+          "avg": null,
+          "delta_from_start": null,
+          "trend": "unknown",
+          "trend_per_hour": null
+        },
+        "soil_temp_0_7cm_c": {
+          "count": 0,
+          "current": null,
+          "min": null,
+          "max": null,
+          "avg": null,
+          "delta_from_start": null,
+          "trend": "unknown",
+          "trend_per_hour": null
+        },
+        "et0_mm": {
+          "count": 0,
+          "current": null,
+          "min": null,
+          "max": null,
+          "avg": null,
+          "delta_from_start": null,
+          "trend": "unknown",
+          "trend_per_hour": null
+        }
+      }
+    }
+  },
+  "context": {
+    "hour_of_day": "23",
+    "is_day": 0.0,
+    "weather_code": null,
+    "timezone": "Asia/Ho_Chi_Minh",
+    "provider": "open-meteo"
+  },
+  "inference_hints": {
+    "status": "fault",
+    "summary": "Weather handoff confidence is low because key meteorology fields are missing.",
+    "flags": {
+      "rain_event": false,
+      "heat_stress": false,
+      "humidity_alert": false,
+      "sensor_fault_possible": true
+    },
+    "signals": {
+      "rain_event": false,
+      "heat_stress": false,
+      "humidity_alert": false,
+      "precipitation_delta_24h": null,
+      "humidity_trend_24h": "unknown",
+      "sensor_confidence": 0.06
+    }
+  },
+  "layer3_interface": {
+    "agent_name": "meteo_agent",
+    "timestamp": "2026-04-02T23:00:00+07:00",
+    "status": "fault",
+    "confidence": 0.06,
+    "severity": "high",
+    "summary": "Weather handoff confidence is low because key meteorology fields are missing.",
+    "payload": {
+      "rain_event": false,
+      "heat_stress": false,
+      "humidity_alert": false,
+      "precipitation_delta_24h": null,
+      "humidity_trend_24h": "unknown",
+      "sensor_confidence": 0.06
+    }
+  },
+  "handoff": {
+    "target_layer": "layer3_domain_agent",
+    "target_agent": "meteo_agent",
+    "ready": false,
+    "reason": "Weather handoff confidence is low because key meteorology fields are missing."
+  }
+}

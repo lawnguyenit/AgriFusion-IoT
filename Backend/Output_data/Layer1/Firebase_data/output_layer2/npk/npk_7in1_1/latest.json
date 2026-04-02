@@ -1,0 +1,329 @@
+{
+  "schema_version": 1,
+  "layer": "layer2",
+  "processor_name": "npk_preprocessor",
+  "agent_name": "npk_agent",
+  "sensor_id": "npk_7in1_1",
+  "sensor_type": "npk7in1",
+  "source": {
+    "event_key": "1774109135_024",
+    "date_key": "2026-03-21",
+    "path": "Node2/telemetry/2026-03-21/1774109135_024",
+    "origin": "history"
+  },
+  "timestamps": {
+    "ts_device": 1774109062,
+    "ts_server": 1774109135,
+    "observed_at_local": "2026-03-21T23:05:35+07:00"
+  },
+  "perception": {
+    "n_ppm": 99.0,
+    "p_ppm": 38.0,
+    "k_ppm": 79.0,
+    "soil_temp_c": 24.97,
+    "soil_humidity_pct": 65.18,
+    "soil_ph": 6.05,
+    "soil_ec_us_cm": 851.0,
+    "sensor_quality": 0.907
+  },
+  "health": {
+    "status": "ok",
+    "confidence": 0.907,
+    "severity": "info",
+    "issues": [],
+    "summary": "NPK sensor health is stable",
+    "evidence": {
+      "read_ok": true,
+      "frame_ok": true,
+      "crc_ok": true,
+      "npk_values_valid": true,
+      "retry_count": 1,
+      "battery_v": 12.11,
+      "quality": 0.907
+    }
+  },
+  "memory": {
+    "window_hours": [
+      6,
+      24,
+      72
+    ],
+    "windows": {
+      "6h": {
+        "count": 7,
+        "sampling_interval_sec_median": 3561,
+        "coverage_hours": 5.968,
+        "n_ppm": {
+          "count": 7,
+          "current": 99.0,
+          "min": 99.0,
+          "max": 100.0,
+          "avg": 99.4286,
+          "delta_from_start": 0.0,
+          "trend": "stable",
+          "trend_per_hour": 0.0
+        },
+        "p_ppm": {
+          "count": 7,
+          "current": 38.0,
+          "min": 37.0,
+          "max": 38.0,
+          "avg": 37.8571,
+          "delta_from_start": 1.0,
+          "trend": "rising",
+          "trend_per_hour": 0.1676
+        },
+        "k_ppm": {
+          "count": 7,
+          "current": 79.0,
+          "min": 77.0,
+          "max": 79.0,
+          "avg": 78.2857,
+          "delta_from_start": 2.0,
+          "trend": "rising",
+          "trend_per_hour": 0.3351
+        },
+        "soil_temp_c": {
+          "count": 7,
+          "current": 24.97,
+          "min": 24.08,
+          "max": 25.67,
+          "avg": 25.0871,
+          "delta_from_start": 0.89,
+          "trend": "rising",
+          "trend_per_hour": 0.1491
+        },
+        "soil_humidity_pct": {
+          "count": 7,
+          "current": 65.18,
+          "min": 64.67,
+          "max": 77.24,
+          "avg": 67.6171,
+          "delta_from_start": -12.06,
+          "trend": "falling",
+          "trend_per_hour": -2.0208
+        },
+        "soil_ph": {
+          "count": 7,
+          "current": 6.05,
+          "min": 6.01,
+          "max": 6.05,
+          "avg": 6.0286,
+          "delta_from_start": 0.04,
+          "trend": "stable",
+          "trend_per_hour": 0.0067
+        },
+        "soil_ec_us_cm": {
+          "count": 7,
+          "current": 851.0,
+          "min": 819.0,
+          "max": 866.0,
+          "avg": 849.1429,
+          "delta_from_start": 32.0,
+          "trend": "rising",
+          "trend_per_hour": 5.3619
+        }
+      },
+      "24h": {
+        "count": 25,
+        "sampling_interval_sec_median": 3595,
+        "coverage_hours": 24.0,
+        "n_ppm": {
+          "count": 25,
+          "current": 99.0,
+          "min": 97.0,
+          "max": 100.0,
+          "avg": 99.16,
+          "delta_from_start": 1.0,
+          "trend": "rising",
+          "trend_per_hour": 0.0417
+        },
+        "p_ppm": {
+          "count": 25,
+          "current": 38.0,
+          "min": 37.0,
+          "max": 39.0,
+          "avg": 37.96,
+          "delta_from_start": -1.0,
+          "trend": "falling",
+          "trend_per_hour": -0.0417
+        },
+        "k_ppm": {
+          "count": 25,
+          "current": 79.0,
+          "min": 77.0,
+          "max": 80.0,
+          "avg": 78.16,
+          "delta_from_start": -1.0,
+          "trend": "falling",
+          "trend_per_hour": -0.0417
+        },
+        "soil_temp_c": {
+          "count": 25,
+          "current": 24.97,
+          "min": 24.08,
+          "max": 27.39,
+          "avg": 25.4516,
+          "delta_from_start": -0.23,
+          "trend": "stable",
+          "trend_per_hour": -0.0096
+        },
+        "soil_humidity_pct": {
+          "count": 25,
+          "current": 65.18,
+          "min": 64.52,
+          "max": 77.56,
+          "avg": 68.126,
+          "delta_from_start": -1.18,
+          "trend": "falling",
+          "trend_per_hour": -0.0492
+        },
+        "soil_ph": {
+          "count": 25,
+          "current": 6.05,
+          "min": 6.01,
+          "max": 6.06,
+          "avg": 6.036,
+          "delta_from_start": 0.0,
+          "trend": "stable",
+          "trend_per_hour": 0.0
+        },
+        "soil_ec_us_cm": {
+          "count": 25,
+          "current": 851.0,
+          "min": 814.0,
+          "max": 867.0,
+          "avg": 847.56,
+          "delta_from_start": 5.0,
+          "trend": "stable",
+          "trend_per_hour": 0.2083
+        }
+      },
+      "72h": {
+        "count": 73,
+        "sampling_interval_sec_median": 3595,
+        "coverage_hours": 72.0,
+        "n_ppm": {
+          "count": 73,
+          "current": 99.0,
+          "min": 97.0,
+          "max": 101.0,
+          "avg": 99.0548,
+          "delta_from_start": 0.0,
+          "trend": "stable",
+          "trend_per_hour": 0.0
+        },
+        "p_ppm": {
+          "count": 73,
+          "current": 38.0,
+          "min": 37.0,
+          "max": 39.0,
+          "avg": 38.1233,
+          "delta_from_start": -1.0,
+          "trend": "falling",
+          "trend_per_hour": -0.0139
+        },
+        "k_ppm": {
+          "count": 73,
+          "current": 79.0,
+          "min": 77.0,
+          "max": 81.0,
+          "avg": 78.8082,
+          "delta_from_start": 0.0,
+          "trend": "stable",
+          "trend_per_hour": 0.0
+        },
+        "soil_temp_c": {
+          "count": 73,
+          "current": 24.97,
+          "min": 24.08,
+          "max": 27.83,
+          "avg": 25.7184,
+          "delta_from_start": -0.16,
+          "trend": "stable",
+          "trend_per_hour": -0.0022
+        },
+        "soil_humidity_pct": {
+          "count": 73,
+          "current": 65.18,
+          "min": 63.69,
+          "max": 79.17,
+          "avg": 68.5347,
+          "delta_from_start": -0.75,
+          "trend": "falling",
+          "trend_per_hour": -0.0104
+        },
+        "soil_ph": {
+          "count": 73,
+          "current": 6.05,
+          "min": 5.99,
+          "max": 6.06,
+          "avg": 6.0303,
+          "delta_from_start": 0.02,
+          "trend": "stable",
+          "trend_per_hour": 0.0003
+        },
+        "soil_ec_us_cm": {
+          "count": 73,
+          "current": 851.0,
+          "min": 798.0,
+          "max": 867.0,
+          "avg": 840.5753,
+          "delta_from_start": 11.0,
+          "trend": "rising",
+          "trend_per_hour": 0.1528
+        }
+      }
+    }
+  },
+  "context": {
+    "hour_of_day": "23",
+    "sample_interval_ms": 3600000,
+    "soil_moisture_trend_24h": "falling",
+    "transport": "sim",
+    "battery_v": 12.11
+  },
+  "inference_hints": {
+    "status": "ok",
+    "summary": "NPK ratio is imbalanced and should be reviewed by the domain agent.",
+    "flags": {
+      "nutrient_imbalance": true,
+      "possible_leaching": false,
+      "ph_out_of_band": false,
+      "salinity_risk_high": false,
+      "sensor_fault_possible": false
+    },
+    "signals": {
+      "nutrient_balance_index": 0.6162,
+      "salinity_risk": 0.0,
+      "ph_out_of_band": false,
+      "ph_shift_24h": 0.0,
+      "possible_leaching": false,
+      "soil_moisture_trend": "falling",
+      "sensor_confidence": 0.907
+    }
+  },
+  "layer3_interface": {
+    "agent_name": "npk_agent",
+    "timestamp": "2026-03-21T23:05:35+07:00",
+    "status": "ok",
+    "confidence": 0.907,
+    "severity": "info",
+    "summary": "NPK ratio is imbalanced and should be reviewed by the domain agent.",
+    "payload": {
+      "nutrient_balance_index": 0.6162,
+      "salinity_risk": 0.0,
+      "ph_out_of_band": false,
+      "ph_shift_24h": 0.0,
+      "possible_leaching": false,
+      "soil_moisture_trend": "falling",
+      "sensor_confidence": 0.907
+    }
+  },
+  "handoff": {
+    "target_layer": "layer3_domain_agent",
+    "target_agent": "npk_agent",
+    "ready": true,
+    "reason": "NPK ratio is imbalanced and should be reviewed by the domain agent."
+  }
+}

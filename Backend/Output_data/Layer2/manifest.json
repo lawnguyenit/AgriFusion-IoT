@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "pipeline": "layer2_preprocessing",
+  "ran_at_utc": "2026-04-02T15:01:35Z",
+  "source": {
+    "firebase": {
+      "history_root": "D:\\AgriFusion-IoT\\Backend\\Output_data\\Layer1\\Firebase_data\\history",
+      "latest_payload_path": "D:\\AgriFusion-IoT\\Backend\\Output_data\\Layer1\\Firebase_data\\new_raw\\latest.json",
+      "latest_meta_path": "D:\\AgriFusion-IoT\\Backend\\Output_data\\Layer1\\Firebase_data\\new_raw\\latest_meta.json"
+    },
+    "meteo": {
+      "history_root": "D:\\AgriFusion-IoT\\Backend\\Output_data\\Layer1\\OpenMeteo_Data\\Meteo_data\\history",
+      "latest_payload_path": "D:\\AgriFusion-IoT\\Backend\\Output_data\\Layer1\\OpenMeteo_Data\\Meteo_data\\new_raw\\latest.json",
+      "latest_meta_path": "D:\\AgriFusion-IoT\\Backend\\Output_data\\Layer1\\OpenMeteo_Data\\Meteo_data\\new_raw\\latest_meta.json"
+    }
+  },
+  "processed_source_records": 432,
+  "total_new_snapshots": 432,
+  "targets": {
+    "sht30/sht30_1": 0,
+    "npk/npk_7in1_1": 0,
+    "meteo/open_meteo_10.0853_105.8678": 432
+  }
+}

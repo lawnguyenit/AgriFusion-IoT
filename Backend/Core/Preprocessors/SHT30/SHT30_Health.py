@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from ..common import clamp, severity_from_confidence, summarize_issues
+from ..Untils.common import clamp, severity_from_confidence, summarize_issues
 
 # These are internal confidence penalties, not Sensirion datasheet values.
 # The datasheet tells us the sensor's nominal capability; the penalties below
@@ -22,6 +22,24 @@ def assess_sht30_health(
     health_payload: dict[str, Any],
     overall_health: dict[str, Any],
 ) -> dict[str, Any]:
+    """
+    Kiểm tra sức khỏe của cảm biến SHT30 dựa trên các chỉ số đọc được và trạng thái hệ thống, trả về một đánh giá tổng thể bao gồm:
+    - Trạng thái sức khỏe (ok, degraded, fault)
+    - Điểm tin cậy (confidence) từ 0 đến 1
+    - Mức độ nghiêm trọng (severity) dựa trên điểm tin cậy
+    - Các vấn đề cụ thể được xác định (issues)
+    - Tóm tắt các vấn đề (summary)
+    - Bằng chứng chi tiết hỗ trợ đánh giá (evidence)    
+
+    Args:
+        packet_payload (dict[str, Any]): _description_
+        sensor_payload (dict[str, Any]): _description_
+        health_payload (dict[str, Any]): _description_
+        overall_health (dict[str, Any]): _description_
+
+    Returns:
+        dict[str, Any]: _description_
+    """    
     issues: list[str] = []
     confidence = float(health_payload.get("quality") or sensor_payload.get("quality") or 0.8)
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from ..common import build_window_stats, clamp, format_local_iso, safe_float
+from ..Untils.common import build_window_stats, clamp, floor_ts_to_hour, format_local_iso, safe_float
 from .NPK_Health import assess_npk_health
 
 try:
@@ -45,7 +45,9 @@ class NPKProcessor:
 
         sensor_id = str(packet_payload.get("sensor_id"))
         ts_server = source_record.ts_server
+        ts_hour_bucket = source_record.ts_hour_bucket or floor_ts_to_hour(ts_server)
         local_iso = format_local_iso(ts_server, EXPORT_SETTINGS.timezone)
+        bucket_local_iso = format_local_iso(ts_hour_bucket, EXPORT_SETTINGS.timezone)
 
         perception = {
             "n_ppm": safe_float(packet_payload.get("N")),
@@ -61,12 +63,13 @@ class NPKProcessor:
         provisional_snapshot: dict[str, Any] = {
             "timestamps": {
                 "ts_server": ts_server,
+                "ts_hour_bucket": ts_hour_bucket,
             },
             "perception": perception,
         }
         windows = build_window_stats(
             records=history_records + [provisional_snapshot],
-            observed_ts=ts_server,
+            observed_ts=ts_hour_bucket,
             metric_keys=(
                 "n_ppm",
                 "p_ppm",
@@ -169,7 +172,9 @@ class NPKProcessor:
             "timestamps": {
                 "ts_device": source_record.ts_device,
                 "ts_server": ts_server,
+                "ts_hour_bucket": ts_hour_bucket,
                 "observed_at_local": local_iso,
+                "observed_at_hour_local": bucket_local_iso,
             },
             "perception": perception,
             "health": health,
@@ -178,7 +183,7 @@ class NPKProcessor:
                 "windows": windows,
             },
             "context": {
-                "hour_of_day": local_iso[11:13] if local_iso else None,
+                "hour_of_day": bucket_local_iso[11:13] if bucket_local_iso else None,
                 "sample_interval_ms": packet_payload.get("sample_interval_ms"),
                 "soil_moisture_trend_24h": moisture_trend,
                 "transport": system_payload.get("transport"),
@@ -199,7 +204,7 @@ class NPKProcessor:
             },
             "layer3_interface": {
                 "agent_name": self.agent_name,
-                "timestamp": local_iso,
+                "timestamp": bucket_local_iso or local_iso,
                 "status": health["status"],
                 "confidence": health["confidence"],
                 "severity": health["severity"],

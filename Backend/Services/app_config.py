@@ -25,8 +25,32 @@ class ExportSettings:
         return self.services_dir.parent
 
     @property
+    def output_data_root(self) -> Path:
+        return self.server_dir / "Output_data"
+
+    @property
+    def layer1_root(self) -> Path:
+        return self.output_data_root / "Layer1"
+
+    @property
+    def layer2_root(self) -> Path:
+        return self.output_data_root / "Layer2"
+
+    @property
+    def layer25_root(self) -> Path:
+        return self.output_data_root / "Layer2.5"
+
+    @property
     def base_dir(self) -> Path:
-        return self.server_dir / "Firebase_data"
+        return self.layer1_root / "Firebase_data"
+
+    @property
+    def openmeteo_root(self) -> Path:
+        return self.layer1_root / "OpenMeteo_Data"
+
+    @property
+    def meteo_data_root(self) -> Path:
+        return self.openmeteo_root / "Meteo_data"
 
     @property
     def new_raw_dir(self) -> Path:

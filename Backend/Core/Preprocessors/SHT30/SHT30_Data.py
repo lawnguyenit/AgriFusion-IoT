@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from ..common import build_window_stats, clamp, format_local_iso, safe_float
+from ..Untils.common import build_window_stats, clamp, floor_ts_to_hour, format_local_iso, safe_float
 from .SHT30_Health import assess_sht30_health
 
 try:
@@ -25,19 +25,34 @@ class SHT30Processor:
     stream_name = "sht30"
     processor_name = "sht30_preprocessor"
     agent_name = "sht30_agent"
-    window_hours = (3, 8, 24)
+    window_hours = (3, 6, 24, 72)
 
-    def extract_sensor_id(self, source_record: dict[str, Any]) -> str | None:
-        packet_payload: dict[str, Any] = source_record.get("payload", {}).get("packet", {}).get("sht30_data", {})
+    def extract_sensor_id(self, source_record: Any) -> str | None:
+        packet_payload: dict[str, Any] = source_record.payload.get("packet", {}).get("sht30_data", {})
         sensor_id: Any = packet_payload.get("sensor_id")
         return str(sensor_id) if sensor_id else None
 
     def build_snapshot(
         self,
-        source_record: dict[str, Any],
+        source_record: Any,
         history_records: list[dict[str, Any]],
     ) -> dict[str, Any]:
-        record_payload: dict[str, Any] = source_record.get("payload", {})
+        """
+        Tạo ra đầu ra cuối cùng của layer2 cho một bản ghi nguồn và lịch sử (3, 6, 24, 72) giờ liên quan bao gồm:
+            + Đánh giá sức khỏe cảm biến 
+            + Các tín hiệu miền liên quan đến điều kiện không khí.
+
+        Args:
+            source_record (dict[str, Any]): _description_
+            history_records (list[dict[str, Any]]): _description_
+
+        Raises:
+            heat: _description_
+
+        Returns:
+            dict[str, Any]: _description_
+        """        
+        record_payload: dict[str, Any] = source_record.payload
         packet_payload: dict[str, Any] = record_payload.get("packet", {}).get("sht30_data", {})
         sensor_payload = record_payload.get("sensors", {}).get("sht30", {})
         health_payload = record_payload.get("health", {}).get("sht30", {})
@@ -45,8 +60,10 @@ class SHT30Processor:
         system_payload = record_payload.get("packet", {}).get("system_data", {})
 
         sensor_id = str(packet_payload.get("sensor_id"))
-        ts_server = source_record.get("ts_server")
+        ts_server = source_record.ts_server
+        ts_hour_bucket = source_record.ts_hour_bucket or floor_ts_to_hour(ts_server)
         local_iso = format_local_iso(ts_server, EXPORT_SETTINGS.timezone)
+        bucket_local_iso = format_local_iso(ts_hour_bucket, EXPORT_SETTINGS.timezone)
 
         perception = {
             "temp_air_c": safe_float(packet_payload.get("sht_temp_c")),
@@ -57,12 +74,14 @@ class SHT30Processor:
         provisional_snapshot: dict[str, Any] = {
             "timestamps": {
                 "ts_server": ts_server,
+                "ts_hour_bucket": ts_hour_bucket,
             },
             "perception": perception,
         }
+
         windows = build_window_stats(
             records=history_records + [provisional_snapshot],
-            observed_ts=ts_server,
+            observed_ts=ts_hour_bucket,
             metric_keys=("temp_air_c", "humidity_air_pct"),
             window_hours=self.window_hours,
         )
@@ -75,9 +94,9 @@ class SHT30Processor:
         )
 
         temp_value = perception["temp_air_c"]
+        temp_8h = windows.get("8h", {}).get("temp_air_c", {})
         humidity_value = perception["humidity_air_pct"]
         humidity_24h = windows.get("24h", {}).get("humidity_air_pct", {})
-        temp_8h = windows.get("8h", {}).get("temp_air_c", {})
 
         condensation_risk = None
         if temp_value is not None and humidity_value is not None:
@@ -101,6 +120,8 @@ class SHT30Processor:
 
         weather_driven_likelihood = None
         humidity_delta = humidity_24h.get("delta_from_start")
+
+        # Lượng hoá trêh lệch độ ẩm với sự tự tin của cảm biến
         if humidity_delta is not None:
             weather_driven_likelihood = round(
                 clamp((abs(humidity_delta) / WEATHER_SHIFT_REFERENCE_PCT) * max(0.35, health["confidence"])),
@@ -145,15 +166,17 @@ class SHT30Processor:
             "sensor_id": sensor_id,
             "sensor_type": packet_payload.get("sensor_type"),
             "source": {
-                "event_key": source_record.get("event_key"),
-                "date_key": source_record.get("date_key"),
-                "path": source_record.get("source_path"),
-                "origin": source_record.get("source_kind"),
+                "event_key": source_record.event_key,
+                "date_key": source_record.date_key,
+                "path": source_record.source_path,
+                "origin": source_record.source_kind,
             },
             "timestamps": {
-                "ts_device": source_record.get("ts_device"),
+                "ts_device": source_record.ts_device,
                 "ts_server": ts_server,
+                "ts_hour_bucket": ts_hour_bucket,
                 "observed_at_local": local_iso,
+                "observed_at_hour_local": bucket_local_iso,
             },
             "perception": perception,
             "health": health,
@@ -162,7 +185,7 @@ class SHT30Processor:
                 "windows": windows,
             },
             "context": {
-                "hour_of_day": local_iso[11:13] if local_iso else None,
+                "hour_of_day": bucket_local_iso[11:13] if bucket_local_iso else None,
                 "sample_interval_ms": packet_payload.get("sht_read_elapsed_ms"),
                 "macro_humidity_trend_24h": macro_humidity_trend,
                 "transport": system_payload.get("transport"),
@@ -181,7 +204,7 @@ class SHT30Processor:
             },
             "layer3_interface": {
                 "agent_name": self.agent_name,
-                "timestamp": local_iso,
+                "timestamp": bucket_local_iso or local_iso,
                 "status": health["status"],
                 "confidence": health["confidence"],
                 "severity": health["severity"],

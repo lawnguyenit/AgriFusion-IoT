@@ -1,0 +1,60 @@
+{
+  "event_key": "1773633600",
+  "date_key": "2026-03-16",
+  "path": "weather/open_meteo_10.0853_105.8678/2026-03-16/1773633600",
+  "synced_at_utc": "2026-04-02T15:00:43Z",
+  "record": {
+    "schema_version": 1,
+    "_meta_seed": {
+      "provider": "open-meteo",
+      "model": "era5",
+      "location_slug": "open_meteo_10.0853_105.8678",
+      "latitude": 10.0853,
+      "longitude": 105.8678,
+      "timezone": "Asia/Ho_Chi_Minh"
+    },
+    "ts_device": 1773633600,
+    "ts_server": 1773633600,
+    "ts_hour_bucket": 1773633600,
+    "observed_at_local": "2026-03-16T11:00:00+07:00",
+    "packet": {
+      "meteo_data": {
+        "sensor_id": "open_meteo_10.0853_105.8678",
+        "sensor_type": "open_meteo_hourly",
+        "sample_interval_ms": 3600000,
+        "timezone": "Asia/Ho_Chi_Minh",
+        "temperature_2m": 29.437,
+        "relative_humidity_2m": 62.3461,
+        "rain": 0.1,
+        "soil_temperature_0_to_7cm": 29.537,
+        "weather_code": 51.0,
+        "cloud_cover_high": 0.0,
+        "et0_fao_evapotranspiration": 0.5769,
+        "is_day": 1.0,
+        "dew_point_2m": 21.487,
+        "cloud_cover": 12.0,
+        "precipitation": 0.1
+      }
+    },
+    "sensors": {
+      "meteo": {
+        "status": "ok",
+        "quality": 0.92,
+        "sample_valid": true,
+        "ts_sample": 1773633600
+      }
+    },
+    "health": {
+      "meteo": {
+        "status": "ok",
+        "quality": 0.92,
+        "summary": "Open-Meteo weather snapshot is usable",
+        "issues": []
+      },
+      "overall": {
+        "online": true,
+        "source": "open-meteo"
+      }
+    }
+  }
+}
