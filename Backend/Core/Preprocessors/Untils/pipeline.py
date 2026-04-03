@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Callable, cast
 
 try:
     from Services.app_config import SETTINGS as EXPORT_SETTINGS
@@ -40,6 +40,7 @@ class SourceStore:
 class Layer2Result:
     status: str
     processed_source_records: int
+    filtered_out_records: int
     total_new_snapshots: int
     output_root: Path
     manifest_path: Path
@@ -77,6 +78,7 @@ class PreprocessingPipeline:
         sensor_pending_rows: dict[str, list[dict[str, Any]]] = {}
         sensor_counts: dict[str, int] = {}
         processed_source_events: set[str] = set()
+        filtered_out_records = 0
 
         for processor in self.processors:
             for source_record in source_records:
@@ -108,15 +110,27 @@ class PreprocessingPipeline:
                 if not self._should_process_record(state=state, source_record=source_record):
                     continue
 
+                if not self._source_record_is_accepted(processor=processor, source_record=source_record):
+                    self._update_state_from_source_record(state=state, source_record=source_record)
+                    processed_source_events.add(source_record.event_key)
+                    filtered_out_records += 1
+                    continue
+
                 prior_history = sensor_histories[target_key] + sensor_pending_rows[target_key]
                 snapshot = processor.build_snapshot(
                     source_record=source_record,
                     history_records=prior_history,
                 )
+                if not self._snapshot_is_accepted(snapshot):
+                    self._update_state_from_source_record(state=state, source_record=source_record)
+                    processed_source_events.add(source_record.event_key)
+                    filtered_out_records += 1
+                    continue
+
                 sensor_pending_rows[target_key].append(snapshot)
                 sensor_counts[target_key] += 1
                 processed_source_events.add(source_record.event_key)
-                self._update_state(state=state, snapshot=snapshot)
+                self._update_state_from_snapshot(state=state, snapshot=snapshot)
 
         total_new_snapshots = 0
         for target_key, rows in sensor_pending_rows.items():
@@ -146,6 +160,7 @@ class PreprocessingPipeline:
                 for source_store in self.source_stores
             },
             "processed_source_records": len(processed_source_events),
+            "filtered_out_records": filtered_out_records,
             "total_new_snapshots": total_new_snapshots,
             "targets": sensor_counts,
         }
@@ -155,6 +170,7 @@ class PreprocessingPipeline:
         return Layer2Result(
             status="ok",
             processed_source_records=len(processed_source_events),
+            filtered_out_records=filtered_out_records,
             total_new_snapshots=total_new_snapshots,
             output_root=self.output_root,
             manifest_path=manifest_path,
@@ -292,7 +308,22 @@ class PreprocessingPipeline:
             return True
         return False
 
-    def _update_state(self, state: dict[str, Any], snapshot: dict[str, Any]) -> None:
+    def _source_record_is_accepted(self, processor: Any, source_record: SourceRecord) -> bool:
+        predicate = cast(Callable[[SourceRecord], bool] | None, getattr(processor, "should_accept_source_record", None))
+        if predicate is None:
+            return True
+        return bool(predicate(source_record))
+
+    def _snapshot_is_accepted(self, snapshot: dict[str, Any]) -> bool:
+        health = snapshot.get("health", {})
+        handoff = snapshot.get("handoff", {})
+        if health.get("status") == "fault":
+            return False
+        if handoff.get("ready") is False:
+            return False
+        return True
+
+    def _update_state_from_snapshot(self, state: dict[str, Any], snapshot: dict[str, Any]) -> None:
         timestamps = snapshot.get("timestamps", {})
         source = snapshot.get("source", {})
         state["last_processed_server_ts"] = timestamps.get("ts_server")
@@ -300,5 +331,14 @@ class PreprocessingPipeline:
         state["processed_record_count"] = int(state.get("processed_record_count", 0)) + 1
         recent_ids = list(state.get("recent_record_ids") or [])
         recent_ids.append(str(source.get("event_key")))
+        state["recent_record_ids"] = trim_recent_ids(recent_ids)
+        state["last_updated_utc"] = iso_utc_now()
+
+    def _update_state_from_source_record(self, state: dict[str, Any], source_record: SourceRecord) -> None:
+        state["last_processed_server_ts"] = source_record.ts_server
+        state["last_processed_event_key"] = source_record.event_key
+        state["processed_record_count"] = int(state.get("processed_record_count", 0)) + 1
+        recent_ids = list(state.get("recent_record_ids") or [])
+        recent_ids.append(source_record.event_key)
         state["recent_record_ids"] = trim_recent_ids(recent_ids)
         state["last_updated_utc"] = iso_utc_now()

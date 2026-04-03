@@ -249,6 +249,10 @@ def gaussian_peak(x: float, center: float, sigma: float) -> float:
     return math.exp(-((x - center) ** 2) / (2.0 * sigma * sigma))
 
 
+def smooth_cycle(position: float, period: float, phase: float = 0.0) -> float:
+    return math.sin((position / period + phase) * 2.0 * math.pi)
+
+
 def irrigation_effect_air(local_dt: datetime) -> float:
     hour = clock_hour(local_dt)
     morning = gaussian_peak(hour, 8.5, 0.65)
@@ -265,12 +269,22 @@ def irrigation_effect_soil(local_dt: datetime) -> float:
 
 
 
-def simulated_battery_voltage(local_dt: datetime, rng: random.Random) -> float:
+def simulated_battery_voltage(local_dt: datetime, day_profile: dict[str, float], rng: random.Random) -> float:
     hour = clock_hour(local_dt)
     solar_support = max(0.0, math.sin(math.pi * (hour - 6.0) / 12.0)) if 6.0 <= hour <= 18.0 else 0.0
+    solar_drag = max(0.0, day_profile["cloud_energy_drag"])
+    regime_drag = max(0.0, day_profile["system_stress"])
     evening_penalty = 0.08 if (hour >= 19.0 or hour < 5.0) else 0.0
-    base = 12.18 + 0.34 * solar_support - evening_penalty + rng.uniform(-0.025, 0.025)
-    return round(clamp(base, 12.02, 12.58), 2)
+    base = (
+        12.16
+        + 0.36 * solar_support
+        - evening_penalty
+        - 0.10 * solar_drag
+        - 0.07 * regime_drag
+        + 0.03 * day_profile["recovery_bias"]
+        + rng.uniform(-0.03, 0.03)
+    )
+    return round(clamp(base, 11.92, 12.62), 2)
 
 
 def simulated_heap_free(local_dt: datetime, rng: random.Random) -> int:
@@ -280,31 +294,57 @@ def simulated_heap_free(local_dt: datetime, rng: random.Random) -> int:
     return int(clamp(value, 236000, 248500))
 
 
-def simulated_quality(base: float, irrigation_factor: float, rng: random.Random, low: float, high: float, penalty: float = 0.0) -> float:
-    transient_dip = rng.uniform(0.02, 0.07) if rng.random() < 0.12 else 0.0
-    value = base - 0.06 * irrigation_factor - penalty - transient_dip + rng.uniform(-0.045, 0.03)
+def simulated_quality(
+    base: float,
+    irrigation_factor: float,
+    day_profile: dict[str, float],
+    rng: random.Random,
+    low: float,
+    high: float,
+    penalty: float = 0.0,
+) -> float:
+    transient_dip = rng.uniform(0.02, 0.08) if rng.random() < (0.08 + max(0.0, day_profile["system_stress"]) * 0.08) else 0.0
+    regime_bias = 0.035 * day_profile["recovery_bias"] - 0.05 * max(0.0, day_profile["system_stress"])
+    value = base - 0.05 * irrigation_factor + regime_bias - penalty - transient_dip + rng.uniform(-0.05, 0.035)
     return round(clamp(value, low, high), 3)
 
 
 def build_day_profile(seed: int, start: datetime, local_dt: datetime) -> dict[str, float]:
     day_index = (local_dt.date() - start.date()).days
+    week_cycle = smooth_cycle(float(day_index), 7.0, 0.08)
+    biweekly_cycle = smooth_cycle(float(day_index), 14.0, 0.27)
+    monthly_cycle = smooth_cycle(float(day_index), 29.0, 0.41)
+    block_index = day_index // 5
     day_rng = random.Random(seed * 1009 + local_dt.date().toordinal() * 37)
+    block_rng = random.Random(seed * 2029 + block_index * 97 + start.date().toordinal() * 13)
+    weather_regime = block_rng.uniform(-1.0, 1.0)
+    nutrient_regime = block_rng.uniform(-1.0, 1.0)
+    recovery_bias = block_rng.uniform(-1.0, 1.0)
+    system_stress = block_rng.uniform(-0.35, 1.0)
     return {
         "day_index": float(day_index),
-        "air_temp_offset": day_rng.uniform(-0.55, 0.55),
-        "air_temp_amp": day_rng.uniform(0.92, 1.08),
-        "air_hum_offset": day_rng.uniform(-3.5, 3.5),
-        "air_hum_amp": day_rng.uniform(0.90, 1.10),
-        "soil_temp_offset": day_rng.uniform(-0.35, 0.35),
-        "soil_temp_amp": day_rng.uniform(0.92, 1.05),
-        "soil_hum_offset": day_rng.uniform(-1.8, 1.8),
-        "soil_hourly_drydown": day_rng.uniform(0.06, 0.16),
-        "soil_daily_drydown": day_rng.uniform(0.9, 1.8),
-        "ec_offset": day_rng.uniform(-18.0, 18.0),
-        "ph_offset": day_rng.uniform(-0.015, 0.015),
-        "n_offset": day_rng.uniform(-2.5, 2.5),
-        "p_offset": day_rng.uniform(-1.0, 1.0),
-        "k_offset": day_rng.uniform(-2.0, 2.0),
+        "week_cycle": week_cycle,
+        "biweekly_cycle": biweekly_cycle,
+        "monthly_cycle": monthly_cycle,
+        "weather_regime": weather_regime,
+        "nutrient_regime": nutrient_regime,
+        "recovery_bias": recovery_bias,
+        "system_stress": system_stress,
+        "cloud_energy_drag": 0.55 * max(0.0, weather_regime) + 0.35 * max(0.0, monthly_cycle),
+        "air_temp_offset": day_rng.uniform(-0.7, 0.7) + 0.85 * week_cycle + 1.15 * monthly_cycle + 0.65 * weather_regime,
+        "air_temp_amp": day_rng.uniform(0.88, 1.14) + 0.06 * week_cycle,
+        "air_hum_offset": day_rng.uniform(-4.5, 4.5) - 3.2 * week_cycle + 4.4 * max(0.0, weather_regime) + 1.4 * biweekly_cycle,
+        "air_hum_amp": day_rng.uniform(0.86, 1.16) - 0.05 * weather_regime,
+        "soil_temp_offset": day_rng.uniform(-0.45, 0.45) + 0.55 * week_cycle + 0.45 * monthly_cycle,
+        "soil_temp_amp": day_rng.uniform(0.90, 1.08) + 0.04 * monthly_cycle,
+        "soil_hum_offset": day_rng.uniform(-2.6, 2.6) + 2.8 * max(0.0, weather_regime) - 2.2 * max(0.0, week_cycle),
+        "soil_hourly_drydown": day_rng.uniform(0.05, 0.18) + 0.02 * max(0.0, week_cycle),
+        "soil_daily_drydown": day_rng.uniform(0.55, 1.95) + 0.55 * max(0.0, -recovery_bias),
+        "ec_offset": day_rng.uniform(-24.0, 24.0) - 28.0 * max(0.0, weather_regime) + 18.0 * max(0.0, -recovery_bias),
+        "ph_offset": day_rng.uniform(-0.03, 0.03) + 0.012 * nutrient_regime,
+        "n_offset": day_rng.uniform(-3.8, 3.8) + 4.2 * nutrient_regime + 1.6 * biweekly_cycle,
+        "p_offset": day_rng.uniform(-1.6, 1.6) + 1.9 * nutrient_regime + 0.7 * monthly_cycle,
+        "k_offset": day_rng.uniform(-3.0, 3.0) + 3.2 * nutrient_regime - 1.4 * week_cycle,
     }
 
 
@@ -344,59 +384,73 @@ def build_packet(cfg: AppConfig, local_dt: datetime, rng: random.Random) -> dict
     soil_water_factor = irrigation_effect_soil(local_dt)
 
     temp_air_base = (
-        27.0
+        27.1
         + day_profile["air_temp_offset"]
-        + 2.0 * day_profile["air_temp_amp"] * math.sin((day_phase - 0.22) * 2 * math.pi)
-        + rng.uniform(-0.25, 0.25)
+        + 2.4 * day_profile["air_temp_amp"] * math.sin((day_phase - 0.22) * 2 * math.pi)
+        + 0.45 * day_profile["biweekly_cycle"]
+        + rng.uniform(-0.32, 0.32)
     )
     hum_air_base = (
-        72.0
+        71.0
         + day_profile["air_hum_offset"]
-        - 7.5 * day_profile["air_hum_amp"] * math.sin((day_phase - 0.18) * 2 * math.pi)
-        + rng.uniform(-1.0, 1.0)
+        - 8.1 * day_profile["air_hum_amp"] * math.sin((day_phase - 0.18) * 2 * math.pi)
+        - 1.1 * day_profile["monthly_cycle"]
+        + rng.uniform(-1.2, 1.2)
     )
     soil_temp_base = (
-        26.2
+        26.0
         + day_profile["soil_temp_offset"]
-        + 1.25 * day_profile["soil_temp_amp"] * math.sin((day_phase - 0.28) * 2 * math.pi)
-        + rng.uniform(-0.18, 0.18)
+        + 1.45 * day_profile["soil_temp_amp"] * math.sin((day_phase - 0.28) * 2 * math.pi)
+        + 0.35 * day_profile["week_cycle"]
+        + rng.uniform(-0.25, 0.25)
     )
-    soil_drydown = day_profile["day_index"] * day_profile["soil_daily_drydown"] + hour * day_profile["soil_hourly_drydown"]
+    drydown_phase = max(0.0, float(int(day_profile["day_index"]) % 6) - 1.0)
+    soil_drydown = drydown_phase * day_profile["soil_daily_drydown"] + hour * day_profile["soil_hourly_drydown"]
     soil_hum_base = (
-        66.5
+        66.0
         + day_profile["soil_hum_offset"]
         - soil_drydown
-        + 0.5 * math.cos((day_phase - 0.10) * 2 * math.pi)
-        + rng.uniform(-0.35, 0.35)
+        + 2.2 * day_profile["recovery_bias"]
+        + 1.7 * max(0.0, day_profile["weather_regime"])
+        + 0.65 * math.cos((day_phase - 0.10) * 2 * math.pi)
+        + rng.uniform(-0.5, 0.5)
     )
-    ph_base = 6.03 + day_profile["ph_offset"] + 0.015 * math.sin((day_phase + 0.10) * 2 * math.pi) + rng.uniform(-0.006, 0.006)
-    nutrient_trend = math.sin((day_profile["day_index"] / 9.0) * 2 * math.pi)
-    n_base = 101.0 + day_profile["n_offset"] + 1.2 * nutrient_trend + rng.uniform(-0.8, 0.8)
-    p_base = 38.0 + day_profile["p_offset"] + 0.7 * math.cos((day_profile["day_index"] / 11.0) * 2 * math.pi) + rng.uniform(-0.35, 0.35)
-    k_base = 79.0 + day_profile["k_offset"] + 1.0 * math.sin((day_profile["day_index"] / 8.5) * 2 * math.pi) + rng.uniform(-0.7, 0.7)
-    ec_base = 860.0 + day_profile["ec_offset"] + 4.0 * (64.0 - soil_hum_base) + rng.uniform(-8.0, 8.0)
+    ph_base = (
+        6.02
+        + day_profile["ph_offset"]
+        + 0.018 * math.sin((day_phase + 0.10) * 2 * math.pi)
+        - 0.01 * day_profile["weather_regime"]
+        + rng.uniform(-0.008, 0.008)
+    )
+    nutrient_wave = 0.7 * day_profile["week_cycle"] + 1.05 * day_profile["biweekly_cycle"] + 1.2 * day_profile["monthly_cycle"]
+    n_base = 100.0 + day_profile["n_offset"] + 3.6 * nutrient_wave - 1.1 * max(0.0, day_profile["weather_regime"]) + rng.uniform(-1.4, 1.4)
+    p_base = 37.5 + day_profile["p_offset"] + 1.8 * nutrient_wave - 0.5 * max(0.0, day_profile["weather_regime"]) + rng.uniform(-0.7, 0.7)
+    k_base = 78.5 + day_profile["k_offset"] + 2.8 * nutrient_wave - 0.7 * max(0.0, day_profile["weather_regime"]) + rng.uniform(-1.2, 1.2)
+    ec_base = 845.0 + day_profile["ec_offset"] + 4.8 * (64.0 - soil_hum_base) + 16.0 * max(0.0, -day_profile["nutrient_regime"]) + rng.uniform(-12.0, 12.0)
 
-    temp_air = clamp(temp_air_base - 1.9 * air_water_factor, 23.5, 30.5)
-    hum_air = clamp(hum_air_base + 19.0 * air_water_factor, 55.0, 95.0)
-    soil_temp = clamp(soil_temp_base - 2.7 * soil_water_factor, 23.0, 30.0)
-    soil_hum = clamp(soil_hum_base + 13.5 * soil_water_factor, 50.0, 82.0)
-    ph = clamp(ph_base - 0.015 * soil_water_factor, 5.5, 6.5)
-    ec = int(clamp(ec_base - 42.0 * soil_water_factor, 650, 1100))
-    n_value = int(clamp(n_base - 1.4 * soil_water_factor, 85, 125))
-    p_value = int(clamp(p_base - 0.8 * soil_water_factor, 28, 50))
-    k_value = int(clamp(k_base - 1.2 * soil_water_factor, 65, 95))
+    temp_air = clamp(temp_air_base - 2.0 * air_water_factor, 23.0, 31.5)
+    hum_air = clamp(hum_air_base + 18.5 * air_water_factor, 52.0, 96.0)
+    soil_temp = clamp(soil_temp_base - 2.9 * soil_water_factor, 22.5, 31.0)
+    soil_hum = clamp(soil_hum_base + 14.0 * soil_water_factor, 46.0, 84.0)
+    ph = clamp(ph_base - 0.018 * soil_water_factor, 5.4, 6.7)
+    ec = int(clamp(ec_base - 48.0 * soil_water_factor, 620, 1160))
+    n_value = int(clamp(n_base - 1.5 * soil_water_factor, 82, 128))
+    p_value = int(clamp(p_base - 0.9 * soil_water_factor, 26, 52))
+    k_value = int(clamp(k_base - 1.3 * soil_water_factor, 62, 98))
 
-    rssi = int(clamp(-68 + 6 * math.sin(day_phase * 2 * math.pi) + rng.uniform(-3, 3), -95, -45))
+    rssi = int(clamp(-68 + 6 * math.sin(day_phase * 2 * math.pi) - 4.0 * max(0.0, day_profile["system_stress"]) + rng.uniform(-4, 4), -98, -44))
     ts_device_ms = int(local_dt.timestamp()) * 1000
-    npk_retry_count = 1 if rng.random() < 0.08 else 0
-    sht_retry_count = 1 if rng.random() < 0.06 else 0
-    npk_sample_valid = rng.random() >= 0.04
-    sht_sample_valid = rng.random() >= 0.03
+    npk_retry_roll = rng.random()
+    sht_retry_roll = rng.random()
+    npk_retry_count = 2 if npk_retry_roll < (0.015 + 0.03 * max(0.0, day_profile["system_stress"])) else (1 if npk_retry_roll < (0.08 + 0.08 * max(0.0, day_profile["system_stress"])) else 0)
+    sht_retry_count = 2 if sht_retry_roll < (0.01 + 0.02 * max(0.0, day_profile["system_stress"])) else (1 if sht_retry_roll < (0.06 + 0.06 * max(0.0, day_profile["system_stress"])) else 0)
+    npk_sample_valid = rng.random() >= (0.03 + 0.05 * max(0.0, day_profile["system_stress"]))
+    sht_sample_valid = rng.random() >= (0.02 + 0.04 * max(0.0, day_profile["system_stress"]))
     npk_duration_ms = int(
-        clamp(145 + 25.0 * soil_water_factor + 65 * npk_retry_count + (35 if not npk_sample_valid else 0) + rng.uniform(-20, 28), 90, 340)
+        clamp(150 + 28.0 * soil_water_factor + 62 * npk_retry_count + (35 if not npk_sample_valid else 0) + rng.uniform(-24, 30), 90, 380)
     )
     sht_duration_ms = int(
-        clamp(42 + 18 * sht_retry_count + (20 if not sht_sample_valid else 0) + rng.uniform(-8, 14), 20, 140)
+        clamp(44 + 18 * sht_retry_count + (18 if not sht_sample_valid else 0) + rng.uniform(-10, 16), 20, 160)
     )
     npk_error_code = "ok" if npk_sample_valid else "weak_signal"
     sht_error = "ok" if sht_sample_valid else "crc_soft_warning"
@@ -492,16 +546,17 @@ def build_record(cfg: AppConfig, payload: dict[str, Any], local_dt: datetime, se
     npk_src = payload["packet"]["npk_data"]
     sht_src = payload["packet"]["sht30_data"]
     rssi = payload["packet"]["system_data"]["rssi"]
+    day_profile = build_day_profile(cfg.seed, cfg.start, local_dt)
     air_water_factor = irrigation_effect_air(local_dt)
     soil_water_factor = irrigation_effect_soil(local_dt)
-    battery_v = simulated_battery_voltage(local_dt, rng)
+    battery_v = simulated_battery_voltage(local_dt, day_profile, rng)
     heap_free = simulated_heap_free(local_dt, rng)
     npk_sample_valid = bool(npk_src["npk_values_valid"])
     sht_sample_valid = bool(sht_src["sht_sample_valid"])
     npk_penalty = 0.035 * npk_src["retry_count"] + (0.06 if not npk_sample_valid else 0.0)
     sht_penalty = 0.03 * sht_src["sht_retry_count"] + (0.05 if not sht_sample_valid else 0.0)
-    npk_quality = simulated_quality(0.915, soil_water_factor, rng, 0.78, 0.95, penalty=npk_penalty)
-    sht_quality = simulated_quality(0.955, air_water_factor, rng, 0.84, 0.985, penalty=sht_penalty)
+    npk_quality = simulated_quality(0.915, soil_water_factor, day_profile, rng, 0.72, 0.96, penalty=npk_penalty)
+    sht_quality = simulated_quality(0.955, air_water_factor, day_profile, rng, 0.82, 0.988, penalty=sht_penalty)
     npk_status = "ok" if npk_sample_valid else "degraded"
     sht_status = "ok" if sht_sample_valid else "degraded"
 
@@ -578,6 +633,8 @@ def build_record(cfg: AppConfig, payload: dict[str, Any], local_dt: datetime, se
             "site_id": cfg.site_id,
             "device_uid": cfg.device_uid,
             "server_delay_sec": server_delay_sec,
+            "day_regime": round(day_profile["weather_regime"], 4),
+            "system_stress": round(day_profile["system_stress"], 4),
         },
     }
 

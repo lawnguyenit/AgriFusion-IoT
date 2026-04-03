@@ -26,6 +26,21 @@ class MeteoProcessor:
         sensor_id = packet_payload.get("sensor_id")
         return str(sensor_id) if sensor_id else None
 
+    def should_accept_source_record(self, source_record: Any) -> bool:
+        packet_payload: dict[str, Any] = source_record.payload.get("packet", {}).get("meteo_data", {})
+        health_payload: dict[str, Any] = source_record.payload.get("health", {}).get("meteo", {})
+        if not packet_payload:
+            return False
+        if health_payload.get("status") == "fault":
+            return False
+        if packet_payload.get("temperature_2m") is None:
+            return False
+        if packet_payload.get("relative_humidity_2m") is None:
+            return False
+        if packet_payload.get("precipitation") is None and packet_payload.get("rain") is None:
+            return False
+        return True
+
     def build_snapshot(
         self,
         source_record: Any,

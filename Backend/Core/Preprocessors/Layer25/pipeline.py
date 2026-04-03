@@ -23,7 +23,10 @@ class Layer25Result:
     latest_path: Path
     jsonl_path: Path
     csv_path: Path
+    ready_jsonl_path: Path
+    ready_csv_path: Path
     fused_row_count: int
+    ready_row_count: int
     source_snapshot_count: int
     source_targets: list[str]
 
@@ -35,15 +38,20 @@ class Layer25FusionPipeline:
 
     def run(self) -> Layer25Result:
         snapshots, source_targets = self._load_layer2_snapshots()
-        fused_rows = self._build_fused_rows(snapshots)
+        fused_rows = self._build_fused_rows(snapshots=snapshots, source_targets=source_targets)
+        ready_rows = [row for row in fused_rows if row.get("tabnet_ready")]
 
         jsonl_path = self.output_root / "super_table.jsonl"
         csv_path = self.output_root / "super_table.csv"
+        ready_jsonl_path = self.output_root / "tabnet_ready.jsonl"
+        ready_csv_path = self.output_root / "tabnet_ready.csv"
         latest_path = self.output_root / "latest.json"
         manifest_path = self.output_root / "manifest.json"
 
         write_jsonl(jsonl_path, fused_rows)
         self._write_csv(csv_path, fused_rows)
+        write_jsonl(ready_jsonl_path, ready_rows)
+        self._write_csv(ready_csv_path, ready_rows)
         write_json(latest_path, fused_rows[-1] if fused_rows else {})
 
         manifest_payload = {
@@ -53,11 +61,14 @@ class Layer25FusionPipeline:
             "layer2_root": str(self.layer2_root),
             "output_root": str(self.output_root),
             "fused_row_count": len(fused_rows),
+            "ready_row_count": len(ready_rows),
             "source_snapshot_count": len(snapshots),
             "source_targets": source_targets,
             "artifacts": {
                 "jsonl": str(jsonl_path),
                 "csv": str(csv_path),
+                "ready_jsonl": str(ready_jsonl_path),
+                "ready_csv": str(ready_csv_path),
                 "latest": str(latest_path),
             },
         }
@@ -71,7 +82,10 @@ class Layer25FusionPipeline:
             latest_path=latest_path,
             jsonl_path=jsonl_path,
             csv_path=csv_path,
+            ready_jsonl_path=ready_jsonl_path,
+            ready_csv_path=ready_csv_path,
             fused_row_count=len(fused_rows),
+            ready_row_count=len(ready_rows),
             source_snapshot_count=len(snapshots),
             source_targets=source_targets,
         )
@@ -92,6 +106,8 @@ class Layer25FusionPipeline:
             rows = read_jsonl(history_file)
             deduped_rows = self._dedupe_sensor_rows(rows=rows)
             for row in deduped_rows:
+                if not self._should_include_snapshot(row):
+                    continue
                 snapshots.append(
                     {
                         "target_key": target_key,
@@ -120,8 +136,19 @@ class Layer25FusionPipeline:
             rows_by_bucket[ts_bucket] = row
         return [rows_by_bucket[key] for key in sorted(rows_by_bucket)]
 
-    def _build_fused_rows(self, snapshots: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    def _should_include_snapshot(self, snapshot: dict[str, Any]) -> bool:
+        timestamps = snapshot.get("timestamps", {})
+        if safe_int(timestamps.get("ts_hour_bucket")) is None and safe_int(timestamps.get("ts_server")) is None:
+            return False
+        if snapshot.get("health", {}).get("status") == "fault":
+            return False
+        if snapshot.get("handoff", {}).get("ready") is False:
+            return False
+        return True
+
+    def _build_fused_rows(self, snapshots: list[dict[str, Any]], source_targets: list[str]) -> list[dict[str, Any]]:
         rows_by_bucket: dict[int, dict[str, Any]] = {}
+        expected_targets = sorted(source_targets)
 
         for item in snapshots:
             snapshot = item["snapshot"]
@@ -139,6 +166,7 @@ class Layer25FusionPipeline:
                     "observed_at_hour_local": timestamps.get("observed_at_hour_local")
                     or timestamps.get("observed_at_local"),
                     "sources_present": [],
+                    "source_targets_expected": expected_targets,
                 },
             )
 
@@ -183,13 +211,26 @@ class Layer25FusionPipeline:
             )
 
         fused_rows = [rows_by_bucket[key] for key in sorted(rows_by_bucket)]
+        expected_count = max(len(expected_targets), 1)
         for row in fused_rows:
             row["sources_present"] = sorted(row["sources_present"])
+            row["missing_sources"] = [
+                target_key for target_key in expected_targets if target_key not in row["sources_present"]
+            ]
             row["source_count"] = len(row["sources_present"])
+            row["source_count_expected"] = len(expected_targets)
+            row["source_coverage_ratio"] = round(row["source_count"] / expected_count, 4)
+            row["tabnet_ready"] = row["source_count"] == len(expected_targets) and len(expected_targets) > 0
+            for target_key in expected_targets:
+                presence_key = self._presence_prefix(target_key)
+                row[presence_key] = target_key in row["sources_present"]
         return fused_rows
 
     def _column_prefix(self, stream_name: str, sensor_id: str) -> str:
         return f"{stream_name}__{sensor_id}".replace("-", "_").replace(".", "_")
+
+    def _presence_prefix(self, target_key: str) -> str:
+        return f"present__{target_key}".replace("/", "__").replace("-", "_").replace(".", "_")
 
     def _flatten_into(self, target: dict[str, Any], prefix: str, payload: Any) -> None:
         if not isinstance(payload, dict):

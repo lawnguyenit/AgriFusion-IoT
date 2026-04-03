@@ -24,10 +24,15 @@ The goal is to convert a raw SHT30 packet into a domain-ready snapshot with:
 Each processed record contains:
 
 - `perception`: air temperature, air humidity, sensor quality.
-- `memory.windows`: rolling windows (`3h`, `8h`, `24h`) for trend-aware reasoning.
+- `memory.windows`: rolling windows (`3h`, `6h`, `24h`, `72h`) for trend-aware reasoning.
 - `context`: hour of day, transport, battery, and macro humidity trend.
 - `inference_hints`: humidity spike, condensation risk, heat stress, and weather-driven likelihood.
 - `layer3_interface`: compact output for the domain agent.
+
+`temp_trend_short_horizon` is derived from the configured short trend window
+(`window_hours[1]` when available), and `temp_trend_window_key` records which
+window was actually used. This avoids hard-coding stale window labels when the
+window configuration changes.
 
 ## What `SHT30_Health.py` Does
 

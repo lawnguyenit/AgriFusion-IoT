@@ -26,32 +26,34 @@ class SHT30Processor:
     processor_name = "sht30_preprocessor"
     agent_name = "sht30_agent"
     window_hours = (3, 6, 24, 72)
+    short_trend_window_index = 1
 
     def extract_sensor_id(self, source_record: Any) -> str | None:
         packet_payload: dict[str, Any] = source_record.payload.get("packet", {}).get("sht30_data", {})
         sensor_id: Any = packet_payload.get("sensor_id")
         return str(sensor_id) if sensor_id else None
 
+    def should_accept_source_record(self, source_record: Any) -> bool:
+        packet_payload: dict[str, Any] = source_record.payload.get("packet", {}).get("sht30_data", {})
+        sensor_payload: dict[str, Any] = source_record.payload.get("sensors", {}).get("sht30", {})
+        required_metrics = ("sht_temp_c", "sht_hum_pct")
+        if not packet_payload:
+            return False
+        if any(packet_payload.get(metric_key) is None for metric_key in required_metrics):
+            return False
+        if not bool(packet_payload.get("sht_read_ok", False)):
+            return False
+        if not bool(packet_payload.get("sht_sample_valid", False)):
+            return False
+        if sensor_payload and not bool(sensor_payload.get("sample_valid", True)):
+            return False
+        return True
+
     def build_snapshot(
         self,
         source_record: Any,
         history_records: list[dict[str, Any]],
     ) -> dict[str, Any]:
-        """
-        Tạo ra đầu ra cuối cùng của layer2 cho một bản ghi nguồn và lịch sử (3, 6, 24, 72) giờ liên quan bao gồm:
-            + Đánh giá sức khỏe cảm biến 
-            + Các tín hiệu miền liên quan đến điều kiện không khí.
-
-        Args:
-            source_record (dict[str, Any]): _description_
-            history_records (list[dict[str, Any]]): _description_
-
-        Raises:
-            heat: _description_
-
-        Returns:
-            dict[str, Any]: _description_
-        """        
         record_payload: dict[str, Any] = source_record.payload
         packet_payload: dict[str, Any] = record_payload.get("packet", {}).get("sht30_data", {})
         sensor_payload = record_payload.get("sensors", {}).get("sht30", {})
@@ -94,7 +96,8 @@ class SHT30Processor:
         )
 
         temp_value = perception["temp_air_c"]
-        temp_8h = windows.get("8h", {}).get("temp_air_c", {})
+        short_temp_window_key = self._short_trend_window_key()
+        temp_short_window = windows.get(short_temp_window_key, {}).get("temp_air_c", {})
         humidity_value = perception["humidity_air_pct"]
         humidity_24h = windows.get("24h", {}).get("humidity_air_pct", {})
 
@@ -120,8 +123,6 @@ class SHT30Processor:
 
         weather_driven_likelihood = None
         humidity_delta = humidity_24h.get("delta_from_start")
-
-        # Lượng hoá trêh lệch độ ẩm với sự tự tin của cảm biến
         if humidity_delta is not None:
             weather_driven_likelihood = round(
                 clamp((abs(humidity_delta) / WEATHER_SHIFT_REFERENCE_PCT) * max(0.35, health["confidence"])),
@@ -137,7 +138,7 @@ class SHT30Processor:
         condensation_alert = bool(condensation_risk is not None and condensation_risk >= 0.55)
 
         macro_humidity_trend = humidity_24h.get("trend")
-        temp_trend_8h = temp_8h.get("trend")
+        temp_trend_short_horizon = temp_short_window.get("trend")
 
         summary = "Air-climate stream is stable for the domain agent."
         if health["status"] == "fault":
@@ -155,7 +156,8 @@ class SHT30Processor:
             "sensor_confidence": health["confidence"],
             "condensation_risk": condensation_risk,
             "macro_humidity_trend": macro_humidity_trend,
-            "temp_trend_8h": temp_trend_8h,
+            "temp_trend_window_key": short_temp_window_key,
+            "temp_trend_short_horizon": temp_trend_short_horizon,
         }
 
         return {
@@ -188,6 +190,7 @@ class SHT30Processor:
                 "hour_of_day": bucket_local_iso[11:13] if bucket_local_iso else None,
                 "sample_interval_ms": packet_payload.get("sht_read_elapsed_ms"),
                 "macro_humidity_trend_24h": macro_humidity_trend,
+                "temp_trend_window_key": short_temp_window_key,
                 "transport": system_payload.get("transport"),
                 "battery_v": overall_health.get("battery_v"),
             },
@@ -218,3 +221,10 @@ class SHT30Processor:
                 "reason": summary,
             },
         }
+
+    def _short_trend_window_key(self) -> str:
+        if not self.window_hours:
+            return "24h"
+        if len(self.window_hours) > self.short_trend_window_index:
+            return f"{self.window_hours[self.short_trend_window_index]}h"
+        return f"{self.window_hours[-1]}h"

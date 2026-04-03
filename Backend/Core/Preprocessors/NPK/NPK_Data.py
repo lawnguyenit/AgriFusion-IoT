@@ -31,6 +31,22 @@ class NPKProcessor:
         sensor_id = packet_payload.get("sensor_id")
         return str(sensor_id) if sensor_id else None
 
+    def should_accept_source_record(self, source_record: Any) -> bool:
+        packet_payload: dict[str, Any] = source_record.payload.get("packet", {}).get("npk_data", {})
+        sensor_payload: dict[str, Any] = source_record.payload.get("sensors", {}).get("npk", {})
+        required_metrics = ("N", "P", "K", "temp", "hum", "ph", "ec")
+        if not packet_payload:
+            return False
+        if any(packet_payload.get(metric_key) is None for metric_key in required_metrics):
+            return False
+        if not bool(packet_payload.get("read_ok", False)):
+            return False
+        if not bool(packet_payload.get("npk_values_valid", False)):
+            return False
+        if sensor_payload and not bool(sensor_payload.get("sample_valid", True)):
+            return False
+        return True
+
     def build_snapshot(
         self,
         source_record: Any,

@@ -84,6 +84,7 @@ def main():
     print("--- Layer 2 preprocessing hoan tat ---")
     print(f"Layer 2 status: {layer2_result.status}")
     print(f"Processed source records: {layer2_result.processed_source_records}")
+    print(f"Filtered source records: {layer2_result.filtered_out_records}")
     print(f"New layer2 snapshots: {layer2_result.total_new_snapshots}")
     print(f"Layer2 output root: {layer2_result.output_root}")
     print(f"Layer2 manifest: {layer2_result.manifest_path}")
@@ -98,11 +99,13 @@ def main():
     print(f"Layer 2.5 status: {layer25_result.status}")
     print(f"Layer 2.5 source snapshots: {layer25_result.source_snapshot_count}")
     print(f"Layer 2.5 fused rows: {layer25_result.fused_row_count}")
+    print(f"Layer 2.5 ready rows: {layer25_result.ready_row_count}")
     print(f"Layer 2.5 output root: {layer25_result.output_root}")
     print(f"Layer 2.5 manifest: {layer25_result.manifest_path}")
     print(f"Layer 2.5 latest: {layer25_result.latest_path}")
     print(f"Layer 2.5 JSONL: {layer25_result.jsonl_path}")
     print(f"Layer 2.5 CSV: {layer25_result.csv_path}")
+    print(f"Layer 2.5 TabNet-ready CSV: {layer25_result.ready_csv_path}")
 
 
 if __name__ == "__main__":

@@ -332,12 +332,27 @@ def build_raw_record(
     }
 
 
+def record_is_usable(record: dict[str, Any]) -> bool:
+    packet_payload = record.get("packet", {}).get("meteo_data", {})
+    health_payload = record.get("health", {}).get("meteo", {})
+    if health_payload.get("status") == "fault":
+        return False
+    if packet_payload.get("temperature_2m") is None:
+        return False
+    if packet_payload.get("relative_humidity_2m") is None:
+        return False
+    if packet_payload.get("precipitation") is None and packet_payload.get("rain") is None:
+        return False
+    return True
+
+
 def filter_new_records(records: list[dict[str, Any]], checkpoint_ts: int | None) -> list[dict[str, Any]]:
+    filtered_records = [record for record in records if record_is_usable(record)]
     if checkpoint_ts is None:
-        return records
+        return filtered_records
     return [
         record
-        for record in records
+        for record in filtered_records
         if int(record.get("ts_hour_bucket") or record.get("ts_server") or 0) > checkpoint_ts
     ]
 
@@ -489,7 +504,10 @@ def run_sync(
     records_to_write = filter_new_records(records=fetched_records, checkpoint_ts=window.checkpoint_ts)
     written_paths = write_history_records(settings=settings, records=records_to_write, checked_at_utc=checked_at_utc)
 
-    latest_record = records_to_write[-1] if records_to_write else (fetched_records[-1] if fetched_records else None)
+    latest_record = records_to_write[-1] if records_to_write else None
+    if latest_record is None:
+        usable_records = [record for record in fetched_records if record_is_usable(record)]
+        latest_record = usable_records[-1] if usable_records else None
     if latest_record is not None:
         write_json(settings.latest_payload_path, latest_record)
         write_json(
@@ -587,3 +605,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
