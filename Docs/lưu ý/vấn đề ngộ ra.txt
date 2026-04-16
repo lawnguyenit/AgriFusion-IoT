@@ -1,0 +1,3 @@
+- Đầu tiên là vấn đề nếu chỉ sử dụng tabnet sẽ làm mất đi đề tài ban đầu là multi agent 
+- Thứ 2: tabnet cũng có hạn chế nó chỉ che đi 1 phần dữ liệu vào tái tạo chứ không đề cập đến vấn đề thời gian trong đó
+- Tiếp đến là chụp 150 tấm nó sẽ bị trùng lặp khá nhiều nó phụ thuộc vào 2 yếu tố là ngoại sinh là thời tiết và con người dẫn đến tổ hợp tồn tại là cực lớn 

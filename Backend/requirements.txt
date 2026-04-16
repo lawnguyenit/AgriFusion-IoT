@@ -6,3 +6,5 @@ retry-requests
 numpy 
 pandas
 scikit-learn
+pytorch-tabnet
+pandas-stubs

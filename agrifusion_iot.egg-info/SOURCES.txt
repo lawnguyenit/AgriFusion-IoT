@@ -1,0 +1,8 @@
+README.md
+pyproject.toml
+Backend/__init__.py
+Backend/main.py
+agrifusion_iot.egg-info/PKG-INFO
+agrifusion_iot.egg-info/SOURCES.txt
+agrifusion_iot.egg-info/dependency_links.txt
+agrifusion_iot.egg-info/top_level.txt

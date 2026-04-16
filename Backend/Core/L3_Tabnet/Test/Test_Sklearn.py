@@ -1,20 +1,27 @@
-import pathlib
-from sklearn import preprocessing.standard_scaler as StandardScaler
+from pathlib import Path
+
 import pandas as pd
+from sklearn import preprocessing
 
+from Backend.Core.L3_Tabnet.path_dir import TABNET_MATRIX_PATH
 
-## Current folder path
-l3_tabnet_path = pathlib.Path(__file__).parent
-backend_path = l3_tabnet_path.parent
-output_path = backend_path / "Output"/"Tabnet"/"tabnet_matrix.csv"
+def get_standard_scaler():
+    return preprocessing.StandardScaler()
 
-def change_standard_scaler():
-    preprocessing.StandardScaler = "changed"
-
-def read_csv(path: pathlib.Path) -> pd.DataFrame:
+def read_csv(path: Path) -> pd.DataFrame:
+    if not path.exists():
+        raise FileNotFoundError(f"File not found: {path}")
     return pd.read_csv(path)
 
 if __name__ == "__main__":    
-    change_standard_scaler()
-    df = read_csv(output_path)
-    print(df)
+    try:
+        o = read_csv(TABNET_MATRIX_PATH)
+        scaler = get_standard_scaler()
+        o_scaled = scaler.fit_transform(o)
+
+        print("CSV file read successfully.")
+        print(o.head())  # Print the first few rows of the DataFrame
+        print("Scaled data:")
+        print(o_scaled)
+    except FileNotFoundError as e:
+        print(f"Error: {e}")
