@@ -1,5 +1,5 @@
 # Navigate to Core
-Go to: ../Core
+[Go to Core](../Core)
 
 This folder contains:
 - L3_Tabnet: TabNet model implementations

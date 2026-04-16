@@ -2,7 +2,7 @@
 
 This folder provides easy navigation to all subdirectories in the Backend.
 
-Each .md file contains a link to navigate to the corresponding folder.
+Each .md file contains a clickable link to navigate to the corresponding folder.
 
 ## Available Navigations:
 - [Core](Core.md) - Core processing modules
