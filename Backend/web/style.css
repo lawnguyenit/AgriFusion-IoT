@@ -1,0 +1,50 @@
+:root {
+    --primary: #2563eb; --bg: #f8fafc; --surface: #ffffff;
+    --text: #334155; --border: #e2e8f0;
+}
+* { box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; line-height: 1.5; }
+.container { max-width: 1100px; margin: 0 auto; }
+header { margin-bottom: 30px; text-align: center; }
+h1 { color: #0f172a; margin-bottom: 5px; }
+
+/* Upload Area */
+.upload-section { background: var(--surface); border: 2px dashed #94a3b8; padding: 40px; border-radius: 12px; text-align: center; cursor: pointer; transition: 0.2s; }
+.upload-section:hover { border-color: var(--primary); background: #eff6ff; }
+.upload-btn { font-size: 1.1rem; font-weight: 600; color: var(--primary); }
+.file-name { margin-top: 15px; color: #10b981; font-weight: bold; }
+
+/* Report Sections */
+.report-section { margin-top: 30px; }
+.data-group { background: var(--surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 25px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+.data-group h2 { margin-top: 0; color: var(--primary); font-size: 1.2rem; border-bottom: 2px solid #eff6ff; padding-bottom: 10px; display: flex; align-items: center; justify-content: space-between;}
+
+/* Buttons */
+.btn-primary { background: var(--primary); color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+.btn-primary:hover { background: #1d4ed8; }
+
+/* Tables (Dùng chung cho cả JSON và CSV) */
+.table-responsive { overflow-x: auto; max-height: 600px; border: 1px solid var(--border); border-radius: 8px; }
+table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.9rem; }
+th, td { padding: 12px 15px; border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); text-align: left; white-space: nowrap; }
+th { background: #f8fafc; color: #475569; font-weight: 600; position: sticky; top: 0; z-index: 10; box-shadow: 0 2px 2px -1px rgba(0,0,0,0.1); }
+td:first-child, th:first-child { position: sticky; left: 0; z-index: 11; background: #f1f5f9; font-weight: bold; border-right: 2px solid #cbd5e1; }
+th:first-child { z-index: 12; background: #e2e8f0; }
+
+/* Lưới Key-Value */
+.kv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px; margin-top: 15px; }
+.kv-item { background: #f8fafc; padding: 10px 15px; border-radius: 8px; border: 1px solid var(--border); display: flex; flex-direction: column; justify-content: center; }
+.kv-key { font-size: 0.75rem; color: #64748b; margin-bottom: 4px; font-weight: 700; text-transform: uppercase;}
+.kv-val { font-size: 0.95rem; color: #0f172a; font-weight: 600; word-break: break-all; }
+
+/* CSV Card Specific */
+.csv-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
+.csv-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.02); }
+.csv-card h3 { margin-top: 0; color: var(--primary); border-bottom: 1px dashed var(--border); padding-bottom: 8px; font-size: 1rem; }
+.csv-row { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid #f1f5f9; }
+.csv-row .key { font-size: 0.8rem; color: #64748b; max-width: 60%; overflow: hidden; text-overflow: ellipsis; }
+.csv-row .val { font-size: 0.85rem; font-weight: 600; color: #0f172a; max-width: 35%; text-align: right; }
+
+.config-item { background: #f1f5f9; border-color: #e2e8f0; }
+.config-item .kv-key { color: #94a3b8; }
+.config-item .kv-val { color: #64748b; font-weight: 500; font-size: 0.85rem;}

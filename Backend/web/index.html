@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IoT Ultimate Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Hệ Thống Phân Tích Dữ Liệu IoT Tổng Hợp</h1>
+            <p>Hỗ trợ: Ma trận CSV, Báo cáo JSON Layer 1 (Raw) & Layer 2 (Window Slices)</p>
+        </header>
+
+        <section class="upload-section" id="dropZone">
+            <input type="file" id="fileInput" accept=".csv,.json,.jsonl" hidden>
+            <div class="upload-btn">📁 Click hoặc Kéo thả tệp vào đây</div>
+            <div id="fileInfo" class="file-name"></div>
+        </section>
+
+        <section id="reportArea" class="report-section" style="display: none;">
+            </section>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
