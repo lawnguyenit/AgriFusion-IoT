@@ -4,9 +4,9 @@ import Backend.Config.path_manager as pm
 import tabnet_vanilla_config as config
 
 def main() -> None:
-    npk_json = pm.get_json_npk_path()
-    sht30_json = pm.get_json_sht30_path()
-    meteo_json = pm.get_json_meteo_path()
+    npk_json    = pm.get_json_npk_path()
+    sht30_json  = pm.get_json_sht30_path()
+    meteo_json  = pm.get_json_meteo_path()
     output_path = Path(__file__).parent / "Input"
 
     specs = [

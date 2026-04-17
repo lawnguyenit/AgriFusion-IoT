@@ -23,4 +23,37 @@ METEO_FIELDS = {
                 "weather_code": "perception.weather_code",
                 "is_day": "perception.is_day",
 }
-                
+
+BASE_FEATURE_COLS = [
+    # NPK
+    "npk_n_ppm",
+    "npk_p_ppm",
+    "npk_k_ppm",
+    "npk_soil_temp_c",
+    "npk_soil_humidity_pct",
+    "npk_soil_ph",
+    "npk_soil_ec_us_cm",
+
+    # SHT
+    "sht_temp_air_c",
+    "sht_humidity_air_pct",
+
+    # METEO
+    "meteo_rain_mm",
+    "meteo_dew_point_c",
+    "meteo_cloud_cover_pct",
+    "meteo_et0_mm",
+    "meteo_weather_code",
+    "meteo_is_day",
+
+    # presence flags
+    "npk_present",
+    "sht_present",
+    "meteo_present",
+]
+
+DROP_COLS_IF_EXIST = [
+    "npk_observed_at_local",
+    "sht_observed_at_local",
+    "meteo_observed_at_local",
+]
