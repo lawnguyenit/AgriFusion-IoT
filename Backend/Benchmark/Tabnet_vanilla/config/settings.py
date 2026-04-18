@@ -1,3 +1,10 @@
+# TỈ LỆ CHIA DỮ LIỆU 
+TRAIN_RATIO = 0.70
+VALID_RATIO = 0.15
+TEST_RATIO = 0.15
+
+
+# CÁC CỘT DỮ LIỆU TỪ 3 Nguồn NPK, SHT, METEO ĐƯA VÀO MODEL
 NPK_FIELDS = {
                 "n_ppm": "perception.n_ppm",
                 "p_ppm": "perception.p_ppm",
@@ -24,6 +31,7 @@ METEO_FIELDS = {
                 "is_day": "perception.is_day",
 }
 
+# CÁC CỘT ĐƯỢC SỬ DỤNG LÀM FEATURE CHO MODEL, CÓ THỂ KHÔNG PHẢI LÀ TẤT CẢ CÁC CỘT Ở TRÊN
 BASE_FEATURE_COLS = [
     # NPK
     "npk_n_ppm",
@@ -52,8 +60,11 @@ BASE_FEATURE_COLS = [
     "meteo_present",
 ]
 
+
+# CÁC CỘT SẼ BỊ LOẠI BỎ NẾU TỒN TẠI, THƯỜNG LÀ CÁC CỘT THỜI GIAN ĐƯỢC ĐỔI TÊN THEO SPEC
 DROP_COLS_IF_EXIST = [
     "npk_observed_at_local",
     "sht_observed_at_local",
     "meteo_observed_at_local",
 ]
+

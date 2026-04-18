@@ -1,7 +1,7 @@
 from pathlib import Path
 from Backend.Config.IO.io_csv import SourceSpec, convert_multi_jsonl_to_csv
 import Backend.Config.path_manager as pm
-import tabnet_vanilla_config as config
+import Benchmark.Tabnet_vanilla.config.settings as settings
 
 def main() -> None:
     npk_json    = pm.get_json_npk_path()
@@ -13,17 +13,17 @@ def main() -> None:
         SourceSpec(
             name="npk",
             path=npk_json,
-            fields=config.NPK_FIELDS,
+            fields=settings.NPK_FIELDS,
         ),
         SourceSpec(
             name="sht",
             path=sht30_json,
-            fields=config.SHT_FIELDS,
+            fields=settings.SHT_FIELDS,
         ),
         SourceSpec(
             name="meteo",
             path=meteo_json,
-            fields=config.METEO_FIELDS,
+            fields=settings.METEO_FIELDS,
         ),
     ]
     
