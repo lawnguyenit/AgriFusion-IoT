@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 import pandas as pd
 import json
 
@@ -16,6 +15,11 @@ class SourceSpec:
     observed_at_field: str | None = "timestamps.observed_at_local"
     add_present_flag: bool = True
     
+def load_csv(path: Path) -> pd.DataFrame:
+    if not path.exists():
+        raise FileNotFoundError(f"CSV not found: {path}")
+    return pd.read_csv(path)
+
 def load_flat_json(path: Path) -> pd.DataFrame:
     payload = json.loads(path.read_text(encoding="utf-8"))
     return pd.json_normalize(payload)

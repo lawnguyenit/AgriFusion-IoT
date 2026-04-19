@@ -1,0 +1,6 @@
+- Tại sao cần tách riêng vì cơ bản dữ liệu quá ngắn
+- Tại sao không cần chụp quá nhiều vì mỗi ngày là quá ngắn trong chu kì sinh học của cây nó k đủ để cho cây thay đổi lớn 
+- Tại sao không tăng giảm các thuộc tính được vì các thuộc tính đều có quan hệ nếu tăng giảm như vậy thì cũng phá vỡ tính 
+
+19.4 các mô hình có khả năng xử lí tương tự tabnet 
+- ML: CatBoost hoặc LightGBM

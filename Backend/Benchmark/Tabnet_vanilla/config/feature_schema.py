@@ -1,7 +1,7 @@
 
 import pandas as pd
-from Benchmark.Tabnet_vanilla.config import settings
-
+# from Benchmark.Tabnet_vanilla.config import settings
+from config import settings
 def get_feature_columns(df: pd.DataFrame) -> list[str]:
     feature_cols: list[str] = []
 

@@ -3,16 +3,8 @@ import pandas as pd
 
 from sklearn.metrics import classification_report, roc_auc_score    # type: ignore
 from pytorch_tabnet.tab_model import TabNetClassifier               # type: ignore
-from pathlib import Path
 
-
-test_folder    = Path(__file__).parent
-backend_folder = test_folder.parent
-output_folder  = backend_folder/ "Output_data"
-layer2h_folder = output_folder / "Layer2h"
-supertb_folder = layer2h_folder / "super_table"
-tabnet_csv     = supertb_folder / "tabnet_ready.csv"
-
+import Backend.Config as config
 
 # =========================
 # 1. ĐỌC DỮ LIỆU

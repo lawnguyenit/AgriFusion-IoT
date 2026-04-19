@@ -1,7 +1,7 @@
 from pathlib import Path
 from Backend.Config.IO.io_csv import SourceSpec, convert_multi_jsonl_to_csv
 import Backend.Config.path_manager as pm
-import Benchmark.Tabnet_vanilla.config.settings as settings
+import config.settings as settings
 
 def main() -> None:
     npk_json    = pm.get_json_npk_path()
