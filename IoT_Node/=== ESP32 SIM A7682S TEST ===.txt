@@ -1,0 +1,76 @@
+=== ESP32 SIM A7682S TEST ===
+SIM UART: TX=17 RX=16 BAUD=115200
+AMS EN PIN: GPIO1
+APN: v-internet
+Muc tieu: test ket noi voi module SIM va in trang thai ra terminal.
+
+[APP] Serial Monitor da san sang. Set 115200, No line ending.
+[APP] Neu khong thay log, vui long mo Serial Monitor tu PlatformIO hoac cong USB CDC.
+
+[APP] Da bat GPIO1 lam chan EN dieu khien AMS/LDO.
+[APP] Luu y: GPIO khong duoc dung lam chan cap nguon truc tiep cho AMS.
+[APP] RX/TX giu nguyen theo Config.h: TX=17 RX=16
+
+[APP] Dang khoi tao SIM A7682S...
+
+[SIM] --- BAT DAU KHOI DONG ---
+[SIM] Cho modem phan hoi toi da 5000 ms
+[SIM] Kiem tra AT handshake...[SIM][AT] probe 1 (elapsed=3/5000 ms) => 0
+ -> OK
+[SIM][AT] ATV1 => OK
+[SIM][AT] ATE0 => OK
+[SIM] Init Modem... -> OK
+
+[SIM][STATE] ===== MODEM SNAPSHOT =====
+[SIM][STATE] stage=after_init
+[SIM][STATE] sim=READY csq=18 dbm=-77 net=1 gprs=0 attach=1 ip=
+[SIM][STATE] operator=45204
+[SIM][AT] AT => 0
+[SIM][AT] AT+CPIN? => +CPIN: READY
+0
+[SIM][AT] AT+CSQ => +CSQ: 18,99
+0
+[SIM][AT] AT+CREG? => +CREG: 0,1
+0
+[SIM][AT] AT+CGREG? => +CGREG: 0,1
+0
+[SIM][AT] AT+CEREG? => +CEREG: 0,1
+0
+[SIM][AT] AT+CGATT? => +CGATT: 1
+0
+[SIM][AT] AT+COPS? => +COPS: 0,2,"45204",7
+0
+[SIM][AT] AT+CGNAPN => 4
+[SIM][AT] AT+CGPADDR=1 => +CGPADDR: 1,214.178.10.200,254.128.0.0.0.0.0.0.148.64.183.244.43.211.14.101
+0
+[SIM][AT] AT+CFUN? => +CFUN: 1
+0
+[SIM][STATE] ===========================
+[SIM] Dang tim song -> Co song roi!
+
+[SIM][STATE] ===== MODEM SNAPSHOT =====
+[SIM][STATE] stage=registered
+[SIM][STATE] sim=READY csq=18 dbm=-77 net=1 gprs=0 attach=1 ip=
+[SIM][STATE] operator=45204
+[SIM][AT] AT => 0
+[SIM][AT] AT+CPIN? => +CPIN: READY
+0
+[SIM][AT] AT+CSQ => +CSQ: 20,99
+0
+[SIM][AT] AT+CREG? => +CREG: 0,1
+0
+[SIM][AT] AT+CGREG? => +CGREG: 0,1
+0
+[SIM][AT] AT+CEREG? => +CEREG: 0,1
+0
+[SIM][AT] AT+CGATT? => +CGATT: 1
+0
+[SIM][AT] AT+COPS? => +COPS: 0,2,"45204",7
+0
+[SIM][AT] AT+CGNAPN => 4
+[SIM][AT] AT+CGPADDR=1 => +CGPADDR: 1,214.178.10.200,254.128.0.0.0.0.0.0.148.64.183.244.43.211.14.101
+0
+[SIM][AT] AT+CFUN? => +CFUN: 1
+0
+[SIM][STATE] ===========================
+[SIM] Dang ket noi 4G (v-internet)...

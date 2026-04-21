@@ -29,7 +29,7 @@
 #define APP_NODE_SLOT_KEY              "Node1"
 #define APP_NODE_ID                    "Node1"
 #define APP_NODE_NAME                  "Vuon sau rieng A"
-#define APP_NODE_SITE_ID               "farm_a_zone_1"
+#define APP_NODE_SITE_ID               "Binh Phu, Vinh Long"
 #define APP_NODE_DEVICE_UID            "esp32s3_node1"
 #define APP_NODE_POWER_TYPE            "solar_battery"
 #define APP_NODE_TIMEZONE              "Asia/Ho_Chi_Minh"
@@ -49,9 +49,9 @@
 
 // ================= [EDGE METADATA] =================
 #define APP_EDGE_SYSTEM_NPK            "soil_npk_edge"
-#define APP_EDGE_SYSTEM_ID_NPK         "edge_npk_01"
+#define APP_EDGE_SYSTEM_ID_NPK         "edge_npk"
 #define APP_EDGE_SYSTEM_SHT            "air_climate_edge"
-#define APP_EDGE_SYSTEM_ID_SHT         "edge_sht30_01"
+#define APP_EDGE_SYSTEM_ID_SHT         "edge_sht30"
 
 // ================= [OTA] =================
 #define APP_RTDB_PATH_OTA_STATUS       "/ota/status"

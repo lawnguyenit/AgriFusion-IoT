@@ -1,0 +1,475 @@
+#include "AppRuntime.h"
+
+#include <FS.h>
+#include <LittleFS.h>
+#include <WiFi.h>
+#include <ArduinoJson.h>
+#include <cstring>
+#include <esp_task_wdt.h>
+#include <time.h>
+
+#include "Config.h"
+#include "NetworkBridge.h"
+#include "Storage.h"
+
+#define APP_LOG_SYS(fmt, ...)    CUS_DBGF(APP_LOG_SYS_TAG " " fmt, ##__VA_ARGS__)
+#define APP_LOG_SENSOR(fmt, ...) CUS_DBGF(APP_LOG_SENSOR_TAG " " fmt, ##__VA_ARGS__)
+#define APP_LOG_NET(fmt, ...)    CUS_DBGF(APP_LOG_NET_TAG " " fmt, ##__VA_ARGS__)
+#define APP_LOG_CLOUD(fmt, ...)  CUS_DBGF(APP_LOG_CLOUD_TAG " " fmt, ##__VA_ARGS__)
+#define APP_LOG_OTA(fmt, ...)    CUS_DBGF(APP_LOG_OTA_TAG " " fmt, ##__VA_ARGS__)
+
+AppRuntime::AppRuntime()
+    : _rawTelemetryReporter(APP_RTDB_PATH_NODE_ROOT),
+      _otaReporter(APP_RTDB_PATH_OTA_STATUS, APP_RTDB_PATH_OTA_HISTORY),
+      _nodeRuntimePublisher(makeNodeRuntimeConfig()),
+      _firebasePipeline(makeFirebasePipelineConfig(), _rawTelemetryReporter, _nodeRuntimePublisher),
+      _sht30Service(SHT30_SDA_PIN, SHT30_SCL_PIN, SHT30_I2C_ADDR, APP_SHT30_RETRY_INIT_MS),
+      _packetBuilder(_sht30Service),
+      _serialNpk(1) {}
+
+NodeRuntimeConfig AppRuntime::makeNodeRuntimeConfig() {
+    NodeRuntimeConfig cfg;
+    cfg.nodeRootPath = APP_RTDB_PATH_NODE_ROOT;
+    cfg.nodeInfoPath = APP_RTDB_PATH_NODE_INFO;
+    cfg.nodeLivePath = APP_RTDB_PATH_NODE_LIVE;
+    cfg.nodeStatusEventsPath = APP_RTDB_PATH_NODE_STATUS;
+    cfg.nodeId = APP_NODE_ID;
+    cfg.deviceUid = APP_NODE_DEVICE_UID;
+    cfg.siteId = APP_NODE_SITE_ID;
+    cfg.powerType = APP_NODE_POWER_TYPE;
+    cfg.timezone = APP_NODE_TIMEZONE;
+    cfg.telemetryRetentionDays = APP_TELEMETRY_RETENTION_DAYS;
+    cfg.wakeIntervalSec = APP_SENSOR_SAMPLE_INTERVAL_MS / 1000U;
+    cfg.nodeInfoPushIntervalMs = APP_NODE_INFO_PUSH_INTERVAL_MS;
+    cfg.probeIntervalMs = APP_TELEMETRY_PROBE_INTERVAL_MS;
+    return cfg;
+}
+
+FirebasePipelineConfig AppRuntime::makeFirebasePipelineConfig() {
+    FirebasePipelineConfig cfg;
+    cfg.databaseUrl = APP_FIREBASE_DATABASE_URL;
+    cfg.apiKey = APP_FIREBASE_API_KEY;
+    cfg.legacyToken = APP_FIREBASE_LEGACY_TOKEN;
+    cfg.offlineRawFile = APP_OFFLINE_RAW_FILE;
+    cfg.offlineReplayIntervalMs = APP_OFFLINE_REPLAY_INTERVAL_MS;
+    cfg.tlsRxBufferSize = 4096;
+    cfg.tlsTxBufferSize = 2048;
+    return cfg;
+}
+
+void AppRuntime::begin() {
+    APP_LOG_SYS("Khoi dong node %s, mode=%s, chu ky=%lu giay.\n",
+                APP_NODE_ID,
+                APP_RUN_CONTINUOUS ? "continuous" : "sleep",
+                (unsigned long)(APP_SENSOR_SAMPLE_INTERVAL_MS / 1000UL));
+
+    _deviceContext.begin();
+    _otaBootGuard.begin(_otaStateStore, APP_OTA_MAX_PENDING_BOOTS);
+
+    _dataQueue = xQueueCreate(APP_QUEUE_LENGTH, sizeof(SensorMessage));
+    if (_dataQueue == NULL) {
+        APP_LOG_SYS("Khong tao duoc data queue.\n");
+        return;
+    }
+
+    xTaskCreatePinnedToCore(sensorTaskEntry,
+                            "SensorTask",
+                            APP_SENSOR_TASK_STACK_SIZE,
+                            this,
+                            APP_SENSOR_TASK_PRIORITY,
+                            &_taskSensorHandle,
+                            APP_SENSOR_TASK_CORE);
+
+    xTaskCreatePinnedToCore(networkTaskEntry,
+                            "NetworkTask",
+                            APP_NETWORK_TASK_STACK_SIZE,
+                            this,
+                            APP_NETWORK_TASK_PRIORITY,
+                            &_taskNetworkHandle,
+                            APP_NETWORK_TASK_CORE);
+}
+
+void AppRuntime::sensorTaskEntry(void *ctx) {
+    static_cast<AppRuntime *>(ctx)->sensorTaskLoop();
+}
+
+void AppRuntime::networkTaskEntry(void *ctx) {
+    static_cast<AppRuntime *>(ctx)->networkTaskLoop();
+}
+
+bool AppRuntime::enqueueSensorMessage(const SensorMessage &msg, TickType_t waitTicks) {
+    if (xQueueSend(_dataQueue, &msg, waitTicks) == pdPASS) {
+        return true;
+    }
+
+    APP_LOG_SENSOR("Queue day, bo mat ban tin hien tai.\n");
+    return false;
+}
+
+void AppRuntime::setMessagePayloadKind(SensorMessage &msg, const char *kind) {
+    msg.payloadKind[0] = '\0';
+    if (!kind) {
+        return;
+    }
+    strncpy(msg.payloadKind, kind, sizeof(msg.payloadKind) - 1);
+    msg.payloadKind[sizeof(msg.payloadKind) - 1] = '\0';
+}
+
+String AppRuntime::currentFwVersion() const {
+    return _otaBootGuard.info().runningVersion.length()
+               ? _otaBootGuard.info().runningVersion
+               : OtaBootGuard::currentRunningVersion();
+}
+
+String AppRuntime::currentFwPartition() const {
+    return _otaBootGuard.info().runningPartition.length()
+               ? _otaBootGuard.info().runningPartition
+               : OtaBootGuard::currentRunningPartition();
+}
+
+void AppRuntime::initTimeSync() const {
+    configTzTime(APP_NODE_TZ_CONFIG, "time.google.com", "pool.ntp.org", "time.cloudflare.com");
+}
+
+void AppRuntime::maintainTimeSync() {
+    static uint32_t lastAttemptMs = 0;
+    if (!networkIsConnected()) {
+        return;
+    }
+    if (utcEpochMsIfSynced() > 0) {
+        return;
+    }
+    if (millis() - lastAttemptMs < APP_TIME_SYNC_RETRY_MS) {
+        return;
+    }
+
+    lastAttemptMs = millis();
+    APP_LOG_NET("NTP chua sync, thu dong bo lai.\n");
+    initTimeSync();
+}
+
+uint64_t AppRuntime::utcEpochMsIfSynced() {
+    time_t now = time(nullptr);
+    if (now < 1700000000) {
+        return 0;
+    }
+    return static_cast<uint64_t>(now) * 1000ULL;
+}
+
+void AppRuntime::publishNodeInfoIfDue(bool force) {
+    _nodeRuntimePublisher.publishNodeInfoIfDue(_firebaseData,
+                                               _deviceContext,
+                                               currentFwVersion(),
+                                               force,
+                                               utcEpochMsIfSynced());
+}
+
+void AppRuntime::publishSystemStatusCached(const char *state, const char *detail, bool force) {
+    String nextState = state ? state : "unknown";
+    String nextDetail = detail ? detail : "";
+    uint32_t now = millis();
+    bool changed = (_statusCache.state != nextState) || (_statusCache.detail != nextDetail);
+    bool refreshDue = (now - _statusCache.lastPublishMs) >= APP_STATUS_REFRESH_INTERVAL_MS;
+
+    if (!force && !changed && !refreshDue) {
+        return;
+    }
+
+    _nodeRuntimePublisher.publishSystemStatus(_firebaseData, state, detail, utcEpochMsIfSynced());
+    _statusCache.state = nextState;
+    _statusCache.detail = nextDetail;
+    _statusCache.lastPublishMs = now;
+}
+
+OtaStoredEvent AppRuntime::makeOtaEvent(const char *stage,
+                                        const char *status,
+                                        const String &detail,
+                                        const String &version,
+                                        const String &requestId) const {
+    OtaStoredEvent ev;
+    ev.valid = true;
+    ev.stage = stage;
+    ev.status = status;
+    ev.detail = detail;
+    ev.version = version;
+    ev.requestId = requestId;
+    return ev;
+}
+
+bool AppRuntime::reportOrStoreOtaEvent(const OtaStoredEvent &event) {
+    if (!event.valid) {
+        return true;
+    }
+
+    if (networkIsConnected() && Firebase.ready()) {
+        if (_otaReporter.reportEvent(_firebaseOtaData, event, currentFwVersion(), currentFwPartition())) {
+            return true;
+        }
+        APP_LOG_OTA("Report fail: %s\n", _firebaseOtaData.errorReason().c_str());
+    }
+
+    return _otaStateStore.savePendingEvent(event);
+}
+
+void AppRuntime::handleOtaCommandIfAny() {
+    static uint32_t lastPollMs = 0;
+    uint32_t now = millis();
+    if (now - lastPollMs < APP_OTA_POLL_INTERVAL_MS) {
+        return;
+    }
+    lastPollMs = now;
+
+    OtaCommand cmd;
+    String err;
+    if (!_otaManager.fetchCommand(_firebaseOtaData, APP_RTDB_PATH_OTA_COMMAND, cmd, err)) {
+        APP_LOG_OTA("Poll command fail: %s\n", err.c_str());
+        return;
+    }
+
+    if (!cmd.enabled) {
+        return;
+    }
+
+    String lastHandled = _otaStateStore.loadLastHandledRequestId();
+    if (!cmd.force && cmd.requestId == lastHandled) {
+        APP_LOG_OTA("Duplicate request ignored: %s\n", cmd.requestId.c_str());
+        _otaManager.disableCommand(_firebaseOtaData, APP_RTDB_PATH_OTA_COMMAND);
+        return;
+    }
+
+    String runningVer = currentFwVersion();
+    if (!cmd.force && cmd.version.length() > 0 && cmd.version == runningVer) {
+        reportOrStoreOtaEvent(makeOtaEvent("command", "skipped", "same firmware version", cmd.version, cmd.requestId));
+        _otaStateStore.saveLastHandledRequestId(cmd.requestId);
+        _otaManager.disableCommand(_firebaseOtaData, APP_RTDB_PATH_OTA_COMMAND);
+        return;
+    }
+
+    reportOrStoreOtaEvent(makeOtaEvent("download", "started", cmd.url, cmd.version, cmd.requestId));
+    publishSystemStatusCached("ota_downloading", cmd.version.c_str(), true);
+
+    String targetPartition;
+    String otaErr;
+    if (!_otaManager.performHttpOta(cmd, targetPartition, otaErr)) {
+        reportOrStoreOtaEvent(makeOtaEvent("update", "failed", otaErr, cmd.version, cmd.requestId));
+        _otaStateStore.saveLastHandledRequestId(cmd.requestId);
+        _otaManager.disableCommand(_firebaseOtaData, APP_RTDB_PATH_OTA_COMMAND);
+        publishSystemStatusCached("ota_failed", otaErr.c_str(), true);
+        return;
+    }
+
+    OtaPendingValidationInfo pending;
+    pending.active = true;
+    pending.requestId = cmd.requestId;
+    pending.targetVersion = cmd.version;
+    pending.targetPartition = targetPartition;
+    pending.previousPartition = currentFwPartition();
+    pending.bootCount = 0;
+    _otaStateStore.savePendingValidation(pending);
+    _otaStateStore.saveLastHandledRequestId(cmd.requestId);
+
+    reportOrStoreOtaEvent(makeOtaEvent("reboot", "pending_validation", targetPartition, cmd.version, cmd.requestId));
+    _otaManager.disableCommand(_firebaseOtaData, APP_RTDB_PATH_OTA_COMMAND);
+    publishSystemStatusCached("ota_rebooting", cmd.version.c_str(), true);
+
+    delay(1000);
+    ESP.restart();
+}
+
+void AppRuntime::maybeConfirmOtaAfterHealthyWindow() {
+    static bool confirmedThisBoot = false;
+    static uint32_t healthySinceMs = 0;
+
+    if (confirmedThisBoot || !_otaBootGuard.isPendingValidation()) {
+        return;
+    }
+
+    bool healthy = networkIsConnected() && Firebase.ready();
+    if (!healthy) {
+        healthySinceMs = 0;
+        return;
+    }
+
+    if (healthySinceMs == 0) {
+        healthySinceMs = millis();
+        return;
+    }
+
+    if (millis() - healthySinceMs < APP_OTA_CONFIRM_HEALTH_MS) {
+        return;
+    }
+
+    if (_otaBootGuard.confirmPendingValidation(_otaStateStore)) {
+        confirmedThisBoot = true;
+        _otaReporter.flushPendingEvent(_firebaseOtaData, _otaStateStore, currentFwVersion(), currentFwPartition());
+        publishSystemStatusCached("ota_confirmed", currentFwVersion().c_str(), true);
+    }
+}
+
+void AppRuntime::sensorTaskLoop() {
+    _serialNpk.begin(NPK_BAUDRATE, SERIAL_8N1, NPK_RX_PIN, NPK_TX_PIN);
+    _npkSensor.begin(_serialNpk);
+    _sht30Service.tryInit();
+
+    TickType_t lastWakeTick = xTaskGetTickCount();
+    uint32_t lastSampleMs = 0;
+    bool firstCycle = true;
+
+    APP_LOG_SENSOR("Task bat dau, chu ky lay mau %lu giay.\n",
+                   (unsigned long)(APP_SENSOR_SAMPLE_INTERVAL_MS / 1000UL));
+
+    for (;;) {
+        if (!firstCycle) {
+            vTaskDelayUntil(&lastWakeTick, pdMS_TO_TICKS(APP_SENSOR_SAMPLE_INTERVAL_MS));
+        }
+        firstCycle = false;
+
+        if (!_sht30Service.ready()) {
+            APP_LOG_SENSOR("SHT30 chua ready, thu init lai.\n");
+            _sht30Service.tryInit();
+        }
+
+        uint32_t sampleStartMs = millis();
+        uint32_t sampleIntervalMs = (lastSampleMs == 0) ? 0 : (sampleStartMs - lastSampleMs);
+        lastSampleMs = sampleStartMs;
+
+        APP_LOG_SENSOR("Bat dau chu ky do moi, elapsed=%lu ms.\n", (unsigned long)sampleIntervalMs);
+
+        NPK_Data data = _npkSensor.read();
+        SensorMessage npkMsg = {};
+
+        bool recoveredAfterFail = false;
+        uint32_t failStreakBeforeRecover = 0;
+        bool sensorAlarm = false;
+
+        if (data.readOk) {
+            if (_npkFailCount > 0) {
+                recoveredAfterFail = true;
+                failStreakBeforeRecover = (uint32_t)_npkFailCount;
+                APP_LOG_SENSOR("NPK phuc hoi sau %d lan fail lien tiep.\n", _npkFailCount);
+            }
+            _npkFailCount = 0;
+        } else {
+            _npkFailCount++;
+            APP_LOG_SENSOR("NPK fail streak=%d code=%s(0x%02X)\n",
+                           _npkFailCount,
+                           MyNPK::errorCodeToString(data.errorCodeRaw),
+                           data.errorCodeRaw);
+
+            if (_npkFailCount > 0 && (_npkFailCount % APP_NPK_UART_RESET_FAIL_INTERVAL) == 0) {
+                APP_LOG_SENSOR("Reset lai UART NPK do fail streak cao.\n");
+                _serialNpk.end();
+                delay(80);
+                _serialNpk.begin(NPK_BAUDRATE, SERIAL_8N1, NPK_RX_PIN, NPK_TX_PIN);
+                _npkSensor.begin(_serialNpk);
+                delay(50);
+            }
+
+            if (_npkFailCount >= APP_NPK_FAIL_ALARM_THRESHOLD) {
+                sensorAlarm = true;
+                APP_LOG_SENSOR("Canh bao NPK fail den nguong alarm.\n");
+            }
+        }
+
+        String npkJson = _npkSensor.makeJsonFromData(data,
+                                                     sampleIntervalMs,
+                                                     (uint32_t)_npkFailCount,
+                                                     recoveredAfterFail,
+                                                     failStreakBeforeRecover,
+                                                     sensorAlarm);
+
+        String combinedPayload = _packetBuilder.buildCombinedNodePacket(npkJson,
+                                                                        sensorAlarm,
+                                                                        currentFwVersion(),
+                                                                        currentFwPartition());
+        APP_LOG_SENSOR("Packet size=%u bytes.\n", (unsigned)combinedPayload.length());
+        if (combinedPayload.length() >= sizeof(npkMsg.jsonPayload)) {
+            APP_LOG_SENSOR("Payload qua lon (%u bytes), bo qua chu ky nay.\n",
+                           (unsigned)combinedPayload.length());
+            continue;
+        }
+
+        combinedPayload.toCharArray(npkMsg.jsonPayload, sizeof(npkMsg.jsonPayload));
+        npkMsg.isError = sensorAlarm;
+        setMessagePayloadKind(npkMsg, APP_PAYLOAD_KIND_NODE_PACKET);
+
+        if (enqueueSensorMessage(npkMsg)) {
+            APP_LOG_SENSOR("Da day mau vao queue, read_ok=%d alarm=%d.\n",
+                           data.readOk ? 1 : 0,
+                           sensorAlarm ? 1 : 0);
+        }
+    }
+}
+
+void AppRuntime::networkTaskLoop() {
+    esp_task_wdt_delete(NULL);
+
+    APP_LOG_NET("Task bat dau, mode=%s.\n", APP_RUN_CONTINUOUS ? "continuous" : "sleep");
+
+    bool netOk = networkSetup();
+    if (!netOk) {
+        APP_LOG_NET("Khoi dong mang that bai, se retry trong loop.\n");
+    }
+
+    _firebasePipeline.begin(_firebaseConfig, _firebaseAuth, _firebaseData, _firebaseOtaData);
+    initTimeSync();
+    setupStorage();
+    _offlineReplayPending = LittleFS.exists(APP_OFFLINE_RAW_FILE);
+
+    _otaReporter.flushPendingEvent(_firebaseOtaData, _otaStateStore, currentFwVersion(), currentFwPartition());
+    publishSystemStatusCached("boot", "network task started", true);
+    publishNodeInfoIfDue(true);
+
+    SensorMessage rcvMsg = {};
+
+    for (;;) {
+        networkMaintain();
+        bool hasInternet = networkIsConnected();
+
+        if (hasInternet && Firebase.ready()) {
+            maintainTimeSync();
+            _firebasePipeline.probeTelemetryPathIfNeeded(_firebaseData, utcEpochMsIfSynced());
+            publishNodeInfoIfDue(false);
+            _otaReporter.flushPendingEvent(_firebaseOtaData, _otaStateStore, currentFwVersion(), currentFwPartition());
+            maybeConfirmOtaAfterHealthyWindow();
+            handleOtaCommandIfAny();
+            _firebasePipeline.replayOfflineIfAny(_firebaseData, _offlineReplayPending, utcEpochMsIfSynced());
+        }
+
+        if (xQueueReceive(_dataQueue, &rcvMsg, pdMS_TO_TICKS(APP_QUEUE_RECV_WAIT_MS)) == pdPASS) {
+            const char *payloadKind = strlen(rcvMsg.payloadKind) ? rcvMsg.payloadKind : "unknown_json";
+            APP_LOG_NET("Nhan payload kind=%s, error=%d.\n", payloadKind, rcvMsg.isError ? 1 : 0);
+
+            if (rcvMsg.isError) {
+                APP_LOG_CLOUD("Sensor alarm -> push telemetry fault + status.\n");
+                _firebasePipeline.pushPayload(_firebaseData,
+                                              rcvMsg.jsonPayload,
+                                              true,
+                                              APP_PAYLOAD_KIND_SENSOR_ALARM,
+                                              _deviceContext,
+                                              currentFwVersion(),
+                                              currentFwPartition(),
+                                              _offlineReplayPending,
+                                              utcEpochMsIfSynced());
+                publishSystemStatusCached("sensor_alarm", "sensor fault buffered or uploaded", true);
+            } else if (_firebasePipeline.pushPayload(_firebaseData,
+                                                     rcvMsg.jsonPayload,
+                                                     false,
+                                                     payloadKind,
+                                                     _deviceContext,
+                                                     currentFwVersion(),
+                                                     currentFwPartition(),
+                                                     _offlineReplayPending,
+                                                     utcEpochMsIfSynced())) {
+                APP_LOG_CLOUD("Upload RTDB OK.\n");
+                publishSystemStatusCached("online", "rtdb write ok");
+            } else {
+                APP_LOG_CLOUD("Upload fail/offline -> buffered.\n");
+                publishSystemStatusCached(hasInternet ? "degraded" : "offline_buffering",
+                                          hasInternet ? "rtdb write fail, buffered" : "offline buffered");
+            }
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(APP_NETWORK_LOOP_DELAY_MS));
+    }
+}
