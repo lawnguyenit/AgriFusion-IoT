@@ -14,10 +14,15 @@ static const int MAX_RETRY = 5;
 static uint32_t gLastReconnectAttemptMs = 0;
 static uint32_t gLastRestartMs = 0;
 static uint32_t gLastDiagMs = 0;
+static uint32_t gLastIpRefreshMs = 0;
 static const uint32_t DIAG_INTERVAL_MS = 30000;
+static const uint32_t IP_REFRESH_INTERVAL_MS = 3000;
 static const uint32_t REG_AT_TIMEOUT_MS = 350;
 static const uint32_t RAW_AT_TIMEOUT_MS = 1200;
 static const uint32_t RAW_AT_TIMEOUT_BRIEF_MS = 250;
+static String gLastResolvedIp = "0.0.0.0";
+
+String runRawAt(const char *cmd, uint32_t timeoutMs = RAW_AT_TIMEOUT_MS);
 
 void yieldToScheduler(uint32_t ms = 1) {
     vTaskDelay(pdMS_TO_TICKS(ms));
@@ -29,7 +34,104 @@ void drainSerialAT() {
     }
 }
 
-String runRawAt(const char *cmd, uint32_t timeoutMs = RAW_AT_TIMEOUT_MS) {
+bool lineEndsWithToken(const String& response, const char* token) {
+    String s = response;
+    s.trim();
+    if (s == token) return true;
+    String suffix = String("\n") + token;
+    return s.endsWith(suffix);
+}
+
+bool atResponseIsOk(const String& response) {
+    return lineEndsWithToken(response, "OK") || lineEndsWithToken(response, "0");
+}
+
+bool atResponseIsError(const String& response) {
+    return lineEndsWithToken(response, "ERROR") || lineEndsWithToken(response, "4");
+}
+
+bool atResponseIsFinal(const String& response) {
+    return atResponseIsOk(response) || atResponseIsError(response);
+}
+
+bool isAsciiDigit(char c) {
+    return c >= '0' && c <= '9';
+}
+
+bool isValidIpv4(const String& ip) {
+    if (ip.isEmpty()) return false;
+
+    int parts = 0;
+    int start = 0;
+    while (start < ip.length()) {
+        int end = ip.indexOf('.', start);
+        if (end < 0) end = ip.length();
+        if (end == start) return false;
+        if (++parts > 4) return false;
+
+        int value = 0;
+        for (int i = start; i < end; ++i) {
+            char c = ip[i];
+            if (!isAsciiDigit(c)) return false;
+            value = (value * 10) + (c - '0');
+            if (value > 255) return false;
+        }
+
+        start = end + 1;
+    }
+
+    return parts == 4;
+}
+
+String extractFirstIpv4(const String& text) {
+    String candidate;
+    for (size_t i = 0; i < text.length(); ++i) {
+        char c = text[i];
+        if (isAsciiDigit(c) || c == '.') {
+            candidate += c;
+        } else if (!candidate.isEmpty()) {
+            if (isValidIpv4(candidate)) {
+                return candidate;
+            }
+            candidate = "";
+        }
+    }
+
+    if (isValidIpv4(candidate)) {
+        return candidate;
+    }
+    return String();
+}
+
+String queryCgpaddrIpv4() {
+    String response = runRawAt("+CGPADDR=1", RAW_AT_TIMEOUT_MS);
+    if (response == "<no response>") {
+        return String();
+    }
+    return extractFirstIpv4(response);
+}
+
+String resolveLocalIp(bool forceRefresh = false) {
+    uint32_t now = millis();
+    if (!forceRefresh && (now - gLastIpRefreshMs < IP_REFRESH_INTERVAL_MS)) {
+        return gLastResolvedIp;
+    }
+
+    String ip = queryCgpaddrIpv4();
+    if (!isValidIpv4(ip)) {
+        ip = extractFirstIpv4(modem.getLocalIP());
+    }
+
+    if (!isValidIpv4(ip)) {
+        ip = "0.0.0.0";
+    }
+
+    gLastResolvedIp = ip;
+    gLastIpRefreshMs = now;
+    return gLastResolvedIp;
+}
+
+String runRawAt(const char *cmd, uint32_t timeoutMs) {
     drainSerialAT();
     SerialAT.print("AT");
     SerialAT.print(cmd);
@@ -43,7 +145,7 @@ String runRawAt(const char *cmd, uint32_t timeoutMs = RAW_AT_TIMEOUT_MS) {
             response += c;
         }
 
-        if (response.indexOf("\r\nOK\r\n") >= 0 || response.indexOf("\r\nERROR\r\n") >= 0) {
+        if (atResponseIsFinal(response)) {
             break;
         }
         yieldToScheduler();
@@ -58,13 +160,18 @@ void printAtQuery(const char *label, const char *cmd, uint32_t timeoutMs) {
     yieldToScheduler();
 }
 
-bool waitForAtReady(uint32_t attempts, uint32_t retryDelayMs) {
-    for (uint32_t i = 0; i < attempts; ++i) {
+bool waitForAtReady(uint32_t timeoutMs, uint32_t retryDelayMs) {
+    uint32_t start = millis();
+    uint32_t probe = 0;
+
+    while (millis() - start < timeoutMs) {
+        ++probe;
         String response = runRawAt("", RAW_AT_TIMEOUT_BRIEF_MS);
-        bool ok = response.indexOf("OK") >= 0;
-        CUS_DBGF("[SIM][AT] probe %lu/%lu => %s\n",
-                 (unsigned long)(i + 1),
-                 (unsigned long)attempts,
+        bool ok = atResponseIsOk(response);
+        CUS_DBGF("[SIM][AT] probe %lu (elapsed=%lu/%lu ms) => %s\n",
+                 (unsigned long)probe,
+                 (unsigned long)(millis() - start),
+                 (unsigned long)timeoutMs,
                  response.c_str());
         if (ok) {
             return true;
@@ -72,6 +179,15 @@ bool waitForAtReady(uint32_t attempts, uint32_t retryDelayMs) {
         vTaskDelay(pdMS_TO_TICKS(retryDelayMs));
     }
     return false;
+}
+
+bool normalizeAtMode() {
+    String v1 = runRawAt("V1", 800);
+    String e0 = runRawAt("E0", 800);
+    bool ok = atResponseIsOk(v1) || atResponseIsOk(e0);
+    CUS_DBGF("[SIM][AT] ATV1 => %s\n", v1.c_str());
+    CUS_DBGF("[SIM][AT] ATE0 => %s\n", e0.c_str());
+    return ok;
 }
 
 const char *simStatusText(SimStatus sim) {
@@ -122,6 +238,40 @@ bool isPacketAttached() {
     return r == 1;
 }
 
+bool testInternetSocket() {
+    client.stop();
+
+    CUS_DBG("[SIM] Test DNS/TCP toi neverssl.com:80...");
+    if (!client.connect("neverssl.com", 80)) {
+        CUS_DBGLN(" -> FAIL");
+        return false;
+    }
+
+    client.print("GET / HTTP/1.0\r\nHost: neverssl.com\r\nConnection: close\r\n\r\n");
+
+    String header;
+    uint32_t start = millis();
+    while (millis() - start < 5000) {
+        while (client.available()) {
+            char c = (char)client.read();
+            header += c;
+            if (header.indexOf("HTTP/1.0") >= 0 || header.indexOf("HTTP/1.1") >= 0) {
+                CUS_DBGLN(" -> OK");
+                client.stop();
+                return true;
+            }
+        }
+        if (!client.connected() && !client.available()) {
+            break;
+        }
+        delay(10);
+    }
+
+    CUS_DBGLN(" -> FAIL");
+    client.stop();
+    return false;
+}
+
 void printCellDiagnostic(const char *stage) {
     uint32_t now = millis();
     if (now - gLastDiagMs < DIAG_INTERVAL_MS) {
@@ -139,7 +289,7 @@ void printCellDiagnostic(const char *stage) {
              regCgreg() ? 1 : 0,
              regCereg() ? 1 : 0,
              isPacketAttached() ? 1 : 0,
-             modem.getLocalIP().c_str());
+             resolveLocalIp().c_str());
 }
 
 bool waitForNetwork(int timeoutSec) {
@@ -161,23 +311,21 @@ void dumpSimState(const char *stage, bool force) {
     }
     gLastDiagMs = now;
 
+    SimNetworkState state = simReadNetworkState(true);
     SimStatus sim = modem.getSimStatus();
     int csq = modem.getSignalQuality();
-    bool net = modem.isNetworkConnected();
-    bool gprs = modem.isGprsConnected();
-    bool attached = isPacketAttached();
 
     CUS_DBGLN("\n[SIM][STATE] ===== MODEM SNAPSHOT =====");
     CUS_DBGF("[SIM][STATE] stage=%s\n", stage ? stage : "na");
     CUS_DBGF("[SIM][STATE] sim=%s csq=%d dbm=%d net=%d gprs=%d attach=%d ip=%s\n",
              simStatusText(sim),
              csq,
-             simSignalDbm(),
-             net ? 1 : 0,
-             gprs ? 1 : 0,
-             attached ? 1 : 0,
-             modem.getLocalIP().c_str());
-    CUS_DBGF("[SIM][STATE] operator=%s\n", modem.getOperator().c_str());
+             state.signalDbm,
+             state.networkRegistered ? 1 : 0,
+             state.gprsConnected ? 1 : 0,
+             state.packetAttached ? 1 : 0,
+             state.localIp.c_str());
+    CUS_DBGF("[SIM][STATE] operator=%s\n", state.operatorName.c_str());
 
     bool brief = (stage && strcmp(stage, "init_fail") == 0);
     if (brief) {
@@ -204,29 +352,33 @@ void dumpSimState(const char *stage, bool force) {
 bool setupSIM() {
     SerialAT.begin(SIM_BAUDRATE, SERIAL_8N1, SIM_RX_PIN, SIM_TX_PIN);
     SerialAT.setTimeout(50);
-    vTaskDelay(pdMS_TO_TICKS(SIM_BOOT_WAIT_MS));
 
     CUS_DBGLN("\n[SIM] --- BAT DAU KHOI DONG ---");
-    CUS_DBGF("[SIM] Cho modem boot %lu ms\n", (unsigned long)SIM_BOOT_WAIT_MS);
+    CUS_DBGF("[SIM] Cho modem phan hoi toi da %lu ms\n", (unsigned long)SIM_AT_RESPONSE_TIMEOUT_MS);
 
     CUS_DBG("[SIM] Kiem tra AT handshake...");
-    if (!waitForAtReady(SIM_AT_READY_RETRY_COUNT, SIM_AT_READY_RETRY_DELAY_MS)) {
+    if (!waitForAtReady(SIM_AT_RESPONSE_TIMEOUT_MS, SIM_AT_READY_RETRY_DELAY_MS)) {
         CUS_DBGLN(" -> FAIL");
-        CUS_DBGLN("[SIM] -> LOI: Modem khong san sang tren UART.");
+        CUS_DBGF("[SIM] -> KHONG CO TIN HIEU: khong co phan hoi tren UART trong %lu ms.\n",
+                 (unsigned long)SIM_AT_RESPONSE_TIMEOUT_MS);
         dumpSimState("init_fail", true);
         return false;
     }
     CUS_DBGLN(" -> OK");
 
+    normalizeAtMode();
+
     CUS_DBG("[SIM] Init Modem...");
     if (!modem.init()) {
         CUS_DBGLN(" -> FAIL");
         CUS_DBGLN("[SIM] Thu init lai sau AT handshake...");
-        if (!waitForAtReady(4, SIM_AT_READY_RETRY_DELAY_MS)) {
+        if (!waitForAtReady(SIM_AT_RESPONSE_TIMEOUT_MS, SIM_AT_READY_RETRY_DELAY_MS)) {
             CUS_DBGLN("[SIM] -> LOI: UART co luc mat dong bo sau boot.");
             dumpSimState("init_fail", true);
             return false;
         }
+
+        normalizeAtMode();
 
         if (!modem.init()) {
             CUS_DBGLN("[SIM] -> LOI: TinyGSM init fail du da co AT.");
@@ -259,6 +411,12 @@ bool setupSIM() {
     }
     CUS_DBGLN(" -> Internet OK");
     dumpSimState("gprs_connected", true);
+
+    if (!testInternetSocket()) {
+        CUS_DBGLN("[SIM] GPRS da len nhung test HTTP that bai.");
+        dumpSimState("internet_test_fail", true);
+        return false;
+    }
 
     gRestartCount = 0;
     checkInfo();
@@ -322,17 +480,42 @@ bool checkNetwork() {
 
 void checkInfo() {
 #if DEBUG_MODE
+    SimNetworkState state = simReadNetworkState(true);
     CUS_DBGLN("\n=== THONG TIN SIM ===");
     if (modem.testAT()) {
-        CUS_DBGF("Operator: %s\n", modem.getOperator().c_str());
+        CUS_DBGF("Operator: %s\n", state.operatorName.c_str());
         CUS_DBGF("Signal:   %d %%\n", modem.getSignalQuality());
-        CUS_DBGF("IP:       %s\n", modem.getLocalIP().c_str());
+        CUS_DBGF("IP:       %s\n", state.localIp.c_str());
         dumpSimState("check_info", true);
     } else {
         CUS_DBGLN("Modem khong phan hoi!");
     }
     CUS_DBGLN("=====================");
 #endif
+}
+
+SimNetworkState simReadNetworkState(bool forceRefreshIp) {
+    SimNetworkState state{};
+    SimStatus sim = modem.getSimStatus();
+
+    state.simReady = (sim == SIM_READY);
+    state.networkRegistered = isCellRegisteredAny();
+    state.packetAttached = isPacketAttached();
+    state.gprsConnected = modem.isGprsConnected();
+    state.signalDbm = simSignalDbm();
+    state.localIp = resolveLocalIp(forceRefreshIp);
+    state.operatorName = modem.getOperator();
+
+    if (!state.packetAttached && !state.gprsConnected) {
+        state.localIp = "0.0.0.0";
+    }
+
+    return state;
+}
+
+bool simHasUsableIP() {
+    SimNetworkState state = simReadNetworkState();
+    return state.localIp != "0.0.0.0";
 }
 
 int simSignalDbm() {
@@ -345,9 +528,13 @@ int simSignalDbm() {
 }
 
 String simLocalIP() {
-    return modem.getLocalIP();
+    return simReadNetworkState().localIp;
 }
 
 int simStatusCode() {
-    return modem.isGprsConnected() ? 3 : 0;
+    SimNetworkState state = simReadNetworkState();
+    if (state.gprsConnected && state.localIp != "0.0.0.0") return 3;
+    if (state.packetAttached) return 2;
+    if (state.networkRegistered) return 1;
+    return 0;
 }
