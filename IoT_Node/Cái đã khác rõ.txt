@@ -1,0 +1,75 @@
+Chưa ổn hoàn toàn, nhưng đã đủ để chốt hướng và move on khỏi phần “SIM có ra mạng được không”.
+
+Cái đã ổn thật
+
+Ở boot lần này:
+
+AT handshake pass ngay đầu.
+setupSIM=1.
+NETOPEN=1, CGATT=1, CGACT=1,1, CGPADDR=1,19.17.25.86.
+Test raw HTTP toi neverssl.com:80... -> OK (raw_http_ok,http_header_ok).
+probe đầu sau boot cũng pass sạch:
+stage=raw_transport_ready_ip_unknown
+raw_socket=OK | +CIPOPEN: 0,0
+raw_send=OK | +CIPSEND: 0,57,57
+raw_read=... HTTP/1.1 403 Forbidden
+http_ok=1
+
+=> Nghĩa là đường raw transport từ modem ra Internet đã pass end-to-end.
+
+Cái chưa ổn
+
+Sau đó các probe lặp lại cứ rơi vào:
+
+raw_http_open_fail
+cipopen_code_10
++CIPOPEN: 0,10
++CIPCLOSE: 0,4
+
+Tức là:
+
+flow đã chạy được, nhưng chưa bền khi mở/đóng socket lặp lại nhiều lần.
+
+Đây không còn là lỗi “SIM không có mạng”, mà là lỗi kiểu:
+
+socket/session cleanup chưa sạch
+probe quá dày
+state sau một request chưa được reset tốt
+Nói ngắn gọn theo 2 nghĩa
+1) Ổn chưa để chốt phần nền?
+
+Rồi.
+Bạn đã có bằng chứng boot pass + raw HTTP pass + time sync từ HTTP Date pass.
+
+2) Ổn chưa để coi là transport production?
+
+Chưa.
+Vì cứ probe lặp là lại có cipopen_code_10.
+
+Ý nghĩa chiến lược
+
+Từ giờ không nên đào lại SIM/APN/gói cước nữa.
+Nút thắt đã đổi thành:
+
+stability của vòng đời socket khi chạy lặp lại.
+
+Nên làm gì tiếp theo
+Giữ
+boot bring-up hiện tại
+flow raw HTTP đã pass
+sync time từ HTTP Date
+Bỏ / giảm
+probe raw HTTP quá dày 10 giây/lần
+reopen socket liên tục khi chưa cần
+các nhánh check cũ tự chấm ip=0
+Chuyển hướng đúng
+chỉ probe lại khi:
+boot xong
+hoặc khi mất mạng thật
+hoặc health check thưa hơn nhiều
+Chốt cuối
+
+Ổn để move on khỏi phần nền. Chưa ổn để gọi là bản bền.
+Bây giờ bài toán không còn là “SIM có chạy không”, mà là:
+
+làm sao dùng flow pass này mà không tự phá socket khi loop nhiều lần.

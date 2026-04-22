@@ -4,6 +4,9 @@
 #include <Arduino.h>
 
 bool syncTimeFromSIM();
+bool syncTimeFromHttpHeader(const String &header);
+bool syncTimeFromHttpDate();
+bool timeLooksSane();
 String getCurrentTimeStr();
 
 #endif

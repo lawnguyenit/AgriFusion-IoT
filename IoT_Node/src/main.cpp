@@ -1,22 +1,11 @@
 #include <Arduino.h>
 
-#include "AppRuntime.h"
-#include "Config.h"
-
-namespace {
-    AppRuntime gAppRuntime;
-}
+#include "AppEntry.h"
 
 void setup() {
-#if DEBUG_MODE
-    DEBUG_PORT.begin(DEBUG_BAUDRATE);
-    Serial.begin(DEBUG_BAUDRATE);
-    delay(1000);
-#endif
-
-    gAppRuntime.begin();
+    appEntrySetup();
 }
 
 void loop() {
-    vTaskDelete(NULL);
+    appEntryLoop();
 }

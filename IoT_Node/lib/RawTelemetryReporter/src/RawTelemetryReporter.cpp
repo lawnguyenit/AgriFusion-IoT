@@ -3,6 +3,8 @@
 #include <ArduinoJson.h>
 #include <time.h>
 
+#include "RtdbRestClient.h"
+
 namespace {
 void copyObject(JsonObject dst, JsonObjectConst src) {
     for (JsonPairConst kv : src) {
@@ -267,10 +269,20 @@ bool RawTelemetryReporter::publishRecord(FirebaseData &fbdo,
     record.remove("_event_id");
     String path = _nodeRootPath + "/telemetry/" + dateKey + "/" + entryKey;
 
+#if USE_SIM_NETWORK && APP_FIREBASE_SIM_TRANSPORT_ENABLED
+    String recordBody;
+    record.toString(recordBody, false);
+    RtdbRestResponse response;
+    if (!rtdbRestClient().putRawJson(path, recordBody, response, true)) {
+        errorDetail = path + " -> " + response.detail;
+        return false;
+    }
+#else
     if (!Firebase.setJSON(fbdo, path, record)) {
         errorDetail = path + " -> " + fbdo.errorReason();
         return false;
     }
+#endif
 
     record.set("raw_ref_id", entryKey);
 

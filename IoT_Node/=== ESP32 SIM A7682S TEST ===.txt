@@ -1,76 +1,384 @@
-=== ESP32 SIM A7682S TEST ===
-SIM UART: TX=17 RX=16 BAUD=115200
-AMS EN PIN: GPIO1
-APN: v-internet
-Muc tieu: test ket noi voi module SIM va in trang thai ra terminal.
-
-[APP] Serial Monitor da san sang. Set 115200, No line ending.
-[APP] Neu khong thay log, vui long mo Serial Monitor tu PlatformIO hoac cong USB CDC.
-
-[APP] Da bat GPIO1 lam chan EN dieu khien AMS/LDO.
-[APP] Luu y: GPIO khong duoc dung lam chan cap nguon truc tiep cho AMS.
-[APP] RX/TX giu nguyen theo Config.h: TX=17 RX=16
-
-[APP] Dang khoi tao SIM A7682S...
+[SYS] Khoi dong node Node1, mode=continuous, chu ky=60 giay.
+[NET] Task bat dau, mode=continuous.
 
 [SIM] --- BAT DAU KHOI DONG ---
+[SENSOR] Task bat dau, chu ky lay mau 60 giay.
+[SIM] Cho modem on dinh sau cap nguon 5000 ms
+[SENSOR] SHT30 chua ready, thu init lai.
+[SENSOR] Bat dau chu ky do moi, elapsed=0 ms.
+-> [NPK] Read success
+[SENSOR] Packet size=1393 bytes.
+[SENSOR] Da day mau vao queue, read_ok=1 alarm=0.
 [SIM] Cho modem phan hoi toi da 5000 ms
-[SIM] Kiem tra AT handshake...[SIM][AT] probe 1 (elapsed=3/5000 ms) => 0
+[SIM] Kiem tra AT handshake...[SIM][AT] probe 1 (elapsed=3/5000 ms) => OK
  -> OK
-[SIM][AT] ATV1 => OK
+[SIM] Dong bo UART/AT mode...[SIM][AT] ATV1 => OK
 [SIM][AT] ATE0 => OK
-[SIM] Init Modem... -> OK
+ -> OK
 
 [SIM][STATE] ===== MODEM SNAPSHOT =====
-[SIM][STATE] stage=after_init
-[SIM][STATE] sim=READY csq=18 dbm=-77 net=1 gprs=0 attach=1 ip=
+[SIM][STATE] stage=after_sync
+[SIM][STATE] sim=READY csq=17 dbm=-79 net=1 gprs=1 attach=1 ip=0.0.0.0
 [SIM][STATE] operator=45204
-[SIM][AT] AT => 0
+[SIM][AT] AT => OK
 [SIM][AT] AT+CPIN? => +CPIN: READY
-0
-[SIM][AT] AT+CSQ => +CSQ: 18,99
-0
+
+OK
+[SIM][AT] AT+CSQ => +CSQ: 17,99
+
+OK
 [SIM][AT] AT+CREG? => +CREG: 0,1
-0
+
+OK
 [SIM][AT] AT+CGREG? => +CGREG: 0,1
-0
+
+OK
 [SIM][AT] AT+CEREG? => +CEREG: 0,1
-0
+
+OK
 [SIM][AT] AT+CGATT? => +CGATT: 1
-0
+
+OK
+[SIM][AT] AT+CGACT? => +CGACT: 1,1
+
++CGACT: 3,1
+
++CGACT: 8,1
+
+OK
 [SIM][AT] AT+COPS? => +COPS: 0,2,"45204",7
-0
-[SIM][AT] AT+CGNAPN => 4
-[SIM][AT] AT+CGPADDR=1 => +CGPADDR: 1,214.178.10.200,254.128.0.0.0.0.0.0.148.64.183.244.43.211.14.101
-0
+
+OK
+[SIM][AT] AT+CGNAPN => ERROR
+[SIM][AT] AT+CGPADDR=1 => +CGPADDR: 1,214.58.27.152
+
+OK
+[SIM][AT] AT+NETOPEN? => +NETOPEN: 1
+
+OK
 [SIM][AT] AT+CFUN? => +CFUN: 1
-0
+
+OK
+[SIM][AT] AT+CCLK? => +CCLK: "70/01/01,01:45:52+00"
+
+OK
 [SIM][STATE] ===========================
 [SIM] Dang tim song -> Co song roi!
 
 [SIM][STATE] ===== MODEM SNAPSHOT =====
 [SIM][STATE] stage=registered
-[SIM][STATE] sim=READY csq=18 dbm=-77 net=1 gprs=0 attach=1 ip=
+[SIM][STATE] sim=READY csq=17 dbm=-79 net=1 gprs=1 attach=1 ip=0.0.0.0
 [SIM][STATE] operator=45204
-[SIM][AT] AT => 0
+[SIM][AT] AT => OK
 [SIM][AT] AT+CPIN? => +CPIN: READY
-0
-[SIM][AT] AT+CSQ => +CSQ: 20,99
-0
+
+OK
+[SIM][AT] AT+CSQ => +CSQ: 17,99
+
+OK
 [SIM][AT] AT+CREG? => +CREG: 0,1
-0
+
+OK
 [SIM][AT] AT+CGREG? => +CGREG: 0,1
-0
+
+OK
 [SIM][AT] AT+CEREG? => +CEREG: 0,1
-0
+
+OK
 [SIM][AT] AT+CGATT? => +CGATT: 1
-0
+
+OK
+[SIM][AT] AT+CGACT? => +CGACT: 1,1
+
++CGACT: 3,1
+
++CGACT: 8,1
+
+OK
 [SIM][AT] AT+COPS? => +COPS: 0,2,"45204",7
-0
-[SIM][AT] AT+CGNAPN => 4
-[SIM][AT] AT+CGPADDR=1 => +CGPADDR: 1,214.178.10.200,254.128.0.0.0.0.0.0.148.64.183.244.43.211.14.101
-0
+
+OK
+[SIM][AT] AT+CGNAPN => ERROR
+[SIM][AT] AT+CGPADDR=1 => +CGPADDR: 1,214.58.27.152
+
+OK
+[SIM][AT] AT+NETOPEN? => +NETOPEN: 1
+
+OK
 [SIM][AT] AT+CFUN? => +CFUN: 1
-0
+
+OK
+[SIM][AT] AT+CCLK? => +CCLK: "70/01/01,01:45:52+00"
+
+OK
 [SIM][STATE] ===========================
-[SIM] Dang ket noi 4G (v-internet)...
+[SIM] Dang kich hoat packet data (v-internet)... -> Internet OK
+[SIM] Recovery: base:ok,profile=IP steps=CGDCONT;CGACT1;CGATT1;CIPRXGET1;CGPADDR_UNCERTAIN;CDNSCFG;
+
+[SIM][STATE] ===== MODEM SNAPSHOT =====
+[SIM][STATE] stage=gprs_connected
+[SIM][STATE] sim=READY csq=17 dbm=-79 net=1 gprs=1 attach=1 ip=0.0.0.0
+[SIM][STATE] operator=45204
+[SIM][AT] AT => OK
+[SIM][AT] AT+CPIN? => +CPIN: READY
+
+OK
+[SIM][AT] AT+CSQ => +CSQ: 17,99
+
+OK
+[SIM][AT] AT+CREG? => +CREG: 0,1
+
+OK
+[SIM][AT] AT+CGREG? => +CGREG: 0,1
+
+OK
+[SIM][AT] AT+CEREG? => +CEREG: 0,1
+
+OK
+[SIM][AT] AT+CGATT? => +CGATT: 1
+
+OK
+[SIM][AT] AT+CGACT? => +CGACT: 1,1
+
++CGACT: 3,1
+
++CGACT: 8,1
+
+OK
+[SIM][AT] AT+COPS? => +COPS: 0,2,"45204",7
+
+OK
+[SIM][AT] AT+CGNAPN => ERROR
+[SIM][AT] AT+CGPADDR=1 => +CGPADDR: 1,214.58.27.152
+
+OK
+[SIM][AT] AT+NETOPEN? => +NETOPEN: 1
+
+OK
+[SIM][AT] AT+CFUN? => +CFUN: 1
+
+OK
+[SIM][AT] AT+CCLK? => +CCLK: "70/01/01,01:45:52+00"
+
+OK
+[SIM][STATE] ===========================
+[SIM] Test raw HTTP toi neverssl.com:80... -> OK (raw_http_ok,http_header_ok)
+
+=== THONG TIN SIM ===
+[SIM][AT] probe 1 (elapsed=4/1000 ms) => OK
+Operator: 45204
+Signal:   17 CSQ / -79 dBm
+IP:       0.0.0.0
+
+[SIM][STATE] ===== MODEM SNAPSHOT =====
+[SIM][STATE] stage=check_info
+[SIM][STATE] sim=READY csq=17 dbm=-79 net=1 gprs=1 attach=1 ip=0.0.0.0
+[SIM][STATE] operator=45204
+[SIM][AT] AT => OK
+[SIM][AT] AT+CPIN? => +CPIN: READY
+
+OK
+[SIM][AT] AT+CSQ => +CSQ: 17,99
+
+OK
+[SIM][AT] AT+CREG? => +CREG: 0,1
+
+OK
+[SIM][AT] AT+CGREG? => +CGREG: 0,1
+
+OK
+[SIM][AT] AT+CEREG? => +CEREG: 0,1
+
+OK
+[SIM][AT] AT+CGATT? => +CGATT: 1
+
+OK
+[SIM][AT] AT+CGACT? => +CGACT: 1,1
+
++CGACT: 3,1
+
++CGACT: 8,1
+
+OK
+[SIM][AT] AT+COPS? => +COPS: 0,2,"45204",7
+
+OK
+[SIM][AT] AT+CGNAPN => ERROR
+[SIM][AT] AT+CGPADDR=1 => +CGPADDR: 1,214.58.27.152
+
+OK
+[SIM][AT] AT+NETOPEN? => +NETOPEN: 1
+
+OK
+[SIM][AT] AT+CFUN? => +CFUN: 1
+
+OK
+[SIM][AT] AT+CCLK? => +CCLK: "70/01/01,01:45:58+00"
+
+OK
+[SIM][STATE] ===========================
+=====================
+[STORAGE] LittleFS Mount OK
+[FIREBASE] /Node1/info updated.
+[NET] Transport bootstrap reason=before_firebase_begin time_ready_before=0
+[TIME] Dang lay gio tu dong ho mang cua modem... -> Bo qua CCLK invalid: 70/01/01,01:46:25+00
+[NET] Transport bootstrap result time_ready=0 raw_http=0 probe_stage=raw_http_open_fail conn_stage=raw_socket_open_fail
+[TIME] sane_before=0 sim_sync=0 http_sync=0 now_before=1970-01-01 07:00:38 now_after=1970-01-01 07:00:38 cclk=70/01/01,01:46:25+00
+[SIM][PROBE] stage=raw_socket_open_fail detail=raw_http_open_fail | cipopen_no_urc uart=1 sim=1 reg=1 attach=1 gprs=1 ip=0 rawat_direct=0 raw_http=0 internet=0 csq=17 dbm=-79 cipopen=-1 ip_addr=0.0.0.0 op=45204
+[SIM][PROBE] pdp=+CGDCONT: 1,"IP","v-internet","214.58.27.152",0,0,,,,  |   | +CGDCONT: 3,"IPV6","v-internet","254.128.0.0.0.0.0.0.132.116.217.71.201.29.6.91",0,0,,,,  |   | +CGDCONT: 8,"IPV4V6","IMS","53.178.198.192,",0,0,0,2,1,1  |   | OK
+[SIM][PROBE] cgact=+CGACT: 1,1  |   | +CGACT: 3,1  |   | +CGACT: 8,1  |   | OK
+[SIM][PROBE] dns=Primary IPv4 DNS: 8.8.8.8,Secondary IPv4 DNS: 1.1.1.1  | Primary IPv6 DNS: 2402:800:20FF:7777::1,Secondary IPv6 DNS: 2402:800:20FF:9999::1  |   | OK
+[SIM][PROBE] netopen=+NETOPEN: 1  |   | OK
+[SIM][PROBE] netopen_detail=+NETOPEN: 1  |   | OK
+[SIM][PROBE] raw_socket=+NETOPEN: 1  |   | OK || OK
+[SIM][PROBE] raw_send=empty
+[SIM][PROBE] raw_read=empty
+[SIM][PROBE] raw_http_stage=raw_http_open_fail detail=cipopen_no_urc
+[SIM][FORENSIC] ---- AT SNAPSHOT ----
+[SIM][FORENSIC] CPIN=+CPIN: READY  |   | OK
+[SIM][FORENSIC] CSQ=+CSQ: 17,99  |   | OK
+[SIM][FORENSIC] CREG=+CREG: 0,1  |   | OK
+[SIM][FORENSIC] CGREG=+CGREG: 0,1  |   | OK
+[SIM][FORENSIC] CEREG=+CEREG: 0,1  |   | OK
+[SIM][FORENSIC] CGDCONT=+CGDCONT: 1,"IP","v-internet","214.58.27.152",0,0,,,,  |   | +CGDCONT: 3,"IPV6","v-internet","254.128.0.0.0.0.0.0.132.116.217.71.201.29.6.91",0,0,,,,  |   | +CGDCONT: 8,"IPV4V6","IMS","53.178.198.192,",0,0,0,2,1,1  |   | OK
+[SIM][FORENSIC] CGACT=+CGACT: 1,1  |   | +CGACT: 3,1  |   | +CGACT: 8,1  |   | OK
+[SIM][FORENSIC] CGATT=+CGATT: 1  |   | OK
+[SIM][FORENSIC] CDNSCFG=Primary IPv4 DNS: 8.8.8.8,Secondary IPv4 DNS: 1.1.1.1  | Primary IPv6 DNS: 2402:800:20FF:7777::1,Secondary IPv6 DNS: 2402:800:20FF:9999::1  |   | OK
+[SIM][FORENSIC] NETOPEN=+NETOPEN: 1  |   | OK
+[SIM][FORENSIC] CIPRXGET=+CIPRXGET: 1  |   | OK
+[SIM][FORENSIC] CIPCLOSE?=+CIPCLOSE: 0,0,0,0,0,0,0,0,0,0  |   | OK
+[SIM][FORENSIC] CCLK=+CCLK: "70/01/01,01:46:25+00"  |   | OK
+[SIM][FORENSIC] ---------------------
+[RAW][PRIMARY] http_ok=0 stage=raw_http_open_fail detail=cipopen_no_urc code=-1
+[RAW][PRIMARY] netopen={+NETOPEN: 1  |   | OK}
+[RAW][PRIMARY] open={+NETOPEN: 1  |   | OK || OK}
+[RAW][PRIMARY] prompt={}
+[RAW][PRIMARY] send={}
+[RAW][PRIMARY] available={}
+[RAW][PRIMARY] read={}
+[RAW][PRIMARY] close={+CIPCLOSE: 0,4  |   | ERROR}
+[CLOUD] Hoan Firebase begin vi cloud prerequisites chua san sang.
+[CLOUD] Hoan Firebase begin vi cloud prerequisites chua san sang.
+[NET] State change: net=-1->1 fb=-1->0 diag={net=1 fb=0 reg=1 attach=1 gprs=1 ip=0.0.0.0 rssi=-79 op=45204}
+[NET] Nhan payload kind=node_packet_json, error=0.
+[STORAGE] -> Da luu data vao Flash 
+[CLOUD] Upload buffered: stage=firebase_not_ready detail=Firebase.ready=false diag={net=1 fb=0 reg=1 attach=1 gprs=1 ip=0.0.0.0 rssi=-79 op=45204}
+[SENSOR] SHT30 chua ready, thu init lai.
+[SHT30] init SDA=8 SCL=9 addr=0x44 => FAIL
+[SENSOR] Bat dau chu ky do moi, elapsed=59990 ms.
+-> [NPK] Read success
+[SENSOR] Packet size=1398 bytes.
+[SENSOR] Da day mau vao queue, read_ok=1 alarm=0.
+[SIM] Packet data ton tai nhung raw probe fail (raw_http_open_fail,cipopen_no_urc code=-1).
+
+[SIM] MAT KET NOI INTERNET!
+
+[SIM][STATE] ===== MODEM SNAPSHOT =====
+[SIM][STATE] stage=network_lost
+[SIM][STATE] sim=READY csq=17 dbm=-79 net=1 gprs=1 attach=1 ip=0.0.0.0
+[SIM][STATE] operator=45204
+[SIM][AT] AT => OK
+[SIM][AT] AT+CPIN? => +CPIN: READY
+
+OK
+[SIM][AT] AT+CSQ => +CSQ: 17,99
+
+OK
+[SIM][AT] AT+CREG? => +CREG: 0,1
+
+OK
+[SIM][AT] AT+CGREG? => +CGREG: 0,1
+
+OK
+[SIM][AT] AT+CEREG? => +CEREG: 0,1
+
+OK
+[SIM][AT] AT+CGATT? => +CGATT: 1
+
+OK
+[SIM][AT] AT+CGACT? => +CGACT: 1,1
+
++CGACT: 3,1
+
++CGACT: 8,1
+
+OK
+[SIM][AT] AT+COPS? => +COPS: 0,2,"45204",7
+
+OK
+[SIM][AT] AT+CGNAPN => ERROR
+[SIM][AT] AT+CGPADDR=1 => +CGPADDR: 1,214.58.27.152
+
+OK
+[SIM][AT] AT+NETOPEN? => +NETOPEN: 1
+
+OK
+[SIM][AT] AT+CFUN? => +CFUN: 1
+
+OK
+[SIM][AT] AT+CCLK? => +CCLK: "70/01/01,01:47:05+00"
+
+OK
+[SIM][STATE] ===========================
+[SIM] Dang thu ket noi lai (Lan 1/5) -> Co song -> Reconnecting packet data... -> Packet len nhung raw HTTP van fail!
+[SIM] Probe fail: raw_http_open_fail,cipopen_no_urc code=-1
+
+[SIM][STATE] ===== MODEM SNAPSHOT =====
+[SIM][STATE] stage=reconnect_fail
+[SIM][STATE] sim=READY csq=17 dbm=-79 net=1 gprs=1 attach=1 ip=0.0.0.0
+[SIM][STATE] operator=45204
+[SIM][AT] AT => OK
+[SIM][AT] AT+CPIN? => +CPIN: READY
+
+OK
+[SIM][AT] AT+CSQ => +CSQ: 17,99
+
+OK
+[SIM][AT] AT+CREG? => +CREG: 0,1
+
+OK
+[SIM][AT] AT+CGREG? => +CGREG: 0,1
+
+OK
+[SIM][AT] AT+CEREG? => +CEREG: 0,1
+
+OK
+[SIM][AT] AT+CGATT? => +CGATT: 1
+
+OK
+[SIM][AT] AT+CGACT? => +CGACT: 1,1
+
++CGACT: 3,1
+
++CGACT: 8,1
+
+OK
+[SIM][AT] AT+COPS? => +COPS: 0,2,"45204",7
+
+OK
+[SIM][AT] AT+CGNAPN => ERROR
+[SIM][AT] AT+CGPADDR=1 => +CGPADDR: 1,214.15.123.70,254.128.0.0.0.0.0.0.228.137.51.79.220.178.77.243
+
+OK
+[SIM][AT] AT+NETOPEN? => +NETOPEN: 1
+
+OK
+[SIM][AT] AT+CFUN? => +CFUN: 1
+
+OK
+[SIM][AT] AT+CCLK? => +CCLK: "70/01/01,01:47:19+00"
+
+OK
+[SIM][STATE] ===========================
+[NET] State change: net=1->0 fb=0->0 diag={net=0 fb=0 reg=1 attach=1 gprs=1 ip=0.0.0.0 rssi=-79 op=45204}
+[SYS] Heartbeat: uptime=92s net=0 fb=0 fb_init=0 fb_begin=0 queue_wait=1 queue_free=9 offline=1 drops=0 oversize=0 buffer_fail=0 replay_issue=0 invalid_offline=0 diag={net=0 fb=0 reg=1 attach=1 gprs=1 ip=0.0.0.0 rssi=-79 op=45204}
+[NET] Nhan payload kind=node_packet_json, error=0.
+[STORAGE] -> Da luu data vao Flash 
+[CLOUD] Upload buffered: stage=network_down detail=networkIsConnected=false diag={net=0 fb=0 reg=1 attach=1 gprs=1 ip=0.0.0.0 rssi=-79 op=45204}
+[NET] Transport bootstrap reason=before_firebase_begin time_ready_before=0
+[SENSOR] SHT30 chua ready, thu init lai.
+[SHT30] init SDA=8 SCL=9 addr=0x44 => FAIL
+[SENSOR] Bat dau chu ky do moi, elapsed=59999 ms.
+-> [NPK] Read success
+[SENSOR] Packet size=1394 bytes.
+[SENSOR] Da day mau vao queue, read_ok=1 alarm=0.
