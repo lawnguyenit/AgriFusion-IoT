@@ -1,11 +1,17 @@
-[SYS] Khoi dong node Node1, mode=continuous, chu ky=60 giay.
-[NET] Task bat dau, mode=continuous.
+[SYS] Khoi dong node Node1, mode=sleep, chu ky=120 giay.
+[SYS] Bat dau phien wake cycle, retry SIM=7 lan moi 20 giay.
+[STORAGE] LittleFS Mount OK
+[   510][E][vfs_api.cpp:105] open(): /littlefs/offline_data.txt does not exist, no permits for creation
+[SENSOR] Bat dau chu ky do wake-once.
+-> [NPK] Read success
+[SENSOR] SHT30 chua ready, thu init lai trong cua so retry 1/3.
+[SHT30] init SDA=8 SCL=9 addr=0x44 attempt=1/3 => OK
+[SENSOR] SHT30 chua on dinh, retry 1/3 sau cua so 3000 ms. read_ok=1 err=out_of_range
+[SENSOR] SHT30 phuc hoi trong cua so retry tai lan 2/3.
+[SENSOR] Packet size=750 bytes, read_elapsed=5060 ms.
 
 [SIM] --- BAT DAU KHOI DONG ---
-[SENSOR] Task bat dau, chu ky lay mau 60 giay.
 [SIM] Cho modem on dinh sau cap nguon 5000 ms
-[SENSOR] SHT30 chua ready, thu init lai.
-[SENSOR] Bat dau chu ky do moi, elapsed=0 ms.
 [SIM] Cho modem phan hoi toi da 5000 ms
 [SIM] Kiem tra AT handshake...[SIM][AT] probe 1 (elapsed=3/5000 ms) => OK
  -> OK
@@ -15,72 +21,56 @@
 
 [SIM][STATE] ===== MODEM SNAPSHOT =====
 [SIM][STATE] stage=after_sync
-[SIM][STATE] sim=READY csq=22 dbm=-69 net=1 gprs=1 attach=1 ip=
+[SIM][STATE] sim=READY csq=22 dbm=-69 net=1 gprs=1 attach=1 ip=0.0.0.0
 [SIM][STATE] operator=45204
 [SIM][STATE] ===========================
 [SIM] Dang tim song -> Co song roi!
 
 [SIM][STATE] ===== MODEM SNAPSHOT =====
 [SIM][STATE] stage=registered
-[SIM][STATE] sim=READY csq=22 dbm=-69 net=1 gprs=1 attach=1 ip=
+[SIM][STATE] sim=READY csq=22 dbm=-69 net=1 gprs=1 attach=1 ip=0.0.0.0
 [SIM][STATE] operator=45204
 [SIM][STATE] ===========================
 [SIM] Dang kich hoat packet data (v-internet)... -> Internet OK
-[SIM] Recovery: base:ok,profile=IP steps=CGDCONT;CGACT1;CGATT1;CIPRXGET1;CGPADDR;CDNSCFG;
+[SIM] Recovery: base:ok,profile=IP steps=CGDCONT;CGACT1;CGATT1;CIPRXGET1;CGPADDR_UNCERTAIN;CDNSCFG;
 
 [SIM][STATE] ===== MODEM SNAPSHOT =====
 [SIM][STATE] stage=gprs_connected
-[SIM][STATE] sim=READY csq=22 dbm=-69 net=1 gprs=1 attach=1 ip=
+[SIM][STATE] sim=READY csq=22 dbm=-69 net=1 gprs=1 attach=1 ip=0.0.0.0
 [SIM][STATE] operator=45204
 [SIM][STATE] ===========================
 [SIM] Bo qua raw TCP/CIPOPEN trong flow chinh; A7682S se dung HTTP engine de danh gia transport.
--> [NPK] Read fail code=0xE2 (response_timeout), retry=2, duration=6052 ms
-[SENSOR] NPK fail streak=1 code=response_timeout(0xE2)
-[SENSOR] Packet size=1529 bytes.
-[SENSOR] Da day mau vao queue, read_ok=0 alarm=0.
 
 === THONG TIN SIM ===
 [SIM][AT] probe 1 (elapsed=2/1000 ms) => OK
 Operator: 45204
 Signal:   22 CSQ / -69 dBm
-IP:       
+IP:       0.0.0.0
 =====================
-[STORAGE] LittleFS Mount OK
-[  6720][E][vfs_api.cpp:105] open(): /littlefs/offline_data.txt does not exist, no permits for creation
-[NET] Transport bootstrap reason=before_firebase_begin time_ready_before=0
-[TIME] Dang lay gio tu dong ho mang cua modem... -> Bo qua CCLK invalid: 70/01/01,00:31:20+00
+[SIM] Packet data dang ton tai nhung IP query chua on dinh, tiep tuc giu session. op=45204 dbm=-69
+[NET] Wake retry 1/7: net=1 diag={net=1 fb=0 reg=1 attach=1 gprs=1 ip=0.0.0.0 rssi=-69 op=45204}
+[NET] Transport bootstrap reason=wake_retry_window time_ready_before=0
+[TIME] Dang lay gio tu dong ho mang cua modem... -> Bo qua CCLK invalid: 70/01/01,00:49:16+00
 [NET] Transport bootstrap result transport_ready=0 time_ready=0 http_ok=0 stage=http_transport_fail
-[TIME] sane_before=0 sim_sync=0 http_sync=0 time_ready=0 now_before=1970-01-01 07:00:20 now_after=1970-01-01 07:00:20 cclk=70/01/01,00:31:20+00
-[SIM][CLOUD] stage=http_transport_fail detail=http_modem_status_fail | modem_status=714 len=0 sim=1 reg=1 attach=1 gprs=1 ip= csq=22 dbm=-69 op=45204
+[TIME] sane_before=0 sim_sync=0 http_sync=0 time_ready=0 now_before=1970-01-01 07:00:34 now_after=1970-01-01 07:00:34 cclk=70/01/01,00:49:16+00
+[SIM][CLOUD] stage=http_transport_fail detail=http_modem_status_fail | modem_status=714 len=0 sim=1 reg=1 attach=1 gprs=1 ip=0.0.0.0 csq=22 dbm=-69 op=45204
 [SIM][HTTP] ok=0 status=714 stage=http_modem_status_fail detail=modem_status=714 len=0
-[CLOUD] Hoan Firebase begin vi cloud prerequisites chua san sang.
-[CLOUD] Hoan Firebase begin vi cloud prerequisites chua san sang.
-[NET] State change: net=-1->1 fb=-1->0 diag={net=1 fb=0 reg=1 attach=1 gprs=1 ip= rssi=-73 op=45204}
-[NET] Nhan payload kind=node_packet_json, error=0.
-[STORAGE] -> Da luu data vao Flash 
-[CLOUD] Upload buffered: stage=publish_blocked_transport_not_ready detail=inst=0x3fc9849c mode=sim_rest begin=0 transport=0 auth=0 publish=0 ready=0 last_probe= last_probe_http=0 last_publish= elapsed=4037 ms state={inst=0x3fc9849c mode=sim_rest begin=0 transport=0 auth=0 publish=0 ready=0 last_probe= last_probe_http=0 last_publish=} diag={net=1 fb=0 reg=1 attach=1 gprs=1 ip= rssi=-73 op=45204}
-[NET] Transport bootstrap reason=before_firebase_begin time_ready_before=0
-[TIME] Dang lay gio tu dong ho mang cua modem... -> Bo qua CCLK invalid: 70/01/01,00:31:39+00
-[TIME] Da dong bo tu HTTP Date: 22/04/2026 05:53:24 UTC
+[NET] Cloud chua san sang, cho 20 giay roi hoi lai.
+[SIM] Packet data dang ton tai nhung IP query chua on dinh, tiep tuc giu session. op=45204 dbm=-69
+[NET] Wake retry 2/7: net=1 diag={net=1 fb=0 reg=1 attach=1 gprs=1 ip=0.0.0.0 rssi=-69 op=45204}
+[NET] Transport bootstrap reason=wake_retry_window time_ready_before=0
+[TIME] Dang lay gio tu dong ho mang cua modem... -> Bo qua CCLK invalid: 70/01/01,00:49:45+00
+[TIME] Da dong bo tu HTTP Date: 22/04/2026 07:51:22 UTC
 [NET] Transport bootstrap result transport_ready=1 time_ready=1 http_ok=1 stage=cloud_transport_ready
-[CLOUD] Firebase begin attempt=1 reason=boot_network_ready diag={net=1 fb=0 reg=1 attach=1 gprs=1 ip= rssi=-69 op=45204}
+[CLOUD] Firebase begin attempt=1 reason=boot_network_ready diag={net=1 fb=0 reg=1 attach=1 gprs=1 ip=0.0.0.0 rssi=-71 op=45204}
 [FIREBASE] Dang khoi tao RTDB...
 [FIREBASE] Bootstrap config: url_ok=1 auth=legacy token_cfg=1 legacy_len=40 api_len=39 transport=sim_http_rest
 [CLOUD] Firebase bootstrap: url_ok=1 auth=legacy token_cfg=1 legacy_len=40 api_len=39 transport=sim_http_rest
 [CLOUD] Firebase auth after begin: custom_sim_rest_transport
-[CLOUD] Firebase probe after begin: ready=1 rtdb_probe_ok http=200 transport=1 response=1 detail=http_ok | status=200 len=563 state={inst=0x3fc9849c mode=sim_rest begin=1 transport=1 auth=1 publish=1 ready=1 last_probe=rtdb_probe_ok last_probe_http=200 last_publish=publish_gate_bypassed_sim_rest}
-[NET] State change: net=1->1 fb=0->1 diag={net=1 fb=1 reg=1 attach=1 gprs=1 ip= rssi=-69 op=45204}
+[CLOUD] Firebase probe after begin: ready=1 rtdb_probe_ok http=200 transport=1 response=1 detail=http_ok | status=200 len=564 state={inst=0x3fc997c4 mode=sim_rest begin=1 transport=1 auth=1 publish=1 ready=1 last_probe=rtdb_probe_ok last_probe_http=200 last_publish=publish_gate_bypassed_sim_rest}
+[NET] Cloud ready trong cua so retry tai lan 2.
+[NET] State change: net=-1->1 fb=-1->1 diag={net=1 fb=1 reg=1 attach=1 gprs=1 ip=0.0.0.0 rssi=-71 op=45204}
 [FIREBASE] /Node1/info updated.
-[FIREBASE] Probe telemetry path OK: /Node1/telemetry/_write_probe
-[STORAGE] Replay offline thanh cong 1 ban ghi.
-[CLOUD] Replay offline: stage=replay_ok replayed=1 failed=0 invalid=0 remain=0 detail=offline records uploaded
-[SYS] Heartbeat: uptime=60s net=1 fb=1 fb_init=1 fb_begin=1 queue_wait=0 queue_free=10 offline=0 drops=0 oversize=0 buffer_fail=0 replay_issue=0 invalid_offline=0 diag={net=1 fb=1 reg=1 attach=1 gprs=1 ip= rssi=-69 op=45204}
-[SENSOR] SHT30 chua ready, thu init lai.
-[SHT30] init SDA=8 SCL=9 addr=0x44 => OK
-[SENSOR] Bat dau chu ky do moi, elapsed=60001 ms.
--> [NPK] Read fail code=0xE2 (response_timeout), retry=2, duration=6052 ms
-[SENSOR] NPK fail streak=2 code=response_timeout(0xE2)
-[SENSOR] Reset lai UART NPK do fail streak cao.
-[ 66779][E][Wire.cpp:513] requestFrom(): i2cRead returned Error -1
-[SENSOR] Packet size=1569 bytes.
-[SENSOR] Payload qua lon (1569 bytes), bo qua chu ky nay.
+[FIREBASE] Node telemetry OK ref=1776844295_446
+[CLOUD] Wake upload OK in 13340 ms ref=1776844295_446.
+[SYS] Ket thuc phien wake, vao deep sleep 120 giay. reason=cycle_done

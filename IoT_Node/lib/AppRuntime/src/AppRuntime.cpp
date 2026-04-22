@@ -5,6 +5,7 @@
 #include <WiFi.h>
 #include <ArduinoJson.h>
 #include <cstring>
+#include <esp_sleep.h>
 #include <esp_task_wdt.h>
 #include <time.h>
 
@@ -142,8 +143,14 @@ void AppRuntime::begin() {
                 APP_RUN_CONTINUOUS ? "continuous" : "sleep",
                 (unsigned long)(APP_SENSOR_SAMPLE_INTERVAL_MS / 1000UL));
 
+    initTimeSync();
     _deviceContext.begin();
     _otaBootGuard.begin(_otaStateStore, APP_OTA_MAX_PENDING_BOOTS);
+
+    if (!APP_RUN_CONTINUOUS) {
+        runSleepCycle();
+        return;
+    }
 
     _dataQueue = xQueueCreate(APP_QUEUE_LENGTH, sizeof(SensorMessage));
     if (_dataQueue == NULL) {
@@ -166,6 +173,98 @@ void AppRuntime::begin() {
                             APP_NETWORK_TASK_PRIORITY,
                             &_taskNetworkHandle,
                             APP_NETWORK_TASK_CORE);
+}
+
+void AppRuntime::runSleepCycle() {
+    APP_LOG_SYS("Bat dau phien wake cycle, retry SIM=%u lan moi %lu giay.\n",
+                (unsigned)APP_SIM_READY_MAX_POLLS,
+                (unsigned long)(APP_SIM_READY_RETRY_INTERVAL_MS / 1000UL));
+
+    initTimeSync();
+    setupStorage();
+    _offlineReplayPending = storageFileExists(APP_OFFLINE_RAW_FILE);
+
+    String payload;
+    bool sensorAlarm = false;
+    if (!collectSingleSample(payload, sensorAlarm)) {
+        APP_LOG_SENSOR("Khong tao duoc mau hop le, ngu va thu lai sau.\n");
+        enterTimedDeepSleep(APP_SLEEP_FAIL_RETRY_INTERVAL_MS, "sample_fail");
+        return;
+    }
+
+    bool cloudReady = waitForCloudReadyWindow();
+    bool hasInternet = networkIsConnected();
+    bool firebaseReady = _firebaseClientInitialized ? _firebasePipeline.ready() : false;
+    logConnectivityTransitions(hasInternet, firebaseReady);
+
+    if (cloudReady) {
+        publishSystemStatusCached("boot", "wake cycle network ready", true);
+        publishNodeInfoIfDue(true);
+
+        if (_offlineReplayPending) {
+            OfflineReplayResult replay = _firebasePipeline.replayOfflineIfAnyDetailed(_firebaseData,
+                                                                                      _offlineReplayPending,
+                                                                                      utcEpochMsIfSynced());
+            _replayInvalidJsonCount += replay.invalidJsonCount;
+            if (isReplayResultInteresting(replay)) {
+                APP_LOG_CLOUD("Replay offline: %s detail=%s\n",
+                              buildReplayDiagSummary(replay).c_str(),
+                              replay.detail.c_str());
+            }
+        }
+
+        uint32_t uploadStartMs = millis();
+        TelemetryPushResult result = _firebasePipeline.pushPayloadDetailed(_firebaseData,
+                                                                           payload.c_str(),
+                                                                           sensorAlarm,
+                                                                           sensorAlarm ? APP_PAYLOAD_KIND_SENSOR_ALARM : APP_PAYLOAD_KIND_NODE_PACKET,
+                                                                           _deviceContext,
+                                                                           currentFwVersion(),
+                                                                           currentFwPartition(),
+                                                                           _offlineReplayPending,
+                                                                           utcEpochMsIfSynced());
+        uint32_t uploadElapsedMs = millis() - uploadStartMs;
+
+        if (result.uploaded) {
+            APP_LOG_CLOUD("Wake upload OK in %lu ms ref=%s.\n",
+                          (unsigned long)uploadElapsedMs,
+                          result.refId.c_str());
+            publishSystemStatusCached(sensorAlarm ? "sensor_alarm" : "online",
+                                      sensorAlarm ? "wake upload sensor alarm" : "wake upload ok",
+                                      true);
+            enterTimedDeepSleep(APP_SENSOR_SAMPLE_INTERVAL_MS, "cycle_done");
+            return;
+        }
+
+        APP_LOG_CLOUD("Wake upload buffered: stage=%s detail=%s elapsed=%lu ms state={%s}\n",
+                      result.stage.c_str(),
+                      result.detail.c_str(),
+                      (unsigned long)uploadElapsedMs,
+                      result.pipelineState.c_str());
+        enterTimedDeepSleep(APP_SLEEP_FAIL_RETRY_INTERVAL_MS, "upload_buffered");
+        return;
+    }
+
+    annotatePayloadSendState(payload, "sim_not_ready_timeout", APP_SIM_READY_MAX_POLLS);
+    TelemetryPushResult buffered = _firebasePipeline.pushPayloadDetailed(_firebaseData,
+                                                                         payload.c_str(),
+                                                                         sensorAlarm,
+                                                                         sensorAlarm ? APP_PAYLOAD_KIND_SENSOR_ALARM : APP_PAYLOAD_KIND_NODE_PACKET,
+                                                                         _deviceContext,
+                                                                         currentFwVersion(),
+                                                                         currentFwPartition(),
+                                                                         _offlineReplayPending,
+                                                                         utcEpochMsIfSynced());
+    if (!buffered.bufferStoreOk) {
+        APP_LOG_CLOUD("Khong luu duoc packet fail-window vao backlog: stage=%s detail=%s\n",
+                      buffered.stage.c_str(),
+                      buffered.detail.c_str());
+    } else {
+        APP_LOG_CLOUD("SIM/cloud chua san sang sau cua so retry, packet da duoc dem lai. stage=%s detail=%s\n",
+                      buffered.stage.c_str(),
+                      buffered.detail.c_str());
+    }
+    enterTimedDeepSleep(APP_SLEEP_FAIL_RETRY_INTERVAL_MS, "sim_retry_timeout");
 }
 
 void AppRuntime::sensorTaskEntry(void *ctx) {
@@ -221,6 +320,246 @@ String AppRuntime::currentFwPartition() const {
     return _otaBootGuard.info().runningPartition.length()
                ? _otaBootGuard.info().runningPartition
                : OtaBootGuard::currentRunningPartition();
+}
+
+bool AppRuntime::collectSingleSample(String &payloadOut, bool &sensorAlarmOut) {
+    payloadOut = "";
+    sensorAlarmOut = false;
+
+    _serialNpk.begin(NPK_BAUDRATE, SERIAL_8N1, NPK_RX_PIN, NPK_TX_PIN);
+    _npkSensor.begin(_serialNpk);
+
+    APP_LOG_SENSOR("Bat dau chu ky do wake-once.\n");
+    uint32_t sampleStartMs = millis();
+    auto parseShtState = [](const String &json, bool &readOk, bool &sampleValid, String &errorText) {
+        readOk = false;
+        sampleValid = false;
+        errorText = "json_parse_fail";
+
+        JsonDocument doc;
+        if (deserializeJson(doc, json) != DeserializationError::Ok) {
+            return;
+        }
+
+        readOk = doc["sht_read_ok"] | false;
+        sampleValid = doc["sht_sample_valid"] | false;
+        errorText = doc["sht_error"] | "unknown";
+    };
+
+    NPK_Data data = {};
+    bool npkRecoveredInsideWindow = false;
+    uint32_t npkFailBeforeRecover = 0;
+    for (uint32_t attempt = 1; attempt <= (uint32_t)APP_SENSOR_RETRY_WINDOW_COUNT; ++attempt) {
+        data = _npkSensor.read();
+        if (data.readOk) {
+            if (attempt > 1) {
+                npkRecoveredInsideWindow = true;
+                npkFailBeforeRecover = attempt - 1;
+                APP_LOG_SENSOR("NPK phuc hoi trong cua so retry tai lan %lu/%u.\n",
+                               (unsigned long)attempt,
+                               (unsigned)APP_SENSOR_RETRY_WINDOW_COUNT);
+            }
+            break;
+        }
+
+        APP_LOG_SENSOR("NPK mat ket noi/loi, retry %lu/%u sau cua so %lu ms. code=%s(0x%02X)\n",
+                       (unsigned long)attempt,
+                       (unsigned)APP_SENSOR_RETRY_WINDOW_COUNT,
+                       (unsigned long)APP_SENSOR_RETRY_WINDOW_MS,
+                       MyNPK::errorCodeToString(data.errorCodeRaw),
+                       data.errorCodeRaw);
+
+        if ((_npkFailCount + (int)attempt) > 0 &&
+            (((_npkFailCount + (int)attempt) % APP_NPK_UART_RESET_FAIL_INTERVAL) == 0)) {
+            APP_LOG_SENSOR("Reset lai UART NPK trong cua so retry.\n");
+            _serialNpk.end();
+            delay(80);
+            _serialNpk.begin(NPK_BAUDRATE, SERIAL_8N1, NPK_RX_PIN, NPK_TX_PIN);
+            _npkSensor.begin(_serialNpk);
+            delay(50);
+        }
+
+        if (attempt < (uint32_t)APP_SENSOR_RETRY_WINDOW_COUNT) {
+            delay(APP_SENSOR_RETRY_WINDOW_MS);
+        }
+    }
+
+    String shtJson;
+    bool shtReadOk = false;
+    bool shtSampleValid = false;
+    String shtError = "not_started";
+    for (uint32_t attempt = 1; attempt <= (uint32_t)APP_SENSOR_RETRY_WINDOW_COUNT; ++attempt) {
+        if (!_sht30Service.ready()) {
+            APP_LOG_SENSOR("SHT30 chua ready, thu init lai trong cua so retry %lu/%u.\n",
+                           (unsigned long)attempt,
+                           (unsigned)APP_SENSOR_RETRY_WINDOW_COUNT);
+            _sht30Service.tryInit(attempt == 1);
+        }
+
+        shtJson = _sht30Service.buildJsonPayload("sht30_air",
+                                                 "sht30_1",
+                                                 APP_EDGE_SYSTEM_SHT,
+                                                 APP_EDGE_SYSTEM_ID_SHT,
+                                                 "sht30",
+                                                 SHT30_READ_MAX_ATTEMPTS,
+                                                 SHT30_RETRY_DELAY_MS,
+                                                 SHT30_MAX_WAIT_MS);
+        parseShtState(shtJson, shtReadOk, shtSampleValid, shtError);
+        if (shtSampleValid) {
+            if (attempt > 1) {
+                APP_LOG_SENSOR("SHT30 phuc hoi trong cua so retry tai lan %lu/%u.\n",
+                               (unsigned long)attempt,
+                               (unsigned)APP_SENSOR_RETRY_WINDOW_COUNT);
+            }
+            break;
+        }
+
+        APP_LOG_SENSOR("SHT30 chua on dinh, retry %lu/%u sau cua so %lu ms. read_ok=%d err=%s\n",
+                       (unsigned long)attempt,
+                       (unsigned)APP_SENSOR_RETRY_WINDOW_COUNT,
+                       (unsigned long)APP_SENSOR_RETRY_WINDOW_MS,
+                       shtReadOk ? 1 : 0,
+                       shtError.c_str());
+
+        if (attempt < (uint32_t)APP_SENSOR_RETRY_WINDOW_COUNT) {
+            delay(APP_SENSOR_RETRY_WINDOW_MS);
+        }
+    }
+
+    bool recoveredAfterFail = false;
+    uint32_t failStreakBeforeRecover = 0;
+    bool sensorAlarm = false;
+
+    if (data.readOk) {
+        if (_npkFailCount > 0) {
+            recoveredAfterFail = true;
+            failStreakBeforeRecover = (uint32_t)_npkFailCount;
+            APP_LOG_SENSOR("NPK phuc hoi sau %d lan fail lien tiep.\n", _npkFailCount);
+        } else if (npkRecoveredInsideWindow) {
+            recoveredAfterFail = true;
+            failStreakBeforeRecover = npkFailBeforeRecover;
+        }
+        _npkFailCount = 0;
+    } else {
+        _npkFailCount++;
+        APP_LOG_SENSOR("NPK fail streak=%d code=%s(0x%02X)\n",
+                       _npkFailCount,
+                       MyNPK::errorCodeToString(data.errorCodeRaw),
+                       data.errorCodeRaw);
+
+        if (_npkFailCount > 0 && (_npkFailCount % APP_NPK_UART_RESET_FAIL_INTERVAL) == 0) {
+            APP_LOG_SENSOR("Reset lai UART NPK do fail streak cao.\n");
+            _serialNpk.end();
+            delay(80);
+            _serialNpk.begin(NPK_BAUDRATE, SERIAL_8N1, NPK_RX_PIN, NPK_TX_PIN);
+            _npkSensor.begin(_serialNpk);
+            delay(50);
+        }
+
+        if (_npkFailCount >= APP_NPK_FAIL_ALARM_THRESHOLD) {
+            sensorAlarm = true;
+            APP_LOG_SENSOR("Canh bao NPK fail den nguong alarm.\n");
+        }
+    }
+
+    String npkJson = _npkSensor.makeJsonFromData(data,
+                                                 APP_SENSOR_SAMPLE_INTERVAL_MS,
+                                                 (uint32_t)_npkFailCount,
+                                                 recoveredAfterFail,
+                                                 failStreakBeforeRecover,
+                                                 sensorAlarm);
+
+    payloadOut = _packetBuilder.buildCombinedNodePacket(npkJson,
+                                                        shtJson,
+                                                        sensorAlarm,
+                                                        currentFwVersion(),
+                                                        currentFwPartition());
+    APP_LOG_SENSOR("Packet size=%u bytes, read_elapsed=%lu ms.\n",
+                   (unsigned)payloadOut.length(),
+                   (unsigned long)(millis() - sampleStartMs));
+
+    if (payloadOut.isEmpty()) {
+        return false;
+    }
+
+    if (payloadOut.length() >= APP_SENSOR_PAYLOAD_BUFFER_SIZE) {
+        _payloadOversizeCount++;
+        APP_LOG_SENSOR("Canh bao: payload=%u bytes vuot moc cu=%u, nhung van tiep tuc vi sleep-mode gui truc tiep.\n",
+                       (unsigned)payloadOut.length(),
+                       (unsigned)APP_SENSOR_PAYLOAD_BUFFER_SIZE);
+    }
+
+    sensorAlarmOut = sensorAlarm;
+    return true;
+}
+
+bool AppRuntime::annotatePayloadSendState(String &payload, const char *state, uint32_t attempts) const {
+    if (!payload.length()) {
+        return false;
+    }
+
+    JsonDocument doc;
+    if (deserializeJson(doc, payload) != DeserializationError::Ok) {
+        return false;
+    }
+
+    JsonObject packet = doc["packet"].to<JsonObject>();
+    JsonObject system = packet["system_data"].to<JsonObject>();
+    system["send_state"] = state ? state : "unknown";
+    system["send_attempts"] = (int)attempts;
+    system["send_retry_interval_ms"] = (int)APP_SIM_READY_RETRY_INTERVAL_MS;
+    system["send_retry_max_polls"] = (int)APP_SIM_READY_MAX_POLLS;
+    system["send_window_ms"] = (int)(APP_SIM_READY_RETRY_INTERVAL_MS * APP_SIM_READY_MAX_POLLS);
+
+    payload = "";
+    serializeJson(doc, payload);
+    return true;
+}
+
+bool AppRuntime::waitForCloudReadyWindow() {
+    bool netOk = networkSetup();
+    if (!netOk) {
+        APP_LOG_NET("Khoi dong mang lan dau chua thanh cong, se vao cua so retry.\n");
+    }
+
+    initTimeSync();
+    for (uint32_t poll = 1; poll <= (uint32_t)APP_SIM_READY_MAX_POLLS; ++poll) {
+        networkMaintain();
+        bool hasInternet = networkIsConnected();
+        APP_LOG_NET("Wake retry %lu/%u: net=%d diag={%s}\n",
+                    (unsigned long)poll,
+                    (unsigned)APP_SIM_READY_MAX_POLLS,
+                    hasInternet ? 1 : 0,
+                    buildUploadDiagSummary(false).c_str());
+
+        bool transportReady = ensureCloudTransportReady(hasInternet, "wake_retry_window", poll == 1);
+        if (transportReady) {
+            beginFirebaseClientIfNeeded(hasInternet, !_firebaseClientInitialized, "wake_retry_window");
+            bool firebaseReady = _firebaseClientInitialized ? _firebasePipeline.ready() : false;
+            if (firebaseReady) {
+                APP_LOG_NET("Cloud ready trong cua so retry tai lan %lu.\n", (unsigned long)poll);
+                return true;
+            }
+        }
+
+        if (poll < (uint32_t)APP_SIM_READY_MAX_POLLS) {
+            APP_LOG_NET("Cloud chua san sang, cho %lu giay roi hoi lai.\n",
+                        (unsigned long)(APP_SIM_READY_RETRY_INTERVAL_MS / 1000UL));
+            delay(APP_SIM_READY_RETRY_INTERVAL_MS);
+        }
+    }
+
+    return false;
+}
+
+void AppRuntime::enterTimedDeepSleep(uint32_t sleepMs, const char *reason) const {
+    APP_LOG_SYS("Ket thuc phien wake, vao deep sleep %lu giay. reason=%s\n",
+                (unsigned long)(sleepMs / 1000UL),
+                reason ? reason : "na");
+    DEBUG_PORT.flush();
+    delay(100);
+    esp_sleep_enable_timer_wakeup((uint64_t)sleepMs * 1000ULL);
+    esp_deep_sleep_start();
 }
 
 void AppRuntime::initTimeSync() const {
@@ -705,7 +1044,7 @@ void AppRuntime::networkTaskLoop() {
 
     initTimeSync();
     setupStorage();
-    _offlineReplayPending = LittleFS.exists(APP_OFFLINE_RAW_FILE);
+    _offlineReplayPending = storageFileExists(APP_OFFLINE_RAW_FILE);
 
     if (_firebasePipeline.usesNativeFirebase()) {
         _otaReporter.flushPendingEvent(_firebaseOtaData, _otaStateStore, currentFwVersion(), currentFwPartition());

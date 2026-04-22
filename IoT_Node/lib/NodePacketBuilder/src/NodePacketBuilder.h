@@ -10,6 +10,11 @@ public:
     explicit NodePacketBuilder(Sht30Service &sht30Service);
 
     String buildCombinedNodePacket(const String &npkPayloadJson,
+                                   const String &shtPayloadJson,
+                                   bool npkAlarm,
+                                   const String &firmwareVersion,
+                                   const String &runningPartition) const;
+    String buildCombinedNodePacket(const String &npkPayloadJson,
                                    bool npkAlarm,
                                    const String &firmwareVersion,
                                    const String &runningPartition) const;

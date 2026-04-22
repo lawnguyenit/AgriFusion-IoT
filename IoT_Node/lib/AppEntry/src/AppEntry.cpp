@@ -4,7 +4,9 @@
 
 #include "Config.h"
 
-#if APP_RAW_TRUTH_PROBE_MODE || APP_SIM_PURE_TEST_MODE
+#if APP_SHT30_TEST_MODE
+#include "Sht30Probe.h"
+#elif APP_RAW_TRUTH_PROBE_MODE || APP_SIM_PURE_TEST_MODE
 #include "RawTruthProbe.h"
 #else
 #include "AppRuntime.h"
@@ -20,7 +22,9 @@ void appEntrySetup() {
     delay(300);
 #endif
 
-#if APP_RAW_TRUTH_PROBE_MODE || APP_SIM_PURE_TEST_MODE
+#if APP_SHT30_TEST_MODE
+    sht30ProbeBegin();
+#elif APP_RAW_TRUTH_PROBE_MODE || APP_SIM_PURE_TEST_MODE
     rawTruthProbeBegin();
 #else
     gAppRuntime.begin();
@@ -28,7 +32,10 @@ void appEntrySetup() {
 }
 
 void appEntryLoop() {
-#if APP_RAW_TRUTH_PROBE_MODE || APP_SIM_PURE_TEST_MODE
+#if APP_SHT30_TEST_MODE
+    sht30ProbeLoop();
+    delay(50);
+#elif APP_RAW_TRUTH_PROBE_MODE || APP_SIM_PURE_TEST_MODE
     rawTruthProbeLoop();
     delay(50);
 #else

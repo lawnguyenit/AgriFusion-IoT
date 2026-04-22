@@ -110,7 +110,47 @@ String slotLabelFromEpoch(uint32_t epochSec) {
     return String(buf);
 }
 
+String timeLabelFromEpoch(uint32_t epochSec) {
+    if (epochSec == 0) {
+        return "unsynced";
+    }
+
+    time_t sec = static_cast<time_t>(epochSec);
+    struct tm tmLocal;
+#if defined(_WIN32)
+    localtime_s(&tmLocal, &sec);
+#else
+    localtime_r(&sec, &tmLocal);
+#endif
+
+    char buf[8];
+    strftime(buf, sizeof(buf), "%H:%M", &tmLocal);
+    return String(buf);
+}
+
+String dateTimeLabelFromEpoch(uint32_t epochSec) {
+    if (epochSec == 0) {
+        return "unsynced";
+    }
+
+    time_t sec = static_cast<time_t>(epochSec);
+    struct tm tmLocal;
+#if defined(_WIN32)
+    localtime_s(&tmLocal, &sec);
+#else
+    localtime_r(&sec, &tmLocal);
+#endif
+
+    char buf[24];
+    strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", &tmLocal);
+    return String(buf);
+}
+
 String telemetryKey(uint32_t keyTs, uint32_t suffixValue) {
+    if (keyTs >= 1700000000U) {
+        return String((unsigned long)keyTs);
+    }
+
     char buf[40];
     snprintf(buf, sizeof(buf), "%lu_%03lu", (unsigned long)keyTs, (unsigned long)(suffixValue % 1000U));
     return String(buf);
@@ -205,42 +245,68 @@ bool RawTelemetryReporter::buildRecord(const char *sensorPayloadJson,
     JsonObjectConst packetSrc = payload["packet"].as<JsonObjectConst>();
     JsonObjectConst systemSrc = packetSrc["system_data"].as<JsonObjectConst>();
     uint32_t sampleEpochSec = systemSrc["sample_epoch_sec"] | 0U;
-    uint32_t keyTs = sampleEpochSec > 0 ? sampleEpochSec : (tsServerSec > 0 ? tsServerSec : tsDeviceSec);
-    uint32_t slotIndex = systemSrc["sample_slot_no"] | 0U;
-    if (slotIndex == 0) {
-        slotIndex = slotIndexFromEpoch(sampleEpochSec > 0 ? sampleEpochSec : tsServerSec);
-    }
+    uint32_t effectiveSampleSec = sampleEpochSec > 0 ? sampleEpochSec : tsServerSec;
+    uint32_t keyTs = effectiveSampleSec > 0 ? effectiveSampleSec : tsDeviceSec;
+    uint32_t slotIndex = effectiveSampleSec > 0
+                             ? slotIndexFromEpoch(effectiveSampleSec)
+                             : (systemSrc["sample_slot_no"] | 0U);
     uint32_t eventSuffix = slotIndex > 0 ? slotIndex : ctx.seq;
     String eventId = telemetryKey(keyTs, eventSuffix);
-    String dateKey = systemSrc["sample_date_key"] | "";
+    String dateKey = effectiveSampleSec > 0
+                         ? dateKeyFromEpoch(effectiveSampleSec)
+                         : String(systemSrc["sample_date_key"] | "");
     if (!dateKey.length()) {
-        dateKey = dateKeyFromEpoch(sampleEpochSec > 0 ? sampleEpochSec : tsServerSec);
+        dateKey = "unsynced";
     }
-    String slotLabel = slotLabelFromEpoch(sampleEpochSec > 0 ? sampleEpochSec : tsServerSec);
+    String slotLabel = effectiveSampleSec > 0
+                           ? slotLabelFromEpoch(effectiveSampleSec)
+                           : String("unsynced");
 
     outDoc["ts_device"] = (int)tsDeviceSec;
     if (tsServerSec > 0) {
         outDoc["ts_server"] = (int)tsServerSec;
     }
-    if (sampleEpochSec > 0) {
-        outDoc["ts_sample"] = (int)sampleEpochSec;
+    if (effectiveSampleSec > 0) {
+        outDoc["ts_sample"] = (int)effectiveSampleSec;
+        if (sampleEpochSec == 0 && tsServerSec > 0) {
+            outDoc["sample_time_reconstructed"] = true;
+        }
     }
-    outDoc["seq_no"] = (int)ctx.seq;
-    outDoc["slot_no"] = (int)slotIndex;
-    outDoc["slot_count_day"] = systemSrc["sample_slot_count_day"] | (int)APP_TELEMETRY_SEQUENCE_SLOTS_PER_DAY;
-    outDoc["slot_label"] = slotLabel;
     outDoc["_event_id"] = eventId;
     outDoc["_date_key"] = dateKey;
+    outDoc["sample_time_label"] = timeLabelFromEpoch(effectiveSampleSec);
+    outDoc["sample_time_local"] = dateTimeLabelFromEpoch(effectiveSampleSec);
+    if (tsServerSec > 0) {
+        outDoc["upload_time_label"] = timeLabelFromEpoch(tsServerSec);
+        outDoc["upload_time_local"] = dateTimeLabelFromEpoch(tsServerSec);
+    } else {
+        outDoc["upload_time_label"] = "unsynced";
+        outDoc["upload_time_local"] = "unsynced";
+    }
 
     JsonObject eventMeta = outDoc["event_meta"].to<JsonObject>();
     eventMeta["cycle_type"] = "periodic";
     eventMeta["wake_reason"] = ctx.wakeReason;
     eventMeta["duration_ms"] = 0;
+    eventMeta["sample_time_label"] = timeLabelFromEpoch(effectiveSampleSec);
+    eventMeta["upload_time_label"] = tsServerSec > 0 ? timeLabelFromEpoch(tsServerSec) : "unsynced";
 
     JsonObject packet = outDoc["packet"].to<JsonObject>();
     if (!mapPacket(payload, packet)) {
         errorDetail = "failed to map packet";
         return false;
+    }
+
+    JsonObject systemOut = packet["system_data"].to<JsonObject>();
+    if (effectiveSampleSec > 0) {
+        systemOut["sample_epoch_sec"] = (int)effectiveSampleSec;
+        systemOut["sample_time_valid"] = true;
+        systemOut["sample_slot_no"] = (int)slotIndex;
+        systemOut["sample_slot_count_day"] = systemSrc["sample_slot_count_day"] | (int)APP_TELEMETRY_SEQUENCE_SLOTS_PER_DAY;
+        systemOut["sample_date_key"] = dateKey;
+        if (sampleEpochSec == 0 && tsServerSec > 0) {
+            systemOut["sample_time_reconstructed"] = true;
+        }
     }
 
     JsonObjectConst npkSrc = packet["npk_data"].as<JsonObjectConst>();

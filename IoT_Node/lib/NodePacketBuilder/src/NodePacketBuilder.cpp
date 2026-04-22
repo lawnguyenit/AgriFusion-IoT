@@ -77,6 +77,7 @@ NodePacketBuilder::NodePacketBuilder(Sht30Service &sht30Service)
     : _sht30Service(sht30Service) {}
 
 String NodePacketBuilder::buildCombinedNodePacket(const String &npkPayloadJson,
+                                                  const String &shtPayloadJson,
                                                   bool npkAlarm,
                                                   const String &firmwareVersion,
                                                   const String &runningPartition) const {
@@ -98,15 +99,7 @@ String NodePacketBuilder::buildCombinedNodePacket(const String &npkPayloadJson,
 
     JsonDocument shtDoc;
     JsonObject shtOut = packet["sht30_data"].to<JsonObject>();
-    String shtJson = _sht30Service.buildJsonPayload("sht30_air",
-                                                    "sht30_1",
-                                                    APP_EDGE_SYSTEM_SHT,
-                                                    APP_EDGE_SYSTEM_ID_SHT,
-                                                    "sht30",
-                                                    SHT30_READ_MAX_ATTEMPTS,
-                                                    SHT30_RETRY_DELAY_MS,
-                                                    SHT30_MAX_WAIT_MS);
-    if (deserializeJson(shtDoc, shtJson) == DeserializationError::Ok) {
+    if (deserializeJson(shtDoc, shtPayloadJson) == DeserializationError::Ok) {
         copyObject(shtOut, shtDoc.as<JsonObjectConst>());
     } else {
         shtOut["sht_read_ok"] = false;
@@ -140,4 +133,23 @@ String NodePacketBuilder::buildCombinedNodePacket(const String &npkPayloadJson,
     String out;
     serializeJson(outDoc, out);
     return out;
+}
+
+String NodePacketBuilder::buildCombinedNodePacket(const String &npkPayloadJson,
+                                                  bool npkAlarm,
+                                                  const String &firmwareVersion,
+                                                  const String &runningPartition) const {
+    String shtJson = _sht30Service.buildJsonPayload("sht30_air",
+                                                    "sht30_1",
+                                                    APP_EDGE_SYSTEM_SHT,
+                                                    APP_EDGE_SYSTEM_ID_SHT,
+                                                    "sht30",
+                                                    SHT30_READ_MAX_ATTEMPTS,
+                                                    SHT30_RETRY_DELAY_MS,
+                                                    SHT30_MAX_WAIT_MS);
+    return buildCombinedNodePacket(npkPayloadJson,
+                                   shtJson,
+                                   npkAlarm,
+                                   firmwareVersion,
+                                   runningPartition);
 }

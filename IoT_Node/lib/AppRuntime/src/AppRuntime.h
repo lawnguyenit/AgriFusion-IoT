@@ -93,8 +93,13 @@ private:
     static void sensorTaskEntry(void *ctx);
     static void networkTaskEntry(void *ctx);
 
+    void runSleepCycle();
     void sensorTaskLoop();
     void networkTaskLoop();
+    bool collectSingleSample(String &payloadOut, bool &sensorAlarmOut);
+    bool annotatePayloadSendState(String &payload, const char *state, uint32_t attempts) const;
+    bool waitForCloudReadyWindow();
+    void enterTimedDeepSleep(uint32_t sleepMs, const char *reason) const;
 
     bool enqueueSensorMessage(const SensorMessage &msg,
                               TickType_t waitTicks = pdMS_TO_TICKS(APP_QUEUE_SEND_WAIT_MS));

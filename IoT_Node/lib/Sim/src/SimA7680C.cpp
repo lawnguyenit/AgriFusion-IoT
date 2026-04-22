@@ -230,6 +230,9 @@ String extractFirstIpv4(const String &text) {
 }
 
 bool isValidIpv4(const String &ip) {
+    if (!ip.length() || ip.indexOf('.') < 0) {
+        return false;
+    }
     return extractFirstIpv4(ip) == ip;
 }
 
@@ -271,7 +274,9 @@ String queryCgpaddrIpv4() {
 
 String resolveLocalIp(bool forceRefresh = false) {
     uint32_t now = millis();
-    if (!forceRefresh && (now - gLastIpRefreshMs < IP_REFRESH_INTERVAL_MS)) {
+    bool cacheFresh = gLastIpRefreshMs > 0 && (now - gLastIpRefreshMs < IP_REFRESH_INTERVAL_MS);
+    bool cacheUsable = isValidIpv4(gLastResolvedIp) && gLastResolvedIp != "0.0.0.0";
+    if (!forceRefresh && cacheFresh && cacheUsable) {
         return gLastResolvedIp;
     }
 

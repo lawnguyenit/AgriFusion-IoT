@@ -25,9 +25,11 @@
 // Deep-sleep mode can be added later after field power profiling is stable.
 // APP_RUN_CONTINUOUS: luong van hanh chinh cua node. Hien tai de 1 de chay lien tuc.
 // APP_SIM_PURE_TEST_MODE: bat khi chi muon test SIM, bo qua toan bo runtime sensor/cloud.
+// APP_SHT30_TEST_MODE: bat khi chi muon test rieng SHT30 qua Sht30Service, bo qua runtime chinh.
 // APP_RAW_TRUTH_PROBE_MODE: bat khi can bai test raw transport/time cap thap, khong vao flow app that.
-#define APP_RUN_CONTINUOUS 1         // 1 = chay lien tuc, 0 = du phong cho che do sleep
+#define APP_RUN_CONTINUOUS 0         // 1 = chay lien tuc, 0 = che do wake-do-gui-ngu
 #define APP_SIM_PURE_TEST_MODE 0     // 1 = bo qua AppRuntime, chay che do test SIM thuan de chan doan mang
+#define APP_SHT30_TEST_MODE 0        // 1 = bo qua AppRuntime, chay che do test rieng SHT30
 #define APP_RAW_TRUTH_PROBE_MODE 0   // 1 = chay harness raw transport/time, 0 = de du phong cho app runtime sau nay
 
 // ================= [NODE IDENTITY] =================
@@ -84,9 +86,11 @@
 // - APP_OFFLINE_REPLAY_INTERVAL_MS: bao lau thu day lai du lieu dem khi da co mang.
 // - APP_TIME_SYNC_RETRY_MS: bao lau thu dong bo gio lai neu van chua co time hop le.
 // - APP_NETWORK_LOOP_DELAY_MS: nhip lap task mang; khong phai chu ky lay mau.
-// #define APP_SENSOR_SAMPLE_INTERVAL_MS      (15UL * 60UL * 1000UL) // mau 15 phut/lan cho deploy that
-#define APP_SENSOR_SAMPLE_INTERVAL_MS      (60000UL) // chu ky do sensor va tao 1 packet telemetry
-#define APP_TELEMETRY_SEQUENCE_SLOTS_PER_DAY (24UL * 4UL)         // so slot/goi trong 1 ngay; 24*4 = 96 slot = 15 phut/lan
+// #define APP_SENSOR_SAMPLE_INTERVAL_MS      (2UL * 60UL * 1000UL) // debug nhanh: 2 phut thuc day 1 lan
+#define APP_SENSOR_SAMPLE_INTERVAL_MS      (15UL * 60UL * 1000UL) // van hanh that: 15 phut thuc day 1 lan
+#define APP_TELEMETRY_SEQUENCE_SLOTS_PER_DAY (24UL * 4UL)         // 96 slot/ngay = 15 phut/slot
+#define APP_SENSOR_RETRY_WINDOW_COUNT      3U                     // moi sensor co toi da 3 co hoi tu phuc hoi truoc khi sang buoc mang
+#define APP_SENSOR_RETRY_WINDOW_MS         3000UL                 // moi co hoi retry sensor duoc cap cua so 3 giay
 #define APP_NETWORK_LOOP_DELAY_MS          250UL                  // nhip lap task mang/cloud de xu ly queue, reconnect, replay
 #define APP_OFFLINE_REPLAY_INTERVAL_MS     30000UL                // moi 30s thu day lai du lieu da dem trong flash
 #define APP_NODE_INFO_PUSH_INTERVAL_MS     300000UL               // moi 5 phut cap nhat metadata /info
@@ -99,6 +103,9 @@
 #define APP_TRANSPORT_BOOTSTRAP_INTERVAL_MS 15000UL               // toi thieu 15s giua 2 lan bootstrap transport/time
 #define APP_TRANSPORT_DIAG_INTERVAL_MS      60000UL               // moi 60s dump chan doan transport neu cloud van loi
 #define APP_TELEMETRY_SUCCESS_DIAG_INTERVAL_MS 60000UL            // moi 60s moi ghi telemetry_debug/channel 1 lan khi upload OK
+#define APP_SIM_READY_RETRY_INTERVAL_MS     20000UL               // moi 20s hoi lai SIM/cloud da san sang gui chua
+#define APP_SIM_READY_MAX_POLLS             7U                    // toi da 7 lan hoi trong 1 phien thuc (~140s)
+#define APP_SLEEP_FAIL_RETRY_INTERVAL_MS    (5UL * 60UL * 1000UL) // neu phien gui fail thi ngu lai 5 phut roi thu tiep
 
 // ================= [TASK / BUFFER] =================
 // APP_QUEUE_LENGTH va APP_QUEUE_REPLACE_OLDEST_ON_FULL quyet dinh cach xu ly khi sensor tao mau nhanh hon cloud upload.
@@ -123,6 +130,15 @@
 #define APP_NPK_FAIL_ALARM_THRESHOLD       3                     // nguong fail lien tiep de danh dau alarm
 #define APP_NPK_UART_RESET_FAIL_INTERVAL   2                     // cu bao nhieu lan fail thi reset lai UART NPK
 #define APP_SHT30_RETRY_INIT_MS            10000UL               // thoi gian moi lan thu init lai SHT30
+#define APP_SHT30_INIT_ATTEMPTS            3U                    // so lan thu init lien tiep moi khi danh thuc/can force init SHT30
+#define APP_SHT30_INIT_RETRY_DELAY_MS      180UL                 // do tre giua cac lan init SHT30 trong 1 dot
+#define APP_SHT30_FORCE_REINIT_STREAK      2U                    // bao nhieu chu ky doc loi lien tiep thi danh dau can init lai
+#define APP_SHT30_WIRE_CLOCK_HZ            100000UL              // toc do I2C cua SHT30
+#define APP_SHT30_WIRE_TIMEOUT_MS          20UL                  // timeout I2C
+#define APP_SHT30_POST_WIRE_BEGIN_DELAY_MS 30UL                  // cho ngan sau Wire.begin de bus on dinh
+#define APP_SHT30_TEST_INTERVAL_MS         5000UL                // chu ky lap lai bai test SHT30
+#define APP_SHT30_TEST_BOOT_PROBES         3U                    // so mau test lien tiep ngay sau boot de bat loi startup
+#define APP_SHT30_TEST_BOOT_DELAY_MS       1000UL                // khoang cach giua cac mau boot test SHT30
 
 // ================= [LOG LABELS] =================
 #define APP_LOG_SYS_TAG        "[SYS]"      // nhan log he thong
@@ -180,8 +196,8 @@
 #define SHT30_SCL_PIN   9                   // chan SCL I2C cua SHT30
 #define SHT30_I2C_ADDR  0x44                // dia chi I2C cua SHT30
 
-#define SHT30_READ_MAX_ATTEMPTS   5         // so lan doc lai SHT30 trong 1 chu ky
-#define SHT30_RETRY_DELAY_MS      120       // delay giua cac lan doc lai SHT30
-#define SHT30_MAX_WAIT_MS         1200      // tong thoi gian toi da cho viec doc SHT30
+#define SHT30_READ_MAX_ATTEMPTS   3         // so lan doc lai SHT30 trong 1 chu ky
+#define SHT30_RETRY_DELAY_MS      900       // delay giua cac lan doc lai SHT30
+#define SHT30_MAX_WAIT_MS         3000      // tong thoi gian toi da cho viec doc SHT30
 
 #endif

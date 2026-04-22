@@ -13,24 +13,66 @@ Adafruit_SHT31 gSht30;
 Sht30Service::Sht30Service(uint8_t sdaPin, uint8_t sclPin, uint8_t address, uint32_t retryInitMs)
     : _sdaPin(sdaPin), _sclPin(sclPin), _address(address), _retryInitMs(retryInitMs) {}
 
-bool Sht30Service::tryInit() {
+void Sht30Service::ensureWireReady(bool forceRefresh) {
+    if (_wireReady && !forceRefresh) {
+        return;
+    }
+
+    Wire.begin(_sdaPin, _sclPin, APP_SHT30_WIRE_CLOCK_HZ);
+    Wire.setTimeOut(APP_SHT30_WIRE_TIMEOUT_MS);
+    delay(APP_SHT30_POST_WIRE_BEGIN_DELAY_MS);
+    _wireReady = true;
+}
+
+bool Sht30Service::isAddressReachable(bool refreshBus) {
+    ensureWireReady(refreshBus);
+    Wire.beginTransmission(_address);
+    uint8_t error = Wire.endTransmission();
+    return error == 0;
+}
+
+bool Sht30Service::tryInit(bool force) {
     uint32_t now = millis();
-    if (now - _lastInitAttemptMs < _retryInitMs) {
+    if (!force && _lastInitAttemptMs != 0 && (now - _lastInitAttemptMs) < _retryInitMs) {
         return _ready;
     }
     _lastInitAttemptMs = now;
 
-    if (!_ready) {
-        Wire.begin(_sdaPin, _sclPin, 100000);
-        Wire.setTimeOut(20);
+    ensureWireReady(force);
+    if (!isAddressReachable(false)) {
+        _ready = false;
+        CUS_DBGF("[SHT30] init SDA=%d SCL=%d addr=0x%02X => BUS_MISSING\n",
+                 _sdaPin,
+                 _sclPin,
+                 _address);
+        return false;
     }
 
-    _ready = gSht30.begin(_address);
-    CUS_DBGF("[SHT30] init SDA=%d SCL=%d addr=0x%02X => %s\n",
+    _ready = false;
+    for (uint8_t attempt = 1; attempt <= (uint8_t)APP_SHT30_INIT_ATTEMPTS; ++attempt) {
+        _ready = gSht30.begin(_address);
+        if (_ready) {
+            gSht30.heater(false);
+            _consecutiveInvalidCount = 0;
+            CUS_DBGF("[SHT30] init SDA=%d SCL=%d addr=0x%02X attempt=%u/%u => OK\n",
+                     _sdaPin,
+                     _sclPin,
+                     _address,
+                     attempt,
+                     (unsigned)APP_SHT30_INIT_ATTEMPTS);
+            return true;
+        }
+
+        if (attempt < (uint8_t)APP_SHT30_INIT_ATTEMPTS) {
+            delay(APP_SHT30_INIT_RETRY_DELAY_MS);
+        }
+    }
+
+    CUS_DBGF("[SHT30] init SDA=%d SCL=%d addr=0x%02X attempts=%u => FAIL\n",
              _sdaPin,
              _sclPin,
              _address,
-             _ready ? "OK" : "FAIL");
+             (unsigned)APP_SHT30_INIT_ATTEMPTS);
     return _ready;
 }
 
@@ -87,10 +129,7 @@ String Sht30Service::buildJsonPayload(const char *sensorType,
             }
 
             attempts++;
-            t = gSht30.readTemperature();
-            h = gSht30.readHumidity();
-
-            readOk = !(isnan(t) || isnan(h));
+            readOk = gSht30.readBoth(&t, &h);
             if (!readOk) {
                 lastError = "nan_read";
             } else if (t < TEMP_MIN_C || t > TEMP_MAX_C || h < HUM_MIN_PCT || h > HUM_MAX_PCT) {
@@ -101,6 +140,10 @@ String Sht30Service::buildJsonPayload(const char *sensorType,
                 break;
             }
 
+            if (attempts < maxReadAttempts) {
+                gSht30.reset();
+                delay(20);
+            }
             uint32_t afterReadMs = millis() - startMs;
             if (attempts < maxReadAttempts && (afterReadMs + retryDelayMs) < maxWaitMs) {
                 delay(retryDelayMs);
@@ -120,8 +163,9 @@ String Sht30Service::buildJsonPayload(const char *sensorType,
         } else {
             _consecutiveInvalidCount++;
             doc["sht_error"] = lastError;
-            // Force re-init on next cycles for transient startup/noise conditions.
-            _ready = false;
+            if (_consecutiveInvalidCount >= APP_SHT30_FORCE_REINIT_STREAK) {
+                _ready = false;
+            }
         }
         doc["sht_invalid_streak"] = _consecutiveInvalidCount;
     }

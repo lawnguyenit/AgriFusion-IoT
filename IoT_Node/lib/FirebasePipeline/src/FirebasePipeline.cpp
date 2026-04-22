@@ -174,7 +174,47 @@ String replaySlotLabelFromEpoch(uint32_t epochSec) {
     return String(buf);
 }
 
+String replayTimeLabelFromEpoch(uint32_t epochSec) {
+    if (epochSec == 0) {
+        return "unsynced";
+    }
+
+    time_t sec = (time_t)epochSec;
+    struct tm tmLocal;
+#if defined(_WIN32)
+    localtime_s(&tmLocal, &sec);
+#else
+    localtime_r(&sec, &tmLocal);
+#endif
+
+    char buf[8];
+    strftime(buf, sizeof(buf), "%H:%M", &tmLocal);
+    return String(buf);
+}
+
+String replayDateTimeLabelFromEpoch(uint32_t epochSec) {
+    if (epochSec == 0) {
+        return "unsynced";
+    }
+
+    time_t sec = (time_t)epochSec;
+    struct tm tmLocal;
+#if defined(_WIN32)
+    localtime_s(&tmLocal, &sec);
+#else
+    localtime_r(&sec, &tmLocal);
+#endif
+
+    char buf[24];
+    strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", &tmLocal);
+    return String(buf);
+}
+
 String replayTelemetryKey(uint32_t keyTs, uint32_t suffixValue) {
+    if (keyTs >= 1700000000U) {
+        return String((unsigned long)keyTs);
+    }
+
     char buf[40];
     snprintf(buf, sizeof(buf), "%lu_%03lu", (unsigned long)keyTs, (unsigned long)(suffixValue % 1000U));
     return String(buf);
@@ -207,9 +247,14 @@ bool restampReplayRecordIfNeeded(FirebaseJson &record, uint64_t utcMs) {
     if (!obj["ts_sample"].is<int>() || (obj["ts_sample"] | 0) <= 0) {
         obj["ts_sample"] = (int)nowSec;
     }
-    obj["slot_no"] = (int)slotNo;
-    obj["slot_count_day"] = (int)APP_TELEMETRY_SEQUENCE_SLOTS_PER_DAY;
-    obj["slot_label"] = replaySlotLabelFromEpoch(nowSec);
+    obj.remove("seq_no");
+    obj.remove("slot_no");
+    obj.remove("slot_count_day");
+    obj.remove("slot_label");
+    obj["sample_time_label"] = replayTimeLabelFromEpoch((uint32_t)(obj["ts_sample"] | nowSec));
+    obj["sample_time_local"] = replayDateTimeLabelFromEpoch((uint32_t)(obj["ts_sample"] | nowSec));
+    obj["upload_time_label"] = replayTimeLabelFromEpoch(nowSec);
+    obj["upload_time_local"] = replayDateTimeLabelFromEpoch(nowSec);
     obj["replayed_time_reconstructed"] = true;
 
     JsonObject packet = obj["packet"].as<JsonObject>();
@@ -220,6 +265,12 @@ bool restampReplayRecordIfNeeded(FirebaseJson &record, uint64_t utcMs) {
         system["sample_slot_no"] = (int)slotNo;
         system["sample_slot_count_day"] = (int)APP_TELEMETRY_SEQUENCE_SLOTS_PER_DAY;
         system["sample_date_key"] = replayDateKeyFromEpoch(nowSec);
+    }
+
+    JsonObject eventMeta = obj["event_meta"].as<JsonObject>();
+    if (!eventMeta.isNull()) {
+        eventMeta["sample_time_label"] = replayTimeLabelFromEpoch((uint32_t)(obj["ts_sample"] | nowSec));
+        eventMeta["upload_time_label"] = replayTimeLabelFromEpoch(nowSec);
     }
 
     String out;
@@ -821,7 +872,7 @@ OfflineReplayResult FirebasePipeline::replayOfflineIfAnyDetailed(FirebaseData &f
     }
 
     result.attempted = true;
-    result.filePresent = LittleFS.exists(_cfg.offlineRawFile);
+    result.filePresent = storageFileExists(_cfg.offlineRawFile);
     if (!result.filePresent) {
         offlineReplayPending = false;
         result.stage = "replay_file_missing";
@@ -833,7 +884,7 @@ OfflineReplayResult FirebasePipeline::replayOfflineIfAnyDetailed(FirebaseData &f
     result.fileOpenOk = (bool)in;
     if (!in) {
         CUS_DBGLN("[STORAGE] Khong mo duoc file replay offline.");
-        offlineReplayPending = LittleFS.exists(_cfg.offlineRawFile);
+        offlineReplayPending = storageFileExists(_cfg.offlineRawFile);
         result.stage = "replay_open_fail";
         result.detail = _cfg.offlineRawFile;
         return result;
