@@ -27,6 +27,9 @@ struct SimHttpRequest {
 
 struct SimHttpResponse {
     bool ok = false;
+    bool transportOk = false;
+    bool responseReceived = false;
+    bool httpOk = false;
     bool actionAccepted = false;
     int method = -1;
     int statusCode = -1;

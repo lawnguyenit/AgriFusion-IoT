@@ -7,6 +7,8 @@
 
 struct RtdbRestResponse {
     bool ok = false;
+    bool transportOk = false;
+    bool responseReceived = false;
     int statusCode = -1;
     String stage;
     String detail;

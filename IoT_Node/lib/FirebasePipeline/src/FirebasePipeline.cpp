@@ -2,6 +2,8 @@
 
 #include <FS.h>
 #include <LittleFS.h>
+#include <ArduinoJson.h>
+#include <time.h>
 
 #include "Config.h"
 #include "NetworkBridge.h"
@@ -82,6 +84,148 @@ void firebaseTokenStatusLogger(token_info_t info) {
              info.error.code,
              info.error.message.c_str());
 }
+
+uint32_t replayUtcSec(uint64_t utcMs) {
+    if (utcMs > 0) {
+        return (uint32_t)(utcMs / 1000ULL);
+    }
+    time_t now = time(nullptr);
+    if (now < 1700000000) {
+        return 0;
+    }
+    return (uint32_t)now;
+}
+
+String replayDateKeyFromEpoch(uint32_t epochSec) {
+    if (epochSec == 0) {
+        return "unsynced";
+    }
+
+    time_t sec = (time_t)epochSec;
+    struct tm tmLocal;
+#if defined(_WIN32)
+    localtime_s(&tmLocal, &sec);
+#else
+    localtime_r(&sec, &tmLocal);
+#endif
+    char buf[16];
+    strftime(buf, sizeof(buf), "%Y-%m-%d", &tmLocal);
+    return String(buf);
+}
+
+uint32_t replaySlotIndexFromEpoch(uint32_t epochSec) {
+    if (epochSec == 0) {
+        return 0;
+    }
+
+    uint32_t slotsPerDay = (uint32_t)APP_TELEMETRY_SEQUENCE_SLOTS_PER_DAY;
+    if (slotsPerDay == 0) {
+        return 0;
+    }
+
+    time_t sec = (time_t)epochSec;
+    struct tm tmLocal;
+#if defined(_WIN32)
+    localtime_s(&tmLocal, &sec);
+#else
+    localtime_r(&sec, &tmLocal);
+#endif
+
+    uint32_t secOfDay = (uint32_t)tmLocal.tm_hour * 3600U +
+                        (uint32_t)tmLocal.tm_min * 60U +
+                        (uint32_t)tmLocal.tm_sec;
+    uint32_t slotLenSec = 86400U / slotsPerDay;
+    if (slotLenSec == 0) {
+        return 0;
+    }
+
+    uint32_t slotIndex = (secOfDay / slotLenSec) + 1U;
+    if (slotIndex > slotsPerDay) {
+        slotIndex = slotsPerDay;
+    }
+    return slotIndex;
+}
+
+String replaySlotLabelFromEpoch(uint32_t epochSec) {
+    if (epochSec == 0) {
+        return "unsynced";
+    }
+
+    uint32_t slotsPerDay = (uint32_t)APP_TELEMETRY_SEQUENCE_SLOTS_PER_DAY;
+    uint32_t slotIndex = replaySlotIndexFromEpoch(epochSec);
+    if (slotsPerDay == 0 || slotIndex == 0) {
+        return "unsynced";
+    }
+
+    time_t sec = (time_t)epochSec;
+    struct tm tmLocal;
+#if defined(_WIN32)
+    localtime_s(&tmLocal, &sec);
+#else
+    localtime_r(&sec, &tmLocal);
+#endif
+
+    char buf[24];
+    snprintf(buf, sizeof(buf), "%02d:%02d slot %lu/%lu",
+             tmLocal.tm_hour,
+             tmLocal.tm_min,
+             (unsigned long)slotIndex,
+             (unsigned long)slotsPerDay);
+    return String(buf);
+}
+
+String replayTelemetryKey(uint32_t keyTs, uint32_t suffixValue) {
+    char buf[40];
+    snprintf(buf, sizeof(buf), "%lu_%03lu", (unsigned long)keyTs, (unsigned long)(suffixValue % 1000U));
+    return String(buf);
+}
+
+bool restampReplayRecordIfNeeded(FirebaseJson &record, uint64_t utcMs) {
+    uint32_t nowSec = replayUtcSec(utcMs);
+    if (nowSec == 0) {
+        return false;
+    }
+
+    String json;
+    record.toString(json, false);
+    JsonDocument doc;
+    if (deserializeJson(doc, json) != DeserializationError::Ok) {
+        return false;
+    }
+
+    JsonObject obj = doc.as<JsonObject>();
+    String dateKey = obj["_date_key"] | "";
+    bool needsRestamp = !dateKey.length() || dateKey == "unsynced";
+    if (!needsRestamp) {
+        return false;
+    }
+
+    uint32_t slotNo = replaySlotIndexFromEpoch(nowSec);
+    obj["_date_key"] = replayDateKeyFromEpoch(nowSec);
+    obj["_event_id"] = replayTelemetryKey(nowSec, slotNo > 0 ? slotNo : 1U);
+    obj["ts_server"] = (int)nowSec;
+    if (!obj["ts_sample"].is<int>() || (obj["ts_sample"] | 0) <= 0) {
+        obj["ts_sample"] = (int)nowSec;
+    }
+    obj["slot_no"] = (int)slotNo;
+    obj["slot_count_day"] = (int)APP_TELEMETRY_SEQUENCE_SLOTS_PER_DAY;
+    obj["slot_label"] = replaySlotLabelFromEpoch(nowSec);
+    obj["replayed_time_reconstructed"] = true;
+
+    JsonObject packet = obj["packet"].as<JsonObject>();
+    JsonObject system = packet["system_data"].as<JsonObject>();
+    if (!system.isNull()) {
+        system["sample_epoch_sec"] = (int)nowSec;
+        system["sample_time_valid"] = true;
+        system["sample_slot_no"] = (int)slotNo;
+        system["sample_slot_count_day"] = (int)APP_TELEMETRY_SEQUENCE_SLOTS_PER_DAY;
+        system["sample_date_key"] = replayDateKeyFromEpoch(nowSec);
+    }
+
+    String out;
+    serializeJson(doc, out);
+    return record.setJsonData(out);
+}
 }  // namespace
 
 bool FirebasePipeline::configLooksValid() const {
@@ -99,6 +243,28 @@ bool FirebasePipeline::usesNativeFirebase() const {
     return _nativeFirebaseMode;
 }
 
+String FirebasePipeline::stateSummary() const {
+    char buf[448];
+    snprintf(buf,
+             sizeof(buf),
+             "inst=%p mode=%s begin=%d transport=%d auth=%d publish=%d ready=%d last_probe=%s last_probe_http=%d last_publish=%s",
+             (const void *)this,
+             _nativeFirebaseMode ? "native" : "sim_rest",
+             _beginDone ? 1 : 0,
+             _transportReady ? 1 : 0,
+             _authInitialized ? 1 : 0,
+             _publishEnabled ? 1 : 0,
+             _ready ? 1 : 0,
+             _lastProbe.stage.c_str(),
+             _lastProbe.httpCode,
+             _lastPublishProbeDetail.c_str());
+    return String(buf);
+}
+
+void FirebasePipeline::updateReadyFlag() {
+    _ready = _beginDone && _transportReady && _authInitialized;
+}
+
 FirebaseBootstrapResult FirebasePipeline::begin(FirebaseConfig &firebaseConfig,
                                                 FirebaseAuth &firebaseAuth,
                                                 FirebaseData &firebaseData,
@@ -106,6 +272,13 @@ FirebaseBootstrapResult FirebasePipeline::begin(FirebaseConfig &firebaseConfig,
     FirebaseBootstrapResult result;
     CUS_DBGLN("[FIREBASE] Dang khoi tao RTDB...");
     _ready = false;
+    _beginDone = false;
+    _transportReady = false;
+    _authInitialized = false;
+    _publishEnabled = false;
+    _lastProbe = FirebaseProbeResult{};
+    _lastPublishProbeDetail = "";
+    _lastPublishProbePath = "";
 
     result.configValid = configLooksValid();
     if (!result.configValid) {
@@ -120,15 +293,10 @@ FirebaseBootstrapResult FirebasePipeline::begin(FirebaseConfig &firebaseConfig,
     result.legacyTokenLength = strlen(_cfg.legacyToken);
     result.apiKeyLength = strlen(_cfg.apiKey);
 
-    firebaseData.stopWiFiClient();
-    firebaseOtaData.stopWiFiClient();
-    Firebase.reset(&firebaseConfig);
-    firebaseConfig = FirebaseConfig();
-    firebaseAuth = FirebaseAuth();
-
 #if USE_SIM_NETWORK
     _nativeFirebaseMode = false;
     result.transportConfigured = APP_FIREBASE_SIM_TRANSPORT_ENABLED;
+    _transportReady = result.transportConfigured;
     if (!result.transportConfigured) {
         result.authSummary = buildAuthSetupSummary(result.usingLegacyAuth,
                                                    result.tokenConfigured,
@@ -145,6 +313,7 @@ FirebaseBootstrapResult FirebasePipeline::begin(FirebaseConfig &firebaseConfig,
     }
 
     result.beginAttempted = true;
+    _beginDone = true;
     result.authSummary = buildAuthSetupSummary(result.usingLegacyAuth,
                                                result.tokenConfigured,
                                                result.legacyTokenLength,
@@ -152,12 +321,18 @@ FirebaseBootstrapResult FirebasePipeline::begin(FirebaseConfig &firebaseConfig,
                          " transport=sim_http_rest";
     CUS_DBGF("[FIREBASE] Bootstrap config: %s\n", result.authSummary.c_str());
     result.probe = probeDatabaseAccess(firebaseData);
-    result.readyAfterBegin = result.probe.ok;
-    _ready = result.readyAfterBegin;
+    result.readyAfterBegin = ready();
     return result;
 #else
+    firebaseData.stopWiFiClient();
+    firebaseOtaData.stopWiFiClient();
+    Firebase.reset(&firebaseConfig);
+    firebaseConfig = FirebaseConfig();
+    firebaseAuth = FirebaseAuth();
+
     _nativeFirebaseMode = true;
     result.transportConfigured = true;
+    _transportReady = true;
     Firebase.reconnectWiFi(true);
 #endif
 
@@ -185,10 +360,14 @@ FirebaseBootstrapResult FirebasePipeline::begin(FirebaseConfig &firebaseConfig,
     CUS_DBGF("[FIREBASE] Bootstrap config: %s\n", result.authSummary.c_str());
 
     result.beginAttempted = true;
+    _beginDone = true;
     Firebase.begin(&firebaseConfig, &firebaseAuth);
-    result.readyAfterBegin = Firebase.ready();
+    _authInitialized = Firebase.ready();
+    _publishEnabled = _authInitialized;
+    updateReadyFlag();
+    result.readyAfterBegin = ready();
     result.probe = probeDatabaseAccess(firebaseData);
-    _ready = result.readyAfterBegin;
+    result.readyAfterBegin = ready();
     return result;
 }
 
@@ -205,10 +384,26 @@ FirebaseProbeResult FirebasePipeline::probeDatabaseAccess(FirebaseData &firebase
     bool ok = rtdbRestClient().probe(rest);
     result.ok = ok;
     result.httpCode = rest.statusCode;
-    result.errorCode = ok ? 0 : -1;
+    result.errorCode = ok ? 0 : (rest.transportOk ? rest.statusCode : -1);
     result.stage = rest.stage;
-    result.detail = rest.detail;
-    _ready = ok;
+    char buf[256];
+    snprintf(buf,
+             sizeof(buf),
+             "%s http=%d transport=%d response=%d detail=%s",
+             rest.stage.c_str(),
+             rest.statusCode,
+             rest.transportOk ? 1 : 0,
+             rest.responseReceived ? 1 : 0,
+             rest.detail.c_str());
+    result.detail = String(buf);
+    _transportReady = rest.transportOk;
+    _authInitialized = ok;
+    _lastProbe = result;
+    _publishEnabled = ok;
+    _lastPublishProbePath = APP_RTDB_PATH_NODE_INFO;
+    _lastPublishProbeDetail = ok ? "publish_gate_bypassed_sim_rest"
+                                 : ("probe_fail: " + result.detail);
+    updateReadyFlag();
     return result;
 #else
     bool ok = Firebase.getShallowData(firebaseData, "/");
@@ -236,8 +431,69 @@ FirebaseProbeResult FirebasePipeline::probeDatabaseAccess(FirebaseData &firebase
              result.errorCode,
              result.detail.c_str());
     result.detail = String(buf);
+    _transportReady = networkIsConnected();
+    _authInitialized = ok || Firebase.ready();
+    _publishEnabled = _authInitialized;
+    _lastProbe = result;
+    updateReadyFlag();
     return result;
 #endif
+}
+
+bool FirebasePipeline::ensurePublishReady(FirebaseData &firebaseData, uint64_t utcMs) {
+    (void)utcMs;
+#if USE_SIM_NETWORK && APP_FIREBASE_SIM_TRANSPORT_ENABLED
+    (void)firebaseData;
+    _publishEnabled = _beginDone && _transportReady && _authInitialized;
+    _lastPublishProbePath = APP_RTDB_PATH_NODE_TELEMETRY;
+    if (_publishEnabled) {
+        if (!_lastPublishProbeDetail.length() ||
+            _lastPublishProbeDetail.startsWith("probe_fail")) {
+            _lastPublishProbeDetail = "publish_gate_bypassed_sim_rest";
+        }
+    }
+    updateReadyFlag();
+    return _publishEnabled;
+#else
+    if (_publishEnabled) {
+        updateReadyFlag();
+        return true;
+    }
+
+    if (!_beginDone || !_transportReady || !_authInitialized) {
+        updateReadyFlag();
+        return false;
+    }
+
+    uint32_t now = millis();
+    if (_lastPublishProbeMs > 0 &&
+        (now - _lastPublishProbeMs) < APP_TELEMETRY_PROBE_INTERVAL_MS) {
+        updateReadyFlag();
+        return _publishEnabled;
+    }
+    _lastPublishProbeMs = now;
+
+    String probePath;
+    String probeError;
+    if (_rawTelemetryReporter.probePublishPath(firebaseData, &probePath, probeError)) {
+        _publishEnabled = true;
+        _lastPublishProbePath = probePath;
+        _lastPublishProbeDetail = "probe_ok";
+    } else {
+        _publishEnabled = false;
+        _lastPublishProbePath = probePath;
+        _lastPublishProbeDetail = probeError;
+    }
+
+    updateReadyFlag();
+    return _publishEnabled;
+#endif
+}
+
+bool FirebasePipeline::isAuthInitializationError(const String &err) const {
+    return err.indexOf("authentication was not initialized") >= 0 ||
+           err.indexOf("auth_not_initialized") >= 0 ||
+           err.indexOf("Firebase.ready=false") >= 0;
 }
 
 RawTelemetryRecordContext FirebasePipeline::buildRecordContext(DeviceContext &deviceContext,
@@ -272,6 +528,16 @@ bool FirebasePipeline::isTlsTransportError(const String &err) const {
            err.indexOf("handshake") >= 0 ||
            err.indexOf("mbedtls") >= 0 ||
            err.indexOf("record is too large") >= 0;
+}
+
+bool FirebasePipeline::shouldPublishSuccessDiagnostics() {
+    uint32_t now = millis();
+    if (_lastSuccessDiagPublishMs > 0 &&
+        (now - _lastSuccessDiagPublishMs) < APP_TELEMETRY_SUCCESS_DIAG_INTERVAL_MS) {
+        return false;
+    }
+    _lastSuccessDiagPublishMs = now;
+    return true;
 }
 
 void FirebasePipeline::publishTelemetryDebug(FirebaseData &firebaseData,
@@ -387,8 +653,18 @@ TelemetryPushResult FirebasePipeline::pushPayloadDetailed(FirebaseData &firebase
     record.set("was_buffered", false);
     record.set("replayed", false);
 
+    ensurePublishReady(firebaseData, utcMs);
+    result.transportReady = _transportReady;
+    result.beginDone = _beginDone;
+    result.authInitialized = _authInitialized;
+    result.publishEnabled = _publishEnabled;
     result.firebaseReady = ready();
-    bool canUpload = result.networkReady && result.firebaseReady;
+    result.pipelineState = stateSummary();
+    bool canUpload = result.networkReady &&
+                     result.transportReady &&
+                     result.beginDone &&
+                     result.authInitialized &&
+                     result.publishEnabled;
     if (canUpload) {
         result.uploadAttempted = true;
         String telemetryRefId;
@@ -399,8 +675,10 @@ TelemetryPushResult FirebasePipeline::pushPayloadDetailed(FirebaseData &firebase
                                                   ctx,
                                                   sensorError,
                                                   utcMs);
-            publishTelemetryDebug(firebaseData, true, telemetryRefId, "ok", utcMs);
-            publishTelemetryChannel(firebaseData, true, false, false, "direct_upload", telemetryRefId, "ok", utcMs);
+            if (shouldPublishSuccessDiagnostics()) {
+                publishTelemetryDebug(firebaseData, true, telemetryRefId, "ok", utcMs);
+                publishTelemetryChannel(firebaseData, true, false, false, "direct_upload", telemetryRefId, "ok", utcMs);
+            }
             CUS_DBGF("[FIREBASE] Node telemetry OK ref=%s\n", telemetryRefId.c_str());
             result.uploaded = true;
             result.stage = "uploaded";
@@ -410,6 +688,22 @@ TelemetryPushResult FirebasePipeline::pushPayloadDetailed(FirebaseData &firebase
         }
 
         result.tlsError = isTlsTransportError(err);
+        if (isAuthInitializationError(err)) {
+            _authInitialized = false;
+            _publishEnabled = false;
+            updateReadyFlag();
+            result.transportReady = _transportReady;
+            result.beginDone = _beginDone;
+            result.authInitialized = _authInitialized;
+            result.publishEnabled = _publishEnabled;
+            result.firebaseReady = ready();
+            result.pipelineState = stateSummary();
+            result.stage = "publish_blocked_auth_not_initialized";
+            result.detail = err + " | " + result.pipelineState;
+        } else {
+            result.stage = "publish_error";
+            result.detail = err;
+        }
         publishTelemetryDebug(firebaseData, false, "publish_record", err, utcMs);
         publishTelemetryChannel(firebaseData,
                                 false,
@@ -420,19 +714,37 @@ TelemetryPushResult FirebasePipeline::pushPayloadDetailed(FirebaseData &firebase
                                 err,
                                 utcMs);
         CUS_DBGF("[FIREBASE] Node telemetry upload LOI: %s\n", err.c_str());
-        result.stage = "publish_error";
-        result.detail = err;
     } else if (!result.networkReady) {
         result.stage = "network_down";
         result.detail = "networkIsConnected=false";
+    } else if (!result.transportReady) {
+        result.stage = "publish_blocked_transport_not_ready";
+        result.detail = result.pipelineState;
+    } else if (!result.beginDone) {
+        result.stage = "publish_blocked_begin_not_done";
+        result.detail = result.pipelineState;
+    } else if (!result.authInitialized) {
+        result.stage = "publish_blocked_auth_not_initialized";
+        result.detail = result.pipelineState;
+    } else if (!result.publishEnabled) {
+        result.stage = "publish_blocked_gate_not_ready";
+        result.detail = result.pipelineState;
     } else {
         result.stage = "firebase_not_ready";
-        result.detail = "Firebase.ready=false";
+        result.detail = result.pipelineState;
     }
 
     const char *bufferReason = nullptr;
     if (result.stage == "publish_error") {
         bufferReason = err.c_str();
+    } else if (result.stage == "publish_blocked_auth_not_initialized") {
+        bufferReason = "publish_blocked_auth_not_initialized";
+    } else if (result.stage == "publish_blocked_gate_not_ready") {
+        bufferReason = "publish_blocked_gate_not_ready";
+    } else if (result.stage == "publish_blocked_transport_not_ready") {
+        bufferReason = "publish_blocked_transport_not_ready";
+    } else if (result.stage == "publish_blocked_begin_not_done") {
+        bufferReason = "publish_blocked_begin_not_done";
     } else if (result.stage == "firebase_not_ready") {
         bufferReason = "firebase_not_ready";
     } else if (result.stage == "network_down") {
@@ -452,14 +764,14 @@ TelemetryPushResult FirebasePipeline::pushPayloadDetailed(FirebaseData &firebase
         }
     }
     if (!canUpload) {
-        publishTelemetryDebug(firebaseData, false, "offline_buffer", "wifi_or_firebase_not_ready", utcMs);
+        publishTelemetryDebug(firebaseData, false, "offline_buffer", result.stage, utcMs);
         publishTelemetryChannel(firebaseData,
                                 false,
                                 true,
                                 false,
                                 "offline_buffer",
                                 "offline_buffer",
-                                "wifi_or_firebase_not_ready",
+                                result.stage,
                                 utcMs);
     }
 
@@ -485,6 +797,7 @@ OfflineReplayResult FirebasePipeline::replayOfflineIfAnyDetailed(FirebaseData &f
     _lastReplayMs = now;
 
     result.networkReady = networkIsConnected();
+    ensurePublishReady(firebaseData, utcMs);
     result.firebaseReady = ready();
     if (!result.networkReady) {
         result.stage = "replay_network_down";
@@ -494,6 +807,11 @@ OfflineReplayResult FirebasePipeline::replayOfflineIfAnyDetailed(FirebaseData &f
     if (!result.firebaseReady) {
         result.stage = "replay_firebase_not_ready";
         result.detail = "Firebase.ready=false";
+        return result;
+    }
+    if (!_publishEnabled) {
+        result.stage = "replay_publish_gate_not_ready";
+        result.detail = _lastPublishProbeDetail.length() ? _lastPublishProbeDetail : "publish_gate_not_ready";
         return result;
     }
     if (!offlineReplayPending) {
@@ -540,6 +858,7 @@ OfflineReplayResult FirebasePipeline::replayOfflineIfAnyDetailed(FirebaseData &f
         record.set("replayed", true);
         record.set("fallback_used", true);
         record.set("replayed_at_ms", (int)millis());
+        restampReplayRecordIfNeeded(record, utcMs);
 
         String rawRefId;
         String err;

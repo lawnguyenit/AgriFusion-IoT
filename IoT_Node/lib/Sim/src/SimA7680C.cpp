@@ -4,6 +4,7 @@
 #include <freertos/task.h>
 
 #include "Config.h"
+#include "SimHttpClient.h"
 #include "SimSocketTransport.h"
 
 HardwareSerial SerialAT(2);
@@ -22,6 +23,7 @@ static const uint32_t RAW_AT_TIMEOUT_BRIEF_MS = 250;
 static const uint32_t LONG_AT_TIMEOUT_MS = 15000;
 static const uint32_t NETWORK_WAIT_SLICE_MS = 500;
 static String gLastResolvedIp = "0.0.0.0";
+static SemaphoreHandle_t gAtPortMutex = nullptr;
 
 String runRawAt(const char *cmd, uint32_t timeoutMs = RAW_AT_TIMEOUT_MS);
 String runRawAt(const String &cmd, uint32_t timeoutMs = RAW_AT_TIMEOUT_MS);
@@ -39,6 +41,12 @@ bool isCellRegisteredAny();
 bool isPacketAttached();
 bool isPdpContextActive();
 String compactAtResponse(const String &response);
+
+void ensureAtPortMutex() {
+    if (!gAtPortMutex) {
+        gAtPortMutex = xSemaphoreCreateRecursiveMutex();
+    }
+}
 
 void yieldToScheduler(uint32_t ms = 1) {
     vTaskDelay(pdMS_TO_TICKS(ms));
@@ -123,6 +131,10 @@ String runRawAtWaitPatterns(const String &cmd,
                             uint32_t timeoutMs,
                             const char *const *patterns,
                             size_t patternCount) {
+    if (!simAcquireAtPort(timeoutMs + 1000UL)) {
+        return "<lock timeout>";
+    }
+
     drainSerialAT();
     SerialAT.print("AT");
     SerialAT.print(cmd);
@@ -143,7 +155,9 @@ String runRawAtWaitPatterns(const String &cmd,
 
     response = stripEchoedCommand(response, cmd);
     response.trim();
-    return response.length() ? response : String("<no response>");
+    String out = response.length() ? response : String("<no response>");
+    simReleaseAtPort();
+    return out;
 }
 
 String runRawAt(const char *cmd, uint32_t timeoutMs) {
@@ -220,20 +234,39 @@ bool isValidIpv4(const String &ip) {
 }
 
 String queryCgpaddrIpv4() {
-    for (int attempt = 0; attempt < 2; ++attempt) {
+    const char *const commands[] = {
+        "+CGPADDR=1",
+        "+CGPADDR?",
+        "+CGCONTRDP=1",
+        "+CGDCONT?"
+    };
+
+    for (size_t cmdIndex = 0; cmdIndex < sizeof(commands) / sizeof(commands[0]); ++cmdIndex) {
+        for (int attempt = 0; attempt < 2; ++attempt) {
+            uint32_t timeoutMs = attempt == 0 ? RAW_AT_TIMEOUT_MS : LONG_AT_TIMEOUT_MS;
+            String response = runRawAt(commands[cmdIndex], timeoutMs);
+            if (response != "<no response>" && response != "<lock timeout>") {
+                String ip = extractFirstIpv4(response);
+                if (isValidIpv4(ip) && ip != "0.0.0.0") {
+                    return ip;
+                }
+            }
+            yieldToScheduler(80);
+        }
+    }
+
+    for (int attempt = 0; attempt < 3; ++attempt) {
         uint32_t timeoutMs = attempt == 0 ? RAW_AT_TIMEOUT_MS : LONG_AT_TIMEOUT_MS;
         String response = runRawAt("+CGPADDR=1", timeoutMs);
-        if (response != "<no response>") {
+        if (response != "<no response>" && response != "<lock timeout>") {
             String ip = extractFirstIpv4(response);
-            if (isValidIpv4(ip)) {
+            if (isValidIpv4(ip) && ip != "0.0.0.0") {
                 return ip;
             }
         }
-        yieldToScheduler(50);
+        yieldToScheduler(150);
     }
-
-    String response = runRawAt("+CGDCONT?", LONG_AT_TIMEOUT_MS);
-    return extractFirstIpv4(response);
+    return "";
 }
 
 String resolveLocalIp(bool forceRefresh = false) {
@@ -370,6 +403,20 @@ bool packetSessionLooksUsable(const SimNetworkState &state) {
            state.networkRegistered &&
            state.packetAttached &&
            state.gprsConnected;
+}
+
+bool modemHttpSessionLooksUsable() {
+    SimHttpClient http;
+    SimHttpRequest request;
+    request.method = SimHttpMethod::Get;
+    request.url = APP_SIM_HTTP_PROBE_URL;
+    request.readHeader = true;
+    request.readBody = false;
+    request.actionTimeoutMs = 30000;
+
+    SimHttpResponse response;
+    http.perform(request, response);
+    return response.transportOk;
 }
 
 bool waitForNetworkYielding(uint32_t timeoutMs) {
@@ -703,38 +750,32 @@ bool setupSIM() {
             return true;
         }
 
-        RawSimHttpProbeResult probe;
-        bool rawReady = rawInternetProbe(probe);
-        if (!rawReady) {
-            CUS_DBGLN(" -> LOI: GPRS Failed!");
+        if (modemHttpSessionLooksUsable()) {
+            CUS_DBGLN(" -> HTTP engine cua modem van ra ngoai duoc, chap nhan che do degraded.");
             CUS_DBGF("[SIM] Recovery: %s\n", recoveryDetail.c_str());
-            CUS_DBGF("[SIM] Raw fallback: %s,%s code=%d\n",
-                     probe.stage.c_str(),
-                     probe.detail.c_str(),
-                     probe.cipOpenCode);
-            printCellDiagnostic("setup_gprs_fail");
-            dumpSimState("gprs_connect_fail", true);
-            return false;
+            dumpSimState("gprs_degraded_http_ok", true);
+            gRestartCount = 0;
+            checkInfo();
+            return true;
         }
 
-        CUS_DBGLN(" -> Raw transport da pass du config packet verdict van fail, chap nhan che do degraded.");
+        CUS_DBGLN(" -> LOI: GPRS Failed!");
         CUS_DBGF("[SIM] Recovery: %s\n", recoveryDetail.c_str());
-        CUS_DBGF("[SIM] Raw fallback: %s,%s code=%d\n",
-                 probe.stage.c_str(),
-                 probe.detail.c_str(),
-                 probe.cipOpenCode);
-        dumpSimState("gprs_degraded_but_raw_ok", true);
-        gRestartCount = 0;
-        checkInfo();
-        return true;
+        printCellDiagnostic("setup_gprs_fail");
+        dumpSimState("gprs_connect_fail", true);
+        return false;
     }
     CUS_DBGLN(" -> Internet OK");
     CUS_DBGF("[SIM] Recovery: %s\n", recoveryDetail.c_str());
     dumpSimState("gprs_connected", true);
 
-    if (!testInternetSocket()) {
-        CUS_DBGLN("[SIM] Packet data da len nhung raw HTTP van that bai, tiep tuc o che do degraded de retry sau.");
-        dumpSimState("internet_test_fail", true);
+    if (APP_RAW_TRUTH_PROBE_MODE) {
+        if (!testInternetSocket()) {
+            CUS_DBGLN("[SIM] Packet data da len nhung raw HTTP van that bai, tiep tuc o che do degraded de retry sau.");
+            dumpSimState("internet_test_fail", true);
+        }
+    } else {
+        CUS_DBGLN("[SIM] Bo qua raw TCP/CIPOPEN trong flow chinh; A7682S se dung HTTP engine de danh gia transport.");
     }
 
     gRestartCount = 0;
@@ -836,6 +877,10 @@ SimNetworkState simReadNetworkState(bool forceRefreshIp) {
     state.operatorName = queryOperatorName();
     state.signalDbm = simSignalDbm();
     state.gprsConnected = state.packetAttached && isPdpContextActive();
+
+    if (!isValidIpv4(state.localIp)) {
+        state.localIp = "0.0.0.0";
+    }
 
     if (!state.packetAttached) {
         state.localIp = state.packetAttached ? state.localIp : "0.0.0.0";
@@ -1038,4 +1083,18 @@ int simStatusCode() {
 
 String simReadNetworkTimeRaw() {
     return extractQuotedValue(runRawAt("+CCLK?", RAW_AT_TIMEOUT_MS));
+}
+
+bool simAcquireAtPort(uint32_t timeoutMs) {
+    ensureAtPortMutex();
+    if (!gAtPortMutex) {
+        return false;
+    }
+    return xSemaphoreTakeRecursive(gAtPortMutex, pdMS_TO_TICKS(timeoutMs)) == pdTRUE;
+}
+
+void simReleaseAtPort() {
+    if (gAtPortMutex) {
+        xSemaphoreGiveRecursive(gAtPortMutex);
+    }
 }

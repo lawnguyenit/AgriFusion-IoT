@@ -66,6 +66,7 @@ private:
     bool _offlineReplayPending = false;
     int _npkFailCount = 0;
     uint32_t _queueDropCount = 0;
+    uint32_t _queueReplaceCount = 0;
     uint32_t _payloadOversizeCount = 0;
     uint32_t _bufferStoreFailCount = 0;
     uint32_t _replayIssueCount = 0;
@@ -77,11 +78,13 @@ private:
     uint32_t _firebaseBeginCount = 0;
     uint32_t _lastTransportBootstrapMs = 0;
     uint32_t _lastTransportDiagMs = 0;
+    bool _lastCloudTransportReady = false;
     bool _haveConnectivitySnapshot = false;
     bool _lastNetworkConnected = false;
     bool _lastFirebaseReady = false;
     bool _firebaseClientInitialized = false;
     bool _firebaseEverReady = false;
+    bool _bootCloudSnapshotPublished = false;
     SystemStatusCache _statusCache;
 
     static NodeRuntimeConfig makeNodeRuntimeConfig();

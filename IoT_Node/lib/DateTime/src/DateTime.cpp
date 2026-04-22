@@ -29,16 +29,28 @@ bool isValidSimClock(const String &timeStr) {
            second >= 0 && second <= 59;
 }
 
-bool applyTime(int year, int month, int day, int hour, int min, int sec) {
-    struct tm tmv = {};
-    tmv.tm_year = year - 1900;
-    tmv.tm_mon = month - 1;
-    tmv.tm_mday = day;
-    tmv.tm_hour = hour;
-    tmv.tm_min = min;
-    tmv.tm_sec = sec;
+int64_t daysFromCivil(int year, unsigned month, unsigned day) {
+    year -= month <= 2;
+    const int era = (year >= 0 ? year : year - 399) / 400;
+    const unsigned yoe = (unsigned)(year - era * 400);
+    const unsigned doy = (153 * (month + (month > 2 ? static_cast<unsigned>(-3) : 9)) + 2) / 5 + day - 1;
+    const unsigned doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    return era * 146097 + (int64_t)doe - 719468;
+}
 
-    time_t t = mktime(&tmv);
+bool applyUtcTime(int year, int month, int day, int hour, int min, int sec) {
+    if (year < 2024 || month < 1 || month > 12 || day < 1 || day > 31 ||
+        hour < 0 || hour > 23 || min < 0 || min > 59 || sec < 0 || sec > 59) {
+        return false;
+    }
+
+    int64_t days = daysFromCivil(year, (unsigned)month, (unsigned)day);
+    int64_t t64 = days * 86400LL + hour * 3600LL + min * 60LL + sec;
+    if (t64 <= 0) {
+        return false;
+    }
+
+    time_t t = static_cast<time_t>(t64);
     if (t <= 0) {
         return false;
     }
@@ -145,11 +157,17 @@ bool syncTimeFromSIM() {
     int hour = timeStr.substring(9, 11).toInt();
     int min = timeStr.substring(12, 14).toInt();
     int sec = timeStr.substring(15, 17).toInt();
+    int tzQuarters = timeStr.substring(18).toInt();
+    int tzOffsetSec = tzQuarters * 15 * 60;
+    time_t utcEpoch = 0;
 
-    if (!applyTime(year, month, day, hour, min, sec)) {
+    if (!applyUtcTime(year, month, day, hour, min, sec)) {
         CUS_DBGLN(" -> Khong apply duoc CCLK vao he thong.");
         return false;
     }
+    utcEpoch = time(nullptr) - tzOffsetSec;
+    struct timeval now = {.tv_sec = utcEpoch, .tv_usec = 0};
+    settimeofday(&now, nullptr);
 
     CUS_DBGF(" -> Da dong bo tu CCLK: %02d/%02d/%d %02d:%02d:%02d\n",
              day, month, year, hour, min, sec);
@@ -170,7 +188,7 @@ bool syncTimeFromHttpHeader(const String &header) {
         return false;
     }
 
-    if (!applyTime(year, month, day, hour, minute, second)) {
+    if (!applyUtcTime(year, month, day, hour, minute, second)) {
         CUS_DBGLN("[TIME] Khong apply duoc HTTP Date vao he thong.");
         return false;
     }

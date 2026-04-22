@@ -3,7 +3,12 @@
 #include <ArduinoJson.h>
 #include <time.h>
 
+#include "Config.h"
 #include "RtdbRestClient.h"
+#include "NetworkBridge.h"
+#if USE_SIM_NETWORK
+#include "SimA7680C.h"
+#endif
 
 namespace {
 void copyObject(JsonObject dst, JsonObjectConst src) {
@@ -33,20 +38,81 @@ String dateKeyFromEpoch(uint32_t epochSec) {
     }
 
     time_t sec = static_cast<time_t>(epochSec);
-    struct tm tmUtc;
+    struct tm tmLocal;
 #if defined(_WIN32)
-    gmtime_s(&tmUtc, &sec);
+    localtime_s(&tmLocal, &sec);
 #else
-    gmtime_r(&sec, &tmUtc);
+    localtime_r(&sec, &tmLocal);
 #endif
     char buf[16];
-    strftime(buf, sizeof(buf), "%Y-%m-%d", &tmUtc);
+    strftime(buf, sizeof(buf), "%Y-%m-%d", &tmLocal);
     return String(buf);
 }
 
-String telemetryKey(uint32_t keyTs, uint32_t seq) {
+uint32_t slotIndexFromEpoch(uint32_t epochSec) {
+    if (epochSec == 0) {
+        return 0;
+    }
+
+    uint32_t slotsPerDay = (uint32_t)APP_TELEMETRY_SEQUENCE_SLOTS_PER_DAY;
+    if (slotsPerDay == 0) {
+        return 0;
+    }
+
+    time_t sec = static_cast<time_t>(epochSec);
+    struct tm tmLocal;
+#if defined(_WIN32)
+    localtime_s(&tmLocal, &sec);
+#else
+    localtime_r(&sec, &tmLocal);
+#endif
+
+    uint32_t secOfDay = (uint32_t)tmLocal.tm_hour * 3600U +
+                        (uint32_t)tmLocal.tm_min * 60U +
+                        (uint32_t)tmLocal.tm_sec;
+    uint32_t slotLenSec = 86400U / slotsPerDay;
+    if (slotLenSec == 0) {
+        return 0;
+    }
+
+    uint32_t slotIndex = (secOfDay / slotLenSec) + 1U;
+    if (slotIndex > slotsPerDay) {
+        slotIndex = slotsPerDay;
+    }
+    return slotIndex;
+}
+
+String slotLabelFromEpoch(uint32_t epochSec) {
+    if (epochSec == 0) {
+        return "unsynced";
+    }
+
+    uint32_t slotsPerDay = (uint32_t)APP_TELEMETRY_SEQUENCE_SLOTS_PER_DAY;
+    uint32_t slotIndex = slotIndexFromEpoch(epochSec);
+    if (slotsPerDay == 0 || slotIndex == 0) {
+        return "unsynced";
+    }
+
+    time_t sec = static_cast<time_t>(epochSec);
+    struct tm tmLocal;
+#if defined(_WIN32)
+    localtime_s(&tmLocal, &sec);
+#else
+    localtime_r(&sec, &tmLocal);
+#endif
+
+    char buf[24];
+    snprintf(buf, sizeof(buf), "%02d:%02d slot %lu/%lu",
+             tmLocal.tm_hour,
+             tmLocal.tm_min,
+             (unsigned long)slotIndex,
+             (unsigned long)slotsPerDay);
+    return String(buf);
+}
+
+String telemetryKey(uint32_t keyTs, uint32_t suffixValue) {
     char buf[40];
-    snprintf(buf, sizeof(buf), "%lu_%03lu", (unsigned long)keyTs, (unsigned long)(seq % 1000U));
+    snprintf(buf, sizeof(buf), "%lu_%03lu", (unsigned long)keyTs, (unsigned long)(suffixValue % 1000U));
     return String(buf);
 }
 
@@ -96,6 +162,17 @@ bool mapPacket(JsonObjectConst payload, JsonObject &packetOut) {
     setIfPresent(sht, "sht_scl", payload["sht_scl"]);
     return true;
 }
+
+String simModuleStatusText() {
+#if USE_SIM_NETWORK
+    SimNetworkState state = simReadNetworkState(false);
+    if (state.gprsConnected) return "online";
+    if (state.packetAttached || state.networkRegistered) return "degraded";
+    return "offline";
+#else
+    return networkIsConnected() ? "online" : "offline";
+#endif
+}
 }  // namespace
 
 RawTelemetryReporter::RawTelemetryReporter(const char *nodeRootPath)
@@ -125,15 +202,33 @@ bool RawTelemetryReporter::buildRecord(const char *sensorPayloadJson,
 
     uint32_t tsDeviceSec = ctx.tsDeviceMs / 1000U;
     uint32_t tsServerSec = currentUtcSecIfSynced();
-    uint32_t keyTs = tsServerSec > 0 ? tsServerSec : tsDeviceSec;
-    String eventId = telemetryKey(keyTs, ctx.seq);
-    String dateKey = dateKeyFromEpoch(tsServerSec);
+    JsonObjectConst packetSrc = payload["packet"].as<JsonObjectConst>();
+    JsonObjectConst systemSrc = packetSrc["system_data"].as<JsonObjectConst>();
+    uint32_t sampleEpochSec = systemSrc["sample_epoch_sec"] | 0U;
+    uint32_t keyTs = sampleEpochSec > 0 ? sampleEpochSec : (tsServerSec > 0 ? tsServerSec : tsDeviceSec);
+    uint32_t slotIndex = systemSrc["sample_slot_no"] | 0U;
+    if (slotIndex == 0) {
+        slotIndex = slotIndexFromEpoch(sampleEpochSec > 0 ? sampleEpochSec : tsServerSec);
+    }
+    uint32_t eventSuffix = slotIndex > 0 ? slotIndex : ctx.seq;
+    String eventId = telemetryKey(keyTs, eventSuffix);
+    String dateKey = systemSrc["sample_date_key"] | "";
+    if (!dateKey.length()) {
+        dateKey = dateKeyFromEpoch(sampleEpochSec > 0 ? sampleEpochSec : tsServerSec);
+    }
+    String slotLabel = slotLabelFromEpoch(sampleEpochSec > 0 ? sampleEpochSec : tsServerSec);
 
     outDoc["ts_device"] = (int)tsDeviceSec;
     if (tsServerSec > 0) {
         outDoc["ts_server"] = (int)tsServerSec;
     }
+    if (sampleEpochSec > 0) {
+        outDoc["ts_sample"] = (int)sampleEpochSec;
+    }
     outDoc["seq_no"] = (int)ctx.seq;
+    outDoc["slot_no"] = (int)slotIndex;
+    outDoc["slot_count_day"] = systemSrc["sample_slot_count_day"] | (int)APP_TELEMETRY_SEQUENCE_SLOTS_PER_DAY;
+    outDoc["slot_label"] = slotLabel;
     outDoc["_event_id"] = eventId;
     outDoc["_date_key"] = dateKey;
 
@@ -186,10 +281,23 @@ bool RawTelemetryReporter::buildRecord(const char *sensorPayloadJson,
 
     JsonObject modules = outDoc["modules"].to<JsonObject>();
     JsonObject sim = modules["sim"].to<JsonObject>();
+    sim["transport"] = networkTransportName();
+    sim["signal_dbm"] = ctx.rssi;
+    sim["network_status"] = simModuleStatusText();
+    sim["ts_sample"] = (int)tsDeviceSec;
+#if USE_SIM_NETWORK
+    {
+        SimNetworkState state = simReadNetworkState(false);
+        sim["operator"] = state.operatorName;
+        sim["ip"] = state.localIp;
+        sim["registered"] = state.networkRegistered;
+        sim["attached"] = state.packetAttached;
+        sim["gprs"] = state.gprsConnected;
+    }
+#else
     sim["operator"] = "";
-    sim["signal_dbm"] = 0;
-    sim["network_status"] = "inactive";
-    sim["ts_sample"] = 0;
+    sim["ip"] = networkLocalIp();
+#endif
     JsonObject gps = modules["gps"].to<JsonObject>();
     gps["enabled"] = false;
     gps["status"] = "inactive";
@@ -221,7 +329,7 @@ bool RawTelemetryReporter::buildRecord(const char *sensorPayloadJson,
     }
 
     JsonObject simHealth = health["sim"].to<JsonObject>();
-    simHealth["status"] = "inactive";
+    simHealth["status"] = simModuleStatusText();
     simHealth["error_code"] = "";
 
     String outJson;
@@ -267,7 +375,7 @@ bool RawTelemetryReporter::publishRecord(FirebaseData &fbdo,
     String entryKey = recObj["_event_id"] | telemetryKey((uint32_t)(millis() / 1000U), 0);
     record.remove("_date_key");
     record.remove("_event_id");
-    String path = _nodeRootPath + "/telemetry/" + dateKey + "/" + entryKey;
+    String path = String(APP_RTDB_PATH_NODE_TELEMETRY) + "/" + dateKey + "/" + entryKey;
 
 #if USE_SIM_NETWORK && APP_FIREBASE_SIM_TRANSPORT_ENABLED
     String recordBody;
@@ -290,5 +398,37 @@ bool RawTelemetryReporter::publishRecord(FirebaseData &fbdo,
         *outRawRefId = entryKey;
     }
 
+    return true;
+}
+
+bool RawTelemetryReporter::probePublishPath(FirebaseData &fbdo,
+                                            String *outProbePath,
+                                            String &errorDetail) {
+    String path = String(APP_RTDB_PATH_NODE_TELEMETRY_PROBE) + "/publish_gate";
+
+#if USE_SIM_NETWORK && APP_FIREBASE_SIM_TRANSPORT_ENABLED
+    String body = String("{\"probe\":true,\"ts_device\":") + String((unsigned long)(millis() / 1000UL)) + "}";
+    RtdbRestResponse response;
+    if (!rtdbRestClient().putRawJson(path, body, response, true)) {
+        errorDetail = path + " -> " + response.detail;
+        return false;
+    }
+    RtdbRestResponse cleanup;
+    rtdbRestClient().deletePath(path, cleanup);
+#else
+    FirebaseJson probe;
+    probe.set("probe", true);
+    probe.set("ts_device", (int)(millis() / 1000UL));
+    if (!Firebase.setJSON(fbdo, path, probe)) {
+        errorDetail = path + " -> " + fbdo.errorReason();
+        return false;
+    }
+    Firebase.deleteNode(fbdo, path);
+#endif
+
+    if (outProbePath) {
+        *outProbePath = path;
+    }
+    errorDetail = "probe_ok";
     return true;
 }

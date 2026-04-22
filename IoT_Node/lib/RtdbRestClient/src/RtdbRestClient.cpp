@@ -9,6 +9,19 @@ String normalizePath(const String &path) {
     }
     return path.startsWith("/") ? path : String("/") + path;
 }
+
+String classifyHttpFailureStage(const SimHttpResponse &http) {
+    if (!http.transportOk) {
+        return "rtdb_transport_fail";
+    }
+    if (http.statusCode == 401 || http.statusCode == 403) {
+        return "rtdb_auth_fail";
+    }
+    if (http.statusCode == 404) {
+        return "rtdb_endpoint_fail";
+    }
+    return "rtdb_http_fail";
+}
 }  // namespace
 
 RtdbRestClient::RtdbRestClient(const char *databaseUrl, const char *legacyToken)
@@ -47,15 +60,17 @@ bool RtdbRestClient::probe(RtdbRestResponse &response) {
 
     SimHttpRequest req;
     req.method = SimHttpMethod::Get;
-    req.url = buildUrl("/", "shallow=true");
+    req.url = buildUrl(APP_RTDB_PATH_NODE_INFO);
     req.readHeader = true;
     req.readBody = true;
 
     SimHttpResponse http;
     bool ok = _http.perform(req, http);
+    response.transportOk = http.transportOk;
+    response.responseReceived = http.responseReceived;
     response.ok = ok;
     response.statusCode = http.statusCode;
-    response.stage = ok ? "rtdb_probe_ok" : "rtdb_probe_fail";
+    response.stage = ok ? "rtdb_probe_ok" : classifyHttpFailureStage(http);
     response.detail = http.stage + " | " + http.detail;
     response.body = http.body;
     response.header = http.header;
@@ -84,9 +99,11 @@ bool RtdbRestClient::performJsonWrite(SimHttpMethod method,
 
     SimHttpResponse http;
     bool ok = _http.perform(req, http);
+    response.transportOk = http.transportOk;
+    response.responseReceived = http.responseReceived;
     response.ok = ok;
     response.statusCode = http.statusCode;
-    response.stage = ok ? "rtdb_write_ok" : "rtdb_write_fail";
+    response.stage = ok ? "rtdb_write_ok" : classifyHttpFailureStage(http);
     response.detail = http.stage + " | " + http.detail;
     response.body = http.body;
     response.header = http.header;
@@ -123,9 +140,11 @@ bool RtdbRestClient::deletePath(const String &path, RtdbRestResponse &response) 
 
     SimHttpResponse http;
     bool ok = _http.perform(req, http);
+    response.transportOk = http.transportOk;
+    response.responseReceived = http.responseReceived;
     response.ok = ok;
     response.statusCode = http.statusCode;
-    response.stage = ok ? "rtdb_delete_ok" : "rtdb_delete_fail";
+    response.stage = ok ? "rtdb_delete_ok" : classifyHttpFailureStage(http);
     response.detail = http.stage + " | " + http.detail;
     response.header = http.header;
     return ok;

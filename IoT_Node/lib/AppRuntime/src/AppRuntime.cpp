@@ -181,6 +181,19 @@ bool AppRuntime::enqueueSensorMessage(const SensorMessage &msg, TickType_t waitT
         return true;
     }
 
+#if APP_QUEUE_REPLACE_OLDEST_ON_FULL
+    SensorMessage droppedMsg = {};
+    if (xQueueReceive(_dataQueue, &droppedMsg, 0) == pdPASS &&
+        xQueueSend(_dataQueue, &msg, 0) == pdPASS) {
+        _queueReplaceCount++;
+        APP_LOG_SENSOR("Queue day, da bo ban tin cu nhat de giu mau moi. replaces=%lu waiting=%lu spaces=%lu\n",
+                       (unsigned long)_queueReplaceCount,
+                       (unsigned long)uxQueueMessagesWaiting(_dataQueue),
+                       (unsigned long)uxQueueSpacesAvailable(_dataQueue));
+        return true;
+    }
+#endif
+
     _queueDropCount++;
     APP_LOG_SENSOR("Queue day, bo mat ban tin hien tai. drops=%lu waiting=%lu spaces=%lu\n",
                    (unsigned long)_queueDropCount,
@@ -311,6 +324,7 @@ void AppRuntime::maybeLogRuntimeDiagnostics(bool hasInternet, bool firebaseReady
 bool AppRuntime::ensureCloudTransportReady(bool hasInternet, const char *reason, bool verboseLog) {
 #if USE_SIM_NETWORK
     if (!hasInternet) {
+        _lastCloudTransportReady = false;
         return false;
     }
 
@@ -324,7 +338,7 @@ bool AppRuntime::ensureCloudTransportReady(bool hasInternet, const char *reason,
     uint32_t &gateMs = verboseLog ? _lastTransportDiagMs : _lastTransportBootstrapMs;
     uint32_t minInterval = verboseLog ? APP_TRANSPORT_DIAG_INTERVAL_MS : APP_TRANSPORT_BOOTSTRAP_INTERVAL_MS;
     if (gateMs > 0 && (now - gateMs) < minInterval) {
-        return utcEpochMsIfSynced() > 0;
+        return _lastCloudTransportReady;
     }
     gateMs = now;
 
@@ -343,6 +357,7 @@ bool AppRuntime::ensureCloudTransportReady(bool hasInternet, const char *reason,
         printCloudTransportReport(report);
     }
 
+    _lastCloudTransportReady = report.transportUsable;
     return report.transportUsable;
 #else
     (void)hasInternet;
@@ -407,9 +422,10 @@ bool AppRuntime::beginFirebaseClientIfNeeded(bool hasInternet, bool networkJustR
 
     APP_LOG_CLOUD("Firebase bootstrap: %s\n", bootstrap.authSummary.c_str());
     APP_LOG_CLOUD("Firebase auth after begin: %s\n", buildFirebaseAuthDiagSummary().c_str());
-    APP_LOG_CLOUD("Firebase probe after begin: ready=%d %s\n",
+    APP_LOG_CLOUD("Firebase probe after begin: ready=%d %s state={%s}\n",
                   bootstrap.readyAfterBegin ? 1 : 0,
-                  bootstrap.probe.detail.c_str());
+                  bootstrap.probe.detail.c_str(),
+                  _firebasePipeline.stateSummary().c_str());
 
     if (!bootstrap.transportConfigured) {
         APP_LOG_CLOUD("Firebase begin bi chan: %s\n", bootstrap.probe.detail.c_str());
@@ -439,11 +455,12 @@ void AppRuntime::maybeLogFirebaseNotReady(bool hasInternet, bool firebaseReady) 
     _lastFirebaseNotReadyLogMs = now;
     const char *phase = _firebaseEverReady ? "runtime" : "startup";
     FirebaseProbeResult probe = _firebasePipeline.probeDatabaseAccess(_firebaseData);
-    APP_LOG_CLOUD("Firebase not ready phase=%s elapsed=%lu ms auth={%s} probe={%s} diag={%s}\n",
+    APP_LOG_CLOUD("Firebase not ready phase=%s elapsed=%lu ms auth={%s} probe={%s} state={%s} diag={%s}\n",
                   phase,
                   (unsigned long)(now - _firebaseNotReadySinceMs),
                   buildFirebaseAuthDiagSummary().c_str(),
                   probe.detail.c_str(),
+                  _firebasePipeline.stateSummary().c_str(),
                   buildUploadDiagSummary(false).c_str());
 
     ensureCloudTransportReady(hasInternet, "firebase_not_ready_diag", true);
@@ -693,8 +710,6 @@ void AppRuntime::networkTaskLoop() {
     if (_firebasePipeline.usesNativeFirebase()) {
         _otaReporter.flushPendingEvent(_firebaseOtaData, _otaStateStore, currentFwVersion(), currentFwPartition());
     }
-    publishSystemStatusCached("boot", "network task started", true);
-    publishNodeInfoIfDue(true);
 
     SensorMessage rcvMsg = {};
 
@@ -718,6 +733,11 @@ void AppRuntime::networkTaskLoop() {
         maybeLogRuntimeDiagnostics(hasInternet, firebaseReady);
 
         if (hasInternet && firebaseReady) {
+            if (!_bootCloudSnapshotPublished) {
+                publishSystemStatusCached("boot", "network task started", true);
+                publishNodeInfoIfDue(true);
+                _bootCloudSnapshotPublished = true;
+            }
             maintainTimeSync();
             _firebasePipeline.probeTelemetryPathIfNeeded(_firebaseData, utcEpochMsIfSynced());
             publishNodeInfoIfDue(false);
@@ -746,6 +766,7 @@ void AppRuntime::networkTaskLoop() {
 
             if (rcvMsg.isError) {
                 APP_LOG_CLOUD("Sensor alarm -> push telemetry fault + status.\n");
+                uint32_t uploadStartMs = millis();
                 TelemetryPushResult result = _firebasePipeline.pushPayloadDetailed(_firebaseData,
                                                                                    rcvMsg.jsonPayload,
                                                                                    true,
@@ -755,17 +776,23 @@ void AppRuntime::networkTaskLoop() {
                                                                                    currentFwPartition(),
                                                                                    _offlineReplayPending,
                                                                                    utcEpochMsIfSynced());
+                uint32_t uploadElapsedMs = millis() - uploadStartMs;
                 if (!result.uploaded) {
                     if (!result.bufferStoreOk) {
                         _bufferStoreFailCount++;
                     }
-                    APP_LOG_CLOUD("Sensor alarm buffered: stage=%s detail=%s diag={%s}\n",
+                    APP_LOG_CLOUD("Sensor alarm buffered: stage=%s detail=%s elapsed=%lu ms state={%s} diag={%s}\n",
                                   result.stage.c_str(),
                                   result.detail.c_str(),
+                                  (unsigned long)uploadElapsedMs,
+                                  result.pipelineState.c_str(),
                                   buildUploadDiagSummary(result.firebaseReady).c_str());
+                } else {
+                    APP_LOG_CLOUD("Sensor alarm upload OK in %lu ms.\n", (unsigned long)uploadElapsedMs);
                 }
                 publishSystemStatusCached("sensor_alarm", "sensor fault buffered or uploaded", true);
             } else {
+                uint32_t uploadStartMs = millis();
                 TelemetryPushResult result = _firebasePipeline.pushPayloadDetailed(_firebaseData,
                                                                                    rcvMsg.jsonPayload,
                                                                                    false,
@@ -775,21 +802,28 @@ void AppRuntime::networkTaskLoop() {
                                                                                    currentFwPartition(),
                                                                                    _offlineReplayPending,
                                                                                    utcEpochMsIfSynced());
+                uint32_t uploadElapsedMs = millis() - uploadStartMs;
                 if (result.uploaded) {
-                    APP_LOG_CLOUD("Upload RTDB OK.\n");
+                    APP_LOG_CLOUD("Upload RTDB OK in %lu ms.\n", (unsigned long)uploadElapsedMs);
                     publishSystemStatusCached("online", "rtdb write ok");
                 } else {
                     if (!result.bufferStoreOk) {
                         _bufferStoreFailCount++;
                     }
-                    APP_LOG_CLOUD("Upload buffered: stage=%s detail=%s diag={%s}\n",
+                    APP_LOG_CLOUD("Upload buffered: stage=%s detail=%s elapsed=%lu ms state={%s} diag={%s}\n",
                                   result.stage.c_str(),
                                   result.detail.c_str(),
+                                  (unsigned long)uploadElapsedMs,
+                                  result.pipelineState.c_str(),
                                   buildUploadDiagSummary(result.firebaseReady).c_str());
 
                     if (result.stage == "network_down") {
                         publishSystemStatusCached("offline_buffering", "network down, buffered");
-                    } else if (result.stage == "firebase_not_ready") {
+                    } else if (result.stage == "firebase_not_ready" ||
+                               result.stage == "publish_blocked_auth_not_initialized" ||
+                               result.stage == "publish_blocked_gate_not_ready" ||
+                               result.stage == "publish_blocked_begin_not_done" ||
+                               result.stage == "publish_blocked_transport_not_ready") {
                         publishSystemStatusCached("degraded", "firebase not ready, buffered");
                     } else if (result.stage == "publish_error") {
                         publishSystemStatusCached("degraded", "rtdb publish error, buffered");

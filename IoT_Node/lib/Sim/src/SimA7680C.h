@@ -62,5 +62,7 @@ int simSignalDbm();
 String simLocalIP();
 int simStatusCode();
 String simReadNetworkTimeRaw();
+bool simAcquireAtPort(uint32_t timeoutMs = 30000);
+void simReleaseAtPort();
 
 #endif

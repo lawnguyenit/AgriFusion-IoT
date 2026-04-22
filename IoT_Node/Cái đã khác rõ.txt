@@ -1,75 +1,70 @@
-Chưa ổn hoàn toàn, nhưng đã đủ để chốt hướng và move on khỏi phần “SIM có ra mạng được không”.
+Task 1 — phá vòng lặp gate
 
-Cái đã ổn thật
+Tách rõ:
 
-Ở boot lần này:
+transport_ok
+auth_ok
+publish_gate_ok
+ready
 
-AT handshake pass ngay đầu.
-setupSIM=1.
-NETOPEN=1, CGATT=1, CGACT=1,1, CGPADDR=1,19.17.25.86.
-Test raw HTTP toi neverssl.com:80... -> OK (raw_http_ok,http_header_ok).
-probe đầu sau boot cũng pass sạch:
-stage=raw_transport_ready_ip_unknown
-raw_socket=OK | +CIPOPEN: 0,0
-raw_send=OK | +CIPSEND: 0,57,57
-raw_read=... HTTP/1.1 403 Forbidden
-http_ok=1
+Và không được để ready phụ thuộc vào một publish test mà chính publish test lại bị gate chặn.
 
-=> Nghĩa là đường raw transport từ modem ra Internet đã pass end-to-end.
+Tư duy đúng nên là:
 
-Cái chưa ổn
+ready = begin_done && transport_ok && auth_ok;
+publish_allowed = ready && publish_gate_ok_optional;
 
-Sau đó các probe lặp lại cứ rơi vào:
+Hoặc ít nhất:
 
-raw_http_open_fail
-cipopen_code_10
-+CIPOPEN: 0,10
-+CIPCLOSE: 0,4
+probe readiness không đi qua cùng gate của publish thật
+Task 2 — probe path và publish path phải tách khái niệm
 
-Tức là:
+Hiện log cho thấy:
 
-flow đã chạy được, nhưng chưa bền khi mở/đóng socket lặp lại nhiều lần.
+probe HTTP 200
+nhưng publish vẫn chết vì auth not initialized
 
-Đây không còn là lỗi “SIM không có mạng”, mà là lỗi kiểu:
+=> cần tách:
 
-socket/session cleanup chưa sạch
-probe quá dày
-state sau một request chưa được reset tốt
-Nói ngắn gọn theo 2 nghĩa
-1) Ổn chưa để chốt phần nền?
+probe_transport()
+publish_telemetry()
 
-Rồi.
-Bạn đã có bằng chứng boot pass + raw HTTP pass + time sync từ HTTP Date pass.
+Không được để probe đi qua logic publish gate rồi lại dùng kết quả đó để xác định ready.
 
-2) Ổn chưa để coi là transport production?
+Task 3 — sau mỗi probe/request, reset sạch HTTP session
 
-Chưa.
-Vì cứ probe lặp là lại có cipopen_code_10.
+Vì request đầu 200, request sau 714.
+Đó là dấu hiệu của:
 
-Ý nghĩa chiến lược
+session reuse bẩn
+context chưa clear
+state modem còn dính request trước
+Task 4 — không để bootstrap sau ghi đè sự thật của probe đầu
 
-Từ giờ không nên đào lại SIM/APN/gói cước nữa.
-Nút thắt đã đổi thành:
+Lần đầu đã chứng minh:
 
-stability của vòng đời socket khi chạy lặp lại.
+rtdb_probe_ok
+http=200
 
-Nên làm gì tiếp theo
-Giữ
-boot bring-up hiện tại
-flow raw HTTP đã pass
-sync time từ HTTP Date
-Bỏ / giảm
-probe raw HTTP quá dày 10 giây/lần
-reopen socket liên tục khi chưa cần
-các nhánh check cũ tự chấm ip=0
-Chuyển hướng đúng
-chỉ probe lại khi:
-boot xong
-hoặc khi mất mạng thật
-hoặc health check thưa hơn nhiều
-Chốt cuối
+Nhưng bootstrap sau lại đánh transport_ready=0.
+Cần log và state theo kiểu:
 
-Ổn để move on khỏi phần nền. Chưa ổn để gọi là bản bền.
-Bây giờ bài toán không còn là “SIM có chạy không”, mà là:
+last_good_transport
+current_attempt_transport
+sticky_transport_ok
 
-làm sao dùng flow pass này mà không tự phá socket khi loop nhiều lần.
+Nếu không, hệ thống sẽ tự phủ định bằng chứng thành công vừa có.
+
+Task 5 — dọn startup sequencing
+
+Ở boot:
+
+modem AT còn bẩn
+NPK timeout
+SHT30 fail
+
+=> nên serialize khởi động:
+
+modem sync xong
+sensor task mới bung mạnh
+hoặc ngược lại, nhưng phải nhất quán

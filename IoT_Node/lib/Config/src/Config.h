@@ -23,6 +23,9 @@
 // ================= [APP MODE] =================
 // Current deployment profile: keep the node running continuously.
 // Deep-sleep mode can be added later after field power profiling is stable.
+// APP_RUN_CONTINUOUS: luong van hanh chinh cua node. Hien tai de 1 de chay lien tuc.
+// APP_SIM_PURE_TEST_MODE: bat khi chi muon test SIM, bo qua toan bo runtime sensor/cloud.
+// APP_RAW_TRUTH_PROBE_MODE: bat khi can bai test raw transport/time cap thap, khong vao flow app that.
 #define APP_RUN_CONTINUOUS 1         // 1 = chay lien tuc, 0 = du phong cho che do sleep
 #define APP_SIM_PURE_TEST_MODE 0     // 1 = bo qua AppRuntime, chay che do test SIM thuan de chan doan mang
 #define APP_RAW_TRUTH_PROBE_MODE 0   // 1 = chay harness raw transport/time, 0 = de du phong cho app runtime sau nay
@@ -39,15 +42,22 @@
 #define APP_TELEMETRY_RETENTION_DAYS   30                   // so ngay metadata/telemetry duoc danh dau luu tru
 
 // ================= [FIREBASE / RTDB] =================
+// APP_FIREBASE_SIM_TRANSPORT_ENABLED:
+// 1 = ghi RTDB qua HTTP(S) engine cua modem SIM.
+// 0 = tat cloud khi dang o SIM mode.
 #define APP_FIREBASE_DATABASE_URL      "https://agri-fusion-iot-default-rtdb.asia-southeast1.firebasedatabase.app" // URL RTDB
 #define APP_FIREBASE_API_KEY           "AIzaSyAih-kFW-VkgEKVXnTd7aiFCiUjNy-6j18" // API key Firebase client
 #define APP_FIREBASE_LEGACY_TOKEN      "wZehBBnCza75i6iNpcUgKQT463dmHXMbfqRuYVsc" // token ghi RTDB dang dung
 #define APP_FIREBASE_SIM_TRANSPORT_ENABLED 1                    // 1 = dung RTDB REST qua HTTP(S) engine cua modem; 0 = chan cloud qua SIM
 
+// Cac path duoi day la schema cloud hien tai.
+// Neu doi ten node/path tren RTDB thi sua tai day thay vi sua trong code runtime.
 #define APP_RTDB_PATH_NODE_ROOT        "/Node1"             // root du lieu cua node tren RTDB
 #define APP_RTDB_PATH_NODE_INFO        "/Node1/info"        // metadata thong tin node
 #define APP_RTDB_PATH_NODE_LIVE        "/Node1/live"        // du lieu song / telemetry moi nhat
 #define APP_RTDB_PATH_NODE_STATUS      "/Node1/status_events" // log trang thai he thong
+#define APP_RTDB_PATH_NODE_TELEMETRY   "/Node1/telemetry"   // root telemetry thuc te cua node
+#define APP_RTDB_PATH_NODE_TELEMETRY_PROBE "/Node1/telemetry/_write_probe" // path probe quyen ghi telemetry
 #define APP_OFFLINE_RAW_FILE           "/offline_data.txt"  // file dem khi mat mang
 
 // ================= [EDGE METADATA] =================
@@ -66,33 +76,46 @@
 #define APP_OTA_MAX_PENDING_BOOTS      3UL                  // so lan boot toi da khi OTA dang cho xac nhan
 
 // ================= [TASK / APP TIMING] =================
-// #define APP_SENSOR_SAMPLE_INTERVAL_MS      (15UL * 60UL * 1000UL) // chu ky do va gui du lieu
-#define APP_SENSOR_SAMPLE_INTERVAL_MS      (60000UL) // chu ky do va gui du lieu
-#define APP_NETWORK_LOOP_DELAY_MS          250UL                  // do tre moi vong lap task mang
-#define APP_OFFLINE_REPLAY_INTERVAL_MS     30000UL                // chu ky thu day lai du lieu da dem
-#define APP_NODE_INFO_PUSH_INTERVAL_MS     300000UL               // chu ky cap nhat metadata node
-#define APP_TELEMETRY_PROBE_INTERVAL_MS    30000UL                // chu ky probe/khao sat path telemetry
-#define APP_TIME_SYNC_RETRY_MS             60000UL                // chu ky thu dong bo lai NTP
-#define APP_STATUS_REFRESH_INTERVAL_MS     300000UL               // chu ky refresh trang thai du khong doi
-#define APP_RUNTIME_DIAG_INTERVAL_MS       60000UL                // chu ky in heartbeat chan doan tong quan
-#define APP_FIREBASE_REBEGIN_INTERVAL_MS   15000UL                // khoang cach toi thieu giua 2 lan begin/re-begin Firebase
-#define APP_FIREBASE_NOT_READY_LOG_MS      15000UL                // chu ky in log khi Firebase van chua ready
-#define APP_TRANSPORT_BOOTSTRAP_INTERVAL_MS 15000UL               // khoang cach toi thieu giua 2 lan bootstrap transport/time cho cloud
-#define APP_TRANSPORT_DIAG_INTERVAL_MS      60000UL               // chu ky toi thieu giua 2 lan dump chan doan raw transport khi cloud van loi
+// Day la nhom QUAN TRONG NHAT de dieu chinh nhip hoat dong:
+// - APP_SENSOR_SAMPLE_INTERVAL_MS: bao lau do sensor 1 lan.
+// - APP_TELEMETRY_SEQUENCE_SLOTS_PER_DAY: so thu tu goi tin trong 1 ngay.
+//   Vi du: 24 = 1 gio/lan, 96 = 15 phut/lan, 288 = 5 phut/lan.
+// - APP_NODE_INFO_PUSH_INTERVAL_MS: bao lau cap nhat /info 1 lan.
+// - APP_OFFLINE_REPLAY_INTERVAL_MS: bao lau thu day lai du lieu dem khi da co mang.
+// - APP_TIME_SYNC_RETRY_MS: bao lau thu dong bo gio lai neu van chua co time hop le.
+// - APP_NETWORK_LOOP_DELAY_MS: nhip lap task mang; khong phai chu ky lay mau.
+// #define APP_SENSOR_SAMPLE_INTERVAL_MS      (15UL * 60UL * 1000UL) // mau 15 phut/lan cho deploy that
+#define APP_SENSOR_SAMPLE_INTERVAL_MS      (60000UL) // chu ky do sensor va tao 1 packet telemetry
+#define APP_TELEMETRY_SEQUENCE_SLOTS_PER_DAY (24UL * 4UL)         // so slot/goi trong 1 ngay; 24*4 = 96 slot = 15 phut/lan
+#define APP_NETWORK_LOOP_DELAY_MS          250UL                  // nhip lap task mang/cloud de xu ly queue, reconnect, replay
+#define APP_OFFLINE_REPLAY_INTERVAL_MS     30000UL                // moi 30s thu day lai du lieu da dem trong flash
+#define APP_NODE_INFO_PUSH_INTERVAL_MS     300000UL               // moi 5 phut cap nhat metadata /info
+#define APP_TELEMETRY_PROBE_INTERVAL_MS    30000UL                // moi 30s (toi da) probe quyen ghi telemetry neu can
+#define APP_TIME_SYNC_RETRY_MS             60000UL                // moi 60s thu dong bo lai gio neu chua sync
+#define APP_STATUS_REFRESH_INTERVAL_MS     300000UL               // moi 5 phut refresh trang thai /live/health du khong doi
+#define APP_RUNTIME_DIAG_INTERVAL_MS       60000UL                // moi 60s in heartbeat tong quan len serial
+#define APP_FIREBASE_REBEGIN_INTERVAL_MS   15000UL                // toi thieu 15s giua 2 lan Firebase begin/re-begin
+#define APP_FIREBASE_NOT_READY_LOG_MS      15000UL                // moi 15s in log "Firebase chua ready" 1 lan
+#define APP_TRANSPORT_BOOTSTRAP_INTERVAL_MS 15000UL               // toi thieu 15s giua 2 lan bootstrap transport/time
+#define APP_TRANSPORT_DIAG_INTERVAL_MS      60000UL               // moi 60s dump chan doan transport neu cloud van loi
+#define APP_TELEMETRY_SUCCESS_DIAG_INTERVAL_MS 60000UL            // moi 60s moi ghi telemetry_debug/channel 1 lan khi upload OK
 
 // ================= [TASK / BUFFER] =================
-#define APP_SENSOR_PAYLOAD_BUFFER_SIZE     1536U                 // kich thuoc toi da cho 1 payload JSON
+// APP_QUEUE_LENGTH va APP_QUEUE_REPLACE_OLDEST_ON_FULL quyet dinh cach xu ly khi sensor tao mau nhanh hon cloud upload.
+// Hien tai uu tien GIU MAU MOI NHAT: khi queue day se bo ban tin cu nhat.
+#define APP_SENSOR_PAYLOAD_BUFFER_SIZE     2048U                 // kich thuoc toi da cho 1 payload JSON; tang de tranh roi mau khi packet debug vuot 1.5 KB
 #define APP_MESSAGE_KIND_BUFFER_SIZE       24U                   // kich thuoc chuoi phan loai payload
 #define APP_QUEUE_LENGTH                   10U                   // so ban tin toi da cho trong queue
-#define APP_QUEUE_SEND_WAIT_MS             10UL                  // thoi gian cho khi day ban tin vao queue
-#define APP_QUEUE_RECV_WAIT_MS             100UL                 // thoi gian cho khi doc ban tin tu queue
+#define APP_QUEUE_SEND_WAIT_MS             10UL                  // cho toi da 10ms khi sensor task day 1 packet vao queue
+#define APP_QUEUE_RECV_WAIT_MS             100UL                 // cho toi da 100ms moi lan network task doi 1 packet tu queue
+#define APP_QUEUE_REPLACE_OLDEST_ON_FULL   1                     // 1 = queue day thi bo packet cu nhat, 0 = bo packet moi vua tao
 #define APP_PAYLOAD_KIND_NODE_PACKET       "node_packet_json"    // nhan payload thong thuong
 #define APP_PAYLOAD_KIND_SENSOR_ALARM      "sensor_alarm_json"   // nhan payload canh bao cam bien
 
 #define APP_SENSOR_TASK_STACK_SIZE         8192U                 // stack cho task doc sensor
 #define APP_NETWORK_TASK_STACK_SIZE        16384U                // stack cho task mang/cloud
 #define APP_SENSOR_TASK_PRIORITY           1U                    // uu tien task sensor
-#define APP_NETWORK_TASK_PRIORITY          2U                    // uu tien task mang cao hon sensor
+#define APP_NETWORK_TASK_PRIORITY          2U                    // uu tien task mang cao hon sensor de rut queue kip
 #define APP_SENSOR_TASK_CORE               1U                    // core chay task sensor
 #define APP_NETWORK_TASK_CORE              0U                    // core chay task mang
 
@@ -109,6 +132,8 @@
 #define APP_LOG_OTA_TAG        "[OTA]"      // nhan log cap nhat firmware
 
 // ================= [SIM PINS / MODEM] =================
+// Day la nhom tham so de doi nha mang / module / cach cap nguon modem.
+// Thuong chi can sua: SIM_APN, SIM_PDP_TYPE, cac chan nguon/PWRKEY, va cac timeout boot neu module kho len.
 #define SIM_TX_PIN      17                  // TX cua ESP noi sang RX cua SIM
 #define SIM_RX_PIN      16                  // RX cua ESP noi sang TX cua SIM
 #define SIM_BAUDRATE    115200              // baudrate UART giao tiep voi SIM
@@ -118,14 +143,14 @@
 #define SIM_APN_PASS    ""                  // password APN
 #define SIM_PDP_TYPE    "IP"                // kieu PDP context hien tai; co the thu "IPV4V6" neu can
 
-#define SIM_BOOT_WAIT_MS                5000                    // thoi gian cho SIM on dinh sau khi cap nguon
-#define SIM_AT_READY_RETRY_COUNT        12                      // so lan thu AT truoc khi ket luan SIM chua san sang
-#define SIM_AT_READY_RETRY_DELAY_MS     250                     // do tre giua cac lan thu AT
-#define SIM_AT_RESPONSE_TIMEOUT_MS      5000                    // timeout cho 1 lenh AT
+#define SIM_BOOT_WAIT_MS                5000                    // cho sau khi cap nguon modem truoc khi bat dau noi chuyen
+#define SIM_AT_READY_RETRY_COUNT        12                      // so lan probe AT truoc khi ket luan modem chua san sang
+#define SIM_AT_READY_RETRY_DELAY_MS     250                     // khoang cach giua cac lan probe AT
+#define SIM_AT_RESPONSE_TIMEOUT_MS      5000                    // timeout cho 1 lenh AT/1 phan hoi quan trong
 #define SIM_DEBUG_RECHECK_DELAY_MS      1000                    // delay khi debug va kiem tra lai SIM
-#define SIM_NETWORK_CHECK_INTERVAL_MS   10000                   // chu ky kiem tra trang thai mang SIM
-#define SIM_RECONNECT_INTERVAL_MS       30000                   // chu ky thu reconnect du lieu
-#define SIM_RESTART_COOLDOWN_MS         300000                  // thoi gian toi thieu giua 2 lan restart modem
+#define SIM_NETWORK_CHECK_INTERVAL_MS   10000                   // moi 10s check lai snapshot mang SIM
+#define SIM_RECONNECT_INTERVAL_MS       30000                   // moi 30s thu reconnect packet data neu can
+#define SIM_RESTART_COOLDOWN_MS         300000                  // toi thieu 5 phut giua 2 lan restart modem
 #define SIM_PURE_TEST_INTERVAL_MS       5000UL                  // chu ky lap lai bai test SIM thuan
 #define SIM_TEST_SOCKET_TIMEOUT_MS      5000UL                  // timeout cho moi bai test socket/http
 #define SIM_TEST_DNS_HOST               "neverssl.com"          // dich test qua DNS
@@ -142,7 +167,7 @@
 #define SIM_SUPPLY_EN_ACTIVE_HIGH       1                       // muc kich hoat cho chan bat nguon modem
 #define SIM_PWRKEY_PIN                  -1                      // chan PWRKEY neu can; -1 neu module auto boot
 #define SIM_PWRKEY_ACTIVE_HIGH          1                       // muc kich hoat cho PWRKEY
-#define SIM_PWRKEY_HOLD_MS              1200UL                  // thoi gian giu PWRKEY de bat modem
+#define SIM_PWRKEY_HOLD_MS              1200UL                  // giu PWRKEY bao lau de danh thuc/bat modem
 #define APP_RAW_TRUTH_PROBE_INTERVAL_MS 10000UL                 // chu ky lap lai bai truth probe raw
 
 // ================= [NPK SENSOR] =================

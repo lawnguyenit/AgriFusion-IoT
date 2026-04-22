@@ -6,6 +6,20 @@
 namespace {
 constexpr uint32_t HTTP_AT_TIMEOUT_MS = 4000;
 
+class AtPortSessionGuard {
+public:
+    explicit AtPortSessionGuard(uint32_t timeoutMs) : _locked(simAcquireAtPort(timeoutMs)) {}
+    ~AtPortSessionGuard() {
+        if (_locked) {
+            simReleaseAtPort();
+        }
+    }
+    bool locked() const { return _locked; }
+
+private:
+    bool _locked = false;
+};
+
 void yieldToScheduler(uint32_t ms = 1) {
     delay(ms);
 }
@@ -138,6 +152,10 @@ bool parseHttpAction(const String &response, int &method, int &statusCode, int &
     return true;
 }
 
+bool looksLikeServerHttpStatus(int statusCode) {
+    return statusCode >= 100 && statusCode < 600;
+}
+
 String readHttpBodyChunk(size_t offset, size_t size) {
     String cmd = String("+HTTPREAD=") + String((unsigned long)offset) + "," + String((unsigned long)size);
     return runHttpAt(cmd, 20000);
@@ -168,6 +186,13 @@ bool SimHttpClient::perform(const SimHttpRequest &request, SimHttpResponse &resp
     if (!request.url.length()) {
         response.stage = "http_empty_url";
         response.detail = "empty_url";
+        return false;
+    }
+
+    AtPortSessionGuard guard(request.actionTimeoutMs + 10000UL);
+    if (!guard.locked()) {
+        response.stage = "http_lock_timeout";
+        response.detail = "sim_at_port_busy";
         return false;
     }
 
@@ -267,12 +292,22 @@ bool SimHttpClient::perform(const SimHttpRequest &request, SimHttpResponse &resp
     }
 
     response.termResponse = compactResponse(runHttpAt("+HTTPTERM", 5000));
-    response.ok = response.statusCode >= 200 && response.statusCode < 300;
-    response.stage = response.ok ? "http_ok" : "http_status_fail";
-    if (!response.ok) {
+    response.responseReceived = looksLikeServerHttpStatus(response.statusCode);
+    response.transportOk = response.responseReceived;
+    response.httpOk = response.responseReceived &&
+                      response.statusCode >= 200 &&
+                      response.statusCode < 300;
+    response.ok = response.httpOk;
+
+    if (response.httpOk) {
+        response.stage = "http_ok";
+        response.detail = String("status=") + String(response.statusCode) + " len=" + String(response.dataLen);
+    } else if (response.responseReceived) {
+        response.stage = "http_response_error";
         response.detail = String("status=") + String(response.statusCode) + " len=" + String(response.dataLen);
     } else {
-        response.detail = String("status=") + String(response.statusCode) + " len=" + String(response.dataLen);
+        response.stage = "http_modem_status_fail";
+        response.detail = String("modem_status=") + String(response.statusCode) + " len=" + String(response.dataLen);
     }
     return response.ok;
 }

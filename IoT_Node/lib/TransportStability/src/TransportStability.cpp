@@ -72,7 +72,8 @@ HttpTransportProbeReport runModemHttpTransportProbe() {
     request.actionTimeoutMs = 30000;
 
     SimHttpResponse response;
-    report.ok = http.perform(request, response);
+    http.perform(request, response);
+    report.ok = response.transportOk;
     report.statusCode = response.statusCode;
     report.stage = response.stage;
     report.detail = response.detail;

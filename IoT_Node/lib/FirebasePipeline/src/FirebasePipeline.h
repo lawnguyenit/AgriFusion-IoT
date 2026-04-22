@@ -24,12 +24,17 @@ struct TelemetryPushResult {
     bool buffered = false;
     bool uploadAttempted = false;
     bool networkReady = false;
+    bool transportReady = false;
+    bool beginDone = false;
+    bool authInitialized = false;
+    bool publishEnabled = false;
     bool firebaseReady = false;
     bool tlsError = false;
     bool bufferStoreOk = false;
     String stage;
     String detail;
     String refId;
+    String pipelineState;
 };
 
 struct OfflineReplayResult {
@@ -85,6 +90,7 @@ public:
 
     bool ready() const;
     bool usesNativeFirebase() const;
+    String stateSummary() const;
 
     void probeTelemetryPathIfNeeded(FirebaseData &firebaseData, uint64_t utcMs);
 
@@ -123,8 +129,17 @@ private:
     RawTelemetryReporter &_rawTelemetryReporter;
     NodeRuntimePublisher &_nodeRuntimePublisher;
     uint32_t _lastReplayMs = 0;
+    uint32_t _lastPublishProbeMs = 0;
     bool _nativeFirebaseMode = true;
     bool _ready = false;
+    bool _beginDone = false;
+    bool _transportReady = false;
+    bool _authInitialized = false;
+    bool _publishEnabled = false;
+    FirebaseProbeResult _lastProbe;
+    String _lastPublishProbeDetail;
+    String _lastPublishProbePath;
+    uint32_t _lastSuccessDiagPublishMs = 0;
 
     RawTelemetryRecordContext buildRecordContext(DeviceContext &deviceContext,
                                                  const String &fwVersion,
@@ -132,7 +147,11 @@ private:
                                                  bool sensorError,
                                                  const char *payloadKind) const;
 
+    void updateReadyFlag();
+    bool ensurePublishReady(FirebaseData &firebaseData, uint64_t utcMs);
+    bool isAuthInitializationError(const String &err) const;
     bool isTlsTransportError(const String &err) const;
+    bool shouldPublishSuccessDiagnostics();
 
     void publishTelemetryDebug(FirebaseData &firebaseData,
                                bool ok,
