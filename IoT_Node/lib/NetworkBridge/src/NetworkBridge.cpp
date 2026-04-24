@@ -25,7 +25,8 @@ bool networkSetup() {
 void networkMaintain() {
 #if USE_SIM_NETWORK
     static uint32_t lastCheckMs = 0;
-    if (millis() - lastCheckMs < SIM_NETWORK_CHECK_INTERVAL_MS) {
+    uint32_t intervalMs = gConnected ? SIM_NETWORK_CHECK_INTERVAL_MS : SIM_DEBUG_RECHECK_DELAY_MS;
+    if (millis() - lastCheckMs < intervalMs) {
         return;
     }
     lastCheckMs = millis();

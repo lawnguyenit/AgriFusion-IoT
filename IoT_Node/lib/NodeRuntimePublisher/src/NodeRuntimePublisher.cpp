@@ -6,6 +6,10 @@
 
 #include "Config.h"
 #include "NetworkBridge.h"
+#include "RtdbRestClient.h"
+#if USE_SIM_NETWORK
+#include "SimA7680C.h"
+#endif
 
 namespace {
 float readFloatOr(JsonVariantConst value, float fallback = 0.0f) {
@@ -29,6 +33,67 @@ float readFloatOr(JsonVariantConst value, float fallback = 0.0f) {
     }
     return fallback;
 }
+
+bool firebaseChannelReady() {
+#if USE_SIM_NETWORK && APP_FIREBASE_SIM_TRANSPORT_ENABLED
+    return networkIsConnected();
+#else
+    return networkIsConnected() && Firebase.ready();
+#endif
+}
+
+bool writeJsonPath(FirebaseData &fbdo, const String &path, FirebaseJson &json, String *error = nullptr) {
+#if USE_SIM_NETWORK && APP_FIREBASE_SIM_TRANSPORT_ENABLED
+    String body;
+    json.toString(body, false);
+    RtdbRestResponse response;
+    bool ok = rtdbRestClient().putRawJson(path, body, response, true);
+    if (!ok && error) {
+        *error = response.detail;
+    }
+    return ok;
+#else
+    bool ok = Firebase.setJSON(fbdo, path, json);
+    if (!ok && error) {
+        *error = fbdo.errorReason();
+    }
+    return ok;
+#endif
+}
+
+bool writeIntPath(FirebaseData &fbdo, const String &path, int value, String *error = nullptr) {
+#if USE_SIM_NETWORK && APP_FIREBASE_SIM_TRANSPORT_ENABLED
+    RtdbRestResponse response;
+    bool ok = rtdbRestClient().putRawJson(path, String(value), response, true);
+    if (!ok && error) {
+        *error = response.detail;
+    }
+    return ok;
+#else
+    bool ok = Firebase.setInt(fbdo, path, value);
+    if (!ok && error) {
+        *error = fbdo.errorReason();
+    }
+    return ok;
+#endif
+}
+
+bool deletePath(FirebaseData &fbdo, const String &path, String *error = nullptr) {
+#if USE_SIM_NETWORK && APP_FIREBASE_SIM_TRANSPORT_ENABLED
+    RtdbRestResponse response;
+    bool ok = rtdbRestClient().deletePath(path, response);
+    if (!ok && error) {
+        *error = response.detail;
+    }
+    return ok;
+#else
+    bool ok = Firebase.deleteNode(fbdo, path);
+    if (!ok && error) {
+        *error = fbdo.errorReason();
+    }
+    return ok;
+#endif
+}
 }  // namespace
 
 NodeRuntimePublisher::NodeRuntimePublisher(const NodeRuntimeConfig &cfg) : _cfg(cfg) {}
@@ -42,7 +107,7 @@ String NodeRuntimePublisher::makeStatusEventKey(uint64_t utcMs) {
 }
 
 void NodeRuntimePublisher::publishSystemStatus(FirebaseData &fbdo, const char *state, const char *detail, uint64_t utcMs) {
-    if (!networkIsConnected() || !Firebase.ready()) {
+    if (!firebaseChannelReady()) {
         return;
     }
 
@@ -58,8 +123,9 @@ void NodeRuntimePublisher::publishSystemStatus(FirebaseData &fbdo, const char *s
     _statusJson.set("last_sync_ts", utcMs ? static_cast<double>(utcMs / 1000ULL) : 0);
 
     String healthPath = String(_cfg.nodeLivePath) + "/health/overall";
-    if (!Firebase.setJSON(fbdo, healthPath, _statusJson)) {
-        CUS_DBGF("[FIREBASE] Status update fail: %s\n", fbdo.errorReason().c_str());
+    String writeError;
+    if (!writeJsonPath(fbdo, healthPath, _statusJson, &writeError)) {
+        CUS_DBGF("[FIREBASE] Status update fail: %s\n", writeError.c_str());
     }
 
     String newState = state ? state : "unknown";
@@ -80,7 +146,7 @@ void NodeRuntimePublisher::publishSystemStatus(FirebaseData &fbdo, const char *s
     }
 
     String statusPath = String(_cfg.nodeStatusEventsPath) + "/" + makeStatusEventKey(utcMs);
-    if (Firebase.setJSON(fbdo, statusPath, ev)) {
+    if (writeJsonPath(fbdo, statusPath, ev)) {
         _lastState = newState;
     }
 }
@@ -96,7 +162,7 @@ void NodeRuntimePublisher::publishNodeInfoIfDue(FirebaseData &fbdo,
     }
     _lastInfoPushMs = now;
 
-    if (!networkIsConnected() || !Firebase.ready()) {
+    if (!firebaseChannelReady()) {
         return;
     }
 
@@ -129,6 +195,15 @@ void NodeRuntimePublisher::publishNodeInfoIfDue(FirebaseData &fbdo,
     network["ip"] = networkLocalIp();
     network["mac"] = "";
     network["last_rssi"] = networkSignalDbm();
+#if USE_SIM_NETWORK
+    {
+        SimNetworkState sim = simReadNetworkState(false);
+        network["operator"] = sim.operatorName;
+        network["registered"] = sim.networkRegistered;
+        network["attached"] = sim.packetAttached;
+        network["gprs"] = sim.gprsConnected;
+    }
+#endif
 
     String infoJson;
     serializeJson(infoDoc, infoJson);
@@ -138,8 +213,9 @@ void NodeRuntimePublisher::publishNodeInfoIfDue(FirebaseData &fbdo,
         return;
     }
 
-    if (!Firebase.setJSON(fbdo, _cfg.nodeInfoPath, out)) {
-        CUS_DBGF("[FIREBASE] %s update fail: %s\n", _cfg.nodeInfoPath, fbdo.errorReason().c_str());
+    String writeError;
+    if (!writeJsonPath(fbdo, _cfg.nodeInfoPath, out, &writeError)) {
+        CUS_DBGF("[FIREBASE] %s update fail: %s\n", _cfg.nodeInfoPath, writeError.c_str());
     } else {
         CUS_DBGF("[FIREBASE] %s updated.\n", _cfg.nodeInfoPath);
     }
@@ -150,7 +226,7 @@ void NodeRuntimePublisher::publishTelemetryDebug(FirebaseData &fbdo,
                                                  const String &refOrPath,
                                                  const String &detail,
                                                  uint64_t utcMs) {
-    if (!networkIsConnected() || !Firebase.ready()) {
+    if (!firebaseChannelReady()) {
         return;
     }
 
@@ -160,7 +236,7 @@ void NodeRuntimePublisher::publishTelemetryDebug(FirebaseData &fbdo,
     dbg.set("detail", detail);
     dbg.set("ts_device", (int)(millis() / 1000U));
     dbg.set("ts_server", utcMs ? static_cast<double>(utcMs / 1000ULL) : 0);
-    Firebase.setJSON(fbdo, String(_cfg.nodeLivePath) + "/meta/telemetry_debug", dbg);
+    writeJsonPath(fbdo, String(_cfg.nodeLivePath) + "/meta/telemetry_debug", dbg);
 }
 
 void NodeRuntimePublisher::publishTelemetryChannel(FirebaseData &fbdo,
@@ -171,7 +247,7 @@ void NodeRuntimePublisher::publishTelemetryChannel(FirebaseData &fbdo,
                                                    const String &refOrPath,
                                                    const String &detail,
                                                    uint64_t utcMs) {
-    if (!networkIsConnected() || !Firebase.ready()) {
+    if (!firebaseChannelReady()) {
         return;
     }
 
@@ -201,14 +277,14 @@ void NodeRuntimePublisher::publishTelemetryChannel(FirebaseData &fbdo,
     ch.set("counter_tls_error", (int)_telemetryTlsErrorCount);
     ch.set("ts_device", (int)(millis() / 1000U));
     ch.set("ts_server", utcMs ? static_cast<double>(utcMs / 1000ULL) : 0);
-    Firebase.setJSON(fbdo, String(_cfg.nodeLivePath) + "/meta/telemetry_channel", ch);
+    writeJsonPath(fbdo, String(_cfg.nodeLivePath) + "/meta/telemetry_channel", ch);
 }
 
 void NodeRuntimePublisher::probeTelemetryPathIfNeeded(FirebaseData &fbdo, uint64_t utcMs) {
     if (_probeOk) {
         return;
     }
-    if (!networkIsConnected() || !Firebase.ready()) {
+    if (!firebaseChannelReady()) {
         return;
     }
     if (millis() - _lastProbeMs < _cfg.probeIntervalMs) {
@@ -216,14 +292,15 @@ void NodeRuntimePublisher::probeTelemetryPathIfNeeded(FirebaseData &fbdo, uint64
     }
     _lastProbeMs = millis();
 
-    String probePath = String(_cfg.nodeRootPath) + "/telemetry/_write_probe";
-    if (Firebase.setInt(fbdo, probePath, (int)(millis() / 1000U))) {
+    String probePath = APP_RTDB_PATH_NODE_TELEMETRY_PROBE;
+    String writeError;
+    if (writeIntPath(fbdo, probePath, (int)(millis() / 1000U), &writeError)) {
         _probeOk = true;
-        Firebase.deleteNode(fbdo, probePath);
+        deletePath(fbdo, probePath);
         publishTelemetryDebug(fbdo, true, probePath, "probe_ok", utcMs);
         CUS_DBGF("[FIREBASE] Probe telemetry path OK: %s\n", probePath.c_str());
     } else {
-        String err = fbdo.errorReason();
+        String err = writeError;
         publishTelemetryDebug(fbdo, false, probePath, err, utcMs);
         CUS_DBGF("[FIREBASE] Probe telemetry path FAIL: %s -> %s\n", probePath.c_str(), err.c_str());
     }
@@ -235,7 +312,7 @@ void NodeRuntimePublisher::publishNodeLive(FirebaseData &fbdo,
                                            const RawTelemetryRecordContext &ctx,
                                            bool sensorError,
                                            uint64_t utcMs) {
-    if (!networkIsConnected() || !Firebase.ready()) {
+    if (!firebaseChannelReady()) {
         return;
     }
 
@@ -303,10 +380,24 @@ void NodeRuntimePublisher::publishNodeLive(FirebaseData &fbdo,
 
     JsonObject modules = liveDoc["modules"].to<JsonObject>();
     JsonObject sim = modules["sim"].to<JsonObject>();
+    sim["signal_dbm"] = ctx.rssi;
+    sim["ts_sample"] = (int)tsDeviceSec;
+#if USE_SIM_NETWORK
+    {
+        SimNetworkState simState = simReadNetworkState(false);
+        sim["operator"] = simState.operatorName;
+        sim["ip"] = simState.localIp;
+        sim["registered"] = simState.networkRegistered;
+        sim["attached"] = simState.packetAttached;
+        sim["gprs"] = simState.gprsConnected;
+        sim["network_status"] = simState.gprsConnected ? "online" :
+                                (simState.packetAttached || simState.networkRegistered ? "degraded" : "offline");
+    }
+#else
     sim["operator"] = "";
-    sim["signal_dbm"] = 0;
-    sim["network_status"] = "inactive";
-    sim["ts_sample"] = 0;
+    sim["ip"] = networkLocalIp();
+    sim["network_status"] = ctx.hasInternet ? "online" : "offline";
+#endif
     JsonObject gps = modules["gps"].to<JsonObject>();
     gps["enabled"] = false;
     gps["status"] = "inactive";
@@ -336,8 +427,8 @@ void NodeRuntimePublisher::publishNodeLive(FirebaseData &fbdo,
     hs["sht30"].to<JsonObject>()["last_success_ts"] = shtValid ? (int)tsDeviceSec : 0;
 
     JsonObject hm = health["modules"].to<JsonObject>();
-    hm["sim"].to<JsonObject>()["status"] = "inactive";
-    hm["sim"].to<JsonObject>()["last_success_ts"] = 0;
+    hm["sim"].to<JsonObject>()["status"] = ctx.hasInternet ? "online" : "offline";
+    hm["sim"].to<JsonObject>()["last_success_ts"] = ctx.hasInternet ? (int)tsDeviceSec : 0;
     hm["gps"].to<JsonObject>()["status"] = "inactive";
     hm["gps"].to<JsonObject>()["last_success_ts"] = 0;
 
@@ -348,5 +439,5 @@ void NodeRuntimePublisher::publishNodeLive(FirebaseData &fbdo,
     if (!out.setJsonData(liveJson)) {
         return;
     }
-    Firebase.setJSON(fbdo, _cfg.nodeLivePath, out);
+    writeJsonPath(fbdo, _cfg.nodeLivePath, out);
 }

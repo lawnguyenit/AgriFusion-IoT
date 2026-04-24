@@ -1,12 +1,13 @@
 #include "SimA7680C.h"
 
-#include "Config.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
+#include "Config.h"
+#include "SimHttpClient.h"
+#include "SimSocketTransport.h"
+
 HardwareSerial SerialAT(2);
-TinyGsm modem(SerialAT);
-TinyGsmClient client(modem);
 
 namespace {
 static int gRestartCount = 0;
@@ -17,12 +18,35 @@ static uint32_t gLastDiagMs = 0;
 static uint32_t gLastIpRefreshMs = 0;
 static const uint32_t DIAG_INTERVAL_MS = 30000;
 static const uint32_t IP_REFRESH_INTERVAL_MS = 3000;
-static const uint32_t REG_AT_TIMEOUT_MS = 350;
 static const uint32_t RAW_AT_TIMEOUT_MS = 1200;
 static const uint32_t RAW_AT_TIMEOUT_BRIEF_MS = 250;
+static const uint32_t LONG_AT_TIMEOUT_MS = 15000;
+static const uint32_t NETWORK_WAIT_SLICE_MS = 500;
 static String gLastResolvedIp = "0.0.0.0";
+static SemaphoreHandle_t gAtPortMutex = nullptr;
 
 String runRawAt(const char *cmd, uint32_t timeoutMs = RAW_AT_TIMEOUT_MS);
+String runRawAt(const String &cmd, uint32_t timeoutMs = RAW_AT_TIMEOUT_MS);
+bool waitForAtReady(uint32_t timeoutMs, uint32_t retryDelayMs);
+bool responseHasAny(const String &response, const char *const *patterns, size_t count);
+String runRawAtWaitPatterns(const String &cmd,
+                            uint32_t timeoutMs,
+                            const char *const *patterns,
+                            size_t patternCount);
+bool configurePacketSessionProfile(const char *pdpType, bool forceReconnect, String *detail = nullptr);
+bool configurePacketSessionWithRecovery(bool forceReconnect, String *detail = nullptr);
+bool rawInternetProbe(RawSimHttpProbeResult &result);
+bool waitForNetworkYielding(uint32_t timeoutMs);
+bool isCellRegisteredAny();
+bool isPacketAttached();
+bool isPdpContextActive();
+String compactAtResponse(const String &response);
+
+void ensureAtPortMutex() {
+    if (!gAtPortMutex) {
+        gAtPortMutex = xSemaphoreCreateRecursiveMutex();
+    }
+}
 
 void yieldToScheduler(uint32_t ms = 1) {
     vTaskDelay(pdMS_TO_TICKS(ms));
@@ -34,23 +58,25 @@ void drainSerialAT() {
     }
 }
 
-bool lineEndsWithToken(const String& response, const char* token) {
+bool lineEndsWithToken(const String &response, const char *token) {
     String s = response;
     s.trim();
-    if (s == token) return true;
+    if (s == token) {
+        return true;
+    }
     String suffix = String("\n") + token;
     return s.endsWith(suffix);
 }
 
-bool atResponseIsOk(const String& response) {
+bool atResponseIsOk(const String &response) {
     return lineEndsWithToken(response, "OK") || lineEndsWithToken(response, "0");
 }
 
-bool atResponseIsError(const String& response) {
+bool atResponseIsError(const String &response) {
     return lineEndsWithToken(response, "ERROR") || lineEndsWithToken(response, "4");
 }
 
-bool atResponseIsFinal(const String& response) {
+bool atResponseIsFinal(const String &response) {
     return atResponseIsOk(response) || atResponseIsError(response);
 }
 
@@ -58,80 +84,57 @@ bool isAsciiDigit(char c) {
     return c >= '0' && c <= '9';
 }
 
-bool isValidIpv4(const String& ip) {
-    if (ip.isEmpty()) return false;
+String compactAtResponse(const String &response) {
+    String out = response;
+    out.replace("\r", " ");
+    out.replace("\n", " | ");
+    out.trim();
+    if (!out.length()) {
+        return "empty";
+    }
+    return out;
+}
 
-    int parts = 0;
-    int start = 0;
-    while (start < ip.length()) {
-        int end = ip.indexOf('.', start);
-        if (end < 0) end = ip.length();
-        if (end == start) return false;
-        if (++parts > 4) return false;
+String stripEchoedCommand(const String &response, const String &cmd) {
+    String out = response;
+    String echoed = "AT" + cmd;
+    if (out.startsWith(echoed + "\r\r\n")) {
+        out.remove(0, echoed.length() + 3);
+    } else if (out.startsWith(echoed + "\r\n")) {
+        out.remove(0, echoed.length() + 2);
+    } else if (out.startsWith(echoed + "\n")) {
+        out.remove(0, echoed.length() + 1);
+    } else if (out.startsWith(echoed)) {
+        out.remove(0, echoed.length());
+    }
+    out.trim();
+    return out;
+}
 
-        int value = 0;
-        for (int i = start; i < end; ++i) {
-            char c = ip[i];
-            if (!isAsciiDigit(c)) return false;
-            value = (value * 10) + (c - '0');
-            if (value > 255) return false;
+bool responseContains(const String &response, const char *needle) {
+    return needle && response.indexOf(needle) >= 0;
+}
+
+bool responseHasAny(const String &response, const char *const *patterns, size_t count) {
+    if (!patterns) {
+        return false;
+    }
+    for (size_t i = 0; i < count; ++i) {
+        if (patterns[i] && response.indexOf(patterns[i]) >= 0) {
+            return true;
         }
-
-        start = end + 1;
     }
-
-    return parts == 4;
+    return false;
 }
 
-String extractFirstIpv4(const String& text) {
-    String candidate;
-    for (size_t i = 0; i < text.length(); ++i) {
-        char c = text[i];
-        if (isAsciiDigit(c) || c == '.') {
-            candidate += c;
-        } else if (!candidate.isEmpty()) {
-            if (isValidIpv4(candidate)) {
-                return candidate;
-            }
-            candidate = "";
-        }
+String runRawAtWaitPatterns(const String &cmd,
+                            uint32_t timeoutMs,
+                            const char *const *patterns,
+                            size_t patternCount) {
+    if (!simAcquireAtPort(timeoutMs + 1000UL)) {
+        return "<lock timeout>";
     }
 
-    if (isValidIpv4(candidate)) {
-        return candidate;
-    }
-    return String();
-}
-
-String queryCgpaddrIpv4() {
-    String response = runRawAt("+CGPADDR=1", RAW_AT_TIMEOUT_MS);
-    if (response == "<no response>") {
-        return String();
-    }
-    return extractFirstIpv4(response);
-}
-
-String resolveLocalIp(bool forceRefresh = false) {
-    uint32_t now = millis();
-    if (!forceRefresh && (now - gLastIpRefreshMs < IP_REFRESH_INTERVAL_MS)) {
-        return gLastResolvedIp;
-    }
-
-    String ip = queryCgpaddrIpv4();
-    if (!isValidIpv4(ip)) {
-        ip = extractFirstIpv4(modem.getLocalIP());
-    }
-
-    if (!isValidIpv4(ip)) {
-        ip = "0.0.0.0";
-    }
-
-    gLastResolvedIp = ip;
-    gLastIpRefreshMs = now;
-    return gLastResolvedIp;
-}
-
-String runRawAt(const char *cmd, uint32_t timeoutMs) {
     drainSerialAT();
     SerialAT.print("AT");
     SerialAT.print(cmd);
@@ -141,23 +144,433 @@ String runRawAt(const char *cmd, uint32_t timeoutMs) {
     uint32_t start = millis();
     while (millis() - start < timeoutMs) {
         while (SerialAT.available()) {
-            char c = (char)SerialAT.read();
-            response += c;
+            response += static_cast<char>(SerialAT.read());
         }
 
-        if (atResponseIsFinal(response)) {
+        if (responseHasAny(response, patterns, patternCount) || atResponseIsFinal(response)) {
             break;
         }
         yieldToScheduler();
     }
 
+    response = stripEchoedCommand(response, cmd);
     response.trim();
-    return response.length() ? response : String("<no response>");
+    String out = response.length() ? response : String("<no response>");
+    simReleaseAtPort();
+    return out;
+}
+
+String runRawAt(const char *cmd, uint32_t timeoutMs) {
+    static const char *const patterns[] = {"OK", "ERROR", ">"};
+    return runRawAtWaitPatterns(cmd, timeoutMs, patterns, sizeof(patterns) / sizeof(patterns[0]));
+}
+
+String runRawAt(const String &cmd, uint32_t timeoutMs) {
+    return runRawAt(cmd.c_str(), timeoutMs);
+}
+
+bool runRawAtOk(const char *cmd, uint32_t timeoutMs = RAW_AT_TIMEOUT_MS) {
+    return atResponseIsOk(runRawAt(cmd, timeoutMs));
+}
+
+bool runRawAtOk(const String &cmd, uint32_t timeoutMs = RAW_AT_TIMEOUT_MS) {
+    return atResponseIsOk(runRawAt(cmd, timeoutMs));
+}
+
+String extractFirstIpv4(const String &text) {
+    String candidate;
+    for (size_t i = 0; i < text.length(); ++i) {
+        char c = text[i];
+        if (isAsciiDigit(c) || c == '.') {
+            candidate += c;
+        } else if (!candidate.isEmpty()) {
+            int parts = 0;
+            int start = 0;
+            bool valid = true;
+            while (start < candidate.length()) {
+                int end = candidate.indexOf('.', start);
+                if (end < 0) {
+                    end = candidate.length();
+                }
+                if (end == start) {
+                    valid = false;
+                    break;
+                }
+                if (++parts > 4) {
+                    valid = false;
+                    break;
+                }
+
+                int value = 0;
+                for (int j = start; j < end; ++j) {
+                    char digit = candidate[j];
+                    if (!isAsciiDigit(digit)) {
+                        valid = false;
+                        break;
+                    }
+                    value = (value * 10) + (digit - '0');
+                    if (value > 255) {
+                        valid = false;
+                        break;
+                    }
+                }
+                if (!valid) {
+                    break;
+                }
+                start = end + 1;
+            }
+            if (valid && parts == 4) {
+                return candidate;
+            }
+            candidate = "";
+        }
+    }
+
+    return "";
+}
+
+bool isValidIpv4(const String &ip) {
+    if (!ip.length() || ip.indexOf('.') < 0) {
+        return false;
+    }
+    return extractFirstIpv4(ip) == ip;
+}
+
+String queryCgpaddrIpv4() {
+    const char *const commands[] = {
+        "+CGPADDR=1",
+        "+CGPADDR?",
+        "+CGCONTRDP=1",
+        "+CGDCONT?"
+    };
+
+    for (size_t cmdIndex = 0; cmdIndex < sizeof(commands) / sizeof(commands[0]); ++cmdIndex) {
+        for (int attempt = 0; attempt < 2; ++attempt) {
+            uint32_t timeoutMs = attempt == 0 ? RAW_AT_TIMEOUT_MS : LONG_AT_TIMEOUT_MS;
+            String response = runRawAt(commands[cmdIndex], timeoutMs);
+            if (response != "<no response>" && response != "<lock timeout>") {
+                String ip = extractFirstIpv4(response);
+                if (isValidIpv4(ip) && ip != "0.0.0.0") {
+                    return ip;
+                }
+            }
+            yieldToScheduler(80);
+        }
+    }
+
+    for (int attempt = 0; attempt < 3; ++attempt) {
+        uint32_t timeoutMs = attempt == 0 ? RAW_AT_TIMEOUT_MS : LONG_AT_TIMEOUT_MS;
+        String response = runRawAt("+CGPADDR=1", timeoutMs);
+        if (response != "<no response>" && response != "<lock timeout>") {
+            String ip = extractFirstIpv4(response);
+            if (isValidIpv4(ip) && ip != "0.0.0.0") {
+                return ip;
+            }
+        }
+        yieldToScheduler(150);
+    }
+    return "";
+}
+
+String resolveLocalIp(bool forceRefresh = false) {
+    uint32_t now = millis();
+    bool cacheFresh = gLastIpRefreshMs > 0 && (now - gLastIpRefreshMs < IP_REFRESH_INTERVAL_MS);
+    bool cacheUsable = isValidIpv4(gLastResolvedIp) && gLastResolvedIp != "0.0.0.0";
+    if (!forceRefresh && cacheFresh && cacheUsable) {
+        return gLastResolvedIp;
+    }
+
+    String ip = queryCgpaddrIpv4();
+    if (!isValidIpv4(ip)) {
+        if (isValidIpv4(gLastResolvedIp) && gLastResolvedIp != "0.0.0.0") {
+            gLastIpRefreshMs = now;
+            return gLastResolvedIp;
+        }
+        ip = "0.0.0.0";
+    }
+
+    gLastResolvedIp = ip;
+    gLastIpRefreshMs = now;
+    return gLastResolvedIp;
+}
+
+String extractQuotedValue(const String &response) {
+    int firstQuote = response.indexOf('"');
+    if (firstQuote < 0) {
+        return "";
+    }
+    int secondQuote = response.indexOf('"', firstQuote + 1);
+    if (secondQuote < 0) {
+        return "";
+    }
+    return response.substring(firstQuote + 1, secondQuote);
+}
+
+int parseFirstIntegerAfter(const String &response, const char *prefix) {
+    int start = response.indexOf(prefix);
+    if (start < 0) {
+        return -1;
+    }
+    start += strlen(prefix);
+
+    while (start < response.length() && !(response[start] == '-' || isAsciiDigit(response[start]))) {
+        ++start;
+    }
+    if (start >= response.length()) {
+        return -1;
+    }
+
+    String value;
+    if (response[start] == '-') {
+        value += response[start++];
+    }
+    while (start < response.length() && isAsciiDigit(response[start])) {
+        value += response[start++];
+    }
+    return value.length() ? value.toInt() : -1;
+}
+
+int querySignalCsq() {
+    return parseFirstIntegerAfter(runRawAt("+CSQ", RAW_AT_TIMEOUT_MS), "+CSQ:");
+}
+
+String queryOperatorName() {
+    String response = runRawAt("+COPS?", RAW_AT_TIMEOUT_MS);
+    String quoted = extractQuotedValue(response);
+    if (quoted.length()) {
+        return quoted;
+    }
+    return compactAtResponse(response);
+}
+
+String queryPinState() {
+    String response = runRawAt("+CPIN?", RAW_AT_TIMEOUT_MS);
+    int colon = response.indexOf(':');
+    if (colon < 0) {
+        return compactAtResponse(response);
+    }
+    int lineEnd = response.indexOf('\n', colon);
+    String value = (lineEnd >= 0) ? response.substring(colon + 1, lineEnd) : response.substring(colon + 1);
+    value.trim();
+    return value;
+}
+
+bool simReadyRaw() {
+    return queryPinState() == "READY";
+}
+
+bool responseIndicatesRegistered(const String &response, const char *prefix) {
+    String p(prefix);
+    return response.indexOf(p + " 0,1") >= 0 ||
+           response.indexOf(p + " 0,5") >= 0 ||
+           response.indexOf(p + " 1,1") >= 0 ||
+           response.indexOf(p + " 1,5") >= 0 ||
+           response.indexOf(p + " 2,1") >= 0 ||
+           response.indexOf(p + " 2,5") >= 0;
+}
+
+bool regCreg() {
+    return responseIndicatesRegistered(runRawAt("+CREG?", RAW_AT_TIMEOUT_MS), "+CREG:");
+}
+
+bool regCgreg() {
+    return responseIndicatesRegistered(runRawAt("+CGREG?", RAW_AT_TIMEOUT_MS), "+CGREG:");
+}
+
+bool regCereg() {
+    return responseIndicatesRegistered(runRawAt("+CEREG?", RAW_AT_TIMEOUT_MS), "+CEREG:");
+}
+
+bool isCellRegisteredAny() {
+    return regCreg() || regCgreg() || regCereg();
+}
+
+bool isPacketAttached() {
+    return responseContains(runRawAt("+CGATT?", RAW_AT_TIMEOUT_MS), "+CGATT: 1");
+}
+
+bool isPdpContextActive() {
+    String response = runRawAt("+CGACT?", RAW_AT_TIMEOUT_MS);
+    return responseContains(response, "+CGACT: 1,1");
+}
+
+bool rawInternetProbe(RawSimHttpProbeResult &result) {
+    result = runRawSimHttpProbe(SIM_TEST_DNS_HOST,
+                                SIM_TEST_DNS_PORT,
+                                "/",
+                                SIM_TEST_DNS_HOST,
+                                SIM_TEST_SOCKET_TIMEOUT_MS);
+    return result.headerOk;
+}
+
+bool packetSessionLooksUsable(const SimNetworkState &state) {
+    return state.simReady &&
+           state.networkRegistered &&
+           state.packetAttached &&
+           state.gprsConnected;
+}
+
+bool modemHttpSessionLooksUsable() {
+    SimHttpClient http;
+    SimHttpRequest request;
+    request.method = SimHttpMethod::Get;
+    request.url = APP_SIM_HTTP_PROBE_URL;
+    request.readHeader = true;
+    request.readBody = false;
+    request.actionTimeoutMs = 30000;
+
+    SimHttpResponse response;
+    http.perform(request, response);
+    return response.transportOk;
+}
+
+bool waitForNetworkYielding(uint32_t timeoutMs) {
+    uint32_t start = millis();
+    while (millis() - start < timeoutMs) {
+        if (isCellRegisteredAny()) {
+            return true;
+        }
+        CUS_DBG(".");
+        yieldToScheduler(NETWORK_WAIT_SLICE_MS);
+    }
+    return false;
+}
+
+bool configurePacketSessionProfile(const char *pdpType, bool forceReconnect, String *detail) {
+    String steps;
+    const char *profile = (pdpType && strlen(pdpType)) ? pdpType : SIM_PDP_TYPE;
+
+    if (forceReconnect) {
+        steps += "NETCLOSE;";
+        runRawAt("+NETCLOSE", 5000);
+        steps += "CGACT0;";
+        runRawAt("+CGACT=0,1", 5000);
+        steps += "CGATT0;";
+        runRawAt("+CGATT=0", 5000);
+        yieldToScheduler(200);
+    }
+
+    String cgdcont = String("+CGDCONT=1,\"") + profile + "\",\"" + SIM_APN + "\"";
+    if (!runRawAtOk(cgdcont, 5000)) {
+        if (detail) {
+            *detail = String("CGDCONT_FAIL profile=") + profile;
+        }
+        return false;
+    }
+    steps += "CGDCONT;";
+
+    String cgact = runRawAt("+CGACT=1,1", LONG_AT_TIMEOUT_MS);
+    if (!atResponseIsOk(cgact) && !responseContains(cgact, "+CGACT:")) {
+        if (detail) {
+            *detail = String("CGACT_FAIL profile=") + profile;
+        }
+        return false;
+    }
+    steps += "CGACT1;";
+
+    if (!isPacketAttached() && !runRawAtOk("+CGATT=1", LONG_AT_TIMEOUT_MS)) {
+        if (detail) {
+            *detail = String("CGATT_FAIL profile=") + profile;
+        }
+        return false;
+    }
+    steps += "CGATT1;";
+
+    if (!runRawAtOk("+CIPRXGET=1", 3000)) {
+        if (detail) {
+            *detail = String("CIPRXGET_FAIL profile=") + profile;
+        }
+        return false;
+    }
+    steps += "CIPRXGET1;";
+
+    String ip = resolveLocalIp(true);
+    if (isValidIpv4(ip) && ip != "0.0.0.0") {
+        steps += "CGPADDR;";
+    } else {
+        steps += "CGPADDR_UNCERTAIN;";
+    }
+
+    if (!runRawAtOk("+CDNSCFG=\"8.8.8.8\",\"1.1.1.1\"", 3000)) {
+        if (detail) {
+            *detail = String("CDNSCFG_FAIL profile=") + profile;
+        }
+        return false;
+    }
+    steps += "CDNSCFG;";
+
+    if (detail) {
+        *detail = String("profile=") + profile + " steps=" + steps;
+    }
+    return true;
+}
+
+bool configurePacketSessionWithRecovery(bool forceReconnect, String *detail) {
+    struct ProfileTry {
+        const char *pdpType;
+        const char *label;
+    };
+
+    ProfileTry profiles[2] = {
+        {SIM_PDP_TYPE, "base"},
+        {"IPV4V6", "ipv4v6"}
+    };
+
+    String summary;
+    const int count = SIM_TEST_TRY_IPV4V6_PROFILE ? 2 : 1;
+    for (int i = 0; i < count; ++i) {
+        if (i > 0 && String(profiles[i].pdpType) == String(profiles[0].pdpType)) {
+            continue;
+        }
+
+        String oneDetail;
+        bool ok = configurePacketSessionProfile(profiles[i].pdpType, forceReconnect && i == 0, &oneDetail);
+        if (summary.length()) {
+            summary += " | ";
+        }
+        summary += profiles[i].label;
+        summary += ":";
+        summary += ok ? "ok," : "fail,";
+        summary += oneDetail;
+
+        if (ok) {
+            if (detail) {
+                *detail = summary;
+            }
+            return true;
+        }
+
+        if (forceReconnect) {
+            runRawAt("+NETCLOSE", 5000);
+            runRawAt("+CGACT=0,1", 5000);
+            runRawAt("+CGATT=0", 5000);
+            yieldToScheduler(200);
+        }
+    }
+
+    if (detail) {
+        *detail = summary;
+    }
+    return false;
+}
+
+bool softRestartModem() {
+    CUS_DBGLN("[SIM] Gui lenh soft reset modem...");
+    runRawAt("+CRESET", 5000);
+    gLastResolvedIp = "0.0.0.0";
+    yieldToScheduler(3000);
+    return waitForAtReady(SIM_AT_RESPONSE_TIMEOUT_MS, SIM_AT_READY_RETRY_DELAY_MS);
 }
 
 void printAtQuery(const char *label, const char *cmd, uint32_t timeoutMs) {
+#if SIM_VERBOSE_AT_QUERY_LOG
     CUS_DBGF("[SIM][AT] %s => %s\n", label, runRawAt(cmd, timeoutMs).c_str());
     yieldToScheduler();
+#else
+    (void)label;
+    (void)cmd;
+    (void)timeoutMs;
+#endif
 }
 
 bool waitForAtReady(uint32_t timeoutMs, uint32_t retryDelayMs) {
@@ -190,86 +603,19 @@ bool normalizeAtMode() {
     return ok;
 }
 
-const char *simStatusText(SimStatus sim) {
-    if (sim == SIM_READY) return "READY";
-    if (sim == SIM_LOCKED) return "LOCKED";
-    if (sim == SIM_ERROR) return "ERROR";
-    if (sim == SIM_ANTITHEFT_LOCKED) return "ANTITHEFT_LOCKED";
-    return "unknown";
-}
-
-bool regCreg() {
-    modem.sendAT("+CREG?");
-    int8_t r = modem.waitResponse(REG_AT_TIMEOUT_MS,
-                                  "+CREG: 0,1", "+CREG: 0,5",
-                                  "+CREG: 1,1", "+CREG: 1,5",
-                                  "+CREG: 2,1", "+CREG: 2,5");
-    return r >= 1 && r <= 6;
-}
-
-bool regCgreg() {
-    modem.sendAT("+CGREG?");
-    int8_t r = modem.waitResponse(REG_AT_TIMEOUT_MS,
-                                  "+CGREG: 0,1", "+CGREG: 0,5",
-                                  "+CGREG: 1,1", "+CGREG: 1,5",
-                                  "+CGREG: 2,1", "+CGREG: 2,5");
-    return r >= 1 && r <= 6;
-}
-
-bool regCereg() {
-    modem.sendAT("+CEREG?");
-    int8_t r = modem.waitResponse(REG_AT_TIMEOUT_MS,
-                                  "+CEREG: 0,1", "+CEREG: 0,5",
-                                  "+CEREG: 1,1", "+CEREG: 1,5",
-                                  "+CEREG: 2,1", "+CEREG: 2,5");
-    return r >= 1 && r <= 6;
-}
-
-bool isCellRegisteredAny() {
-    if (modem.isNetworkConnected()) {
-        return true;
-    }
-    return regCreg() || regCgreg() || regCereg();
-}
-
-bool isPacketAttached() {
-    modem.sendAT("+CGATT?");
-    int8_t r = modem.waitResponse(REG_AT_TIMEOUT_MS, "+CGATT: 1", "+CGATT: 0");
-    return r == 1;
+const char *simStatusText(bool simReady) {
+    return simReady ? "READY" : "NOT_READY";
 }
 
 bool testInternetSocket() {
-    client.stop();
-
-    CUS_DBG("[SIM] Test DNS/TCP toi neverssl.com:80...");
-    if (!client.connect("neverssl.com", 80)) {
-        CUS_DBGLN(" -> FAIL");
-        return false;
-    }
-
-    client.print("GET / HTTP/1.0\r\nHost: neverssl.com\r\nConnection: close\r\n\r\n");
-
-    String header;
-    uint32_t start = millis();
-    while (millis() - start < 5000) {
-        while (client.available()) {
-            char c = (char)client.read();
-            header += c;
-            if (header.indexOf("HTTP/1.0") >= 0 || header.indexOf("HTTP/1.1") >= 0) {
-                CUS_DBGLN(" -> OK");
-                client.stop();
-                return true;
-            }
-        }
-        if (!client.connected() && !client.available()) {
-            break;
-        }
-        delay(10);
-    }
-
-    CUS_DBGLN(" -> FAIL");
-    client.stop();
-    return false;
+    RawSimHttpProbeResult probe;
+    CUS_DBG("[SIM] Test raw HTTP toi neverssl.com:80...");
+    bool ok = rawInternetProbe(probe);
+    CUS_DBGF(" -> %s (%s,%s)\n",
+             ok ? "OK" : "FAIL",
+             probe.stage.c_str(),
+             probe.detail.c_str());
+    return ok;
 }
 
 void printCellDiagnostic(const char *stage) {
@@ -279,28 +625,21 @@ void printCellDiagnostic(const char *stage) {
     }
     gLastDiagMs = now;
 
-    auto sim = modem.getSimStatus();
-    int csq = modem.getSignalQuality();
-    CUS_DBGF("[SIM][DIAG] stage=%s sim=%s csq=%d reg(creg=%d cgreg=%d cereg=%d) attach=%d ip=%s\n",
+    int csq = querySignalCsq();
+    CUS_DBGF("[SIM][DIAG] stage=%s sim=%s csq=%d reg(creg=%d cgreg=%d cereg=%d) attach=%d cgact=%d ip=%s\n",
              stage ? stage : "na",
-             simStatusText(sim),
+             simStatusText(simReadyRaw()),
              csq,
              regCreg() ? 1 : 0,
              regCgreg() ? 1 : 0,
              regCereg() ? 1 : 0,
              isPacketAttached() ? 1 : 0,
+             isPdpContextActive() ? 1 : 0,
              resolveLocalIp().c_str());
 }
 
 bool waitForNetwork(int timeoutSec) {
-    for (int i = 0; i < timeoutSec * 2; i++) {
-        if (isCellRegisteredAny()) {
-            return true;
-        }
-        CUS_DBG(".");
-        delay(500);
-    }
-    return false;
+    return waitForNetworkYielding(static_cast<uint32_t>(timeoutSec) * 1000UL);
 }
 }  // namespace
 
@@ -312,13 +651,12 @@ void dumpSimState(const char *stage, bool force) {
     gLastDiagMs = now;
 
     SimNetworkState state = simReadNetworkState(true);
-    SimStatus sim = modem.getSimStatus();
-    int csq = modem.getSignalQuality();
+    int csq = querySignalCsq();
 
     CUS_DBGLN("\n[SIM][STATE] ===== MODEM SNAPSHOT =====");
     CUS_DBGF("[SIM][STATE] stage=%s\n", stage ? stage : "na");
     CUS_DBGF("[SIM][STATE] sim=%s csq=%d dbm=%d net=%d gprs=%d attach=%d ip=%s\n",
-             simStatusText(sim),
+             simStatusText(state.simReady),
              csq,
              state.signalDbm,
              state.networkRegistered ? 1 : 0,
@@ -327,6 +665,7 @@ void dumpSimState(const char *stage, bool force) {
              state.localIp.c_str());
     CUS_DBGF("[SIM][STATE] operator=%s\n", state.operatorName.c_str());
 
+#if SIM_VERBOSE_AT_QUERY_LOG
     bool brief = (stage && strcmp(stage, "init_fail") == 0);
     if (brief) {
         printAtQuery("AT", "", RAW_AT_TIMEOUT_BRIEF_MS);
@@ -340,11 +679,15 @@ void dumpSimState(const char *stage, bool force) {
         printAtQuery("AT+CGREG?", "+CGREG?", RAW_AT_TIMEOUT_MS);
         printAtQuery("AT+CEREG?", "+CEREG?", RAW_AT_TIMEOUT_MS);
         printAtQuery("AT+CGATT?", "+CGATT?", RAW_AT_TIMEOUT_MS);
+        printAtQuery("AT+CGACT?", "+CGACT?", RAW_AT_TIMEOUT_MS);
         printAtQuery("AT+COPS?", "+COPS?", RAW_AT_TIMEOUT_MS);
         printAtQuery("AT+CGNAPN", "+CGNAPN", RAW_AT_TIMEOUT_MS);
         printAtQuery("AT+CGPADDR=1", "+CGPADDR=1", RAW_AT_TIMEOUT_MS);
+        printAtQuery("AT+NETOPEN?", "+NETOPEN?", RAW_AT_TIMEOUT_MS);
         printAtQuery("AT+CFUN?", "+CFUN?", RAW_AT_TIMEOUT_MS);
+        printAtQuery("AT+CCLK?", "+CCLK?", RAW_AT_TIMEOUT_MS);
     }
+#endif
 
     CUS_DBGLN("[SIM][STATE] ===========================");
 }
@@ -352,8 +695,13 @@ void dumpSimState(const char *stage, bool force) {
 bool setupSIM() {
     SerialAT.begin(SIM_BAUDRATE, SERIAL_8N1, SIM_RX_PIN, SIM_TX_PIN);
     SerialAT.setTimeout(50);
+    gLastResolvedIp = "0.0.0.0";
 
     CUS_DBGLN("\n[SIM] --- BAT DAU KHOI DONG ---");
+    if (SIM_BOOT_WAIT_MS > 0) {
+        CUS_DBGF("[SIM] Cho modem on dinh sau cap nguon %lu ms\n", (unsigned long)SIM_BOOT_WAIT_MS);
+        yieldToScheduler(SIM_BOOT_WAIT_MS);
+    }
     CUS_DBGF("[SIM] Cho modem phan hoi toi da %lu ms\n", (unsigned long)SIM_AT_RESPONSE_TIMEOUT_MS);
 
     CUS_DBG("[SIM] Kiem tra AT handshake...");
@@ -366,28 +714,20 @@ bool setupSIM() {
     }
     CUS_DBGLN(" -> OK");
 
-    normalizeAtMode();
-
-    CUS_DBG("[SIM] Init Modem...");
-    if (!modem.init()) {
+    CUS_DBG("[SIM] Dong bo UART/AT mode...");
+    if (!normalizeAtMode()) {
         CUS_DBGLN(" -> FAIL");
-        CUS_DBGLN("[SIM] Thu init lai sau AT handshake...");
-        if (!waitForAtReady(SIM_AT_RESPONSE_TIMEOUT_MS, SIM_AT_READY_RETRY_DELAY_MS)) {
-            CUS_DBGLN("[SIM] -> LOI: UART co luc mat dong bo sau boot.");
-            dumpSimState("init_fail", true);
-            return false;
-        }
-
-        normalizeAtMode();
-
-        if (!modem.init()) {
-            CUS_DBGLN("[SIM] -> LOI: TinyGSM init fail du da co AT.");
-            dumpSimState("init_fail", true);
-            return false;
-        }
+        dumpSimState("normalize_fail", true);
+        return false;
+    }
+    runRawAt("+CMEE=2", 1500);
+    if (!simReadyRaw()) {
+        CUS_DBGLN(" -> SIM chua READY.");
+        dumpSimState("sim_not_ready", true);
+        return false;
     }
     CUS_DBGLN(" -> OK");
-    dumpSimState("after_init", true);
+    dumpSimState("after_sync", true);
 
     CUS_DBG("[SIM] Dang tim song");
     if (!waitForNetwork(25)) {
@@ -400,22 +740,47 @@ bool setupSIM() {
     printCellDiagnostic("setup_registered");
     dumpSimState("registered", true);
 
-    CUS_DBG("[SIM] Dang ket noi 4G (");
+    CUS_DBG("[SIM] Dang kich hoat packet data (");
     CUS_DBG(SIM_APN);
     CUS_DBG(")...");
-    if (!modem.gprsConnect(SIM_APN, SIM_APN_USER, SIM_APN_PASS)) {
+    String recoveryDetail;
+    if (!configurePacketSessionWithRecovery(false, &recoveryDetail)) {
+        SimNetworkState fallbackState = simReadNetworkState(true);
+        if (packetSessionLooksUsable(fallbackState)) {
+            CUS_DBGLN(" -> Packet session da len du verdict config fail, chap nhan che do degraded.");
+            CUS_DBGF("[SIM] Recovery: %s\n", recoveryDetail.c_str());
+            dumpSimState("gprs_degraded_after_config_fail", true);
+            gRestartCount = 0;
+            checkInfo();
+            return true;
+        }
+
+        if (modemHttpSessionLooksUsable()) {
+            CUS_DBGLN(" -> HTTP engine cua modem van ra ngoai duoc, chap nhan che do degraded.");
+            CUS_DBGF("[SIM] Recovery: %s\n", recoveryDetail.c_str());
+            dumpSimState("gprs_degraded_http_ok", true);
+            gRestartCount = 0;
+            checkInfo();
+            return true;
+        }
+
         CUS_DBGLN(" -> LOI: GPRS Failed!");
+        CUS_DBGF("[SIM] Recovery: %s\n", recoveryDetail.c_str());
         printCellDiagnostic("setup_gprs_fail");
         dumpSimState("gprs_connect_fail", true);
         return false;
     }
     CUS_DBGLN(" -> Internet OK");
+    CUS_DBGF("[SIM] Recovery: %s\n", recoveryDetail.c_str());
     dumpSimState("gprs_connected", true);
 
-    if (!testInternetSocket()) {
-        CUS_DBGLN("[SIM] GPRS da len nhung test HTTP that bai.");
-        dumpSimState("internet_test_fail", true);
-        return false;
+    if (APP_RAW_TRUTH_PROBE_MODE) {
+        if (!testInternetSocket()) {
+            CUS_DBGLN("[SIM] Packet data da len nhung raw HTTP van that bai, tiep tuc o che do degraded de retry sau.");
+            dumpSimState("internet_test_fail", true);
+        }
+    } else {
+        CUS_DBGLN("[SIM] Bo qua raw TCP/CIPOPEN trong flow chinh; A7682S se dung HTTP engine de danh gia transport.");
     }
 
     gRestartCount = 0;
@@ -424,8 +789,14 @@ bool setupSIM() {
 }
 
 bool checkNetwork() {
-    if (modem.isGprsConnected()) {
+    SimNetworkState state = simReadNetworkState(true);
+    if (packetSessionLooksUsable(state)) {
         gRestartCount = 0;
+        if (state.localIp == "0.0.0.0") {
+            CUS_DBGF("[SIM] Packet data dang ton tai nhung IP query chua on dinh, tiep tuc giu session. op=%s dbm=%d\n",
+                     state.operatorName.c_str(),
+                     state.signalDbm);
+        }
         return true;
     }
 
@@ -447,17 +818,23 @@ bool checkNetwork() {
             return false;
         }
 
-        if (isCellRegisteredAny()) {
-            CUS_DBG(" -> Co song -> Reconnecting GPRS...");
-            if (modem.gprsConnect(SIM_APN, SIM_APN_USER, SIM_APN_PASS)) {
+        String recoveryDetail;
+        CUS_DBG(" -> Co song -> Reconnecting packet data...");
+        if (configurePacketSessionWithRecovery(true, &recoveryDetail)) {
+            SimNetworkState recoveredState = simReadNetworkState(true);
+            if (packetSessionLooksUsable(recoveredState)) {
                 CUS_DBGLN(" -> OK!");
+                CUS_DBGF("[SIM] Recovery: %s\n", recoveryDetail.c_str());
                 dumpSimState("reconnect_ok", true);
                 gRestartCount = 0;
                 return true;
             }
+            CUS_DBGLN(" -> Lenh reconnect xong nhung packet session van chua usable!");
+        } else {
             CUS_DBGLN(" -> That bai!");
-            dumpSimState("reconnect_fail", true);
+            CUS_DBGF("[SIM] Recovery: %s\n", recoveryDetail.c_str());
         }
+        dumpSimState("reconnect_fail", true);
 
         if (gRestartCount == MAX_RETRY) {
             if (now - gLastRestartMs < SIM_RESTART_COOLDOWN_MS) {
@@ -466,12 +843,12 @@ bool checkNetwork() {
                 return false;
             }
             CUS_DBGLN("\n[SIM] Qua nhieu lan that bai -> KHOI DONG LAI MODEM...");
-            if (modem.restart()) {
+            if (softRestartModem()) {
                 gLastRestartMs = now;
                 dumpSimState("after_restart", true);
             }
             gRestartCount = 0;
-            delay(3000);
+            yieldToScheduler(3000);
         }
     }
 
@@ -482,11 +859,13 @@ void checkInfo() {
 #if DEBUG_MODE
     SimNetworkState state = simReadNetworkState(true);
     CUS_DBGLN("\n=== THONG TIN SIM ===");
-    if (modem.testAT()) {
+    if (waitForAtReady(1000, 100)) {
         CUS_DBGF("Operator: %s\n", state.operatorName.c_str());
-        CUS_DBGF("Signal:   %d %%\n", modem.getSignalQuality());
+        CUS_DBGF("Signal:   %d CSQ / %d dBm\n", querySignalCsq(), state.signalDbm);
         CUS_DBGF("IP:       %s\n", state.localIp.c_str());
+#if SIM_VERBOSE_AT_QUERY_LOG
         dumpSimState("check_info", true);
+#endif
     } else {
         CUS_DBGLN("Modem khong phan hoi!");
     }
@@ -496,34 +875,196 @@ void checkInfo() {
 
 SimNetworkState simReadNetworkState(bool forceRefreshIp) {
     SimNetworkState state{};
-    SimStatus sim = modem.getSimStatus();
-
-    state.simReady = (sim == SIM_READY);
+    state.simReady = simReadyRaw();
     state.networkRegistered = isCellRegisteredAny();
     state.packetAttached = isPacketAttached();
-    state.gprsConnected = modem.isGprsConnected();
-    state.signalDbm = simSignalDbm();
     state.localIp = resolveLocalIp(forceRefreshIp);
-    state.operatorName = modem.getOperator();
+    state.operatorName = queryOperatorName();
+    state.signalDbm = simSignalDbm();
+    state.gprsConnected = state.packetAttached && isPdpContextActive();
 
-    if (!state.packetAttached && !state.gprsConnected) {
+    if (!isValidIpv4(state.localIp)) {
         state.localIp = "0.0.0.0";
+    }
+
+    if (!state.packetAttached) {
+        state.localIp = state.packetAttached ? state.localIp : "0.0.0.0";
     }
 
     return state;
 }
 
+SimConnectivityReport runSimConnectivityProbe(bool forceRefreshIp,
+                                              const RawSimHttpProbeResult *probeOverride) {
+    SimConnectivityReport report{};
+    String atProbe = runRawAt("", RAW_AT_TIMEOUT_BRIEF_MS);
+
+    report.uartReady = atResponseIsOk(atProbe);
+    if (!report.uartReady) {
+        report.stage = "uart_fail";
+        report.detail = atProbe;
+        return report;
+    }
+
+    SimNetworkState state = simReadNetworkState(forceRefreshIp);
+    report.simReady = state.simReady;
+    report.networkRegistered = state.networkRegistered;
+    report.packetAttached = state.packetAttached;
+    report.gprsConnected = state.gprsConnected;
+    report.hasUsableIp = (state.localIp != "0.0.0.0");
+    report.signalDbm = state.signalDbm;
+    report.signalCsq = querySignalCsq();
+    report.localIp = state.localIp;
+    report.operatorName = state.operatorName;
+    report.pdpContext = compactAtResponse(runRawAt("+CGDCONT?", RAW_AT_TIMEOUT_MS));
+    report.pdpActive = compactAtResponse(runRawAt("+CGACT?", RAW_AT_TIMEOUT_MS));
+    report.dnsConfig = compactAtResponse(runRawAt("+CDNSCFG?", RAW_AT_TIMEOUT_MS));
+    report.netOpen = compactAtResponse(runRawAt("+NETOPEN?", RAW_AT_TIMEOUT_MS));
+    report.cipOpenCode = -1;
+
+    if (!report.simReady) {
+        report.stage = "sim_not_ready";
+        report.detail = "CPIN not ready";
+        return report;
+    }
+    if (!report.networkRegistered) {
+        report.stage = "network_not_registered";
+        report.detail = "CREG/CGREG/CEREG not registered";
+        return report;
+    }
+    if (!report.packetAttached) {
+        report.stage = "packet_not_attached";
+        report.detail = "CGATT not attached";
+        return report;
+    }
+    if (!report.gprsConnected) {
+        report.stage = "gprs_not_connected";
+        report.detail = "CGACT/CGATT indicates packet session not usable";
+        return report;
+    }
+
+    RawSimHttpProbeResult rawHttp;
+    if (probeOverride) {
+        rawHttp = *probeOverride;
+    } else {
+        rawInternetProbe(rawHttp);
+    }
+
+    report.rawAtDirectSocketOk = rawHttp.socketOpenOk;
+    report.rawHttpOk = rawHttp.headerOk;
+    report.internetUsable = rawHttp.headerOk;
+    report.cipOpenCode = rawHttp.cipOpenCode;
+    report.netOpenDetail = rawHttp.netOpenResponse;
+    report.rawSocketOpen = rawHttp.openResponse;
+    report.rawPromptResponse = rawHttp.promptResponse;
+    report.rawSendResponse = compactAtResponse(rawHttp.sendResponse);
+    report.rawAvailableResponse = rawHttp.availableResponse;
+    report.rawReadResponse = compactAtResponse(rawHttp.readResponse);
+    report.rawHttpStage = rawHttp.stage;
+    report.rawHttpDetail = rawHttp.detail;
+    report.rawHttpHeader = rawHttp.header;
+
+    if (report.rawHttpOk) {
+        report.stage = report.hasUsableIp ? "raw_transport_ready" : "raw_transport_ready_ip_unknown";
+        report.detail = String("raw_http=") + rawHttp.stage + "," + rawHttp.detail;
+        return report;
+    }
+
+    if (!report.rawAtDirectSocketOk) {
+        report.stage = "raw_socket_open_fail";
+        report.detail = rawHttp.stage + " | " + rawHttp.detail;
+        return report;
+    }
+
+    report.stage = report.hasUsableIp ? "raw_http_fail" : "raw_http_fail_ip_unknown";
+    report.detail = rawHttp.stage + " | " + rawHttp.detail;
+    return report;
+}
+
+void printSimConnectivityReport(const SimConnectivityReport &report) {
+    CUS_DBGF("[SIM][PROBE] stage=%s detail=%s uart=%d sim=%d reg=%d attach=%d gprs=%d ip=%d rawat_direct=%d raw_http=%d internet=%d csq=%d dbm=%d cipopen=%d ip_addr=%s op=%s\n",
+             report.stage.c_str(),
+             report.detail.c_str(),
+             report.uartReady ? 1 : 0,
+             report.simReady ? 1 : 0,
+             report.networkRegistered ? 1 : 0,
+             report.packetAttached ? 1 : 0,
+             report.gprsConnected ? 1 : 0,
+             report.hasUsableIp ? 1 : 0,
+             report.rawAtDirectSocketOk ? 1 : 0,
+             report.rawHttpOk ? 1 : 0,
+             report.internetUsable ? 1 : 0,
+             report.signalCsq,
+             report.signalDbm,
+             report.cipOpenCode,
+             report.localIp.c_str(),
+             report.operatorName.c_str());
+
+    if (!report.uartReady) {
+        return;
+    }
+
+    if (report.rawHttpStage.length()) {
+        CUS_DBGF("[SIM][PROBE] raw_http_stage=%s detail=%s\n",
+                 report.rawHttpStage.c_str(),
+                 report.rawHttpDetail.c_str());
+    }
+#if SIM_VERBOSE_PROBE_DETAIL
+    CUS_DBGF("[SIM][PROBE] pdp=%s\n", report.pdpContext.c_str());
+    CUS_DBGF("[SIM][PROBE] cgact=%s\n", report.pdpActive.c_str());
+    CUS_DBGF("[SIM][PROBE] dns=%s\n", report.dnsConfig.c_str());
+    CUS_DBGF("[SIM][PROBE] netopen=%s\n", report.netOpen.c_str());
+    if (report.netOpenDetail.length()) {
+        CUS_DBGF("[SIM][PROBE] netopen_detail=%s\n", report.netOpenDetail.c_str());
+    }
+    if (report.rawSocketOpen.length()) {
+        CUS_DBGF("[SIM][PROBE] raw_socket=%s\n", report.rawSocketOpen.c_str());
+    }
+    if (report.rawPromptResponse.length()) {
+        CUS_DBGF("[SIM][PROBE] raw_prompt=%s\n", report.rawPromptResponse.c_str());
+    }
+    if (report.rawSendResponse.length()) {
+        CUS_DBGF("[SIM][PROBE] raw_send=%s\n", report.rawSendResponse.c_str());
+    }
+    if (report.rawAvailableResponse.length()) {
+        CUS_DBGF("[SIM][PROBE] raw_available=%s\n", report.rawAvailableResponse.c_str());
+    }
+    if (report.rawReadResponse.length()) {
+        CUS_DBGF("[SIM][PROBE] raw_read=%s\n", report.rawReadResponse.c_str());
+    }
+    if (report.rawHttpHeader.length()) {
+        CUS_DBGF("[SIM][PROBE] raw_http_header=%s\n", report.rawHttpHeader.c_str());
+    }
+#endif
+}
+
+void printSimForensicAtSnapshot() {
+    CUS_DBGLN("[SIM][FORENSIC] ---- AT SNAPSHOT ----");
+    CUS_DBGF("[SIM][FORENSIC] CPIN=%s\n", compactAtResponse(runRawAt("+CPIN?", RAW_AT_TIMEOUT_MS)).c_str());
+    CUS_DBGF("[SIM][FORENSIC] CSQ=%s\n", compactAtResponse(runRawAt("+CSQ", RAW_AT_TIMEOUT_MS)).c_str());
+    CUS_DBGF("[SIM][FORENSIC] CREG=%s\n", compactAtResponse(runRawAt("+CREG?", RAW_AT_TIMEOUT_MS)).c_str());
+    CUS_DBGF("[SIM][FORENSIC] CGREG=%s\n", compactAtResponse(runRawAt("+CGREG?", RAW_AT_TIMEOUT_MS)).c_str());
+    CUS_DBGF("[SIM][FORENSIC] CEREG=%s\n", compactAtResponse(runRawAt("+CEREG?", RAW_AT_TIMEOUT_MS)).c_str());
+    CUS_DBGF("[SIM][FORENSIC] CGDCONT=%s\n", compactAtResponse(runRawAt("+CGDCONT?", RAW_AT_TIMEOUT_MS)).c_str());
+    CUS_DBGF("[SIM][FORENSIC] CGACT=%s\n", compactAtResponse(runRawAt("+CGACT?", RAW_AT_TIMEOUT_MS)).c_str());
+    CUS_DBGF("[SIM][FORENSIC] CGATT=%s\n", compactAtResponse(runRawAt("+CGATT?", RAW_AT_TIMEOUT_MS)).c_str());
+    CUS_DBGF("[SIM][FORENSIC] CDNSCFG=%s\n", compactAtResponse(runRawAt("+CDNSCFG?", RAW_AT_TIMEOUT_MS)).c_str());
+    CUS_DBGF("[SIM][FORENSIC] NETOPEN=%s\n", compactAtResponse(runRawAt("+NETOPEN?", RAW_AT_TIMEOUT_MS)).c_str());
+    CUS_DBGF("[SIM][FORENSIC] CIPRXGET=%s\n", compactAtResponse(runRawAt("+CIPRXGET?", RAW_AT_TIMEOUT_MS)).c_str());
+    CUS_DBGF("[SIM][FORENSIC] CIPCLOSE?=%s\n", compactAtResponse(runRawAt("+CIPCLOSE?", RAW_AT_TIMEOUT_MS)).c_str());
+    CUS_DBGF("[SIM][FORENSIC] CCLK=%s\n", compactAtResponse(runRawAt("+CCLK?", RAW_AT_TIMEOUT_MS)).c_str());
+    CUS_DBGLN("[SIM][FORENSIC] ---------------------");
+}
+
 bool simHasUsableIP() {
-    SimNetworkState state = simReadNetworkState();
-    return state.localIp != "0.0.0.0";
+    return simReadNetworkState().localIp != "0.0.0.0";
 }
 
 int simSignalDbm() {
-    int csq = modem.getSignalQuality();
+    int csq = querySignalCsq();
     if (csq <= 0 || csq == 99) {
         return 0;
     }
-    // 3GPP CSQ to dBm.
     return -113 + (2 * csq);
 }
 
@@ -533,8 +1074,32 @@ String simLocalIP() {
 
 int simStatusCode() {
     SimNetworkState state = simReadNetworkState();
-    if (state.gprsConnected && state.localIp != "0.0.0.0") return 3;
-    if (state.packetAttached) return 2;
-    if (state.networkRegistered) return 1;
+    if (state.gprsConnected && state.localIp != "0.0.0.0") {
+        return 3;
+    }
+    if (state.packetAttached) {
+        return 2;
+    }
+    if (state.networkRegistered) {
+        return 1;
+    }
     return 0;
+}
+
+String simReadNetworkTimeRaw() {
+    return extractQuotedValue(runRawAt("+CCLK?", RAW_AT_TIMEOUT_MS));
+}
+
+bool simAcquireAtPort(uint32_t timeoutMs) {
+    ensureAtPortMutex();
+    if (!gAtPortMutex) {
+        return false;
+    }
+    return xSemaphoreTakeRecursive(gAtPortMutex, pdMS_TO_TICKS(timeoutMs)) == pdTRUE;
+}
+
+void simReleaseAtPort() {
+    if (gAtPortMutex) {
+        xSemaphoreGiveRecursive(gAtPortMutex);
+    }
 }

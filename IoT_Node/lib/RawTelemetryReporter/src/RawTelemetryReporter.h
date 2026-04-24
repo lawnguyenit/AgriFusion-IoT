@@ -44,6 +44,10 @@ public:
                        String &errorDetail,
                        bool updateLatest = true);
 
+    bool probePublishPath(FirebaseData &fbdo,
+                          String *outProbePath,
+                          String &errorDetail);
+
 private:
     String _nodeRootPath;
 };

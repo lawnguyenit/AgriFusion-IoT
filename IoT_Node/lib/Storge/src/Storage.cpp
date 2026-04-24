@@ -12,6 +12,20 @@ void setupStorage() {
     CUS_DBGLN("[STORAGE] LittleFS Mount OK");
 }
 
+bool storageFileExists(const char *path) {
+    if (!path || !*path) {
+        return false;
+    }
+
+    File file = LittleFS.open(path, FILE_READ);
+    if (!file) {
+        return false;
+    }
+
+    file.close();
+    return true;
+}
+
 bool saveOfflineData(String dataJson) {
     File file = LittleFS.open("/offline_data.txt", FILE_APPEND); 
     if(!file){
@@ -28,7 +42,7 @@ bool saveOfflineData(String dataJson) {
 
 void processOfflineData() {
     // Kiểm tra xem file có tồn tại không
-    if (!LittleFS.exists("/offline_data.txt")) {
+    if (!storageFileExists("/offline_data.txt")) {
         CUS_DBGLN("[STORAGE] Khong co file offline de xu ly.");
         return;
     }
