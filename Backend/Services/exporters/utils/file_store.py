@@ -16,12 +16,12 @@ def atomic_write_bytes(path: Path, payload: bytes) -> None:
     temp_path.replace(path)
 
 
-def serialize_json(payload: Any) -> bytes:
-    return (json.dumps(payload, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
-
-
 def write_json(path: Path, payload: Any) -> None:
     atomic_write_bytes(path, serialize_json(payload))
+
+    
+def serialize_json(payload: Any) -> bytes:
+    return (json.dumps(payload, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
 
 
 def sha256_hex(payload: bytes) -> str:

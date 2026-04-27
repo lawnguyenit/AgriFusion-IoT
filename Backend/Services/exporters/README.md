@@ -1,110 +1,111 @@
-# Exporters pipeline
+# Exporters Pipeline
 
-`Backend/Services/exporters` chứa luồng xuất dữ liệu từ nguồn Layer 1 (Firebase RTDB hoặc JSON export) vào các artifact local có cấu trúc chuẩn. README này giải thích cách pipeline hoạt động và các thành phần chính.
+`Backend/Services/exporters` is the Layer 1 export package. It reads source data from Firebase RTDB or a local RTDB JSON export and writes canonical local artifacts for downstream Layer 2 preprocessing.
 
-## Mục tiêu
+## Main Flow
 
-Pipeline này đảm bảo:
+```text
+ExportPipeline
+    -> sources/
+    -> sync/
+    -> stores/
+    -> Output_data/Layer1
+```
 
-- lấy metadata mới nhất từ nguồn
-- xác định xem có dữ liệu mới hay không
-- ghi các artifact local có thể dùng cho downstream Layer 2
-- lưu trạng thái đồng bộ để lần chạy sau so sánh
-- hỗ trợ cả `firebase` và `json-export`
+The pipeline does four things:
 
-## Luồng chính
+- reads the latest metadata and current payload from a source adapter,
+- decides whether the source contains new data or only a retry/duplicate state,
+- writes reproducible local artifacts,
+- saves sync state so the next run can compare against the previous run.
 
-1. `ExportPipeline.run(full_history=False)` được gọi.
-2. Tạo `source_adapter` dựa trên `settings.source_type`:
-   - `firebase` → `FirebaseSourceAdapter`
-   - `json-export` → `JsonExportSourceAdapter`
-3. Tải `previous_sync_state` từ ổ lưu `sync_state.json`.
-4. Gọi `source_adapter.fetch_latest_meta_payload()` để lấy payload metadata mới nhất.
-   - Nếu không có payload, pipeline trả về `None`.
-5. Chuyển metadata đó thành `LatestMetaSnapshot` bằng `parse_latest_meta()`.
-6. Gọi `decide_sync()` để quyết định:
-   - có dữ liệu mới (`new_data`)
-   - chỉ refresh nguồn (`source_refresh`)
-   - retry chờ dữ liệu mới (`retry_waiting`)
-   - stale sau retry (`stale_after_retry`)
-   - duplicate JSON import (`duplicate_source`)
-7. Xây `sync_state` mới bằng `build_sync_state()`.
-8. Nếu nguồn không phải duplicate, ghi:
-   - `latest_meta`
-   - `source_manifest`
-   - `source_snapshot` (nếu có)
-9. Nếu `decision.should_fetch_current` là True:
-   - lấy payload hiện tại
-   - ghi `latest_payload`
-   - ghi snapshot lịch sử ngày sự kiện vào `history`
-10. Nếu `full_history` bật và không duplicate source:
-    - tải toàn bộ `telemetry`
-    - ghi `history` đầy đủ
-11. Lưu `sync_state.json` mới.
-12. Trả về `ExportResult` chứa trạng thái, đường dẫn artifact, và metadata chạy.
+## Package Layout
 
-## Thành phần chính
+```text
+exporters/
+|-- pipeline.py
+|-- sources/
+|   |-- base.py
+|   |-- firebase.py
+|   `-- json_export.py
+|-- stores/
+|   |-- artifact_store.py
+|   |-- sync_state_store.py
+|   `-- telemetry_store.py
+|-- sync/
+|   `-- latest_sync.py
+|-- models/
+|   `-- telemetry.py
+|-- utils/
+|   |-- file_store.py
+|   |-- json_ordering.py
+|   `-- layout.py
+`-- docs/
+    `-- pipeline.md
+```
 
-### `ExportPipeline`
+The package root only keeps the public pipeline entrypoint. Source adapters, stores, sync logic, models, and utilities should be imported from their grouped packages.
 
-- Quản lý luồng chạy chính của exporter.
-- Xây `source_adapter` và gọi lần lượt các bước đọc nguồn, quyết định sync, ghi artifact, và lưu sync state.
+## Responsibilities
 
-### `SourceAdapter`
+### `pipeline.py`
 
-Hai adapter chính:
+Coordinates the full export run. It builds the source adapter, loads previous sync state, asks `sync/latest_sync.py` for a decision, writes artifacts, optionally writes full history, and returns `ExportResult`.
 
-- `FirebaseSourceAdapter`
-  - phát hiện hai chế độ Firebase:
-    - `snapshot_root`: nguồn đã có toàn bộ snapshot node
-    - `legacy_paths`: sử dụng `latest_meta`, `latest_current`, `telemetry` riêng
-  - chuẩn hoá payload và xác định bản ghi mới nhất
+### `sources/`
 
-- `JsonExportSourceAdapter`
-  - đọc file JSON export từ `settings.input_json_path`
-  - chuẩn hoá và tính `source_sha256`
-  - cho phép phát hiện duplicate khi cùng `event_key` và cùng `sha256`
+Reads data from external or offline sources.
 
-### `latest_sync`
+- `base.py`: shared snapshot normalization, source descriptors, audit artifact shape, latest-event selection.
+- `firebase.py`: Firebase RTDB adapter with support for node snapshot root and legacy paths.
+- `json_export.py`: local RTDB JSON export adapter.
 
-- `parse_latest_meta()` biến metadata thành đối tượng snapshot chứa thời gian, event key, path, checksum và các thông số polling.
-- `decide_sync()` xác định giá trị trả về như `new_data`, `retry_waiting`, `stale_after_retry`, `duplicate_source`.
-- `build_sync_state()` sinh json trạng thái đồng bộ mới.
+### `sync/`
 
-### `artifact_store`
+Contains the sync decision logic.
 
-Ghi các artifact local:
+- `parse_latest_meta()`: converts latest metadata payload into a typed snapshot.
+- `decide_sync()`: returns statuses such as `new_data`, `source_refresh`, `retry_waiting`, `stale_after_retry`, or `duplicate_source`.
+- `build_sync_state()`: creates the next persisted sync state.
 
-- `latest_meta.json`
-- `latest_payload.json`
-- `source_manifest.json`
-- `source_snapshot.json`
+### `stores/`
 
-### `telemetry_store`
+Writes local Layer 1 artifacts.
 
-Viết snapshot lịch sử cho các event đã chạy:
+- `artifact_store.py`: latest metadata, latest payload, source manifest, source snapshot.
+- `sync_state_store.py`: `sync_state.json`.
+- `telemetry_store.py`: current event history and optional full-history snapshots.
 
-- `history/<date>/<event>.json`
-- các asset lịch sử toàn bộ nếu `full_history` bật
+### `utils/`
 
-## Đặc điểm quan trọng
+Technical helpers with no business ownership.
 
-- `canonicalize_json()` được dùng để sắp xếp khóa JSON theo quy tắc ngày/timestamp/number/string, giúp checksum và so sánh dữ liệu ổn định.
-- `JsonExportSourceAdapter` dùng `source_sha256` để phát hiện duplicate khi nhập lại cùng file export.
-- `FirebaseSourceAdapter` tự chuyển payload Firebase về định dạng chuẩn trước khi tính metadata.
-- `full_history` là tùy chọn, không phải mặc định.
+- `file_store.py`: JSON writes, JSONL append, gzip, SHA-256.
+- `json_ordering.py`: canonical JSON ordering for stable checksums.
+- `layout.py`: timestamp formatting.
 
-## Khi nào pipeline ghi thêm dữ liệu
+### `models/`
 
-- `new_data`: ghi `latest_payload` và snapshot history
-- `source_refresh`: vẫn lấy payload hiện tại và ghi lại local artifacts
-- `retry_waiting`: không ghi `latest_payload`, chỉ cập nhật `sync_state`
-- `duplicate_source`: không ghi `latest_payload` hay full history
+Small reusable telemetry helpers.
 
-## Phạm vi ứng dụng
+## Debug Guide
 
-Pipeline này là lớp export Layer 1, tạo artifact local để downstream Layer 2 xử lý mà không cần truy xuất trực tiếp Firebase mỗi lần.
+```text
+Firebase cannot be read          -> sources/firebase.py
+JSON export cannot be imported   -> sources/json_export.py
+latest/current/history not saved -> stores/
+wrong new_data/retry decision    -> sync/latest_sync.py
+checksum differs unexpectedly    -> utils/json_ordering.py or utils/file_store.py
+overall run order is wrong       -> pipeline.py
+```
 
-## Cách chạy
+## Public Imports
 
-Pipeline được gọi từ `Backend/main.py` hoặc từ các công cụ export tương ứng trong dự án. `settings.source_type` quyết định nguồn dữ liệu.
+Use:
+
+```python
+from Backend.Services.exporters import ExportPipeline
+from Backend.Services.exporters.sources import FirebaseSourceAdapter
+from Backend.Services.exporters.stores import load_sync_state
+from Backend.Services.exporters.sync import decide_sync
+```

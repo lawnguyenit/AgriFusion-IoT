@@ -1,13 +1,13 @@
-from dataclasses import dataclass
+﻿from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
 
 try:
-    from app_config import ExportSettings
+    from Services.config.settings import ExportSettings
 except ModuleNotFoundError:
-    from ..app_config import ExportSettings
+    from ...config.settings import ExportSettings
 
-from .layout import format_iso_utc
+from ..utils.layout import format_iso_utc
 
 
 @dataclass(frozen=True)
@@ -24,6 +24,9 @@ class LatestMetaSnapshot:
     server_delta_ok: bool | None
     primary_poll_after_sec: int
     retry_after_no_change_sec: int
+    source_type: str | None
+    source_uri: str | None
+    source_sha256: str | None
 
 
 @dataclass(frozen=True)
@@ -36,7 +39,12 @@ class SyncDecision:
     alert_code: str | None
 
 
-def parse_latest_meta(meta: dict[str, Any], settings: ExportSettings) -> LatestMetaSnapshot:
+def parse_latest_meta(
+    meta: dict[str, Any],
+    settings: ExportSettings,
+    source_descriptor: dict[str, Any] | None = None,
+) -> LatestMetaSnapshot:
+    source_descriptor = source_descriptor or {}
     return LatestMetaSnapshot(
         event_key=str(meta["latest_event_key"]),
         date_key=str(meta["latest_date_key"]),
@@ -52,6 +60,9 @@ def parse_latest_meta(meta: dict[str, Any], settings: ExportSettings) -> LatestM
         retry_after_no_change_sec=int(
             meta.get("retry_after_no_change_sec") or settings.retry_after_no_change_sec
         ),
+        source_type=_as_optional_str(source_descriptor.get("source_type") or meta.get("source_type")),
+        source_uri=_as_optional_str(source_descriptor.get("source_uri") or meta.get("source_uri")),
+        source_sha256=_as_optional_str(source_descriptor.get("source_sha256") or meta.get("source_sha256")),
     )
 
 
@@ -63,6 +74,36 @@ def decide_sync(
 ) -> SyncDecision:
     previous_event_key = previous_state.get("last_seen_event_key")
     next_primary = checked_at + timedelta(seconds=snapshot.primary_poll_after_sec)
+
+    if _is_duplicate_json_import(snapshot=snapshot, previous_state=previous_state):
+        return SyncDecision(
+            status="duplicate_source",
+            should_fetch_current=False,
+            no_change_retry_count=0,
+            next_primary_check_at_utc=format_iso_utc(next_primary),
+            next_retry_at_utc=None,
+            alert_code=None,
+        )
+
+    if snapshot.source_type == "json-export":
+        if previous_event_key != snapshot.event_key:
+            return SyncDecision(
+                status="new_data",
+                should_fetch_current=True,
+                no_change_retry_count=0,
+                next_primary_check_at_utc=format_iso_utc(next_primary),
+                next_retry_at_utc=None,
+                alert_code=None,
+            )
+
+        return SyncDecision(
+            status="source_refresh",
+            should_fetch_current=True,
+            no_change_retry_count=0,
+            next_primary_check_at_utc=format_iso_utc(next_primary),
+            next_retry_at_utc=None,
+            alert_code=None,
+        )
 
     if previous_event_key != snapshot.event_key:
         return SyncDecision(
@@ -130,7 +171,23 @@ def build_sync_state(
         "server_delta_in_expected_range": snapshot.server_delta_ok,
         "primary_poll_after_sec": snapshot.primary_poll_after_sec,
         "retry_after_no_change_sec": snapshot.retry_after_no_change_sec,
+        "source_type": snapshot.source_type,
+        "source_uri": snapshot.source_uri,
+        "source_sha256": snapshot.source_sha256,
     }
+
+
+def _is_duplicate_json_import(snapshot: LatestMetaSnapshot, previous_state: dict[str, Any]) -> bool:
+    if snapshot.source_type != "json-export":
+        return False
+
+    if not snapshot.source_sha256:
+        return False
+
+    return (
+        previous_state.get("last_seen_event_key") == snapshot.event_key
+        and previous_state.get("source_sha256") == snapshot.source_sha256
+    )
 
 
 def _as_optional_int(value: Any) -> int | None:
@@ -143,3 +200,10 @@ def _as_optional_bool(value: Any) -> bool | None:
     if value is None:
         return None
     return bool(value)
+
+
+def _as_optional_str(value: Any) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
