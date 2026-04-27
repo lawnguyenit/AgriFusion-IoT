@@ -4,9 +4,9 @@ from typing import Any
 try:
     from app_config import ExportSettings
 except ModuleNotFoundError:
-    from ..app_config import ExportSettings
+    from ...app_config import ExportSettings
 
-from .file_store import write_json
+from ..utils.file_store import write_json
 
 
 def load_sync_state(settings: ExportSettings) -> dict[str, Any]:
@@ -53,4 +53,7 @@ def _default_sync_state(settings: ExportSettings) -> dict[str, Any]:
         "server_delta_in_expected_range": None,
         "primary_poll_after_sec": settings.primary_poll_after_sec,
         "retry_after_no_change_sec": settings.retry_after_no_change_sec,
+        "source_type": settings.source_type,
+        "source_uri": None if settings.input_json_path is None else str(settings.input_json_path),
+        "source_sha256": None,
     }

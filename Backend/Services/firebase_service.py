@@ -36,7 +36,7 @@ class FirebaseService:
 
         self.root_ref = db.reference("/")
 
-    def pull_data(self, node_path: str = "Node2"):
+    def pull_data(self, node_path: str = "Node1/telemetry"):
         try:
             clean_path = node_path.strip("/") if node_path else ""
             target_ref = self.root_ref.child(clean_path) if clean_path else self.root_ref
@@ -52,5 +52,5 @@ class FirebaseService:
             print(f"Firebase pull error: {exc!r}")
             return None
 
-    def pull_sensor_data(self, node_path: str = "Node2"):
+    def pull_sensor_data(self, node_path: str = "Node1"):
         return self.pull_data(node_path=node_path)
