@@ -1,47 +1,9 @@
-import os
 import re
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from dotenv import load_dotenv
-
-
-SERVICES_DIR = Path(__file__).resolve().parent
-load_dotenv(dotenv_path=SERVICES_DIR / ".env", override=False)
-
-
-def _env_str(name: str, default: str | None = None) -> str | None:
-    value = os.getenv(name)
-    if value is None:
-        return default
-    value = value.strip()
-    return value or default
-
-
-def _env_int(name: str, default: int) -> int:
-    value = _env_str(name)
-    if value is None:
-        return default
-    try:
-        return int(value)
-    except ValueError:
-        return default
-
-
-def _env_path(name: str) -> Path | None:
-    value = _env_str(name)
-    if value is None:
-        return None
-    return Path(value).expanduser()
-
-## Helper function to coerce optional path values
-def _coerce_optional_path(value: object) -> Path | None:
-    if value is None:
-        return None
-    if isinstance(value, Path):
-        return value.expanduser()
-    return Path(str(value)).expanduser()
+from .env import SERVICES_DIR, coerce_optional_path, env_int, env_path, env_str
 
 
 def _slugify_node(value: str) -> str:
@@ -53,34 +15,34 @@ def _slugify_node(value: str) -> str:
 class ExportSettings:
     services_dir: Path = field(default_factory=lambda: SERVICES_DIR)
     server_base_dir: Path | None = None
-    source_type: str = field(default_factory=lambda: _env_str("EXPORT_SOURCE", "firebase") or "firebase")
-    input_json_path: Path | None = field(default_factory=lambda: _env_path("EXPORT_INPUT_JSON"))
-    node_id: str = field(default_factory=lambda: _env_str("EXPORT_NODE_ID", "Node1") or "Node1")
-    node_slug: str = field(default_factory=lambda: _env_str("EXPORT_NODE_SLUG") or "")
+    source_type: str = field(default_factory=lambda: env_str("EXPORT_SOURCE", "firebase") or "firebase")
+    input_json_path: Path | None = field(default_factory=lambda: env_path("EXPORT_INPUT_JSON"))
+    node_id: str = field(default_factory=lambda: env_str("EXPORT_NODE_ID", "Node1") or "Node1")
+    node_slug: str = field(default_factory=lambda: env_str("EXPORT_NODE_SLUG") or "")
     
     timezone_name: str = field(
-        default_factory=lambda: _env_str("EXPORT_TIMEZONE", "Asia/Ho_Chi_Minh") or "Asia/Ho_Chi_Minh"
+        default_factory=lambda: env_str("EXPORT_TIMEZONE", "Asia/Ho_Chi_Minh") or "Asia/Ho_Chi_Minh"
     )
     primary_poll_after_sec: int = field(
-        default_factory=lambda: _env_int("EXPORT_PRIMARY_POLL_AFTER_SEC", 3900)
+        default_factory=lambda: env_int("EXPORT_PRIMARY_POLL_AFTER_SEC", 3900)
     )
     retry_after_no_change_sec: int = field(
-        default_factory=lambda: _env_int("EXPORT_RETRY_AFTER_NO_CHANGE_SEC", 300)
+        default_factory=lambda: env_int("EXPORT_RETRY_AFTER_NO_CHANGE_SEC", 300)
     )
     no_change_retry_limit: int = field(
-        default_factory=lambda: _env_int("EXPORT_NO_CHANGE_RETRY_LIMIT", 1)
+        default_factory=lambda: env_int("EXPORT_NO_CHANGE_RETRY_LIMIT", 1)
     )
     npk_sensor_id: str = field(
-        default_factory=lambda: _env_str("EXPORT_NPK_SENSOR_ID", "npk_7in1_1") or "npk_7in1_1"
+        default_factory=lambda: env_str("EXPORT_NPK_SENSOR_ID", "npk_7in1_1") or "npk_7in1_1"
     )
     npk_sensor_type: str = field(
-        default_factory=lambda: _env_str("EXPORT_NPK_SENSOR_TYPE", "npk7in1") or "npk7in1"
+        default_factory=lambda: env_str("EXPORT_NPK_SENSOR_TYPE", "npk7in1") or "npk7in1"
     )
     sht30_sensor_id: str = field(
-        default_factory=lambda: _env_str("EXPORT_SHT30_SENSOR_ID", "sht30_1") or "sht30_1"
+        default_factory=lambda: env_str("EXPORT_SHT30_SENSOR_ID", "sht30_1") or "sht30_1"
     )
     sht30_sensor_type: str = field(
-        default_factory=lambda: _env_str("EXPORT_SHT30_SENSOR_TYPE", "sht30_air") or "sht30_air"
+        default_factory=lambda: env_str("EXPORT_SHT30_SENSOR_TYPE", "sht30_air") or "sht30_air"
     )
 
     def __post_init__(self) -> None:
@@ -98,7 +60,7 @@ class ExportSettings:
             object.__setattr__(
                 self,
                 "input_json_path",
-                _coerce_optional_path(self.input_json_path).resolve(),
+                coerce_optional_path(self.input_json_path).resolve(),
             )
 
         if not self.node_slug:

@@ -1,1 +1,1 @@
-"""Service-layer package for Firebase pull and local persistence."""
+"""Service-layer package for config, external clients, and export pipelines."""

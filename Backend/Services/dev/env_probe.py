@@ -5,7 +5,7 @@ import dotenv
 
 
 
-SERVICES_DIR = Path(__file__).resolve().parent
+SERVICES_DIR = Path(__file__).resolve().parents[1]
 dotenv.load_dotenv(dotenv_path=SERVICES_DIR / ".env", override=False)
 
 

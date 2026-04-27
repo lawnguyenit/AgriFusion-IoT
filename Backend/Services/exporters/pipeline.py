@@ -1,12 +1,12 @@
-from dataclasses import dataclass
+﻿from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 try:
-    from app_config import ExportSettings, SETTINGS
+    from Services.config.settings import ExportSettings, SETTINGS
 except ModuleNotFoundError:
-    from ..app_config import ExportSettings, SETTINGS
+    from ..config.settings import ExportSettings, SETTINGS
 
 from .stores.artifact_store import (
     write_latest_meta,

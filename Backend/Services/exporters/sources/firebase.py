@@ -1,12 +1,12 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from datetime import datetime
 from typing import Any
 
 try:
-    from app_config import ExportSettings
+    from Services.config.settings import ExportSettings
 except ModuleNotFoundError:
-    from ...app_config import ExportSettings
+    from ...config.settings import ExportSettings
 
 from ..stores.artifact_store import base_source_manifest_payload
 from ..utils.file_store import serialize_json, sha256_hex

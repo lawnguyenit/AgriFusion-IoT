@@ -23,25 +23,25 @@ The pipeline does four things:
 
 ```text
 exporters/
-├── pipeline.py
-├── sources/
-│   ├── base.py
-│   ├── firebase.py
-│   └── json_export.py
-├── stores/
-│   ├── artifact_store.py
-│   ├── sync_state_store.py
-│   └── telemetry_store.py
-├── sync/
-│   └── latest_sync.py
-├── models/
-│   └── telemetry.py
-├── utils/
-│   ├── file_store.py
-│   ├── json_ordering.py
-│   └── layout.py
-└── Explain/
-    └── pipeline.md
+|-- pipeline.py
+|-- sources/
+|   |-- base.py
+|   |-- firebase.py
+|   `-- json_export.py
+|-- stores/
+|   |-- artifact_store.py
+|   |-- sync_state_store.py
+|   `-- telemetry_store.py
+|-- sync/
+|   `-- latest_sync.py
+|-- models/
+|   `-- telemetry.py
+|-- utils/
+|   |-- file_store.py
+|   |-- json_ordering.py
+|   `-- layout.py
+`-- docs/
+    `-- pipeline.md
 ```
 
 The package root only keeps the public pipeline entrypoint. Source adapters, stores, sync logic, models, and utilities should be imported from their grouped packages.

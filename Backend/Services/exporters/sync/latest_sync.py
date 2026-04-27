@@ -1,11 +1,11 @@
-from dataclasses import dataclass
+﻿from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
 
 try:
-    from app_config import ExportSettings
+    from Services.config.settings import ExportSettings
 except ModuleNotFoundError:
-    from ...app_config import ExportSettings
+    from ...config.settings import ExportSettings
 
 from ..utils.layout import format_iso_utc
 

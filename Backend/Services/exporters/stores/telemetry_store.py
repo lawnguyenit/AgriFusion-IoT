@@ -1,11 +1,11 @@
-from datetime import datetime
+﻿from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 try:
-    from app_config import ExportSettings
+    from Services.config.settings import ExportSettings
 except ModuleNotFoundError:
-    from ...app_config import ExportSettings
+    from ...config.settings import ExportSettings
 
 from ..utils.file_store import write_json
 

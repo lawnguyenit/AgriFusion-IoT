@@ -1,12 +1,12 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 from pathlib import Path
 
 try:
-    from app_config import ExportSettings
+    from Services.config.settings import ExportSettings
 except ModuleNotFoundError:
-    from ...app_config import ExportSettings
+    from ...config.settings import ExportSettings
 
 from ..utils.file_store import sha256_hex
 from .base import NormalizedSnapshotMixin

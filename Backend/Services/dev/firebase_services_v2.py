@@ -6,7 +6,7 @@ import dotenv
 
 class FirebaseServiceV2:
     def __init__(self) -> None:
-        self.env_path = Path(__file__).parent / ".env"
+        self.env_path = Path(__file__).resolve().parents[1] / ".env"
         self.key_path = None
         self.db_url = None
 
