@@ -1,8 +1,16 @@
 # Tiện ích Core
 
-`utils/` chứa helper kỹ thuật dùng chung cho các processor và pipeline trong `Core`.
+`utils/` chứa helper kỹ thuật dùng chung cho pipeline và processor trong `Core`.
 
-- `common.py`: ép kiểu số, xử lý timestamp, thống kê cửa sổ thời gian, trend và confidence helper.
-- `storage.py`: đọc/ghi JSON và JSONL.
+## File chính
 
-Không đặt logic nông học, logic sensor đặc thù hoặc rule suy luận vào package này. Những phần đó nên nằm trong `processors/`, `fusion/` hoặc `canonical/`.
+| File | Vai trò |
+| --- | --- |
+| `common.py` | Ép kiểu số, xử lý timestamp, thống kê cửa sổ thời gian và nhãn trend mô tả. |
+| `storage.py` | Đọc/ghi JSON và JSONL theo cách ổn định. |
+
+## Nguyên tắc
+
+Không đặt logic nông học, logic sensor đặc thù, confidence heuristic hoặc rule suy luận vào package này.
+
+Nếu một hàm cần hiểu cảm biến cụ thể, nó nên nằm trong `processors/`. Nếu một hàm ghép nhiều nguồn, nó nên nằm trong `fusion/`. Nếu một hàm chuẩn hóa dữ liệu cho mô hình, nó nên nằm trong `canonical/`.

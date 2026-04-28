@@ -25,10 +25,6 @@ def safe_int(value: Any) -> int | None:
         return None
 
 
-def clamp(value: float, minimum: float = 0.0, maximum: float = 1.0) -> float:
-    return max(minimum, min(maximum, value))
-
-
 def iso_utc_now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -154,25 +150,7 @@ def build_window_stats(
     return windows
 
 
-def severity_from_confidence(confidence: float) -> str:
-    if confidence >= 0.85:
-        return "info"
-    if confidence >= 0.65:
-        return "low"
-    if confidence >= 0.4:
-        return "medium"
-    return "high"
-
-
 def trim_recent_ids(record_ids: Sequence[str], limit: int = 128) -> list[str]:
     if len(record_ids) <= limit:
         return list(record_ids)
     return list(record_ids[-limit:])
-
-
-def summarize_issues(issues: Sequence[str], fallback: str) -> str:
-    if not issues:
-        return fallback
-    if len(issues) == 1:
-        return issues[0]
-    return "; ".join(issues[:3])

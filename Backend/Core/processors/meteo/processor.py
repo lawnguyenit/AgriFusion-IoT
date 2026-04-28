@@ -1,24 +1,18 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from typing import Any
 
 from ...utils.common import build_window_stats, floor_ts_to_hour, format_local_iso, safe_float
-from .health import assess_meteo_health
 
 try:
     from Services.config.settings import SETTINGS as EXPORT_SETTINGS
 except ModuleNotFoundError:
     from ....Services.config.settings import SETTINGS as EXPORT_SETTINGS
 
-RAIN_EVENT_THRESHOLD_MM = 0.2
-HEAT_STRESS_TEMP_C = 32.0
-HIGH_HUMIDITY_PCT = 85.0
-
 
 class MeteoProcessor:
     stream_name = "meteo"
     processor_name = "meteo_preprocessor"
-    agent_name = "meteo_agent"
     window_hours = (3, 6, 24, 72)
 
     def extract_sensor_id(self, source_record: Any) -> str | None:
@@ -28,10 +22,7 @@ class MeteoProcessor:
 
     def should_accept_source_record(self, source_record: Any) -> bool:
         packet_payload: dict[str, Any] = source_record.payload.get("packet", {}).get("meteo_data", {})
-        health_payload: dict[str, Any] = source_record.payload.get("health", {}).get("meteo", {})
         if not packet_payload:
-            return False
-        if health_payload.get("status") == "fault":
             return False
         if packet_payload.get("temperature_2m") is None:
             return False
@@ -48,8 +39,6 @@ class MeteoProcessor:
     ) -> dict[str, Any]:
         record_payload: dict[str, Any] = source_record.payload
         packet_payload: dict[str, Any] = record_payload.get("packet", {}).get("meteo_data", {})
-        sensor_payload: dict[str, Any] = record_payload.get("sensors", {}).get("meteo", {})
-        health_payload: dict[str, Any] = record_payload.get("health", {}).get("meteo", {})
 
         sensor_id = str(packet_payload.get("sensor_id"))
         ts_server = source_record.ts_server
@@ -69,7 +58,6 @@ class MeteoProcessor:
             "et0_mm": safe_float(packet_payload.get("et0_fao_evapotranspiration")),
             "weather_code": packet_payload.get("weather_code"),
             "is_day": packet_payload.get("is_day"),
-            "sensor_quality": safe_float(health_payload.get("quality") or sensor_payload.get("quality")),
         }
 
         provisional_snapshot: dict[str, Any] = {
@@ -95,44 +83,34 @@ class MeteoProcessor:
             window_hours=self.window_hours,
         )
 
-        health = assess_meteo_health(packet_payload=packet_payload)
-        if perception["sensor_quality"] is None:
-            perception["sensor_quality"] = health["confidence"]
-
-        temp_value = perception["temp_air_c"]
-        humidity_value = perception["humidity_air_pct"]
-        rain_value = perception["precipitation_mm"] or perception["rain_mm"]
-        rain_24h = windows.get("24h", {}).get("precipitation_mm", {})
+        temp_24h = windows.get("24h", {}).get("temp_air_c", {})
         humidity_24h = windows.get("24h", {}).get("humidity_air_pct", {})
+        precipitation_24h = windows.get("24h", {}).get("precipitation_mm", {})
+        et0_24h = windows.get("24h", {}).get("et0_mm", {})
 
-        rain_event = bool(rain_value is not None and rain_value >= RAIN_EVENT_THRESHOLD_MM)
-        heat_stress = bool(temp_value is not None and temp_value >= HEAT_STRESS_TEMP_C)
-        humidity_alert = bool(humidity_value is not None and humidity_value >= HIGH_HUMIDITY_PCT)
+        quality = {
+            "core_temperature_present": packet_payload.get("temperature_2m") is not None,
+            "core_humidity_present": packet_payload.get("relative_humidity_2m") is not None,
+            "core_precipitation_present": (
+                packet_payload.get("precipitation") is not None
+                or packet_payload.get("rain") is not None
+            ),
+            "provider": record_payload.get("_meta_seed", {}).get("provider"),
+        }
 
-        summary = "Weather stream is stable for downstream fusion."
-        if health["status"] == "fault":
-            summary = "Weather handoff confidence is low because key meteorology fields are missing."
-        elif rain_event:
-            summary = "Current weather indicates an active rainfall event."
-        elif heat_stress:
-            summary = "Ambient temperature is elevated for field operations."
-        elif humidity_alert:
-            summary = "Ambient humidity is high and may influence canopy microclimate."
-
-        domain_signals: dict[str, Any] = {
-            "rain_event": rain_event,
-            "heat_stress": heat_stress,
-            "humidity_alert": humidity_alert,
-            "precipitation_delta_24h": rain_24h.get("delta_from_start"),
+        derived_signals: dict[str, Any] = {
+            "temp_trend_24h": temp_24h.get("trend"),
+            "temp_delta_24h": temp_24h.get("delta_from_start"),
             "humidity_trend_24h": humidity_24h.get("trend"),
-            "sensor_confidence": health["confidence"],
+            "humidity_delta_24h": humidity_24h.get("delta_from_start"),
+            "precipitation_delta_24h": precipitation_24h.get("delta_from_start"),
+            "et0_delta_24h": et0_24h.get("delta_from_start"),
         }
 
         return {
             "schema_version": 1,
             "layer": "layer2",
             "processor_name": self.processor_name,
-            "agent_name": self.agent_name,
             "sensor_id": sensor_id,
             "sensor_type": packet_payload.get("sensor_type"),
             "source": {
@@ -140,6 +118,7 @@ class MeteoProcessor:
                 "date_key": source_record.date_key,
                 "path": source_record.source_path,
                 "origin": source_record.source_kind,
+                "source_name": source_record.source_name,
             },
             "timestamps": {
                 "ts_device": source_record.ts_device,
@@ -149,7 +128,7 @@ class MeteoProcessor:
                 "observed_at_hour_local": bucket_local_iso,
             },
             "perception": perception,
-            "health": health,
+            "quality": quality,
             "memory": {
                 "window_hours": list(self.window_hours),
                 "windows": windows,
@@ -161,30 +140,5 @@ class MeteoProcessor:
                 "timezone": packet_payload.get("timezone"),
                 "provider": record_payload.get("_meta_seed", {}).get("provider"),
             },
-            "inference_hints": {
-                "status": health["status"],
-                "summary": summary,
-                "flags": {
-                    "rain_event": rain_event,
-                    "heat_stress": heat_stress,
-                    "humidity_alert": humidity_alert,
-                    "sensor_fault_possible": health["status"] == "fault",
-                },
-                "signals": domain_signals,
-            },
-            "layer3_interface": {
-                "agent_name": self.agent_name,
-                "timestamp": bucket_local_iso or local_iso,
-                "status": health["status"],
-                "confidence": health["confidence"],
-                "severity": health["severity"],
-                "summary": summary,
-                "payload": domain_signals,
-            },
-            "handoff": {
-                "target_layer": "layer3_domain_agent",
-                "target_agent": self.agent_name,
-                "ready": health["status"] != "fault",
-                "reason": summary,
-            },
+            "derived_signals": derived_signals,
         }

@@ -1,8 +1,8 @@
 # Lõi xử lý Backend
 
-`Backend/Core` là lớp xử lý dữ liệu nghiên cứu của backend. Nhiệm vụ của phần này là biến artifact có thể tái lập ở Layer 1 thành snapshot Layer 2 theo từng nguồn, hàng dữ liệu hợp nhất Layer 2.5, và bảng dữ liệu chuẩn để phục vụ benchmark hoặc huấn luyện mô hình.
+`Backend/Core` là lớp xử lý dữ liệu nghiên cứu của backend. Nhiệm vụ của phần này là biến artifact Layer 1 thành snapshot Layer 2 theo từng nguồn, bảng hợp nhất Layer 2.5, và dữ liệu canonical cho benchmark hoặc mô hình học máy.
 
-Mục tiêu của cấu trúc này là làm rõ luồng xử lý, tăng khả năng tái lập, và giúp người đọc repo truy vết được dữ liệu từ telemetry thô đến dữ liệu sẵn sàng cho mô hình.
+Mục tiêu thiết kế hiện tại là thận trọng: Layer 2 ưu tiên dữ liệu đo, kiểm tra chất lượng trực tiếp từ packet, và thống kê mô tả. Các kết luận nông học hoặc confidence heuristic không nằm ở đây nếu chưa có cơ sở hiệu chuẩn rõ ràng.
 
 ## Cấu trúc
 
@@ -32,35 +32,35 @@ Core/
 
 Chứa logic xử lý riêng cho từng nguồn dữ liệu ở Layer 2.
 
-- `npk/`: dữ liệu đất, NPK, pH, EC, độ ẩm đất.
+- `npk/`: dữ liệu đất gồm N, P, K, pH, EC, nhiệt độ đất và độ ẩm đất.
 - `sht30/`: nhiệt độ và độ ẩm không khí.
-- `meteo/`: dữ liệu thời tiết Open-Meteo, đánh giá độ tin cậy và snapshot thời tiết.
+- `meteo/`: dữ liệu thời tiết Open-Meteo.
 
-Mỗi processor nên tách rõ:
+Mỗi processor nên giữ ba nhóm chính:
 
-- `processor.py`: tạo snapshot Layer 2.
-- `health.py`: đánh giá độ tin cậy của dữ liệu.
-- `README.md`: ghi chú giả định, ngưỡng và phạm vi của nguồn dữ liệu.
+- `perception`: giá trị đo đã chuẩn hóa.
+- `quality`: cờ chất lượng trực tiếp từ packet/provider, không tự suy diễn confidence.
+- `derived_signals`: thống kê mô tả như delta, trend, spread ratio.
 
 ### `pipelines/`
 
-Chứa pipeline điều phối. `preprocessing.py` đọc artifact Layer 1, gọi các processor theo nguồn, sau đó ghi lịch sử Layer 2, latest snapshot, state và manifest.
+`preprocessing.py` điều phối Layer 2: đọc artifact Layer 1, chọn processor phù hợp, truyền history vào processor, sau đó ghi `history.jsonl`, `latest.json`, `state.json` và `manifest.json`.
 
 ### `fusion/`
 
-Chứa logic hợp nhất nhiều nguồn. `layer25.py` ghép các snapshot Layer 2 thành hàng dữ liệu Layer 2.5, kèm thông tin độ phủ nguồn và cờ sẵn sàng cho TabNet.
+`layer25.py` ghép nhiều snapshot Layer 2 thành hàng dữ liệu Layer 2.5 theo `ts_hour_bucket`. Fusion chỉ hợp nhất và flatten dữ liệu; không đánh giá sức khỏe cảm biến.
 
 ### `canonical/`
 
-Chứa bộ dựng bảng dữ liệu chuẩn cho mô hình. Phần này chuyển dữ liệu đã fusion thành bảng sạch hơn để dùng cho benchmark hoặc huấn luyện.
+Chứa bộ dựng bảng dữ liệu chuẩn cho mô hình. Hiện tại `tabnet_super_table.py` chuyển Layer 2.5 thành matrix CSV và schema metadata cho TabNet.
 
 ### `contracts/`
 
-Chứa marker/schema version cho các hợp đồng dữ liệu. Khi cấu trúc payload thay đổi, cần cập nhật và ghi chú tại đây để phục vụ tái lập.
+Chứa marker/schema version cho các hợp đồng dữ liệu. Khi cấu trúc payload thay đổi, cần cập nhật phần này để phục vụ tái lập.
 
 ### `utils/`
 
-Chứa helper kỹ thuật dùng chung, ví dụ xử lý thời gian, ép kiểu số, thống kê cửa sổ và đọc/ghi JSON. Không đặt logic nông học hoặc logic sensor đặc thù trong package này.
+Chứa helper kỹ thuật dùng chung như xử lý thời gian, ép kiểu số, thống kê cửa sổ và đọc/ghi JSON. Không đặt rule nông học hoặc logic sensor đặc thù trong package này.
 
 ## API chính
 
@@ -70,13 +70,18 @@ from Core.processors import NPKProcessor, SHT30Processor, MeteoProcessor
 from Core.canonical import TabNetSuperTableBuilder
 ```
 
-## Lý do thiết kế
+## Ranh giới khoa học
 
-Cấu trúc này giúp repo thể hiện rõ tư duy kỹ thuật nghiên cứu:
+Layer 2 không nên nói:
 
-- boundary của từng nguồn dữ liệu được tách rõ,
-- pipeline điều phối tách khỏi processor đơn lẻ,
-- fusion tách khỏi preprocessing,
-- bảng canonical tách khỏi pipeline vận hành,
-- schema version hỗ trợ tái lập và kiểm chứng,
-- helper kỹ thuật không che lấp logic miền.
+- cây chắc chắn đang stress,
+- đất chắc chắn thiếu dinh dưỡng,
+- sensor có confidence bao nhiêu phần trăm nếu chưa có mô hình hiệu chuẩn,
+- record đã sẵn sàng cho agent hay chưa.
+
+Layer 2 nên nói:
+
+- cảm biến đã đo gì,
+- packet có vượt qua hard gate kỹ thuật không,
+- xu hướng/delta trong các cửa sổ thời gian là gì,
+- dữ liệu được ghi từ nguồn nào và ở bucket thời gian nào.
