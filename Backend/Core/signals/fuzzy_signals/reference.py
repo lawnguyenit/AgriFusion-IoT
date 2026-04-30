@@ -97,7 +97,7 @@ def evaluate_signal_rules(
     return {
         "schema_version": 1,
         "ruleset_version": ruleset_version,
-        "layer": "layer1_rules",
+        "layer": "fuzzy_signals",
         "source_object": source_object,
         "window_hours": list(window_hours),
         "ts": current["ts"],
@@ -163,11 +163,11 @@ def _alias_hit_count(
 def _resolve_ts(sample: Mapping[str, Any]) -> float | None:
     timestamps = sample.get("timestamps")
     if isinstance(timestamps, Mapping):
-        for key in ("ts_hour_bucket", "ts_server", "observed_ts", "timestamp"):
+        for key in ("ts_server", "observed_ts", "timestamp"):
             value = _safe_float(timestamps.get(key))
             if value is not None:
                 return value
-    for key in ("ts_hour_bucket", "ts_server", "observed_ts", "timestamp", "ts"):
+    for key in ("ts_server", "observed_ts", "timestamp", "ts"):
         value = _safe_float(sample.get(key))
         if value is not None:
             return value
@@ -218,11 +218,17 @@ def _fuzzy_state(rule: SignalRule, value: float | None) -> dict[str, Any]:
 
     if value < rule.normal_low:
         side = "low"
-        state = "low_critical" if low_pressure >= 1.0 else "low_leaning"
+        if rule.direction == "high":
+            state = "opposite_low"
+        else:
+            state = "low_critical" if low_pressure >= 1.0 else "low_leaning"
         distance = round(rule.normal_low - value, 4)
     elif value > rule.normal_high:
         side = "high"
-        state = "high_critical" if high_pressure >= 1.0 else "high_leaning"
+        if rule.direction == "low":
+            state = "opposite_high"
+        else:
+            state = "high_critical" if high_pressure >= 1.0 else "high_leaning"
         distance = round(value - rule.normal_high, 4)
     else:
         side = "normal"
@@ -341,7 +347,7 @@ def _window_profile(
     subset = [
         record
         for record in records
-        if record.get("ts") is not None and record["ts"] >= start_ts
+        if record.get("ts") is not None and start_ts <= record["ts"] <= current_ts
     ]
     values: list[float] = []
     timestamps: list[float] = []

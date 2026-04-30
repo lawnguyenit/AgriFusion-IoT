@@ -71,6 +71,9 @@ DROP_COLS_IF_EXIST = [
     "npk_observed_at_local",
     "sht_observed_at_local",
     "meteo_observed_at_local",
+    "npk_present",    
+    "sht_present",     
+    "meteo_present",
 ]
 
 DERIVED_FEATURES = [

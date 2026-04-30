@@ -9,7 +9,7 @@ except ImportError:
     from reference import SignalRule
 
 RULESET_VERSION = "layer1_rules_v1"
-DEFAULT_WINDOW_HOURS = (3, 8, 12, 24)
+DEFAULT_WINDOW_HOURS = (3, 6, 24, 72)
 
 NPK_FIELD_ALIASES: dict[str, tuple[str, ...]] = {
     "n_ppm": ("n_ppm", "N", "n", "nitrogen"),

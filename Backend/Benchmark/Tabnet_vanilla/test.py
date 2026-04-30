@@ -3,7 +3,7 @@ import pandas as pd
 import Backend.Config.path_manager as pm
 
 
-if __name__ = = "__main__":
+if __name__ == "__main__":
     # Đọc file CSV đã được tạo bởi Preprocessor
     tabnet_csv = pm.get_test_path() / "tabnet_input.csv"
     df = pd.read_csv(tabnet_csv)
