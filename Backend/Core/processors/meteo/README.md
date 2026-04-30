@@ -1,17 +1,14 @@
 # Bộ xử lý Meteo
 
-## Mục đích
+Package này chỉ chứa logic Layer 2 cho snapshot thời tiết.
 
-Package này quản lý dữ liệu thời tiết từ Open-Meteo và tạo snapshot Layer 2 cho fusion.
+Nguồn Open-Meteo/API fetch không nằm ở đây nữa. Phần lấy dữ liệu Layer 1 thuộc `Backend/Services/exporters/sources/open_meteo.py`.
 
-Layer 2 không tự tạo điểm tin cậy cho nhà cung cấp thời tiết. Nó chỉ kiểm tra các trường lõi có tồn tại, chuẩn hóa payload và tính thống kê mô tả theo thời gian.
-
-## Cấu trúc file
+## Cấu trúc
 
 | File | Vai trò |
 | --- | --- |
-| `fetcher.py` | Lấy dữ liệu Open-Meteo archive và ghi artifact thời tiết ở Layer 1. |
-| `processor.py` | Tạo snapshot thời tiết Layer 2. |
+| `processor.py` | Chuẩn hóa payload meteo Layer 1 thành snapshot Layer 2. |
 | `__init__.py` | Export `MeteoProcessor`. |
 
 ## Output chính
@@ -19,9 +16,9 @@ Layer 2 không tự tạo điểm tin cậy cho nhà cung cấp thời tiết. N
 - `perception`: nhiệt độ, độ ẩm, mưa, điểm sương, mây, nhiệt độ đất nông, ET0 và mã thời tiết.
 - `quality`: kiểm tra trường lõi có mặt hay không và provider.
 - `memory.windows`: thống kê rolling theo `3h`, `6h`, `24h`, `72h`.
-- `context`: giờ quan sát, trạng thái ngày/đêm, timezone, provider.
-- `derived_signals`: delta/trend mô tả như `temp_delta_24h`, `humidity_delta_24h`, `precipitation_delta_24h`, `et0_delta_24h`.
+- `derived_signals`: feature phẳng được rút từ `memory.windows`, ví dụ `temp_trend_24h`, `humidity_delta_from_start_6h`, `precipitation_avg_72h`.
+- `context`: giờ quan sát, trạng thái ngày/đêm, timezone và provider.
 
 ## Nguyên tắc
 
-Các cảnh báo như heat stress, rain event có ý nghĩa canh tác, nhưng không nên đóng dấu ngay ở Layer 2 nếu chưa có ngưỡng theo cây trồng, giai đoạn sinh trưởng và điều kiện địa phương. Layer 2 chỉ chuẩn bị dữ liệu sạch để tầng sau đưa ra kết luận có căn cứ hơn.
+Layer 2 không sinh `health`, `confidence`, `handoff`, `ready` hoặc cảnh báo nông học cuối cùng. Những kết luận đó phải thuộc tầng phân tích có ngưỡng và cơ sở hiệu chuẩn riêng.

@@ -24,9 +24,9 @@ Layer này không kết luận cây đang stress, không tự tạo `confidence`
 - `perception`: `temp_air_c`, `humidity_air_pct`.
 - `quality`: `read_ok`, `sample_valid`, `sensor_sample_valid`, `sample_interval_ms`.
 - `memory.windows`: thống kê rolling theo `3h`, `6h`, `24h`, `72h`.
-- `context`: thông tin thời gian và nhãn trend đang dùng.
-- `derived_signals`: delta/trend mô tả như `humidity_delta_24h`, `temp_trend_short_horizon`.
+- `derived_signals`: feature phẳng được rút từ `memory.windows`, ví dụ `temp_delta_from_start_6h`, `humidity_trend_24h`, `humidity_avg_72h`.
+- `context`: metadata thời gian và nhãn short window đang dùng.
 
 ## Nguyên tắc
 
-Các giá trị trong package này phải là dữ liệu đo, metadata, hoặc thống kê mô tả. Nếu cần suy luận như ngưng tụ, stress nhiệt, bệnh hại, hoặc khuyến nghị hành động, phần đó nên nằm ở tầng domain model hoặc rule engine có tài liệu khoa học/nhãn thực địa đi kèm.
+Các giá trị trong package này phải là dữ liệu đo, metadata hoặc thống kê mô tả. Nếu cần suy luận như ngưng tụ, stress nhiệt, bệnh hại hoặc khuyến nghị hành động, phần đó nên nằm ở tầng domain model hoặc rule engine có tài liệu khoa học/nhãn thực địa đi kèm.

@@ -17,10 +17,12 @@ Hướng thiết kế hiện tại là thận trọng: Layer 2 không tự đán
 
 - `perception`: `n_ppm`, `p_ppm`, `k_ppm`, `soil_temp_c`, `soil_humidity_pct`, `soil_ph`, `soil_ec_us_cm`.
 - `quality`: các cờ trực tiếp từ packet như `read_ok`, `frame_ok`, `crc_ok`, `values_valid`, `sensor_alarm`, `retry_count`.
-- `memory.windows`: thống kê rolling theo `6h`, `24h`, `72h`.
-- `context`: giờ quan sát, interval lấy mẫu, transport, trend độ ẩm đất 24h.
-- `derived_signals`: delta/trend mô tả như `n_delta_24h`, `ph_delta_24h`, `ec_delta_24h`, `soil_moisture_trend_24h`, `nutrient_spread_ratio`.
+- `memory.windows`: thống kê rolling theo `3h`, `6h`, `24h`, `72h`.
+- `derived_signals`: feature phẳng được rút từ `memory.windows` cho mọi lát thời gian, ví dụ `n_delta_from_start_3h`, `n_trend_24h`, `soil_moisture_avg_72h`, `ec_trend_per_hour_24h`.
+- `context`: metadata vận hành như giờ quan sát, interval lấy mẫu và transport.
 
-## Ghi chú về NPK
+## Nguyên tắc downstream
 
-Giá trị NPK từ cảm biến đất phổ thông thường cần hiệu chuẩn thực địa nếu muốn dùng cho kết luận nông học mạnh. Vì vậy Layer 2 chỉ đưa ra dữ liệu quan sát và thống kê mô tả. Các kết luận như thiếu dinh dưỡng, mất cân bằng, mặn hóa, hoặc rửa trôi phải thuộc về tầng phân tích có cơ sở hiệu chuẩn riêng.
+`memory.windows` là bản đầy đủ để debug và audit. `derived_signals` không tính lại số liệu, chỉ flatten các thống kê đã có để Layer 2.5, TabNet hoặc notebook dùng nhanh hơn.
+
+Các kết luận như thiếu dinh dưỡng, mất cân bằng, mặn hóa hoặc rửa trôi phải thuộc về tầng phân tích có cơ sở hiệu chuẩn riêng.

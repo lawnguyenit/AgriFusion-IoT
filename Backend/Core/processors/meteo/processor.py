@@ -2,7 +2,16 @@ from __future__ import annotations
 
 from typing import Any
 
-from ...utils.common import build_window_stats, floor_ts_to_hour, format_local_iso, safe_float
+from ...utils.common import (
+    build_window_stats,
+    format_local_iso,
+    safe_float,
+)
+from ...signals.fuzzy_signals import (
+    compact_fuzzy_payload,
+    evaluate_meteo_sample,
+    previous_signals_from_history,
+)
 
 try:
     from Services.config.settings import SETTINGS as EXPORT_SETTINGS
@@ -14,6 +23,29 @@ class MeteoProcessor:
     stream_name = "meteo"
     processor_name = "meteo_preprocessor"
     window_hours = (3, 6, 24, 72)
+    expected_interval_sec = 3600
+    max_regular_gap_sec = 3900
+    boundary_tolerance_sec = 300
+    metric_keys = (
+        "temp_air_c",
+        "humidity_air_pct",
+        "rain_mm",
+        "precipitation_mm",
+        "dew_point_c",
+        "cloud_cover_pct",
+        "soil_temp_0_7cm_c",
+        "et0_mm",
+    )
+    metric_aliases = {
+        "temp_air_c": "temp",
+        "humidity_air_pct": "humidity",
+        "rain_mm": "rain",
+        "precipitation_mm": "precipitation",
+        "dew_point_c": "dew_point",
+        "cloud_cover_pct": "cloud_cover",
+        "soil_temp_0_7cm_c": "soil_temp_0_7cm",
+        "et0_mm": "et0",
+    }
 
     def extract_sensor_id(self, source_record: Any) -> str | None:
         packet_payload: dict[str, Any] = source_record.payload.get("packet", {}).get("meteo_data", {})
@@ -42,9 +74,7 @@ class MeteoProcessor:
 
         sensor_id = str(packet_payload.get("sensor_id"))
         ts_server = source_record.ts_server
-        ts_hour_bucket = source_record.ts_hour_bucket or floor_ts_to_hour(ts_server)
         local_iso = format_local_iso(ts_server, EXPORT_SETTINGS.timezone)
-        bucket_local_iso = format_local_iso(ts_hour_bucket, EXPORT_SETTINGS.timezone)
 
         perception: dict[str, Any] = {
             "temp_air_c": safe_float(packet_payload.get("temperature_2m")),
@@ -63,49 +93,36 @@ class MeteoProcessor:
         provisional_snapshot: dict[str, Any] = {
             "timestamps": {
                 "ts_server": ts_server,
-                "ts_hour_bucket": ts_hour_bucket,
             },
             "perception": perception,
         }
         windows = build_window_stats(
             records=history_records + [provisional_snapshot],
-            observed_ts=ts_hour_bucket,
-            metric_keys=(
-                "temp_air_c",
-                "humidity_air_pct",
-                "rain_mm",
-                "precipitation_mm",
-                "dew_point_c",
-                "cloud_cover_pct",
-                "soil_temp_0_7cm_c",
-                "et0_mm",
-            ),
+            observed_ts=ts_server,
+            metric_keys=self.metric_keys,
             window_hours=self.window_hours,
+            expected_interval_sec=self.expected_interval_sec,
+            max_regular_gap_sec=self.max_regular_gap_sec,
+            boundary_tolerance_sec=self.boundary_tolerance_sec,
         )
 
-        temp_24h = windows.get("24h", {}).get("temp_air_c", {})
-        humidity_24h = windows.get("24h", {}).get("humidity_air_pct", {})
-        precipitation_24h = windows.get("24h", {}).get("precipitation_mm", {})
-        et0_24h = windows.get("24h", {}).get("et0_mm", {})
+        # quality = {
+        #     "core_temperature_present": packet_payload.get("temperature_2m") is not None,
+        #     "core_humidity_present": packet_payload.get("relative_humidity_2m") is not None,
+        #     "core_precipitation_present": (
+        #         packet_payload.get("precipitation") is not None
+        #         or packet_payload.get("rain") is not None
+        #     ),
+        #     "provider": record_payload.get("_meta_seed", {}).get("provider"),
+        # }
 
-        quality = {
-            "core_temperature_present": packet_payload.get("temperature_2m") is not None,
-            "core_humidity_present": packet_payload.get("relative_humidity_2m") is not None,
-            "core_precipitation_present": (
-                packet_payload.get("precipitation") is not None
-                or packet_payload.get("rain") is not None
-            ),
-            "provider": record_payload.get("_meta_seed", {}).get("provider"),
-        }
-
-        derived_signals: dict[str, Any] = {
-            "temp_trend_24h": temp_24h.get("trend"),
-            "temp_delta_24h": temp_24h.get("delta_from_start"),
-            "humidity_trend_24h": humidity_24h.get("trend"),
-            "humidity_delta_24h": humidity_24h.get("delta_from_start"),
-            "precipitation_delta_24h": precipitation_24h.get("delta_from_start"),
-            "et0_delta_24h": et0_24h.get("delta_from_start"),
-        }
+        fuzzy_signals = compact_fuzzy_payload(
+            evaluate_meteo_sample(
+                sample=provisional_snapshot,
+                history=history_records,
+                previous_signals=previous_signals_from_history(history_records),
+            )
+        )
 
         return {
             "schema_version": 1,
@@ -123,22 +140,14 @@ class MeteoProcessor:
             "timestamps": {
                 "ts_device": source_record.ts_device,
                 "ts_server": ts_server,
-                "ts_hour_bucket": ts_hour_bucket,
                 "observed_at_local": local_iso,
-                "observed_at_hour_local": bucket_local_iso,
             },
             "perception": perception,
-            "quality": quality,
+            # "quality": quality,
             "memory": {
                 "window_hours": list(self.window_hours),
+                "expected_interval_sec": self.expected_interval_sec,
                 "windows": windows,
             },
-            "context": {
-                "hour_of_day": bucket_local_iso[11:13] if bucket_local_iso else None,
-                "is_day": packet_payload.get("is_day"),
-                "weather_code": packet_payload.get("weather_code"),
-                "timezone": packet_payload.get("timezone"),
-                "provider": record_payload.get("_meta_seed", {}).get("provider"),
-            },
-            "derived_signals": derived_signals,
+            "fuzzy_signals": fuzzy_signals,
         }
