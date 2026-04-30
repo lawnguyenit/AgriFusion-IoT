@@ -13,7 +13,7 @@ from ..processors.meteo import MeteoProcessor
 from ..processors.npk import NPKProcessor
 from ..processors.sht30 import SHT30Processor
 from ..contracts import LAYER2_SCHEMA_VERSION
-from ..utils.common import floor_ts_to_hour, iso_utc_now, safe_int, trim_recent_ids
+from ..utils.common import iso_utc_now, safe_int, trim_recent_ids
 from ..utils.storage import append_jsonl, read_json, read_jsonl, write_json
 
 
@@ -27,7 +27,6 @@ class SourceRecord:
     payload: dict[str, Any]
     ts_server: int | None
     ts_device: int | None
-    ts_hour_bucket: int | None
 
 
 @dataclass(frozen=True)
@@ -194,8 +193,9 @@ class PreprocessingPipeline:
 
     def _build_target(self, processor: Any, sensor_id: str) -> Layer2Target:
         stream_name = processor.stream_name
-        target_dir = self.output_root / stream_name / sensor_id
-        key = f"{stream_name}/{sensor_id}"
+        target_dir = self.output_root / stream_name
+        key = stream_name
+
         return Layer2Target(
             key=key,
             stream_name=stream_name,
@@ -250,8 +250,8 @@ class PreprocessingPipeline:
         total_new_snapshots = 0
 
         for target_key in sorted(run_state.touched_targets):
-            stream_name, sensor_id = target_key.split("/", maxsplit=1)
-            target_dir = self.output_root / stream_name / sensor_id
+            target_dir = self.output_root / target_key
+
             rows = run_state.sensor_pending_rows.get(target_key, [])
 
             if rows:
@@ -316,7 +316,7 @@ class PreprocessingPipeline:
 
         return sorted(
             records_by_event.values(),
-            key=lambda item: ((item.ts_hour_bucket or item.ts_server or 0), item.event_key),
+            key=lambda item: ((item.ts_server or 0), item.event_key),
         )
 
     def _from_history_payload(
@@ -344,8 +344,6 @@ class PreprocessingPipeline:
             payload=record_typed,
             ts_server=safe_int(record_typed.get("ts_server")),
             ts_device=safe_int(record_typed.get("ts_device")),
-            ts_hour_bucket=safe_int(record_typed.get("ts_hour_bucket"))
-            or floor_ts_to_hour(safe_int(record_typed.get("ts_server"))),
         )
 
     def _from_latest_payload(
@@ -372,8 +370,6 @@ class PreprocessingPipeline:
             payload=latest_payload,
             ts_server=safe_int(latest_payload.get("ts_server")),
             ts_device=safe_int(latest_payload.get("ts_device")),
-            ts_hour_bucket=safe_int(latest_payload.get("ts_hour_bucket"))
-            or floor_ts_to_hour(safe_int(latest_payload.get("ts_server"))),
         )
 
     def _build_default_state(self, processor: Any, sensor_id: str) -> dict[str, Any]:
@@ -450,7 +446,7 @@ class PreprocessingPipeline:
     def _snapshot_is_accepted(self, snapshot: dict[str, Any]) -> bool:
         timestamps = snapshot.get("timestamps", {})
         perception = snapshot.get("perception", {})
-        if safe_int(timestamps.get("ts_hour_bucket")) is None and safe_int(timestamps.get("ts_server")) is None:
+        if safe_int(timestamps.get("ts_server")) is None:
             return False
         if not isinstance(perception, dict) or not perception:
             return False
