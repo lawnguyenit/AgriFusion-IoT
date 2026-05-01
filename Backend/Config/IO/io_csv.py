@@ -11,7 +11,7 @@ class SourceSpec:
     name: str
     path: Path
     fields: dict[str, str]  # output_col -> flattened_input_col
-    time_field: str = "timestamps.ts_hour_bucket"
+    time_field: str = "timestamps.ts_server"
     observed_at_field: str | None = "timestamps.observed_at_local"
     add_present_flag: bool = True
     

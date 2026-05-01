@@ -4,9 +4,9 @@ from dataclasses import asdict
 from typing import Any
 
 try:
-    from .reference import SignalRule
+    from .engine import SignalRule
 except ImportError:
-    from reference import SignalRule
+    from engine import SignalRule
 
 RULESET_VERSION = "layer1_rules_v1"
 DEFAULT_WINDOW_HOURS = (3, 6, 24, 72)

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from ...utils.common import (
+from ....utils.common import (
     build_window_stats,
     format_local_iso,
     safe_float,
@@ -16,7 +16,7 @@ from ...signals.fuzzy_signals import (
 try:
     from Services.config.settings import SETTINGS as EXPORT_SETTINGS
 except ModuleNotFoundError:
-    from ....Services.config.settings import SETTINGS as EXPORT_SETTINGS
+    from .....Services.config.settings import SETTINGS as EXPORT_SETTINGS
 
 
 class SHT30Processor:
@@ -58,6 +58,7 @@ class SHT30Processor:
         self,
         source_record: Any,
         history_records: list[dict[str, Any]],
+        peer_histories: dict[str, list[dict[str, Any]]] | None = None,
     ) -> dict[str, Any]:
         record_payload: dict[str, Any] = source_record.payload
         packet_payload: dict[str, Any] = record_payload.get("packet", {}).get("sht30_data", {})

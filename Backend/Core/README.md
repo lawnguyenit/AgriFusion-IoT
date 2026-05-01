@@ -1,87 +1,49 @@
-# Lõi xử lý Backend
+# Backend Core
 
-`Backend/Core` là lớp xử lý dữ liệu nghiên cứu của backend. Nhiệm vụ của phần này là biến artifact Layer 1 thành snapshot Layer 2 theo từng nguồn, bảng hợp nhất Layer 2.5, và dữ liệu canonical cho benchmark hoặc mô hình học máy.
+`Backend/Core` la phan xu ly du lieu sau khi raw data da duoc keo ve
+`Backend/Output_data/Layer1`.
 
-Mục tiêu thiết kế hiện tại là thận trọng: Layer 2 ưu tiên dữ liệu đo, kiểm tra chất lượng trực tiếp từ packet, và thống kê mô tả. Các kết luận nông học hoặc confidence heuristic không nằm ở đây nếu chưa có cơ sở hiệu chuẩn rõ ràng.
-
-## Cấu trúc
+## Cau truc
 
 ```text
 Core/
-|-- contracts/
-|   `-- schemas.py
-|-- processors/
-|   |-- npk/
-|   |-- sht30/
-|   `-- meteo/
-|-- pipelines/
-|   `-- preprocessing.py
-|-- fusion/
-|   `-- layer25.py
-|-- canonical/
-|   `-- tabnet_super_table.py
-|-- utils/
-|   |-- common.py
-|   `-- storage.py
-`-- __init__.py
+|-- layer1/
+|   |-- pipelines/      Dieu phoi raw Layer1 -> snapshot xu ly
+|   |-- processors/     Xu ly rieng cho npk, sht30, meteo
+|   `-- signals/        Feature phu tro: fuzzy_signals, external_weather
+|-- fusion/             Ghep snapshot thanh bang Layer 2.5
+|-- canonical/          Chuyen Layer 2.5 thanh matrix cho ML
+|-- contracts/          Schema/version contract
+`-- utils/              Helper dung chung, khong chua logic domain
 ```
 
-## Vai trò từng phần
+## Nguyen tac
 
-### `processors/`
+- `layer1/processors` tao khung chung: `timestamps`, `perception`, `memory`.
+- `layer1/signals` tao tin hieu bo sung dua tren snapshot da chuan hoa.
+- `fusion` moi flatten du lieu cho bang ML; Layer 1/Layer 2 snapshot giu cau truc de debug.
+- Khong dung bucket theo gio lam truc thoi gian chinh. Truc chinh la `ts_server`.
 
-Chứa logic xử lý riêng cho từng nguồn dữ liệu ở Layer 2.
+## Ghi chu ve ten Layer
 
-- `npk/`: dữ liệu đất gồm N, P, K, pH, EC, nhiệt độ đất và độ ẩm đất.
-- `sht30/`: nhiệt độ và độ ẩm không khí.
-- `meteo/`: dữ liệu thời tiết Open-Meteo.
+`Backend/Output_data/Layer1` hien la ten legacy cua artifact raw-ingestion sau khi
+keo tu Firebase/Open-Meteo ve local. Ve mat khai niem, day gan voi `Layer0/raw`.
 
-Mỗi processor nên giữ ba nhóm chính:
+Chua rename thu muc nay ngay vi no anh huong den exporter, settings, pipeline, output
+cu va cac script benchmark. Trong code Core, `layer1/` duoc hieu la buoc xu ly raw
+artifact do thanh snapshot co cau truc. Khi repo on dinh hon co the lam migration rieng:
 
-- `perception`: giá trị đo đã chuẩn hóa.
-- `quality`: cờ chất lượng trực tiếp từ packet/provider, không tự suy diễn confidence.
-- `derived_signals`: thống kê mô tả như delta, trend, spread ratio.
-
-### `pipelines/`
-
-`preprocessing.py` điều phối Layer 2: đọc artifact Layer 1, chọn processor phù hợp, truyền history vào processor, sau đó ghi `history.jsonl`, `latest.json`, `state.json` và `manifest.json`.
-
-### `fusion/`
-
-`layer25.py` ghép nhiều snapshot Layer 2 thành hàng dữ liệu Layer 2.5 theo `ts_hour_bucket`. Fusion chỉ hợp nhất và flatten dữ liệu; không đánh giá sức khỏe cảm biến.
-
-### `canonical/`
-
-Chứa bộ dựng bảng dữ liệu chuẩn cho mô hình. Hiện tại `tabnet_super_table.py` chuyển Layer 2.5 thành matrix CSV và schema metadata cho TabNet.
-
-### `contracts/`
-
-Chứa marker/schema version cho các hợp đồng dữ liệu. Khi cấu trúc payload thay đổi, cần cập nhật phần này để phục vụ tái lập.
-
-### `utils/`
-
-Chứa helper kỹ thuật dùng chung như xử lý thời gian, ép kiểu số, thống kê cửa sổ và đọc/ghi JSON. Không đặt rule nông học hoặc logic sensor đặc thù trong package này.
-
-## API chính
-
-```python
-from Core import PreprocessingPipeline, Layer25FusionPipeline
-from Core.processors import NPKProcessor, SHT30Processor, MeteoProcessor
-from Core.canonical import TabNetSuperTableBuilder
+```text
+Output_data/Layer1 -> Output_data/Layer0_raw
+Core/layer1        -> Core/layer1_processing
 ```
 
-## Ranh giới khoa học
+## Output Layer 2 hien tai
 
-Layer 2 không nên nói:
+Moi processor nen tra ve cac nhom chinh:
 
-- cây chắc chắn đang stress,
-- đất chắc chắn thiếu dinh dưỡng,
-- sensor có confidence bao nhiêu phần trăm nếu chưa có mô hình hiệu chuẩn,
-- record đã sẵn sàng cho agent hay chưa.
-
-Layer 2 nên nói:
-
-- cảm biến đã đo gì,
-- packet có vượt qua hard gate kỹ thuật không,
-- xu hướng/delta trong các cửa sổ thời gian là gì,
-- dữ liệu được ghi từ nguồn nào và ở bucket thời gian nào.
+- `timestamps`: thoi gian server va local ISO.
+- `perception`: gia tri do hien tai da chuan hoa.
+- `memory`: window stats, continuity va trend theo tung metric.
+- `fuzzy_signals`: toan bo fuzzy rule da evaluate, phuc vu ML.
+- `external_weather`: chi co o meteo, mo ta nen am/mua/kha nang lam kho/nong lanh/tuong quan macro-micro.

@@ -7,14 +7,14 @@ from typing import Any, Callable, cast
 try:
     from Services.config.settings import SETTINGS as EXPORT_SETTINGS
 except ModuleNotFoundError:
-    from ...Services.config.settings import SETTINGS as EXPORT_SETTINGS
+    from ....Services.config.settings import SETTINGS as EXPORT_SETTINGS
 
 from ..processors.meteo import MeteoProcessor
 from ..processors.npk import NPKProcessor
 from ..processors.sht30 import SHT30Processor
-from ..contracts import LAYER2_SCHEMA_VERSION
-from ..utils.common import iso_utc_now, safe_int, trim_recent_ids
-from ..utils.storage import append_jsonl, read_json, read_jsonl, write_json
+from ...contracts import LAYER2_SCHEMA_VERSION
+from ...utils.common import iso_utc_now, safe_int, trim_recent_ids
+from ...utils.storage import append_jsonl, read_json, read_jsonl, write_json
 
 
 @dataclass(frozen=True)
@@ -175,6 +175,7 @@ class PreprocessingPipeline:
         snapshot = processor.build_snapshot(
             source_record=source_record,
             history_records=prior_history,
+            peer_histories=self._build_peer_histories(run_state),
         )
         if not self._snapshot_is_accepted(snapshot):
             self._mark_filtered_record(
@@ -190,6 +191,13 @@ class PreprocessingPipeline:
         run_state.processed_source_events.add(self._source_event_id(source_record))
         run_state.touched_targets.add(target.key)
         self._update_state_from_snapshot(state=state, snapshot=snapshot)
+
+    def _build_peer_histories(self, run_state: Layer2RunState) -> dict[str, list[dict[str, Any]]]:
+        return {
+            target_key: run_state.sensor_histories.get(target_key, [])
+            + run_state.sensor_pending_rows.get(target_key, [])
+            for target_key in set(run_state.sensor_histories) | set(run_state.sensor_pending_rows)
+        }
 
     def _build_target(self, processor: Any, sensor_id: str) -> Layer2Target:
         stream_name = processor.stream_name

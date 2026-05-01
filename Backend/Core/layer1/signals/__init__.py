@@ -7,11 +7,13 @@ from .fuzzy_signals import (
     evaluate_sht30_sample,
     previous_signals_from_history,
 )
+from .external_weather import evaluate_external_weather
 
 __all__ = [
     "evaluate_meteo_sample",
     "evaluate_npk_sample",
     "evaluate_sht30_sample",
+    "evaluate_external_weather",
     "previous_signals_from_history",
     "compact_fuzzy_payload",
 ]
