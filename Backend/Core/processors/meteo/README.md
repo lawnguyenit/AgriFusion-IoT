@@ -1,9 +1,24 @@
 # Bộ xử lý Meteo
 
-`processors/meteo` quản lý dữ liệu thời tiết và snapshot Layer 2 cho nguồn Open-Meteo.
+Package này chỉ chứa logic Layer 2 cho snapshot thời tiết.
 
-- `fetcher.py`: lấy dữ liệu Open-Meteo archive và ghi artifact thời tiết ở Layer 1.
-- `processor.py`: tạo snapshot thời tiết ở Layer 2.
-- `health.py`: đánh giá độ tin cậy của payload thời tiết.
+Nguồn Open-Meteo/API fetch không nằm ở đây nữa. Phần lấy dữ liệu Layer 1 thuộc `Backend/Services/exporters/sources/open_meteo.py`.
 
-Việc tách `fetcher.py` khỏi `processor.py` giúp phân biệt rõ phần truy cập API bên ngoài và phần tiền xử lý dữ liệu nội bộ.
+## Cấu trúc
+
+| File | Vai trò |
+| --- | --- |
+| `processor.py` | Chuẩn hóa payload meteo Layer 1 thành snapshot Layer 2. |
+| `__init__.py` | Export `MeteoProcessor`. |
+
+## Output chính
+
+- `perception`: nhiệt độ, độ ẩm, mưa, điểm sương, mây, nhiệt độ đất nông, ET0 và mã thời tiết.
+- `quality`: kiểm tra trường lõi có mặt hay không và provider.
+- `memory.windows`: thống kê rolling theo `3h`, `6h`, `24h`, `72h`.
+- `derived_signals`: feature phẳng được rút từ `memory.windows`, ví dụ `temp_trend_24h`, `humidity_delta_from_start_6h`, `precipitation_avg_72h`.
+- `context`: giờ quan sát, trạng thái ngày/đêm, timezone và provider.
+
+## Nguyên tắc
+
+Layer 2 không sinh `health`, `confidence`, `handoff`, `ready` hoặc cảnh báo nông học cuối cùng. Những kết luận đó phải thuộc tầng phân tích có ngưỡng và cơ sở hiệu chuẩn riêng.

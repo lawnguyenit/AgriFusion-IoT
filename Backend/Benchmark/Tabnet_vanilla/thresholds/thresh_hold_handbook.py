@@ -17,4 +17,6 @@ SALINITY_PROXY = {
 PHYTOPHTHORA_PALMIVORA = {
     "ph": 5.0,
     "soil_moisture": 90.0
+    "temp_air_max": 35.0,
+    "temp_air_min": 20.0 
 }

@@ -27,9 +27,6 @@ except ModuleNotFoundError:
 TEXT_DROP_SUFFIXES = (
     "__source_path",
     "__source_event_key",
-    "__summary",
-    "__handoff__reason",
-    "__agent_name",
     "__sensor_type",
 )
 TEXT_DROP_COLUMNS = {
@@ -40,19 +37,17 @@ TEXT_DROP_COLUMNS = {
     "source_targets_expected",
 }
 KNOWN_CATEGORICAL_SUFFIXES = (
-    "__health__status",
-    "__health__severity",
     "__context__transport",
     "__context__provider",
     "__context__timezone",
     "__context__soil_moisture_trend_24h",
     "__context__macro_humidity_trend_24h",
     "__context__temp_trend_window_key",
-    "__signals__humidity_trend_24h",
-    "__signals__soil_moisture_trend",
-    "__signals__macro_humidity_trend",
-    "__signals__temp_trend_short_horizon",
-    "__signals__temp_trend_window_key",
+    "__derived__humidity_trend_24h",
+    "__derived__soil_moisture_trend_24h",
+    "__derived__temp_trend_24h",
+    "__derived__temp_trend_short_horizon",
+    "__derived__temp_trend_window_key",
 )
 
 

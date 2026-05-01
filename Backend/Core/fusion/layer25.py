@@ -141,10 +141,6 @@ class Layer25FusionPipeline:
         timestamps = snapshot.get("timestamps", {})
         if safe_int(timestamps.get("ts_hour_bucket")) is None and safe_int(timestamps.get("ts_server")) is None:
             return False
-        if snapshot.get("health", {}).get("status") == "fault":
-            return False
-        if snapshot.get("handoff", {}).get("ready") is False:
-            return False
         return True
 
     def _build_fused_rows(self, snapshots: list[dict[str, Any]], source_targets: list[str]) -> list[dict[str, Any]]:
@@ -181,14 +177,7 @@ class Layer25FusionPipeline:
             )
             row[f"{prefix}__source_event_key"] = snapshot.get("source", {}).get("event_key")
             row[f"{prefix}__source_path"] = snapshot.get("source", {}).get("path")
-            row[f"{prefix}__agent_name"] = snapshot.get("agent_name")
             row[f"{prefix}__sensor_type"] = snapshot.get("sensor_type")
-            row[f"{prefix}__health__status"] = snapshot.get("health", {}).get("status")
-            row[f"{prefix}__health__confidence"] = snapshot.get("health", {}).get("confidence")
-            row[f"{prefix}__health__severity"] = snapshot.get("health", {}).get("severity")
-            row[f"{prefix}__handoff__ready"] = snapshot.get("handoff", {}).get("ready")
-            row[f"{prefix}__handoff__reason"] = snapshot.get("handoff", {}).get("reason")
-            row[f"{prefix}__summary"] = snapshot.get("inference_hints", {}).get("summary")
 
             self._flatten_into(
                 target=row,
@@ -202,13 +191,13 @@ class Layer25FusionPipeline:
             )
             self._flatten_into(
                 target=row,
-                prefix=f"{prefix}__signals",
-                payload=snapshot.get("inference_hints", {}).get("signals", {}),
+                prefix=f"{prefix}__quality",
+                payload=snapshot.get("quality", {}),
             )
             self._flatten_into(
                 target=row,
-                prefix=f"{prefix}__flags",
-                payload=snapshot.get("inference_hints", {}).get("flags", {}),
+                prefix=f"{prefix}__derived",
+                payload=snapshot.get("derived_signals", {}),
             )
 
         fused_rows = [rows_by_bucket[key] for key in sorted(rows_by_bucket)]

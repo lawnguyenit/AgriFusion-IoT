@@ -14,16 +14,19 @@ def main() -> None:
             name="npk",
             path=npk_json,
             fields=settings.NPK_FIELDS,
+            add_present_flag=False,
         ),
         SourceSpec(
             name="sht",
             path=sht30_json,
             fields=settings.SHT_FIELDS,
+            add_present_flag=False,
         ),
         SourceSpec(
             name="meteo",
             path=meteo_json,
             fields=settings.METEO_FIELDS,
+            add_present_flag=False,
         ),
     ]
     
