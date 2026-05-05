@@ -18,7 +18,7 @@ from ..contracts import LAYER25_SCHEMA_VERSION
 @dataclass(frozen=True)
 class Layer25Result:
     status: str
-    layer2_root: Path
+    layer1_root: Path
     output_root: Path
     manifest_path: Path
     latest_path: Path
@@ -29,8 +29,8 @@ class Layer25Result:
 
 
 class Layer25FusionPipeline:
-    def __init__(self, layer2_root: Path | None = None, output_root: Path | None = None):
-        self.layer2_root = layer2_root or EXPORT_SETTINGS.layer2_root
+    def __init__(self, layer1_root: Path | None = None, output_root: Path | None = None):
+        self.layer1_root = layer1_root or EXPORT_SETTINGS.layer1_root
         self.output_root = output_root or (EXPORT_SETTINGS.layer25_root / "super_table")
 
     def run(self) -> Layer25Result:
@@ -50,7 +50,7 @@ class Layer25FusionPipeline:
             "schema_version": LAYER25_SCHEMA_VERSION,
             "pipeline": "layer2_5_fusion",
             "ran_at_utc": iso_utc_now(),
-            "layer2_root": str(self.layer2_root),
+            "layer1_root": str(self.layer1_root),
             "output_root": str(self.output_root),
             "fused_row_count": len(fused_rows),
             "source_snapshot_count": len(snapshots),
@@ -64,7 +64,7 @@ class Layer25FusionPipeline:
 
         return Layer25Result(
             status="ok",
-            layer2_root=self.layer2_root,
+            layer1_root=self.layer1_root,
             output_root=self.output_root,
             manifest_path=manifest_path,
             latest_path=latest_path,
@@ -77,10 +77,10 @@ class Layer25FusionPipeline:
     def _load_layer2_snapshots(self) -> list[dict[str, Any]]:
         snapshots: list[dict[str, Any]] = []
 
-        if not self.layer2_root.exists():
+        if not self.layer1_root.exists():
             return snapshots
 
-        for history_file in sorted(self.layer2_root.rglob("history.jsonl")):
+        for history_file in sorted(self.layer1_root.rglob("history.jsonl")):
             stream_name = history_file.parent.name
             rows = read_jsonl(history_file)
             deduped_rows = self._dedupe_sensor_rows(rows=rows)

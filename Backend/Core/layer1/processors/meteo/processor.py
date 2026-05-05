@@ -53,6 +53,13 @@ class MeteoProcessor:
         sensor_id = packet_payload.get("sensor_id")
         return str(sensor_id) if sensor_id else None
 
+    def resolve_stream_name(self, source_record: Any) -> str:
+        if source_record.source_name == "meteo_archive":
+            return "meteo_archive_era5"
+        if source_record.source_name == "meteo_forecast":
+            return "meteo_forecast_ifs"
+        return self.stream_name
+
     def should_accept_source_record(self, source_record: Any) -> bool:
         packet_payload: dict[str, Any] = source_record.payload.get("packet", {}).get("meteo_data", {})
         if not packet_payload:
@@ -137,6 +144,10 @@ class MeteoProcessor:
             "processor_name": self.processor_name,
             "sensor_id": sensor_id,
             "sensor_type": packet_payload.get("sensor_type"),
+            "source_mode": packet_payload.get("source_mode"),
+            "provider": packet_payload.get("provider"),
+            "model": packet_payload.get("model"),
+            "is_observed_truth": packet_payload.get("is_observed_truth"),
             "source": {
                 "event_key": source_record.event_key,
                 "date_key": source_record.date_key,

@@ -73,15 +73,18 @@ class PreprocessingPipeline:
     def __init__(
         self,
         base_dir: Path | None = None,
-        meteo_base_dir: Path | None = None,
+        meteo_forecast_base_dir: Path | None = None,
+        meteo_archive_base_dir: Path | None = None,
+        include_meteo_archive: bool = False,
         output_root: Path | None = None,
     ):
         self.base_dir = base_dir or EXPORT_SETTINGS.base_dir
         self.history_root = self.base_dir / "history"
         self.latest_payload_path = self.base_dir / "new_raw" / "latest.json"
         self.latest_meta_path = self.base_dir / "new_raw" / "latest_meta.json"
-        self.meteo_base_dir = meteo_base_dir or EXPORT_SETTINGS.meteo_data_root
-        self.output_root = output_root or EXPORT_SETTINGS.layer2_root
+        self.meteo_forecast_base_dir = meteo_forecast_base_dir or EXPORT_SETTINGS.meteo_forecast_root
+        self.meteo_archive_base_dir = meteo_archive_base_dir or EXPORT_SETTINGS.meteo_archive_root
+        self.output_root = output_root or EXPORT_SETTINGS.layer1_root
         self.source_stores = [
             SourceStore(
                 name="firebase",
@@ -90,12 +93,21 @@ class PreprocessingPipeline:
                 latest_meta_path=self.latest_meta_path,
             ),
             SourceStore(
-                name="meteo",
-                history_root=self.meteo_base_dir / "history",
-                latest_payload_path=self.meteo_base_dir / "new_raw" / "latest.json",
-                latest_meta_path=self.meteo_base_dir / "new_raw" / "latest_meta.json",
+                name="meteo_forecast",
+                history_root=self.meteo_forecast_base_dir / "history",
+                latest_payload_path=self.meteo_forecast_base_dir / "new_raw" / "latest.json",
+                latest_meta_path=self.meteo_forecast_base_dir / "new_raw" / "latest_meta.json",
             ),
         ]
+        if include_meteo_archive:
+            self.source_stores.append(
+                SourceStore(
+                    name="meteo_archive",
+                    history_root=self.meteo_archive_base_dir / "history",
+                    latest_payload_path=self.meteo_archive_base_dir / "new_raw" / "latest.json",
+                    latest_meta_path=self.meteo_archive_base_dir / "new_raw" / "latest_meta.json",
+                )
+            )
         self.processors: list[Any] = [SHT30Processor(), NPKProcessor(), MeteoProcessor()]
 
     def run(self) -> Layer2Result:
@@ -153,7 +165,11 @@ class PreprocessingPipeline:
         # Xây dựng mục tiêu tương ứng cho bộ xử lý và cảm biến này, 
         # đảm bảo trạng thái đã được tải nếu chưa có, và lấy trạng thái đó ra để sử dụng.
 
-        target = self._build_target(processor=processor, sensor_id=sensor_id)
+        target = self._build_target(
+            processor=processor,
+            sensor_id=sensor_id,
+            source_record=source_record,
+        )
         self._ensure_target_loaded(processor=processor, target=target, run_state=run_state)
         state = run_state.sensor_states[target.key]
 
@@ -199,8 +215,9 @@ class PreprocessingPipeline:
             for target_key in set(run_state.sensor_histories) | set(run_state.sensor_pending_rows)
         }
 
-    def _build_target(self, processor: Any, sensor_id: str) -> Layer2Target:
-        stream_name = processor.stream_name
+    def _build_target(self, processor: Any, sensor_id: str, source_record: SourceRecord) -> Layer2Target:
+        resolver = getattr(processor, "resolve_stream_name", None)
+        stream_name = resolver(source_record) if callable(resolver) else processor.stream_name
         target_dir = self.output_root / stream_name
         key = stream_name
 
