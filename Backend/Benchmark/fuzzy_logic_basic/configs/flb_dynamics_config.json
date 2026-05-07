@@ -1,0 +1,33 @@
+{
+  "warmup_hours": 24,
+  "tau_hours": {
+    "water": 8.0,
+    "heat": 6.0,
+    "dry_air": 6.0,
+    "nutrient": 12.0,
+    "plant": 8.0
+  },
+  "dry_duration_window_hours": 6,
+  "no_recent_irrigation_window_hours": 12,
+  "post_fertilization_window_hours": 24,
+  "velocity_windows_hours": {
+    "short": 3,
+    "fast": 1,
+    "long": 6
+  },
+  "accumulated_pressure_levels": {
+    "watch_start": 0.5,
+    "warning_start": 1.5,
+    "critical_start": 3.0
+  },
+  "recovery": {
+    "velocity_recovery_scale": 0.08,
+    "debt_scale": 3.0
+  },
+  "sensor_uncertainty": {
+    "stale_zero_at_or_below_hours": 1.0,
+    "stale_one_at_or_above_hours": 3.0,
+    "electrochemical_zero_at_or_below": 0.10,
+    "electrochemical_one_at_or_above": 0.40
+  }
+}
