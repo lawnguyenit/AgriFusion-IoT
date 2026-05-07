@@ -12,8 +12,8 @@ from Backend.Config.IO.io_csv import write_csv_rows  # noqa: E402
 from Backend.Config.IO.io_json import write_json  # noqa: E402
 from Backend.Config.path_manager import ensure_path_exists  # noqa: E402
 
-from .alignment import AlignmentResult, align_layer1_records  # noqa: E402
-from .config import AlignmentConfig, default_input_root, default_output_root  # noqa: E402
+from Backend.Benchmark.fuzzy_logic_basic.layer1.alignment import AlignmentResult, align_layer1_records  # noqa: E402
+from Backend.Benchmark.fuzzy_logic_basic.layer1.config import AlignmentConfig, default_input_root, default_output_root  # noqa: E402
 
 
 CSV_COLUMNS = [
