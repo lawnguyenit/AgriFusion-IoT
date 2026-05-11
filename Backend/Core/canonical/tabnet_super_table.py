@@ -31,23 +31,16 @@ TEXT_DROP_SUFFIXES = (
 )
 TEXT_DROP_COLUMNS = {
     "layer",
-    "observed_at_hour_local",
-    "sources_present",
-    "missing_sources",
-    "source_targets_expected",
+    "observed_at_local",
 }
 KNOWN_CATEGORICAL_SUFFIXES = (
-    "__context__transport",
-    "__context__provider",
-    "__context__timezone",
-    "__context__soil_moisture_trend_24h",
-    "__context__macro_humidity_trend_24h",
-    "__context__temp_trend_window_key",
-    "__derived__humidity_trend_24h",
-    "__derived__soil_moisture_trend_24h",
-    "__derived__temp_trend_24h",
-    "__derived__temp_trend_short_horizon",
-    "__derived__temp_trend_window_key",
+    "__status",
+    "__trend",
+    "__state",
+    "__level",
+    "__side",
+    "__unit",
+    "__source_object",
 )
 
 
@@ -75,7 +68,7 @@ class TabNetSuperTableBuilder:
         max_categorical_cardinality: int = 32,
     ):
         self.input_path = input_path or (
-            EXPORT_SETTINGS.layer25_root / "super_table" / "tabnet_ready.csv"
+            EXPORT_SETTINGS.layer25_root / "super_table" / "super_table.csv"
         )
         self.output_dir = output_dir or (EXPORT_SETTINGS.output_data_root / "TabNet")
         self.label_column = label_column
@@ -85,7 +78,7 @@ class TabNetSuperTableBuilder:
         if not self.input_path.exists():
             raise FileNotFoundError(f"Input super_table CSV not found: {self.input_path}")
 
-        raw_df = pd.read_csv(self.input_path)
+        raw_df = pd.read_csv(self.input_path, low_memory=False)
         if raw_df.empty:
             raise ValueError(f"Input super_table CSV is empty: {self.input_path}")
 
@@ -141,14 +134,14 @@ class TabNetSuperTableBuilder:
         if feature_df.empty:
             raise ValueError("No usable feature columns remain after TabNet cleaning")
 
-        feature_df["ts_hour_bucket"] = pd.to_numeric(
-            working_df["ts_hour_bucket"],
+        feature_df["ts_server"] = pd.to_numeric(
+            working_df["ts_server"],
             errors="coerce",
         ).fillna(0).astype("int64")
-        ordered_columns = ["ts_hour_bucket"] + [
+        ordered_columns = ["ts_server"] + [
             column_name
             for column_name in feature_df.columns
-            if column_name != "ts_hour_bucket"
+            if column_name != "ts_server"
         ]
         feature_df = feature_df[ordered_columns]
 
@@ -169,9 +162,9 @@ class TabNetSuperTableBuilder:
                 len(feature_df.columns) - (1 if "label" in feature_df.columns else 0)
             ),
             "label_column": self.label_column,
-            "id_column": "ts_hour_bucket",
+            "id_column": "ts_server",
             "bool_columns": sorted(bool_columns),
-            "numeric_columns": sorted(set(numeric_columns + ["ts_hour_bucket"])),
+            "numeric_columns": sorted(set(numeric_columns + ["ts_server"])),
             "categorical_columns": sorted(categorical_columns),
             "category_maps": category_maps,
             "numeric_fill_values": numeric_fill_values,
@@ -192,7 +185,7 @@ class TabNetSuperTableBuilder:
             feature_count=int(
                 len(feature_df.columns) - (1 if "label" in feature_df.columns else 0)
             ),
-            numeric_feature_count=len(set(numeric_columns + ["ts_hour_bucket"])),
+            numeric_feature_count=len(set(numeric_columns + ["ts_server"])),
             categorical_feature_count=len(categorical_columns),
             dropped_column_count=len(dropped_columns),
             label_column=self.label_column,
@@ -208,11 +201,11 @@ class TabNetSuperTableBuilder:
         return dropped_columns
 
     def _add_time_features(self, df: pd.DataFrame) -> pd.DataFrame:
-        if "ts_hour_bucket" not in df.columns:
-            raise ValueError("super_table input must contain ts_hour_bucket")
+        if "ts_server" not in df.columns:
+            raise ValueError("super_table input must contain ts_server")
 
         out_df = df.copy()
-        ts_series = pd.to_numeric(out_df["ts_hour_bucket"], errors="coerce").fillna(0).astype("int64")
+        ts_series = pd.to_numeric(out_df["ts_server"], errors="coerce").fillna(0).astype("int64")
         dt_series = pd.to_datetime(ts_series, unit="s", utc=True).dt.tz_convert(
             EXPORT_SETTINGS.timezone_name
         )
@@ -273,7 +266,7 @@ class TabNetSuperTableBuilder:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Convert Layer2.5 super_table/tabnet_ready.csv into a TabNet-friendly matrix."
+        description="Convert Layer2.5 super_table/super_table.csv into a TabNet-friendly matrix."
     )
     parser.add_argument("--input-csv", type=Path, default=None)
     parser.add_argument("--output-dir", type=Path, default=None)

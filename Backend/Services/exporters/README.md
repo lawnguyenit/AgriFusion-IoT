@@ -1,6 +1,6 @@
 # Exporters Pipeline
 
-`Backend/Services/exporters` is the Layer 1 export package. It reads source data from Firebase RTDB or a local RTDB JSON export and writes canonical local artifacts for downstream Layer 2 preprocessing.
+`Backend/Services/exporters` is the raw-source export package. It reads source data from Firebase RTDB, a local RTDB JSON export, or Open-Meteo, then writes canonical local artifacts under `Output_data/Layer0` for downstream Layer1 preprocessing.
 
 ## Main Flow
 
@@ -9,7 +9,7 @@ ExportPipeline
     -> sources/
     -> sync/
     -> stores/
-    -> Output_data/Layer1
+    -> Output_data/Layer0
 ```
 
 The pipeline does four things:
@@ -27,7 +27,8 @@ exporters/
 |-- sources/
 |   |-- base.py
 |   |-- firebase.py
-|   `-- json_export.py
+|   |-- json_export.py
+|   `-- open_meteo.py
 |-- stores/
 |   |-- artifact_store.py
 |   |-- sync_state_store.py
@@ -59,6 +60,49 @@ Reads data from external or offline sources.
 - `base.py`: shared snapshot normalization, source descriptors, audit artifact shape, latest-event selection.
 - `firebase.py`: Firebase RTDB adapter with support for node snapshot root and legacy paths.
 - `json_export.py`: local RTDB JSON export adapter.
+- `open_meteo.py`: Open-Meteo fetcher with two separated stores:
+  - `Meteo_forecast_ifs`: current IFS forecast stream for realtime inference.
+  - `Meteo_archive_era5`: delayed ERA5 archive stream for backfill/training.
+
+## Main CLI Commands
+
+Layer0-only ingestion:
+
+```powershell
+python Backend\main.py --only-layer0 --source firebase --node-id Node1
+python Backend\main.py --only-layer0 --source firebase --node-id Node1 --full-history
+python Backend\main.py --only-layer0 --source firebase --node-id Node1 --start-date 2026-04-01 --end-date 2026-04-30
+```
+
+Date-window rules for Firebase/JSON history materialization:
+
+- missing `--start-date` means from the first available record,
+- missing `--end-date` means to the latest available data,
+- date-window runs still sync latest metadata/current payload for state tracking,
+- `--latest-only` disables backfill and cannot be combined with date windows.
+
+## Open-Meteo Commands
+
+```powershell
+python Backend\main.py --only-layer0 --sync-meteo --meteo-mode forecast
+python Backend\main.py --only-layer0 --sync-meteo --meteo-mode archive --meteo-archive-days 5
+python Backend\main.py --only-layer0 --sync-meteo --meteo-mode all --meteo-start-date 2026-04-24 --meteo-end-date 2026-05-01
+python Backend\main.py --only-layer1 --include-meteo-archive-layer1
+```
+
+By default, Layer1 preprocessing reads `Meteo_forecast_ifs`. ERA5 archive is only included when `--include-meteo-archive-layer1` is passed, so delayed archive data does not pollute the realtime path.
+
+When a date range is provided, the CLI splits it by ERA5 availability:
+
+```text
+requested range: 2026-04-24 -> 2026-05-01
+ERA5 archive:    2026-04-24 -> 2026-04-26
+IFS forecast:    2026-04-27 -> 2026-05-01
+```
+
+The split point is `local_today - 5 days`, not `requested_end - 5 days`, so old backfill ranges still go fully through ERA5.
+
+If the start date is omitted, Open-Meteo uses the configured default start date. If the end date is omitted, it syncs to local today. If no date range is provided, forecast sync uses the current IFS window and archive sync uses `--meteo-archive-days` unless `--full-history` is passed.
 
 ### `sync/`
 
@@ -70,7 +114,7 @@ Contains the sync decision logic.
 
 ### `stores/`
 
-Writes local Layer 1 artifacts.
+Writes local Layer0 artifacts.
 
 - `artifact_store.py`: latest metadata, latest payload, source manifest, source snapshot.
 - `sync_state_store.py`: `sync_state.json`.

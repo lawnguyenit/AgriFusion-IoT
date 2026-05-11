@@ -1,4 +1,4 @@
-﻿from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -36,11 +36,21 @@ def write_full_history_snapshots(
     settings: ExportSettings,
     telemetry_payload: dict[str, Any],
     checked_at: datetime,
+    start_date: date | None = None,
+    end_date: date | None = None,
 ) -> int:
     written_count = 0
 
     for date_key, day_payload in telemetry_payload.items():
         if not isinstance(day_payload, dict):
+            continue
+        try:
+            current_date = date.fromisoformat(str(date_key))
+        except ValueError:
+            continue
+        if start_date is not None and current_date < start_date:
+            continue
+        if end_date is not None and current_date > end_date:
             continue
 
         for event_key, record_payload in day_payload.items():

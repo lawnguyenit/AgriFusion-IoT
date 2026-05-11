@@ -1,0 +1,38 @@
+{
+  "water_pressure": {
+    "soil_humidity_low": 0.45,
+    "soil_humidity_dropping": 0.30,
+    "dry_duration_score": 0.15,
+    "no_recent_irrigation_score": 0.10
+  },
+  "heat_pressure": {
+    "air_temperature_high": 0.42,
+    "soil_temperature_high": 0.33,
+    "air_temperature_rising": 0.12,
+    "soil_temperature_rising": 0.13
+  },
+  "dry_air_pressure": {
+    "air_humidity_low": 0.55,
+    "air_humidity_dropping": 0.20,
+    "heat_amplifier": 0.25
+  },
+  "nutrient_context_pressure": {
+    "EC_low_context": 0.12,
+    "EC_high": 0.24,
+    "EC_rising": 0.18,
+    "EC_shift_24h": 0.18,
+    "ec_npk_inconsistency": 0.15,
+    "pH_context_risk": 0.13
+  },
+  "sensor_uncertainty": {
+    "missing_core_ratio": 0.45,
+    "stale_data_score": 0.35,
+    "electrochemical_uncertainty": 0.20
+  },
+  "instant_pressure_total": {
+    "water_pressure": 0.35,
+    "heat_pressure": 0.25,
+    "dry_air_pressure": 0.20,
+    "nutrient_context_pressure": 0.20
+  }
+}

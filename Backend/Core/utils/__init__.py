@@ -1,6 +1,5 @@
 from .common import (
     build_window_stats,
-    floor_ts_to_hour,
     format_local_iso,
     iso_utc_now,
     safe_float,
@@ -12,7 +11,6 @@ from .storage import append_jsonl, read_json, read_jsonl, write_json, write_json
 __all__ = [
     "append_jsonl",
     "build_window_stats",
-    "floor_ts_to_hour",
     "format_local_iso",
     "iso_utc_now",
     "read_json",

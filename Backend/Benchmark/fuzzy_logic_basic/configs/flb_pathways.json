@@ -1,0 +1,51 @@
+{
+  "pathway_score_weights": {
+    "water_stress_pathway": {
+      "water_pressure": 0.30,
+      "water_accumulated_pressure_score": 0.25,
+      "water_velocity_score": 0.20,
+      "water_acceleration_score": 0.15,
+      "reason_water_low": 0.05,
+      "reason_water_dropping": 0.05
+    },
+    "heat_stress_pathway": {
+      "heat_pressure": 0.30,
+      "heat_accumulated_pressure_score": 0.25,
+      "heat_velocity_score": 0.20,
+      "heat_acceleration_score": 0.15,
+      "reason_heat_high": 0.05,
+      "reason_soil_heat_high": 0.05
+    },
+    "dry_air_pathway": {
+      "dry_air_pressure": 0.30,
+      "dry_air_accumulated_pressure_score": 0.25,
+      "dry_air_velocity_score": 0.20,
+      "dry_air_acceleration_score": 0.15,
+      "reason_air_dry": 0.10
+    },
+    "electrochemical_nutrient_context_pathway": {
+      "nutrient_context_pressure": 0.25,
+      "nutrient_accumulated_pressure_score": 0.25,
+      "nutrient_velocity_score": 0.15,
+      "nutrient_acceleration_score": 0.10,
+      "reason_ec_shift": 0.10,
+      "reason_ec_npk_inconsistent": 0.10,
+      "reason_ph_context": 0.05
+    },
+    "sensor_fault_pathway": {
+      "sensor_uncertainty": 0.55,
+      "reason_sensor_uncertain": 0.25,
+      "stale_data_score": 0.20
+    },
+    "post_intervention_pathway": {
+      "reason_post_irrigation": 0.40,
+      "reason_post_fertilization": 0.40,
+      "recent_irrigation_signal": 0.10,
+      "recent_fertilization_signal": 0.10
+    }
+  },
+  "dominance_threshold": 0.35,
+  "stable_threshold": 0.20,
+  "margin_threshold": 0.08,
+  "reason_threshold": 0.50
+}

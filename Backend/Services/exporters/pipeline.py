@@ -1,5 +1,5 @@
 ﻿from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -44,7 +44,12 @@ class ExportPipeline:
         self.settings = settings
         self.source_adapter = self._build_source_adapter()
 
-    def run(self, full_history: bool = False) -> ExportResult | None:
+    def run(
+        self,
+        full_history: bool = False,
+        history_start_date: date | None = None,
+        history_end_date: date | None = None,
+    ) -> ExportResult | None:
         checked_at = _utc_now()
         previous_sync_state = load_sync_state(self.settings)
 
@@ -130,6 +135,8 @@ class ExportPipeline:
                     settings=self.settings,
                     telemetry_payload=telemetry_payload,
                     checked_at=checked_at,
+                    start_date=history_start_date,
+                    end_date=history_end_date,
                 )
 
         save_sync_state(self.settings, sync_state)

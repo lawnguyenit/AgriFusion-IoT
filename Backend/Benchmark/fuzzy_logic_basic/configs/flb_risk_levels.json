@@ -1,0 +1,21 @@
+{
+  "risk_score_weights": {
+    "instant_pressure_total": 0.50,
+    "accumulated_pressure_score": 0.30,
+    "trajectory_score": 0.20
+  },
+  "risk_levels": {
+    "normal_max": 0.25,
+    "watch_max": 0.45,
+    "warning_max": 0.65
+  },
+  "reason_threshold": 0.50,
+  "confidence_high_min": 0.75,
+  "water_accumulated_high_min": 1.50,
+  "nutrient_pressure_high_min": 0.55,
+  "sensor_uncertainty_high_min": 0.50,
+  "trajectory_velocity_zero_at_or_below": 0.00,
+  "trajectory_velocity_one_at_or_above": 0.08,
+  "trajectory_acceleration_zero_at_or_below": 0.00,
+  "trajectory_acceleration_one_at_or_above": 0.05
+}

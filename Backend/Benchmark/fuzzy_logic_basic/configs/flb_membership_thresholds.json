@@ -1,0 +1,96 @@
+{
+  "soil_humidity_low": {
+    "one_at_or_below": 53.0,
+    "zero_at_or_above": 62.0
+  },
+  "soil_humidity_high": {
+    "zero_at_or_below": 68.0,
+    "one_at_or_above": 78.0
+  },
+  "soil_humidity_dropping": {
+    "window_hours": 3,
+    "one_at_or_below": -0.75,
+    "zero_at_or_above": -0.08
+  },
+  "soil_humidity_rising": {
+    "window_hours": 3,
+    "zero_at_or_below": 0.08,
+    "one_at_or_above": 0.60
+  },
+  "soil_temperature_low": {
+    "one_at_or_below": 25.8,
+    "zero_at_or_above": 27.0
+  },
+  "soil_temperature_high": {
+    "zero_at_or_below": 28.7,
+    "one_at_or_above": 29.25
+  },
+  "soil_temperature_rising": {
+    "window_hours": 3,
+    "zero_at_or_below": 0.03,
+    "one_at_or_above": 0.32
+  },
+  "air_temperature_low": {
+    "one_at_or_below": 24.5,
+    "zero_at_or_above": 26.5
+  },
+  "air_temperature_high": {
+    "zero_at_or_below": 29.8,
+    "one_at_or_above": 33.8
+  },
+  "air_temperature_rising": {
+    "window_hours": 3,
+    "zero_at_or_below": 0.04,
+    "one_at_or_above": 0.55
+  },
+  "air_humidity_low": {
+    "one_at_or_below": 58.0,
+    "zero_at_or_above": 76.0
+  },
+  "air_humidity_high": {
+    "zero_at_or_below": 82.0,
+    "one_at_or_above": 97.0
+  },
+  "air_humidity_dropping": {
+    "window_hours": 3,
+    "one_at_or_below": -4.0,
+    "zero_at_or_above": -0.25
+  },
+  "EC_low_context": {
+    "one_at_or_below": 230.0,
+    "zero_at_or_above": 340.0
+  },
+  "EC_high": {
+    "zero_at_or_below": 500.0,
+    "one_at_or_above": 620.0
+  },
+  "EC_rising": {
+    "window_hours": 3,
+    "zero_at_or_below": 0.4,
+    "one_at_or_above": 4.0
+  },
+  "EC_shift_24h": {
+    "zero_at_or_below": 12.0,
+    "one_at_or_above": 55.0
+  },
+  "pH_context_risk": {
+    "safe_low": 5.6,
+    "safe_high": 6.45,
+    "warning_low": 5.2,
+    "warning_high": 6.8,
+    "critical_low": 4.8,
+    "critical_high": 7.2
+  },
+  "ec_inconsistency_context": {
+    "zero_at_or_above": 0.95,
+    "one_at_or_below": 0.70
+  },
+  "recent_irrigation_rise_per_hour": {
+    "zero_at_or_below": 0.2,
+    "one_at_or_above": 2.0
+  },
+  "post_fertilization_ec_delta": {
+    "zero_at_or_below": 30.0,
+    "one_at_or_above": 180.0
+  }
+}

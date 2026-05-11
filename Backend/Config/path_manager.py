@@ -12,16 +12,20 @@ from pathlib import Path
 BASE_DIR = Path(__file__).parent.parent
 
 def get_core_path() -> Path:
-    """Get path to Core directory containing L3_Tabnet and Preprocessors."""
+    """Get path to Core processing modules."""
     return BASE_DIR / "Core"
 
 def get_l3_tabnet_path() -> Path:
     """Get path to L3_Tabnet subdirectory."""
     return get_core_path() / "L3_Tabnet"
 
-def get_preprocessors_path() -> Path:
-    """Get path to Preprocessors subdirectory."""
-    return get_core_path() / "Preprocessors"
+def get_pipelines_path() -> Path:
+    """Get path to Core pipeline orchestrators."""
+    return get_core_path() / "pipelines"
+
+def get_processors_path() -> Path:
+    """Get path to Core source processors."""
+    return get_core_path() / "processors"
 
 def get_benchmark_path() -> Path:
     """Get path to Benchmark directory."""
@@ -31,13 +35,13 @@ def get_output_data_path() -> Path:
     """Get path to Output_data directory."""
     return BASE_DIR / "Output_data"
 
+def get_layer0_path() -> Path:
+    """Get path to Layer0 output data."""
+    return get_output_data_path() / "Layer0"
+
 def get_layer1_path() -> Path:
     """Get path to Layer1 output data."""
     return get_output_data_path() / "Layer1"
-
-def get_layer2_path() -> Path:
-    """Get path to Layer2 output data."""
-    return get_output_data_path() / "Layer2"
 
 def get_layer25_path() -> Path:
     """Get path to Layer2.5 output data."""
@@ -45,15 +49,15 @@ def get_layer25_path() -> Path:
 
 def get_json_npk_path() -> Path:
     """Get path to JSON_NPK directory."""
-    return get_layer2_path() /"npk"/"npk_7in1_1"/ "history.jsonl"
+    return get_layer1_path() /"npk"/"npk_7in1_1"/ "history.jsonl"
 
 def get_json_sht30_path() -> Path:
     """Get path to JSON_SHT30 directory."""
-    return get_layer2_path() /"sht30"/"sht30_1"/ "history.jsonl"
+    return get_layer1_path() /"sht30"/"sht30_1"/ "history.jsonl"
 
 def get_json_meteo_path() -> Path:
     """Get path to JSON_Meteo directory."""
-    return get_layer2_path() /"meteo"/"open_meteo"/ "history.jsonl"
+    return get_layer1_path() /"meteo"/"open_meteo"/ "history.jsonl"
 
 def get_json_supertb_path() -> Path:
     """Get path to JSON_Supertb directory."""
@@ -61,7 +65,7 @@ def get_json_supertb_path() -> Path:
 
 def get_json_tabnerd_path() -> Path:
     """Get path to JSON_Tabnerd directory."""
-    return get_layer25_path() /"super_table"/ "tabnet_ready.csv"
+    return get_layer25_path() /"super_table"/ "super_table.csv"
 
 def get_services_path() -> Path:
     """Get path to Services directory."""
