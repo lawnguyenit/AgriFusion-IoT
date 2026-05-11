@@ -11,6 +11,7 @@ Layer này chuyển input đã align ở Layer 1 thành fuzzy membership `[0, 1]
 ## Input
 
 - `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_input_aligned.csv`
+- Hoặc `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_input_with_events.csv` khi chạy qua Layer 1.5.
 
 ## Output
 
@@ -53,6 +54,7 @@ Layer này chuyển input đã align ở Layer 1 thành fuzzy membership `[0, 1]
 
 Lưu ý:
 - `N`, `P`, `K` không còn xuất ra Layer 2 CSV.
+- Nếu input đi qua Layer 1.5 thì các cột event bổ sung sẽ bị bỏ qua ở Layer 2; Layer 2 chỉ dùng các cột gốc cần cho membership.
 - `ec_delta_24h_strict` chỉ có giá trị khi đã có lịch sử ít nhất 24 giờ.
 - Layer 2 mặc định bỏ warm-up 24 giờ đầu, nên CSV đầu ra thường bắt đầu từ khoảng ngày 2/4 nếu input bắt đầu từ 1/4.
 - `timestamp` trong CSV là Unix epoch theo UTC; nếu đối chiếu theo giờ địa phương thì mốc warm-up 24 giờ có thể rơi sang ngày 2/4 dù nhìn UTC vẫn thấy cuối ngày 1/4.
