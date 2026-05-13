@@ -55,6 +55,12 @@ Train đúng ablation cụ thể:
 python D:\AgriFusion-IoT\Backend\Benchmark\pretrain_supervised\pretrain\main.py --benchmark-version v2 --source-kind layer2_exp3
 ```
 
+Train với early stopping chặt hơn:
+
+```powershell
+python D:\AgriFusion-IoT\Backend\Benchmark\pretrain_supervised\pretrain\main.py --benchmark-version v2 --source-kind layer2_exp4 --max-epochs 120 --patience 12 --early-stopping-min-delta 0.001
+```
+
 Export embedding:
 
 ```powershell
@@ -67,6 +73,7 @@ python D:\AgriFusion-IoT\Backend\Benchmark\pretrain_supervised\pretrain\infer.py
 - Mỗi source schema khai báo rõ required columns và feature columns riêng.
 - Nếu source schema vẫn có `pH/N/P/K`, pretrain sẽ xử lý theo policy của version đó.
 - Nếu source schema đã bỏ `pH/N/P/K`, pretrain vẫn chạy được miễn là feature contract hợp lệ.
+- Early stopping chỉ reset khi validation loss cải thiện lớn hơn `early_stopping_min_delta`.
 
 ## Rủi ro hoặc giới hạn hiện tại
 

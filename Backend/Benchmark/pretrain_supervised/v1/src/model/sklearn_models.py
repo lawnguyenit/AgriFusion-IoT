@@ -15,13 +15,17 @@ from Backend.Benchmark.pretrain_supervised.v1.src.model.metrics import summarize
 
 try:
     import xgboost as xgb  # type: ignore
-except Exception:  # pragma: no cover - optional dependency
+    XGBOOST_IMPORT_ERROR = None
+except Exception as exc:  # pragma: no cover - optional dependency
     xgb = None
+    XGBOOST_IMPORT_ERROR = exc
 
 try:
     import lightgbm as lgb  # type: ignore
-except Exception:  # pragma: no cover - optional dependency
+    LIGHTGBM_IMPORT_ERROR = None
+except Exception as exc:  # pragma: no cover - optional dependency
     lgb = None
+    LIGHTGBM_IMPORT_ERROR = exc
 
 
 @dataclass
@@ -147,13 +151,27 @@ def train_model_suite(
             continue
         candidate = candidates.get(model_name)
         if candidate is None:
+            if model_name == "xgboost" and xgb is None:
+                unavailable_reason = (
+                    "XGBoost import failed."
+                    if XGBOOST_IMPORT_ERROR is None
+                    else f"XGBoost import failed: {type(XGBOOST_IMPORT_ERROR).__name__}: {XGBOOST_IMPORT_ERROR}"
+                )
+            elif model_name == "lightgbm" and lgb is None:
+                unavailable_reason = (
+                    "LightGBM import failed."
+                    if LIGHTGBM_IMPORT_ERROR is None
+                    else f"LightGBM import failed: {type(LIGHTGBM_IMPORT_ERROR).__name__}: {LIGHTGBM_IMPORT_ERROR}"
+                )
+            else:
+                unavailable_reason = "Model not configured in the suite."
             results.append(
                 SklearnModelResult(
                     model_name=model_name,
                     artifact_path=output_dir / "models" / f"{model_name}.joblib",
                     metrics={},
                     available=False,
-                    notes="Model not configured in the suite.",
+                    notes=unavailable_reason,
                 )
             )
             continue

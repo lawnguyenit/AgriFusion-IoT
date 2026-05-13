@@ -4,7 +4,7 @@ import argparse
 import sys
 from pathlib import Path
 
-ROOT_DIR = Path(__file__).resolve().parents[3]
+ROOT_DIR = Path(__file__).resolve().parents[4]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
@@ -73,6 +73,12 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--max-epochs", type=int, default=40, help="Maximum pretraining epochs.")
     parser.add_argument("--patience", type=int, default=8, help="Early stopping patience.")
+    parser.add_argument(
+        "--early-stopping-min-delta",
+        type=float,
+        default=1e-3,
+        help="Minimum validation-loss improvement required to reset early stopping patience.",
+    )
     parser.add_argument("--learning-rate", type=float, default=2e-3, help="Optimizer learning rate.")
     parser.add_argument("--weight-decay", type=float, default=1e-5, help="Optimizer weight decay.")
     parser.add_argument("--seed", type=int, default=42, help="Random seed.")
@@ -112,6 +118,7 @@ def build_config(args: argparse.Namespace) -> PretrainConfig:
     config.virtual_batch_size = args.virtual_batch_size
     config.max_epochs = args.max_epochs
     config.patience = args.patience
+    config.early_stopping_min_delta = args.early_stopping_min_delta
     config.learning_rate = args.learning_rate
     config.weight_decay = args.weight_decay
     config.seed = args.seed

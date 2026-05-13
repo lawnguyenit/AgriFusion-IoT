@@ -12,7 +12,7 @@
 - `v1/`
   - downstream cho embedding sinh từ `L1`
 - `v2/`
-  - downstream cho embedding sinh từ `L2`
+  - downstream benchmark runner cho embedding sinh từ `L2`, có output riêng theo `exp1..exp5`
 - `v3/`
   - downstream cho embedding sinh từ `L3`
 - `v4/`
@@ -24,6 +24,7 @@
   - consume output của `pretrain` khi source là `layer1`
 - `v2`
   - consume output của `pretrain` khi source là `layer2_exp1..exp5`
+  - tách artifact theo `run -> experiments -> expN -> models`
 - `v3`
   - consume output của `pretrain` khi source là `layer3`
 - `v4`

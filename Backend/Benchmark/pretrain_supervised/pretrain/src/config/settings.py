@@ -64,6 +64,7 @@ class PretrainConfig:
     virtual_batch_size: int = 128
     max_epochs: int = 40
     patience: int = 8
+    early_stopping_min_delta: float = 1e-3
     learning_rate: float = 2e-3
     weight_decay: float = 1e-5
     max_grad_norm: float = 1.0
@@ -93,6 +94,8 @@ class PretrainConfig:
             raise ValueError("Batch sizes must be positive.")
         if self.max_epochs <= 0:
             raise ValueError("max_epochs must be positive.")
+        if self.early_stopping_min_delta < 0.0:
+            raise ValueError("early_stopping_min_delta must be non-negative.")
         if self.include_npk_proxy:
             required_for_proxy = {"EC", "N", "P", "K"}
             if not required_for_proxy.issubset(self.required_columns):
