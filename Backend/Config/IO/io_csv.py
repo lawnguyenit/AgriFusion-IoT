@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import csv
 from dataclasses import dataclass
+from collections.abc import Iterable
 from pathlib import Path
 import pandas as pd
 import json
@@ -145,3 +147,12 @@ def convert_multi_jsonl_to_csv(specs: list[SourceSpec], csv_path: Path) -> pd.Da
     df = merge_sources(specs)
     write_csv(df, csv_path)
     return df
+
+
+def write_csv_rows(rows: Iterable[dict[str, object]], csv_path: Path, fieldnames: list[str]) -> None:
+    csv_path.parent.mkdir(parents=True, exist_ok=True)
+    with csv_path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames, extrasaction="ignore")
+        writer.writeheader()
+        for row in rows:
+            writer.writerow(row)
