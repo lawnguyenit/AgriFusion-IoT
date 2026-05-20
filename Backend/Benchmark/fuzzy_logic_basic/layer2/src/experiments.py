@@ -77,38 +77,32 @@ def build_experiment_specs() -> dict[str, Layer2ExperimentSpec]:
         ),
         "exp2": Layer2ExperimentSpec(
             name="exp2",
-            description="Exp1 plus 3h/8h short and medium windows.",
+            description="Exp1 plus 3h short-window features.",
             output_filename="flb_l2_exp2.csv",
-            feature_columns=list(BASE_COLUMNS) + list(DELTA_COLUMNS) + list(WINDOW_SHORT_COLUMNS) + list(WINDOW_MEDIUM_COLUMNS),
+            feature_columns=list(BASE_COLUMNS) + list(DELTA_COLUMNS) + list(WINDOW_SHORT_COLUMNS),
         ),
         "exp3": Layer2ExperimentSpec(
             name="exp3",
-            description="Exp2 plus 24h long-window summaries and EC exposure.",
+            description="Exp1 plus 8h medium-window features.",
             output_filename="flb_l2_exp3.csv",
-            feature_columns=(
-                list(BASE_COLUMNS)
-                + list(DELTA_COLUMNS)
-                + list(WINDOW_SHORT_COLUMNS)
-                + list(WINDOW_MEDIUM_COLUMNS)
-                + list(WINDOW_LONG_COLUMNS)
-            ),
+            feature_columns=list(BASE_COLUMNS) + list(DELTA_COLUMNS) + list(WINDOW_MEDIUM_COLUMNS),
         ),
         "exp4": Layer2ExperimentSpec(
             name="exp4",
-            description="Exp2 plus air-humidity saturation persistence features.",
+            description="Exp1 plus 24h long-window summaries and EC exposure.",
             output_filename="flb_l2_exp4.csv",
-            feature_columns=(
-                list(BASE_COLUMNS)
-                + list(DELTA_COLUMNS)
-                + list(WINDOW_SHORT_COLUMNS)
-                + list(WINDOW_MEDIUM_COLUMNS)
-                + list(SATURATION_COLUMNS)
-            ),
+            feature_columns=list(BASE_COLUMNS) + list(DELTA_COLUMNS) + list(WINDOW_LONG_COLUMNS),
         ),
         "exp5": Layer2ExperimentSpec(
             name="exp5",
-            description="Full L2 ablation set: delta, short/medium windows, 24h windows, and saturation.",
+            description="Exp1 plus air-humidity saturation persistence features.",
             output_filename="flb_l2_exp5.csv",
+            feature_columns=list(BASE_COLUMNS) + list(DELTA_COLUMNS) + list(SATURATION_COLUMNS),
+        ),
+        "exp6": Layer2ExperimentSpec(
+            name="exp6",
+            description="Full L2 ablation set: delta, 3h, 8h, 24h, and saturation.",
+            output_filename="flb_l2_exp6.csv",
             feature_columns=(
                 list(BASE_COLUMNS)
                 + list(DELTA_COLUMNS)

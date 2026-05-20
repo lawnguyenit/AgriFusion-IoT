@@ -4,13 +4,22 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from Backend.Benchmark.fuzzy_logic_basic.layer2.src.config import SATURATION_THRESHOLD
-from Backend.Benchmark.fuzzy_logic_basic.layer2.src.experiments import Layer2ExperimentSpec, build_experiment_specs
-from Backend.Benchmark.fuzzy_logic_basic.layer2.src.io import load_layer1_frame, resolve_input_csv, resolve_output_dir, write_layer2_csv
-from Backend.Core.layer2 import Layer2FeatureConfig, build_layer2_feature_bundle
+from Backend.Benchmark.fuzzy_logic_basic.layer3_combo.src.experiments import (
+    Layer3ComboExperimentSpec,
+    build_experiment_specs,
+)
+from Backend.Benchmark.fuzzy_logic_basic.layer3_combo.src.io import (
+    load_layer1_frame,
+    resolve_input_csv,
+    resolve_output_dir,
+    write_layer3_combo_csv,
+)
+from Backend.Core.layer2 import Layer2FeatureConfig
+from Backend.Core.layer2 import build_layer2_feature_bundle
 
 
 @dataclass(frozen=True)
-class Layer2BuildResult:
+class Layer3ComboBuildResult:
     experiment_name: str
     input_csv: Path
     output_csv: Path
@@ -18,11 +27,11 @@ class Layer2BuildResult:
     columns: list[str]
 
 
-def build_layer2_experiments(
+def build_layer3_combo_experiments(
     input_csv: Path | None = None,
     output_dir: Path | None = None,
     experiment_names: list[str] | None = None,
-) -> list[Layer2BuildResult]:
+) -> list[Layer3ComboBuildResult]:
     source_csv = resolve_input_csv(input_csv)
     target_dir = resolve_output_dir(output_dir)
     specs = build_experiment_specs()
@@ -34,13 +43,13 @@ def build_layer2_experiments(
         config=Layer2FeatureConfig(air_humidity_saturation_threshold=SATURATION_THRESHOLD),
     )
 
-    results: list[Layer2BuildResult] = []
+    results: list[Layer3ComboBuildResult] = []
     for spec in selected_specs:
         output_csv = target_dir / spec.output_filename
         export_frame = bundle.dataframe[spec.feature_columns].copy()
-        write_layer2_csv(export_frame, output_csv)
+        write_layer3_combo_csv(export_frame, output_csv)
         results.append(
-            Layer2BuildResult(
+            Layer3ComboBuildResult(
                 experiment_name=spec.name,
                 input_csv=source_csv,
                 output_csv=output_csv,
@@ -52,9 +61,9 @@ def build_layer2_experiments(
 
 
 def _select_specs(
-    specs: dict[str, Layer2ExperimentSpec],
+    specs: dict[str, Layer3ComboExperimentSpec],
     experiment_names: list[str] | None,
-) -> list[Layer2ExperimentSpec]:
+) -> list[Layer3ComboExperimentSpec]:
     if not experiment_names:
-        return [specs[name] for name in ("exp1", "exp2", "exp3", "exp4", "exp5", "exp6")]
+        return [specs[name] for name in ("combo1", "combo2", "combo3", "combo4")]
     return [specs[name] for name in experiment_names]

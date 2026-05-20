@@ -1,95 +1,57 @@
 # Layer2
 
-## Mục đích
+## Purpose
 
-- Biến output `L1` đã align thành các CSV `L2` phục vụ ablation cho pretrain.
-- Tách riêng từng nhóm feature để sau đó benchmark:
-  - `Exp1`: `L1 + delta`
-  - `Exp2`: `L1 + delta + 3h/8h window`
-  - `Exp3`: `L1 + delta + 3h/8h window + 24h window`
-  - `Exp4`: `L1 + delta + 3h/8h window + saturation`
-  - `Exp5`: full `L2` set
+- Convert the aligned Layer1 CSV into several ablation CSVs for benchmark pretraining.
+- Isolate one feature group per experiment where possible so the benchmark can answer which temporal horizon actually matters.
+
+## Current experiments
+
+- `Exp1`: `L1 + delta`
+- `Exp2`: `L1 + delta + 3h window`
+- `Exp3`: `L1 + delta + 8h window`
+- `Exp4`: `L1 + delta + 24h window`
+- `Exp5`: `L1 + delta + saturation`
+- `Exp6`: full `L2` set
+  - used as the full-set benchmark export consumed by `pretrain_supervised/v4`
 
 ## Input
 
-- Mặc định đọc:
+- Default input:
   - `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_input_aligned.csv`
 
 ## Output
 
-- Ghi ra cùng dataset root:
+- Written to the shared dataset root:
   - `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_l2_exp1.csv`
   - `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_l2_exp2.csv`
   - `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_l2_exp3.csv`
   - `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_l2_exp4.csv`
   - `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_l2_exp5.csv`
-
-## Feature groups
-
-- `L2_DELTA`
-  - `air_temp_delta_1step`
-  - `soil_temp_delta_1step`
-  - `soil_humidity_delta_1step`
-  - `EC_delta_1step`
-
-- `L2_WINDOW_SHORT`
-  - `air_temp_slope_3h`
-  - `air_temp_range_3h`
-  - `air_temp_mean_3h`
-  - `soil_temp_slope_3h`
-  - `soil_humidity_slope_3h`
-  - `soil_humidity_range_3h`
-  - `EC_slope_3h`
-  - `EC_range_3h`
-
-- `L2_WINDOW_MEDIUM`
-  - `air_temp_slope_8h`
-  - `air_temp_range_8h`
-  - `soil_temp_slope_8h`
-  - `soil_temp_mean_8h`
-  - `soil_humidity_slope_8h`
-  - `soil_humidity_range_8h`
-  - `EC_slope_8h`
-  - `EC_range_8h`
-
-- `L2_WINDOW_LONG`
-  - `soil_temp_range_24h`
-  - `soil_humidity_mean_24h`
-  - `soil_humidity_min_24h`
-  - `EC_mean_24h`
-  - `EC_range_24h`
-  - `EC_exposure_24h`
-
-- `L2_SATURATION`
-  - `air_humidity_saturation_flag`
-  - `air_humidity_saturation_duration_3h`
-  - `air_humidity_saturation_duration_8h`
-  - `air_humidity_saturation_ratio_3h`
-  - `air_humidity_saturation_ratio_8h`
+  - `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_l2_exp6.csv`
 
 ## Command
 
-Chạy toàn bộ ablation:
+Run all Layer2 ablations:
 
 ```powershell
 python D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\layer2\main.py
 ```
 
-Chạy riêng một thí nghiệm:
+Run one experiment:
 
 ```powershell
 python D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\layer2\main.py --experiment exp3
 ```
 
-## Giả định xử lý
+## Assumptions
 
-- `L2` cắt bỏ `pH`, `N`, `P`, `K`, `ec_npk_consistency_score`, `ec_npk_consistency_flag` khỏi main dataset.
-- Mọi window đều strict backward-looking.
-- `air_humidity_saturation_flag` dùng ngưỡng bão hòa hiện tại là `95.0`.
-- `EC_exposure_24h` được định nghĩa là tỷ lệ thời gian trong 24h gần nhất mà `EC` nằm trên mean 24h cục bộ.
+- All windows are strict backward-looking.
+- `pH`, `N`, `P`, `K`, `ec_npk_consistency_score`, and `ec_npk_consistency_flag` stay out of the main ablation dataset.
+- `air_humidity_saturation_flag` uses the current saturation threshold configured in Layer2.
 
-## Rủi ro hoặc giới hạn hiện tại
+## Limits
 
-- `L3` relational features chưa được thêm ở bước này.
-- Một số cột window dài sẽ tạo `NaN` ở đầu chuỗi; việc drop hay giữ sẽ do pretrain version tương ứng quyết định.
-- Ngưỡng saturation và định nghĩa exposure hiện đang là kỹ thuật baseline để phục vụ ablation, chưa phải công thức cuối cùng của nghiên cứu.
+- `L3` relational features are handled later, not here.
+- The full dataset still depends on enough lookback history for the longer windows.
+- This is an ablation benchmark, not the final clinical/nutrient inference layer.

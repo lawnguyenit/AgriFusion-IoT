@@ -8,12 +8,15 @@ ROOT_DIR = Path(__file__).resolve().parents[4]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from Backend.Benchmark.fuzzy_logic_basic.layer2.src.pipeline import Layer2BuildResult, build_layer2_experiments
+from Backend.Benchmark.fuzzy_logic_basic.layer3_combo.src.pipeline import (
+    Layer3ComboBuildResult,
+    build_layer3_combo_experiments,
+)
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Build Fuzzy Layer2 ablation CSVs from the Layer1 aligned benchmark dataset."
+        description="Build Layer3 combo benchmark CSVs from the Layer1 aligned dataset."
     )
     parser.add_argument(
         "--input-csv",
@@ -29,14 +32,14 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--experiment",
-        choices=("all", "exp1", "exp2", "exp3", "exp4", "exp5", "exp6"),
+        choices=("all", "combo1", "combo2", "combo3", "combo4"),
         default="all",
-        help="Which L2 ablation dataset to emit.",
+        help="Which combo dataset to emit.",
     )
     return parser.parse_args()
 
 
-def _print_result(result: Layer2BuildResult) -> None:
+def _print_result(result: Layer3ComboBuildResult) -> None:
     print(f"Experiment: {result.experiment_name}")
     print(f"Input CSV: {result.input_csv}")
     print(f"Output CSV: {result.output_csv}")
@@ -47,15 +50,16 @@ def _print_result(result: Layer2BuildResult) -> None:
 def main() -> None:
     args = parse_args()
     experiment_names = None if args.experiment == "all" else [args.experiment]
-    results = build_layer2_experiments(
+    results = build_layer3_combo_experiments(
         input_csv=args.input_csv,
         output_dir=args.output_dir,
         experiment_names=experiment_names,
     )
-    print("Layer2 ablation datasets complete")
+    print("Layer3 combo datasets complete")
     for result in results:
         _print_result(result)
 
 
 if __name__ == "__main__":
     main()
+
