@@ -29,5 +29,6 @@ class ExperimentEmbeddingBundle:
     checkpoint_config: dict[str, object]
     split_counts: dict[str, int]
     split_slices: dict[str, slice]
+    split_manifest: dict[str, object]
     embedding_dim: int
     label_merge_report: dict[str, object]

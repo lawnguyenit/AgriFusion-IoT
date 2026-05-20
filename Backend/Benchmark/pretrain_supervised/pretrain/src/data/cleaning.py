@@ -2,15 +2,22 @@ from __future__ import annotations
 
 import pandas as pd
 
+
 def validate_required_columns(dataframe: pd.DataFrame, required_columns: list[str]) -> None:
     missing = [column for column in required_columns if column not in dataframe.columns]
     if missing:
         raise KeyError(f"Input CSV is missing required columns: {missing}")
 
 
-def coerce_numeric_columns(dataframe: pd.DataFrame) -> pd.DataFrame:
+def coerce_numeric_columns(
+    dataframe: pd.DataFrame,
+    numeric_columns: list[str] | set[str] | tuple[str, ...] | None = None,
+) -> pd.DataFrame:
     coerced = dataframe.copy()
-    for column in coerced.columns:
+    candidate_columns = numeric_columns if numeric_columns is not None else coerced.columns
+    for column in candidate_columns:
+        if column not in coerced.columns:
+            continue
         coerced[column] = pd.to_numeric(coerced[column], errors="coerce")
     return coerced
 

@@ -4,6 +4,8 @@ import numpy as np
 
 import pandas as pd
 
+from Backend.Benchmark.pretrain_supervised.split_policy.artifacts import build_split_manifest
+from Backend.Benchmark.pretrain_supervised.split_policy.builder import build_split_plan
 from Backend.Benchmark.pretrain_supervised.pretrain.src.config.settings import PretrainConfig
 from Backend.Benchmark.pretrain_supervised.pretrain.src.data.cleaning import (
     add_optional_proxy_feature,
@@ -20,7 +22,6 @@ from Backend.Benchmark.pretrain_supervised.pretrain.src.data.feature_engineering
     build_local_time_features,
 )
 from Backend.Benchmark.pretrain_supervised.pretrain.src.data.io import load_input_dataframe
-from Backend.Benchmark.pretrain_supervised.pretrain.src.data.splitting import build_split_slices
 
 
 def prepare_pretraining_dataframe(config: PretrainConfig) -> PreparedDataset:
@@ -30,7 +31,16 @@ def prepare_pretraining_dataframe(config: PretrainConfig) -> PreparedDataset:
     row_counts: dict[str, int] = {"before_cleaning": int(len(source_df))}
     removal_counts: dict[str, int] = {}
 
-    dataframe = coerce_numeric_columns(source_df)
+    numeric_columns = {
+        "timestamp",
+        *config.required_columns,
+        *config.feature_columns,
+        "EC",
+        "N",
+        "P",
+        "K",
+    }
+    dataframe = coerce_numeric_columns(source_df, numeric_columns=numeric_columns)
     dataframe, removal_counts["invalid_timestamp_rows"] = remove_invalid_timestamp_rows(dataframe)
 
     dataframe = dataframe.sort_values("timestamp", kind="stable").reset_index(drop=True)
@@ -51,11 +61,17 @@ def prepare_pretraining_dataframe(config: PretrainConfig) -> PreparedDataset:
     )
     dataframe = dataframe.reset_index(drop=True)
 
-    split_slices = build_split_slices(
+    split_plan = build_split_plan(
         row_count=len(dataframe),
         train_ratio=config.train_ratio,
         validation_ratio=config.validation_ratio,
+        test_ratio=config.test_ratio,
+        strategy_name=config.split_strategy,
+        timestamps=dataframe["timestamp"].astype("int64").to_numpy(),
+        feature_columns=config.feature_columns,
+        gap_minutes_override=config.split_gap_minutes_override,
     )
+    split_slices = split_plan.split_slices
 
     feature_columns = list(config.feature_columns)
     proxy_report: dict[str, object] | None = None
@@ -68,7 +84,7 @@ def prepare_pretraining_dataframe(config: PretrainConfig) -> PreparedDataset:
         feature_columns.append(config.optional_proxy_feature)
 
     row_counts["after_cleaning"] = int(len(dataframe))
-    split_labels = np.empty(len(dataframe), dtype=object)
+    split_labels = np.full(len(dataframe), "excluded_gap", dtype=object)
     split_labels[split_slices["train"]] = "train"
     split_labels[split_slices["validation"]] = "validation"
     split_labels[split_slices["test"]] = "test"
@@ -78,6 +94,7 @@ def prepare_pretraining_dataframe(config: PretrainConfig) -> PreparedDataset:
         split_name: int(split_slice.stop - split_slice.start)
         for split_name, split_slice in split_slices.items()
     }
+    split_manifest = build_split_manifest(dataframe=dataframe, split_plan=split_plan)
 
     quality_report = {
         "consistency_flag_distribution": _build_consistency_flag_distribution(dataframe),
@@ -93,6 +110,7 @@ def prepare_pretraining_dataframe(config: PretrainConfig) -> PreparedDataset:
         removal_counts=removal_counts,
         quality_report=quality_report,
         split_slices=split_slices,
+        split_manifest=split_manifest,
     )
 
 

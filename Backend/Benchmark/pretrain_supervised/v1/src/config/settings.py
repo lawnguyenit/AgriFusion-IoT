@@ -33,7 +33,7 @@ class V1Config:
     train_ratio: float = 0.70
     validation_ratio: float = 0.15
     test_ratio: float = 0.15
-    max_epochs: int = 40
+    max_epochs: int = 120
     patience: int = 8
     batch_size: int = 64
     learning_rate: float = 1e-3

@@ -20,19 +20,27 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--benchmark-version",
-        choices=("v1", "v2", "v3", "v4"),
+        choices=("v0", "v1", "v2", "v3", "v4"),
         default="v1",
         help="Benchmark version contract for the fuzzy layer schema being pretrained.",
     )
     parser.add_argument(
         "--source-kind",
         choices=(
+            "layer0_ph",
+            "layer0_npk",
+            "layer0_ph_npk",
             "layer1",
             "layer2_exp1",
             "layer2_exp2",
             "layer2_exp3",
             "layer2_exp4",
             "layer2_exp5",
+            "layer2_exp6",
+            "layer3_combo1",
+            "layer3_combo2",
+            "layer3_combo3",
+            "layer3_combo4",
             "layer3",
             "layer4",
             "layer5",
@@ -63,6 +71,18 @@ def parse_args() -> argparse.Namespace:
         type=float,
         default=0.2,
         help="Fraction of numerical features to mask per sample.",
+    )
+    parser.add_argument(
+        "--split-strategy",
+        choices=("chronological_v1", "chronological_with_lookback_gap"),
+        default="chronological_with_lookback_gap",
+        help="Chronological split strategy used before scaling and training.",
+    )
+    parser.add_argument(
+        "--split-gap-minutes",
+        type=int,
+        default=None,
+        help="Optional explicit purge gap in minutes. If omitted, the lookback gap is inferred from feature columns.",
     )
     parser.add_argument("--batch-size", type=int, default=256, help="Training batch size.")
     parser.add_argument(
@@ -114,6 +134,8 @@ def build_config(args: argparse.Namespace) -> PretrainConfig:
 
     config.include_npk_proxy = args.include_npk_proxy
     config.mask_ratio = args.mask_ratio
+    config.split_strategy = args.split_strategy
+    config.split_gap_minutes_override = args.split_gap_minutes
     config.batch_size = args.batch_size
     config.virtual_batch_size = args.virtual_batch_size
     config.max_epochs = args.max_epochs
@@ -152,10 +174,16 @@ def main() -> None:
     print(f"Rows before cleaning: {report['row_counts']['before_cleaning']}")
     print(f"Rows after cleaning: {report['row_counts']['after_cleaning']}")
     print(
-        "Chronological split: "
+        "Split: "
         f"train={report['split_counts']['train']}, "
         f"validation={report['split_counts']['validation']}, "
         f"test={report['split_counts']['test']}"
+    )
+    print(
+        "Split policy: "
+        f"{report['split_policy']['strategy_name']} "
+        f"(gap_minutes={report['split_policy']['gap_minutes']}, "
+        f"gap_source={report['split_policy']['gap_source']})"
     )
     print(f"Features: {', '.join(report['feature_columns'])}")
     print(f"Best validation masked MSE: {report['training']['best_validation_loss']:.6f}")

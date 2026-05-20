@@ -5,7 +5,6 @@ from pathlib import Path
 
 import joblib
 import numpy as np
-import pandas as pd
 import torch
 from sklearn.preprocessing import StandardScaler
 
@@ -42,14 +41,14 @@ def _load_checkpoint_payload(checkpoint_path: Path) -> dict[str, object]:
     return payload
 
 
-def _rebuild_pretrain_config(payload_config: dict[str, object], event_csv: Path) -> PretrainConfig:
+def _rebuild_pretrain_config(payload_config: dict[str, object]) -> PretrainConfig:
     config = PretrainConfig()
     for key, value in payload_config.items():
-        if key in {"input_csv", "output_root"}:
+        if key == "output_root":
             continue
         if hasattr(config, key):
             setattr(config, key, value)
-    config.input_csv = event_csv.resolve()
+    config.input_csv = Path(payload_config["input_csv"]).resolve()
     return config
 
 
@@ -76,7 +75,7 @@ def _load_scaler(checkpoint_path: Path) -> StandardScaler:
 def build_embedding_bundle(config: V1Config) -> EmbeddingBundle:
     checkpoint_path = config.pretrain_checkpoint or discover_latest_checkpoint()
     payload = _load_checkpoint_payload(checkpoint_path)
-    pretrain_config = _rebuild_pretrain_config(dict(payload["config"]), config.event_csv)
+    pretrain_config = _rebuild_pretrain_config(dict(payload["config"]))
 
     prepared = prepare_pretraining_dataframe(pretrain_config)
     scaler = _load_scaler(checkpoint_path)
@@ -115,5 +114,6 @@ def build_embedding_bundle(config: V1Config) -> EmbeddingBundle:
         checkpoint_config=dict(payload["config"]),
         split_counts=prepared.split_counts,
         split_slices=prepared.split_slices,
+        split_manifest=prepared.split_manifest,
         embedding_dim=int(embedding_array.shape[1]),
     )

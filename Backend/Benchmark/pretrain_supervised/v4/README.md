@@ -1,25 +1,29 @@
 # V4
 
-## Mục đích
+## Purpose
 
-- Dành cho downstream models consume embedding sinh từ `Layer4` extended schema.
+- Downstream benchmark for the Layer2 full-set export.
+- Use `layer2_exp6` as the full window set after the single-window ablation suite in `v2`.
 
 ## Input
 
-- Pretrain artifact sinh từ source `layer4`.
+- Pretrain artifact from `layer2_exp6`.
 
 ## Output
 
-- `D:\AgriFusion-IoT\Backend\Benchmark\pretrain_supervised\v4\outputs\<run_id>\`
+- `D:\AgriFusion-IoT\Backend\Benchmark\pretrain_supervised\v4\outputs\<DD-MM-YYYY>\<run_name>\`
 
 ## Command
 
-- Chưa có command ở bước này.
+```powershell
+python D:\AgriFusion-IoT\Backend\Benchmark\pretrain_supervised\v4\main.py
+```
 
-## Giả định xử lý
+## Assumptions
 
-- `v4` chỉ dùng khi có schema `Layer4` độc lập, không ép thay đổi ngược vào `v3` hay `v2`.
+- `v4` is the upper-bound benchmark for the current Layer2 family.
+- The downstream model suite is the same family used by `v1` and `v2`.
 
-## Rủi ro hoặc giới hạn hiện tại
+## Current Limits
 
-- Mới scaffold contract.
+- `v3` handles the multi-window combo benchmark; `v4` stays as the full-set upper bound.

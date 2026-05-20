@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime
 from pathlib import Path
 
 import joblib
@@ -9,6 +8,7 @@ import pandas as pd
 import torch
 from sklearn.preprocessing import StandardScaler
 
+from Backend.Benchmark.pretrain_supervised.pretrain.src.utils.artifacts import create_run_directory
 from Backend.Benchmark.pretrain_supervised.v1.src.data.contracts import ModelResult
 from Backend.Benchmark.pretrain_supervised.v1.src.data.labels import build_label_frame, select_label_policy
 from Backend.Benchmark.pretrain_supervised.v1.src.model.metrics import summarize_classification
@@ -19,14 +19,9 @@ from Backend.Benchmark.pretrain_supervised.v2.src.config.settings import V2Confi
 from Backend.Benchmark.pretrain_supervised.v2.src.data.embeddings import build_experiment_embedding_bundle
 
 
-def _make_run_id(prefix: str) -> str:
-    return f"{prefix}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-
-
 def run_v2_pipeline(config: V2Config) -> dict[str, object]:
     config.validate()
-    run_id = _make_run_id(config.benchmark_version)
-    output_dir = config.output_root / run_id
+    run_id, output_dir = create_run_directory(config.output_root, prefix=config.benchmark_version)
     experiments_dir = output_dir / "experiments"
     output_dir.mkdir(parents=True, exist_ok=True)
     experiments_dir.mkdir(parents=True, exist_ok=True)
@@ -282,6 +277,7 @@ def _run_single_experiment(
         "embedding_dim": embedding_bundle.embedding_dim,
         "input_rows": int(len(dataframe)),
         "split_counts": embedding_bundle.split_counts,
+        "split_policy": embedding_bundle.split_manifest,
         "label_merge_report": embedding_bundle.label_merge_report,
         "label_policy": {
             "selected_mode": label_policy.label_mode,

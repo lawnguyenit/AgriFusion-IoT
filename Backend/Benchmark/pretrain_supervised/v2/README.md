@@ -23,7 +23,9 @@
 
 Moi run ghi vao:
 
-- `D:\AgriFusion-IoT\Backend\Benchmark\pretrain_supervised\v2\outputs\<run_id>\`
+- `D:\AgriFusion-IoT\Backend\Benchmark\pretrain_supervised\v2\outputs\<DD-MM-YYYY>\<run_name>\`
+
+The reports still store the full timestamped `run_id`; the folder leaf is shortened to keep the tree easier to scan.
 
 Trong do:
 
@@ -75,19 +77,19 @@ python D:\AgriFusion-IoT\Backend\Benchmark\pretrain_supervised\v2\main.py --expe
 Smoke run:
 
 ```powershell
-python D:\AgriFusion-IoT\Backend\Benchmark\pretrain_supervised\v2\main.py --experiments exp4 --smoke-test
+python D:\AgriFusion-IoT\Backend\Benchmark\pretrain_supervised\v2\main.py --experiments exp5 --smoke-test
 ```
 
 Backfill chi `xgboost` va `lightgbm` tren mot run da co san:
 
 ```powershell
-python D:\AgriFusion-IoT\Backend\Benchmark\pretrain_supervised\v2\backfill_optional_models.py --run-dir D:\AgriFusion-IoT\Backend\Benchmark\pretrain_supervised\v2\outputs\v2_20260513_151525
+python D:\AgriFusion-IoT\Backend\Benchmark\pretrain_supervised\v2\backfill_optional_models.py --run-dir D:\AgriFusion-IoT\Backend\Benchmark\pretrain_supervised\v2\outputs\<DD-MM-YYYY>\<run_name>
 ```
 
 Chi backfill mot phan experiment:
 
 ```powershell
-python D:\AgriFusion-IoT\Backend\Benchmark\pretrain_supervised\v2\backfill_optional_models.py --run-dir D:\AgriFusion-IoT\Backend\Benchmark\pretrain_supervised\v2\outputs\v2_20260513_151525 --experiments exp4 exp5
+python D:\AgriFusion-IoT\Backend\Benchmark\pretrain_supervised\v2\backfill_optional_models.py --run-dir D:\AgriFusion-IoT\Backend\Benchmark\pretrain_supervised\v2\outputs\<DD-MM-YYYY>\<run_name> --experiments exp4 exp5
 ```
 
 ## Gia dinh xu ly
@@ -96,10 +98,12 @@ python D:\AgriFusion-IoT\Backend\Benchmark\pretrain_supervised\v2\backfill_optio
 - `v2` merge nhan tu event CSV vao dataset feature/pretrain theo `timestamp`.
 - Label policy hien tai van tai dung chien luoc `binary/ternary` cua `v1`.
 - `v2` hien la embedding-first downstream pipeline, chua fine-tune nguoc vao pretrain backbone.
+- `exp6` full-set benchmark da duoc chuyen sang `v4`; `v2` chi giu single-window ablation.
+- `v3` la nhom combo multi-window rieng, khong con la placeholder.
 
 ## Rui ro hoac gioi han hien tai
 
 - Neu event CSV va dataset `Layer2` lech timestamp, so dong co nhan se giam.
 - `v2` dang dung cung bo model head cua `v1`; chua co head chuyen biet chi danh rieng cho `Layer2`.
 - Utility `backfill_optional_models.py` chi thay the row metric cua cac model duoc chon trong run hien co; no khong rebuild embedding va khong train lai cac model con lai.
-- `v3` va `v4` van chua co downstream pipeline hoan chinh.
+- `v3` la downstream pipeline cho Layer3 combo benchmark, khac voi `v2` va `v4`.

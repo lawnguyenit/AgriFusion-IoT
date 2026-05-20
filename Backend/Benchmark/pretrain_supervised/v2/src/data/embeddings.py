@@ -77,6 +77,7 @@ def build_experiment_embedding_bundle(
         checkpoint_config=dict(payload["config"]),
         split_counts=prepared.split_counts,
         split_slices=prepared.split_slices,
+        split_manifest=prepared.split_manifest,
         embedding_dim=int(embedding_array.shape[1]),
         label_merge_report=label_merge_report,
     )

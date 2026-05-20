@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import pandas as pd
 
 from Backend.Benchmark.pretrain_supervised.v1.src.data.contracts import LabelPolicyResult
@@ -14,6 +16,39 @@ TERNARY_CLASS_NAMES = [
 
 ENVIRONMENTAL_CONTEXT_LABELS = {"weather_context", "stress_context"}
 OPERATIONAL_CONTEXT_LABELS = {"system_timing", "sensor_fault_anomaly", "intervention_context"}
+
+DEFAULT_LABEL_COLUMNS = [
+    "timestamp",
+    "event_source",
+    "event_confidence",
+    "event_reason",
+    "event_primary",
+    "event_labels",
+    "big_label",
+]
+
+
+def load_event_label_frame(event_csv: Path) -> pd.DataFrame:
+    frame = pd.read_csv(event_csv)
+    frame["timestamp"] = pd.to_numeric(frame["timestamp"], errors="coerce")
+    frame = frame.dropna(subset=["timestamp"]).copy()
+    frame["timestamp"] = frame["timestamp"].astype("int64")
+    frame = frame.sort_values("timestamp", kind="stable").drop_duplicates(subset=["timestamp"], keep="last")
+    label_columns = [column for column in DEFAULT_LABEL_COLUMNS if column in frame.columns]
+    return frame[label_columns].copy()
+
+
+def merge_event_labels(dataframe: pd.DataFrame, event_csv: Path) -> tuple[pd.DataFrame, dict[str, object]]:
+    label_frame = load_event_label_frame(event_csv)
+    label_columns = [column for column in label_frame.columns if column != "timestamp"]
+    merged = dataframe.merge(label_frame, on="timestamp", how="left", validate="one_to_one")
+    report = {
+        "event_csv": str(event_csv),
+        "labeled_rows": int(merged["big_label"].notna().sum()) if "big_label" in merged.columns else 0,
+        "unlabeled_rows": int(merged["big_label"].isna().sum()) if "big_label" in merged.columns else int(len(merged)),
+        "merge_columns": ["timestamp", *label_columns],
+    }
+    return merged, report
 
 
 def build_label_frame(dataframe: pd.DataFrame) -> pd.DataFrame:
