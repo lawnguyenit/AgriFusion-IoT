@@ -15,14 +15,15 @@ from ...signals.fuzzy_signals import (
 from ...signals.external_weather import evaluate_external_weather
 
 try:
-    from Services.config.settings import SETTINGS as EXPORT_SETTINGS
+    from Config.runtime import BACKEND_SETTINGS
 except ModuleNotFoundError:
-    from .....Services.config.settings import SETTINGS as EXPORT_SETTINGS
+    from .....Config.runtime import BACKEND_SETTINGS
 
 
 class MeteoProcessor:
     stream_name = "meteo"
     processor_name = "meteo_preprocessor"
+    combined_sensor_id = "meteo"
     window_hours = (1, 3, 6, 24, 72)
     expected_interval_sec = 3600
     max_regular_gap_sec = 3900
@@ -50,14 +51,11 @@ class MeteoProcessor:
 
     def extract_sensor_id(self, source_record: Any) -> str | None:
         packet_payload: dict[str, Any] = source_record.payload.get("packet", {}).get("meteo_data", {})
-        sensor_id = packet_payload.get("sensor_id")
-        return str(sensor_id) if sensor_id else None
+        if not packet_payload:
+            return None
+        return self.combined_sensor_id
 
     def resolve_stream_name(self, source_record: Any) -> str:
-        if source_record.source_name == "meteo_archive":
-            return "meteo_archive_era5"
-        if source_record.source_name == "meteo_forecast":
-            return "meteo_forecast_ifs"
         return self.stream_name
 
     def should_accept_source_record(self, source_record: Any) -> bool:
@@ -81,9 +79,9 @@ class MeteoProcessor:
         record_payload: dict[str, Any] = source_record.payload
         packet_payload: dict[str, Any] = record_payload.get("packet", {}).get("meteo_data", {})
 
-        sensor_id = str(packet_payload.get("sensor_id"))
+        sensor_id = self.extract_sensor_id(source_record) or self.combined_sensor_id
         ts_server = source_record.ts_server
-        local_iso = format_local_iso(ts_server, EXPORT_SETTINGS.timezone)
+        local_iso = format_local_iso(ts_server, BACKEND_SETTINGS.timezone)
 
         perception: dict[str, Any] = {
             "temp_air_c": safe_float(packet_payload.get("temperature_2m")),

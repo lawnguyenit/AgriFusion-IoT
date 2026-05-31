@@ -30,3 +30,7 @@ Layer này không kết luận cây đang stress, không tự tạo `confidence`
 ## Nguyên tắc
 
 Các giá trị trong package này phải là dữ liệu đo, metadata hoặc thống kê mô tả. Nếu cần suy luận như ngưng tụ, stress nhiệt, bệnh hại hoặc khuyến nghị hành động, phần đó nên nằm ở tầng domain model hoặc rule engine có tài liệu khoa học/nhãn thực địa đi kèm.
+
+## Giả định runtime
+
+Nếu telemetry runtime không mang `packet.sht30_data.sensor_id` hoặc `sensor_type`, processor sẽ fallback sang cấu hình mặc định trong `Backend/Config/runtime.py`. Nhờ đó, record Firebase hợp lệ vẫn có thể đi qua Layer1 trong chế độ demo/server dù payload thiết bị không nhúng đầy đủ metadata sensor.

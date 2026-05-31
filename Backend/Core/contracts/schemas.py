@@ -5,5 +5,6 @@ They do not replace the payload schemas embedded in each artifact; they provide
 stable names for documentation, tests, and reproducibility checks.
 """
 
-LAYER2_SCHEMA_VERSION = 1
+LAYER1_SCHEMA_VERSION = 1
+LAYER2_SCHEMA_VERSION = LAYER1_SCHEMA_VERSION
 LAYER25_SCHEMA_VERSION = 1

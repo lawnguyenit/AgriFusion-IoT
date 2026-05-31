@@ -1,24 +1,25 @@
-# Bộ xử lý Meteo
+# Meteo processor
 
-Package này chỉ chứa logic Layer 2 cho snapshot thời tiết.
+Package nay chua logic Layer 2 cho snapshot thoi tiet.
 
-Nguồn Open-Meteo/API fetch không nằm ở đây nữa. Phần lấy dữ liệu Layer 1 thuộc `Backend/Services/exporters/sources/open_meteo.py`.
+Nguon Open-Meteo/API fetch khong nam o day nua. Phan lay du lieu Layer 1 thuoc
+`Backend/Services/layer0_ingestion/sources/open_meteo.py`.
 
-## Cấu trúc
+## Cau truc
 
-| File | Vai trò |
+| File | Vai tro |
 | --- | --- |
-| `processor.py` | Chuẩn hóa payload meteo Layer 1 thành snapshot Layer 2. |
+| `processor.py` | Chuan hoa payload meteo Layer 1 thanh snapshot Layer 2. |
 | `__init__.py` | Export `MeteoProcessor`. |
 
-## Output chính
+## Output chinh
 
-- `perception`: nhiệt độ, độ ẩm, mưa, điểm sương, mây, nhiệt độ đất nông, ET0 và mã thời tiết.
-- `quality`: kiểm tra trường lõi có mặt hay không và provider.
-- `memory.windows`: thống kê rolling theo `3h`, `6h`, `24h`, `72h`.
-- `derived_signals`: feature phẳng được rút từ `memory.windows`, ví dụ `temp_trend_24h`, `humidity_delta_from_start_6h`, `precipitation_avg_72h`.
-- `context`: giờ quan sát, trạng thái ngày/đêm, timezone và provider.
+- `perception`: nhiet do, do am, mua, diem suong, may, nhiet do dat nong, ET0 va ma thoi tiet.
+- `memory.windows`: thong ke rolling theo `1h`, `3h`, `6h`, `24h`, `72h`.
+- `fuzzy_signals` va `external_weather`: feature phan tich bo sung cho meteo.
+- `sensor_id` cua meteo duoc chuan hoa thanh mot target chung, nen ERA5 va IFS cung mot stream logic.
 
-## Nguyên tắc
+## Nguyen tac
 
-Layer 2 không sinh `health`, `confidence`, `handoff`, `ready` hoặc cảnh báo nông học cuối cùng. Những kết luận đó phải thuộc tầng phân tích có ngưỡng và cơ sở hiệu chuẩn riêng.
+Layer 2 khong sinh `health`, `confidence`, `handoff`, `ready` hoac canh bao nong hoc cuoi cung.
+Nhung ket luan do phai thuoc tang phan tich co nguong va co so hieu chuan rieng.

@@ -20,9 +20,9 @@ if __package__ in {None, ""}:
     sys.path.append(str(Path(__file__).resolve().parents[2]))
 
 try:
-    from Services.config.settings import SETTINGS as EXPORT_SETTINGS
+    from Config.runtime import BACKEND_SETTINGS
 except ModuleNotFoundError:
-    from ...Services.config.settings import SETTINGS as EXPORT_SETTINGS
+    from ...Config.runtime import BACKEND_SETTINGS
 
 TEXT_DROP_SUFFIXES = (
     "__source_path",
@@ -68,9 +68,9 @@ class TabNetSuperTableBuilder:
         max_categorical_cardinality: int = 32,
     ):
         self.input_path = input_path or (
-            EXPORT_SETTINGS.layer25_root / "super_table" / "super_table.csv"
+            BACKEND_SETTINGS.layer25_root / "super_table" / "super_table.csv"
         )
-        self.output_dir = output_dir or (EXPORT_SETTINGS.output_data_root / "TabNet")
+        self.output_dir = output_dir or (BACKEND_SETTINGS.output_data_root / "TabNet")
         self.label_column = label_column
         self.max_categorical_cardinality = max_categorical_cardinality
 
@@ -207,7 +207,7 @@ class TabNetSuperTableBuilder:
         out_df = df.copy()
         ts_series = pd.to_numeric(out_df["ts_server"], errors="coerce").fillna(0).astype("int64")
         dt_series = pd.to_datetime(ts_series, unit="s", utc=True).dt.tz_convert(
-            EXPORT_SETTINGS.timezone_name
+            BACKEND_SETTINGS.timezone_name
         )
         hour_value = dt_series.dt.hour.astype(float)
         dayofyear_value = dt_series.dt.dayofyear.astype(float)

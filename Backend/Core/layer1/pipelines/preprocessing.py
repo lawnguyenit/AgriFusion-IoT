@@ -5,14 +5,14 @@ from pathlib import Path
 from typing import Any, Callable, cast
 
 try:
-    from Services.config.settings import SETTINGS as EXPORT_SETTINGS
+    from Config.runtime import BACKEND_SETTINGS
 except ModuleNotFoundError:
-    from ....Services.config.settings import SETTINGS as EXPORT_SETTINGS
+    from ....Config.runtime import BACKEND_SETTINGS
 
 from ..processors.meteo import MeteoProcessor
 from ..processors.npk import NPKProcessor
 from ..processors.sht30 import SHT30Processor
-from ...contracts import LAYER2_SCHEMA_VERSION
+from ...contracts import LAYER1_SCHEMA_VERSION
 from ...utils.common import iso_utc_now, safe_int, trim_recent_ids
 from ...utils.storage import append_jsonl, read_json, read_jsonl, write_json
 
@@ -38,7 +38,7 @@ class SourceStore:
 
 
 @dataclass(frozen=True)
-class Layer2Result:
+class Layer1Result:
     status: str
     processed_source_records: int
     filtered_out_records: int
@@ -78,13 +78,13 @@ class PreprocessingPipeline:
         include_meteo_archive: bool = False,
         output_root: Path | None = None,
     ):
-        self.base_dir = base_dir or EXPORT_SETTINGS.base_dir
+        self.base_dir = base_dir or BACKEND_SETTINGS.base_dir
         self.history_root = self.base_dir / "history"
         self.latest_payload_path = self.base_dir / "new_raw" / "latest.json"
         self.latest_meta_path = self.base_dir / "new_raw" / "latest_meta.json"
-        self.meteo_forecast_base_dir = meteo_forecast_base_dir or EXPORT_SETTINGS.meteo_forecast_root
-        self.meteo_archive_base_dir = meteo_archive_base_dir or EXPORT_SETTINGS.meteo_archive_root
-        self.output_root = output_root or EXPORT_SETTINGS.layer1_root
+        self.meteo_forecast_base_dir = meteo_forecast_base_dir or BACKEND_SETTINGS.meteo_forecast_root
+        self.meteo_archive_base_dir = meteo_archive_base_dir or BACKEND_SETTINGS.meteo_archive_root
+        self.output_root = output_root or BACKEND_SETTINGS.layer1_root
         self.source_stores = [
             SourceStore(
                 name="firebase",
@@ -110,7 +110,7 @@ class PreprocessingPipeline:
             )
         self.processors: list[Any] = [SHT30Processor(), NPKProcessor(), MeteoProcessor()]
 
-    def run(self) -> Layer2Result:
+    def run(self) -> Layer1Result:
         # 1. Tải tất cả bản ghi mới nhất và lịch sử và hợp nhất lại
         source_records = self._load_source_records()
         run_state = Layer2RunState()
@@ -133,7 +133,7 @@ class PreprocessingPipeline:
             total_new_snapshots=total_new_snapshots,
         )
 
-        return Layer2Result(
+        return Layer1Result(
             status="ok",
             processed_source_records=len(run_state.processed_source_events),
             filtered_out_records=run_state.filtered_out_records,
@@ -289,8 +289,8 @@ class PreprocessingPipeline:
 
     def _write_manifest(self, run_state: Layer2RunState, total_new_snapshots: int) -> Path:
         manifest_payload: dict[str, Any] = {
-            "schema_version": LAYER2_SCHEMA_VERSION,
-            "pipeline": "layer2_preprocessing",
+            "schema_version": LAYER1_SCHEMA_VERSION,
+            "pipeline": "layer1_preprocessing",
             "ran_at_utc": iso_utc_now(),
             "source": {
                 source_store.name: {

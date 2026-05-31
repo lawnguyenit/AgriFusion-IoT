@@ -26,3 +26,7 @@ Hướng thiết kế hiện tại là thận trọng: Layer 2 không tự đán
 `memory.windows` là bản đầy đủ để debug và audit. `derived_signals` không tính lại số liệu, chỉ flatten các thống kê đã có để Layer 2.5, TabNet hoặc notebook dùng nhanh hơn.
 
 Các kết luận như thiếu dinh dưỡng, mất cân bằng, mặn hóa hoặc rửa trôi phải thuộc về tầng phân tích có cơ sở hiệu chuẩn riêng.
+
+## Giả định runtime
+
+Nếu telemetry runtime không mang `packet.npk_data.sensor_id` hoặc `sensor_type`, processor sẽ fallback sang cấu hình mặc định trong `Backend/Config/runtime.py`. Điều này giữ cho pipeline demo/server vẫn xử lý được record hợp lệ từ Firebase ngay cả khi payload thiết bị chỉ gửi giá trị đo và cờ chất lượng.

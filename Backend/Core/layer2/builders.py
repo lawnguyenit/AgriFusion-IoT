@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from Backend.Core.layer2.timeseries import (
+from .timeseries import (
     add_datetime_columns,
     delta_1step,
     rolling_condition_duration_hours,
