@@ -1,95 +1,57 @@
 # Backend Services
 
-`Backend/Services` contains runtime configuration, external service clients, and Layer 1 export pipelines.
+## Mục đích
 
-## Layout
+`Backend/Services` chứa phần giao tiếp hệ ngoài và runtime pipeline online:
+
+- đọc/ghi Firebase RTDB
+- ingest Layer0 từ source ngoài
+- publish runtime result
+- inject telemetry demo
+- orchestration cho server/demo cycle
+
+## Input
+
+- `Backend/Services/.env`
+- Firebase RTDB
+- file JSON export nếu chạy offline
+- local artifacts trong `Backend/Output_data`
+- runtime model artifacts trong `Backend/Benchmark`
+
+## Output
+
+- Layer0 raw artifacts trong `Backend/Output_data/Layer0`
+- payload `result/*` trên Firebase
+- debug artifacts trong `Backend/Output_data/Result_publish`
+
+## Cấu trúc chuẩn
 
 ```text
 Services/
-├── config/
-│   ├── env.py
-│   └── settings.py
-├── clients/
-│   └── firebase.py
-├── exporters/
-│   ├── pipeline.py
-│   ├── sources/
-│   ├── stores/
-│   ├── sync/
-│   ├── models/
-│   └── utils/
-├── dev/
-│   ├── env_probe.py
-│   └── firebase_services_v2.py
-├── .env
-└── __init__.py
+|-- clients/
+|   `-- firebase_rtdb.py
+|-- layer0_ingestion/
+|-- result_publisher/
+|-- telemetry_runtime_simulator/
+`-- telemetry_orchestrator/
 ```
 
-## Responsibilities
-
-### `config/`
-
-Owns environment loading and runtime settings.
-
-- `env.py`: loads `Services/.env` and exposes typed env helpers.
-- `settings.py`: defines `ExportSettings` and the default `SETTINGS` instance.
-
-Use:
-
-```python
-from Services.config.settings import SETTINGS, ExportSettings
-```
-
-### `clients/`
-
-Owns clients for external services.
-
-- `firebase.py`: Firebase RTDB client used by `Backend/main.py` and the exporter pipeline.
-
-Use:
-
-```python
-from Services.clients.firebase import FirebaseService
-```
-
-### `exporters/`
-
-Owns Layer 1 local artifact export. It reads Firebase or JSON export sources and writes canonical files under `Output_data/Layer1`.
-
-Use:
-
-```python
-from Services.exporters import ExportPipeline
-```
-
-### `dev/`
-
-Development-only probes or legacy experiments. Code here should not be imported by production pipeline code.
-
-## Environment
-
-Create `Backend/Services/.env` with values such as:
-
-```text
-DATABASE_URL=https://<project>.firebaseio.com
-FIREBASE_KEY_PATH=path/to/service-account.json
-EXPORT_SOURCE=firebase
-EXPORT_NODE_ID=Node1
-EXPORT_TIMEZONE=Asia/Ho_Chi_Minh
-```
-
-Paths in `FIREBASE_KEY_PATH` are resolved relative to `Backend/Services` unless they are absolute.
-
-## Main Entrypoint
-
-Run from repository root:
+## Command chạy
 
 ```powershell
 python Backend\main.py --help
+python Backend\main.py --only-layer0 --source firebase --node-id Node1
+python Backend\main.py --inject-telemetry-template 2
+python Backend\main.py --server-cycle-once
+python Backend\main.py --only-result --publish-result --result-mode append
 ```
 
-Run from `Backend`:
+## Giả định xử lý
 
-```powershell
-python main.py --source firebase --node-id Node1 --full-history --skip-layer25
-```
+- Package chuẩn cho Layer0 là `Services/layer0_ingestion`.
+- Client chuẩn cho Firebase là `FirebaseRTDBClient`.
+- Shared settings/path/helper được lấy trực tiếp từ `Backend/Config`.
+
+## Rủi ro / giới hạn hiện tại
+
+- Runtime service vẫn phụ thuộc vào schema output hiện có của Layer1/Layer2.5 để không làm gãy frontend và benchmark đang tồn tại.

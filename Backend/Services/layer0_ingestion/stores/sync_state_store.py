@@ -1,33 +1,30 @@
-﻿import json
 from typing import Any
 
 try:
-    from Services.config.settings import ExportSettings
+    from Config.runtime import BackendSettings
 except ModuleNotFoundError:
-    from ...config.settings import ExportSettings
+    from ....Config.runtime import BackendSettings
+
+try:
+    from Config.storage import read_json
+except ModuleNotFoundError:
+    from ....Config.storage import read_json
 
 from ..utils.file_store import write_json
 
 
-def load_sync_state(settings: ExportSettings) -> dict[str, Any]:
-    if not settings.sync_state_path.exists():
-        return _default_sync_state(settings)
-
-    try:
-        payload = json.loads(settings.sync_state_path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
-        return _default_sync_state(settings)
-
+def load_sync_state(settings: BackendSettings) -> dict[str, Any]:
+    payload = read_json(settings.sync_state_path, default=None)
     if not isinstance(payload, dict):
         return _default_sync_state(settings)
     return payload
 
 
-def save_sync_state(settings: ExportSettings, payload: dict[str, Any]) -> None:
+def save_sync_state(settings: BackendSettings, payload: dict[str, Any]) -> None:
     write_json(settings.sync_state_path, payload)
 
 
-def _default_sync_state(settings: ExportSettings) -> dict[str, Any]:
+def _default_sync_state(settings: BackendSettings) -> dict[str, Any]:
     return {
         "schema_version": 1,
         "node_id": settings.node_id,

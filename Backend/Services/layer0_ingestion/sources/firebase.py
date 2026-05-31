@@ -1,12 +1,12 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from datetime import datetime
 from typing import Any
 
 try:
-    from Services.config.settings import ExportSettings
+    from Config.runtime import BackendSettings
 except ModuleNotFoundError:
-    from ...config.settings import ExportSettings
+    from ....Config.runtime import BackendSettings
 
 from ..stores.artifact_store import base_source_manifest_payload
 from ..utils.file_store import serialize_json, sha256_hex
@@ -18,15 +18,26 @@ class FirebaseSourceAdapter(NormalizedSnapshotMixin):
     source_type = "firebase"
     skip_duplicate_on_same_source = False
 
-    def __init__(self, firebase_service: Any, settings: ExportSettings):
+    def __init__(self, firebase_client: Any, settings: BackendSettings):
         super().__init__(settings)
-        self.firebase_service = firebase_service
+        self.firebase_client = firebase_client
         self.source_uri = f"firebase://{settings.node_id}"
         self._mode = "snapshot_root"
         self._legacy_latest_meta_payload: dict[str, Any] | None = None
 
     def fetch_latest_meta_payload(self) -> dict[str, Any] | None:
-        root_payload = self.firebase_service.pull_data(node_path=self.settings.node_id)
+        latest_meta_payload = self.firebase_client.pull_data(node_path=self.settings.latest_meta_path)
+        if latest_meta_payload is not None:
+            if not isinstance(latest_meta_payload, dict):
+                raise ValueError("Firebase latest meta payload must be a JSON object")
+
+            ordered_meta_payload = canonicalize_json(latest_meta_payload)
+            self.source_sha256 = sha256_hex(serialize_json(ordered_meta_payload))
+            self._legacy_latest_meta_payload = dict(ordered_meta_payload)
+            self._mode = "legacy_paths"
+            return dict(ordered_meta_payload)
+
+        root_payload = self.firebase_client.pull_data(node_path=self.settings.node_id)
         if self._looks_like_normalized_snapshot(root_payload):
             ordered_root_payload = canonicalize_json(root_payload)
             self._set_snapshot_payload(
@@ -36,23 +47,13 @@ class FirebaseSourceAdapter(NormalizedSnapshotMixin):
             self._mode = "snapshot_root"
             return super().fetch_latest_meta_payload()
 
-        latest_meta_payload = self.firebase_service.pull_data(node_path=self.settings.latest_meta_path)
-        if latest_meta_payload is None:
-            return None
-        if not isinstance(latest_meta_payload, dict):
-            raise ValueError("Firebase latest meta payload must be a JSON object")
-
-        ordered_meta_payload = canonicalize_json(latest_meta_payload)
-        self.source_sha256 = sha256_hex(serialize_json(ordered_meta_payload))
-        self._legacy_latest_meta_payload = dict(ordered_meta_payload)
-        self._mode = "legacy_paths"
-        return dict(ordered_meta_payload)
+        return None
 
     def fetch_latest_current_payload(self, latest_meta_payload: dict[str, Any]) -> dict[str, Any] | None:
         if self._mode == "snapshot_root":
             return super().fetch_latest_current_payload(latest_meta_payload)
 
-        latest_current_payload = self.firebase_service.pull_data(node_path=self.settings.latest_current_path)
+        latest_current_payload = self.firebase_client.pull_data(node_path=self.settings.latest_current_path)
         if latest_current_payload is None:
             return None
         if not isinstance(latest_current_payload, dict):
@@ -63,7 +64,7 @@ class FirebaseSourceAdapter(NormalizedSnapshotMixin):
         if self._mode == "snapshot_root":
             return super().fetch_full_history_payload()
 
-        telemetry_payload = self.firebase_service.pull_data(node_path=self.settings.telemetry_root_path)
+        telemetry_payload = self.firebase_client.pull_data(node_path=self.settings.telemetry_root_path)
         if telemetry_payload is None:
             return None
         if not isinstance(telemetry_payload, dict):

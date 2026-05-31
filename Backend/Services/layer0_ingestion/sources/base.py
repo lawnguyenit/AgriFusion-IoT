@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import copy
 from dataclasses import dataclass
@@ -6,9 +6,9 @@ from datetime import datetime, timezone
 from typing import Any
 
 try:
-    from Services.config.settings import ExportSettings
+    from Config.runtime import BackendSettings
 except ModuleNotFoundError:
-    from ...config.settings import ExportSettings
+    from ....Config.runtime import BackendSettings
 
 from ..stores.artifact_store import base_source_manifest_payload
 from ..utils.file_store import serialize_json, sha256_hex
@@ -29,7 +29,7 @@ class SourceDescriptor:
 
 
 class NormalizedSnapshotMixin:
-    def __init__(self, settings: ExportSettings):
+    def __init__(self, settings: BackendSettings):
         self.settings = settings
         self.source_sha256: str | None = None
         self._source_payload: dict[str, Any] | None = None
@@ -79,9 +79,7 @@ class NormalizedSnapshotMixin:
                 ),
                 "latest_event_key": None if self._latest_context is None else self._latest_context["event_key"],
                 "latest_date_key": None if self._latest_context is None else self._latest_context["date_key"],
-                "latest_ts_server": None
-                if self._latest_context is None
-                else self._latest_context["ts_server"],
+                "latest_ts_server": None if self._latest_context is None else self._latest_context["ts_server"],
             }
         )
         return SourceAuditArtifacts(
@@ -239,8 +237,7 @@ class NormalizedSnapshotMixin:
                 "detected_site_id": self._detected_identity.get("site_id"),
                 "latest_date_key": latest_date_key,
                 "latest_event_key": latest_event_key,
-                "latest_local_iso": latest_record.get("sample_time_local")
-                or latest_record.get("upload_time_local"),
+                "latest_local_iso": latest_record.get("sample_time_local") or latest_record.get("upload_time_local"),
                 "latest_path": f"{self.settings.node_id}/telemetry/{latest_date_key}/{latest_event_key}",
                 "previous_date_key": None if previous_context is None else previous_context["date_key"],
                 "previous_event_key": None if previous_context is None else previous_context["event_key"],

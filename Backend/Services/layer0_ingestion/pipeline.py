@@ -1,27 +1,23 @@
-﻿from dataclasses import dataclass
+from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
 
 try:
-    from Services.config.settings import ExportSettings, SETTINGS
+    from Config.runtime import BACKEND_SETTINGS, BackendSettings
 except ModuleNotFoundError:
-    from ..config.settings import ExportSettings, SETTINGS
+    from ...Config.runtime import BACKEND_SETTINGS, BackendSettings
 
-from .stores.artifact_store import (
-    write_latest_meta,
-    write_latest_payload,
-    write_source_audit_artifacts,
-)
-from .sync.latest_sync import SyncDecision, build_sync_state, decide_sync, parse_latest_meta
 from .sources import FirebaseSourceAdapter, JsonExportSourceAdapter
-from .utils.layout import format_iso_utc
+from .stores.artifact_store import write_latest_meta, write_latest_payload, write_source_audit_artifacts
 from .stores.sync_state_store import load_sync_state, save_sync_state
 from .stores.telemetry_store import write_full_history_snapshots, write_history_snapshot
+from .sync.latest_sync import build_sync_state, decide_sync, parse_latest_meta
+from .utils.layout import format_iso_utc
 
 
 @dataclass(frozen=True)
-class ExportResult:
+class Layer0IngestionResult:
     status: str
     source_type: str
     checked_at_utc: str
@@ -38,9 +34,14 @@ class ExportResult:
     full_history_written_count: int = 0
 
 
-class ExportPipeline:
-    def __init__(self, firebase_service: Any = None, settings: ExportSettings = SETTINGS):
-        self.firebase_service = firebase_service
+class Layer0IngestionPipeline:
+    def __init__(
+        self,
+        firebase_client: Any = None,
+        settings: BackendSettings = BACKEND_SETTINGS,
+        firebase_service: Any = None,
+    ):
+        self.firebase_client = firebase_client if firebase_client is not None else firebase_service
         self.settings = settings
         self.source_adapter = self._build_source_adapter()
 
@@ -49,7 +50,7 @@ class ExportPipeline:
         full_history: bool = False,
         history_start_date: date | None = None,
         history_end_date: date | None = None,
-    ) -> ExportResult | None:
+    ) -> Layer0IngestionResult | None:
         checked_at = _utc_now()
         previous_sync_state = load_sync_state(self.settings)
 
@@ -101,7 +102,7 @@ class ExportPipeline:
                 sync_state["status"] = "error_current_missing"
                 sync_state["alert_code"] = "latest_current_missing"
                 save_sync_state(self.settings, sync_state)
-                return ExportResult(
+                return Layer0IngestionResult(
                     status=sync_state["status"],
                     source_type=self.settings.source_type,
                     checked_at_utc=format_iso_utc(checked_at),
@@ -141,7 +142,7 @@ class ExportPipeline:
 
         save_sync_state(self.settings, sync_state)
 
-        return ExportResult(
+        return Layer0IngestionResult(
             status=sync_state["status"],
             source_type=self.settings.source_type,
             checked_at_utc=format_iso_utc(checked_at),
@@ -160,9 +161,9 @@ class ExportPipeline:
 
     def _build_source_adapter(self) -> Any:
         if self.settings.source_type == "firebase":
-            if self.firebase_service is None:
-                raise ValueError("firebase_service is required when source_type is 'firebase'")
-            return FirebaseSourceAdapter(self.firebase_service, self.settings)
+            if self.firebase_client is None:
+                raise ValueError("firebase_client is required when source_type is 'firebase'")
+            return FirebaseSourceAdapter(self.firebase_client, self.settings)
 
         if self.settings.source_type == "json-export":
             return JsonExportSourceAdapter(self.settings)

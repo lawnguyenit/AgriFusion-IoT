@@ -1,11 +1,11 @@
-﻿from dataclasses import dataclass
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
 
 try:
-    from Services.config.settings import ExportSettings
+    from Config.runtime import BackendSettings
 except ModuleNotFoundError:
-    from ...config.settings import ExportSettings
+    from ....Config.runtime import BackendSettings
 
 from ..utils.layout import format_iso_utc
 
@@ -41,7 +41,7 @@ class SyncDecision:
 
 def parse_latest_meta(
     meta: dict[str, Any],
-    settings: ExportSettings,
+    settings: BackendSettings,
     source_descriptor: dict[str, Any] | None = None,
 ) -> LatestMetaSnapshot:
     source_descriptor = source_descriptor or {}
@@ -57,9 +57,7 @@ def parse_latest_meta(
         device_delta_ok=_as_optional_bool(meta.get("device_in_expected_range")),
         server_delta_ok=_as_optional_bool(meta.get("server_in_expected_range")),
         primary_poll_after_sec=int(meta.get("primary_poll_after_sec") or settings.primary_poll_after_sec),
-        retry_after_no_change_sec=int(
-            meta.get("retry_after_no_change_sec") or settings.retry_after_no_change_sec
-        ),
+        retry_after_no_change_sec=int(meta.get("retry_after_no_change_sec") or settings.retry_after_no_change_sec),
         source_type=_as_optional_str(source_descriptor.get("source_type") or meta.get("source_type")),
         source_uri=_as_optional_str(source_descriptor.get("source_uri") or meta.get("source_uri")),
         source_sha256=_as_optional_str(source_descriptor.get("source_sha256") or meta.get("source_sha256")),
@@ -70,7 +68,7 @@ def decide_sync(
     snapshot: LatestMetaSnapshot,
     previous_state: dict[str, Any],
     checked_at: datetime,
-    settings: ExportSettings,
+    settings: BackendSettings,
 ) -> SyncDecision:
     previous_event_key = previous_state.get("last_seen_event_key")
     next_primary = checked_at + timedelta(seconds=snapshot.primary_poll_after_sec)
@@ -143,7 +141,7 @@ def build_sync_state(
     decision: SyncDecision,
     checked_at: datetime,
     previous_state: dict[str, Any],
-    settings: ExportSettings,
+    settings: BackendSettings,
 ) -> dict[str, Any]:
     age_since_latest_sec = max(0, int(checked_at.timestamp()) - snapshot.ts_server)
     return {

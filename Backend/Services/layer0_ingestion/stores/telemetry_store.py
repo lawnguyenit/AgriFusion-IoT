@@ -3,15 +3,15 @@ from pathlib import Path
 from typing import Any
 
 try:
-    from Services.config.settings import ExportSettings
+    from Config.runtime import BackendSettings
 except ModuleNotFoundError:
-    from ...config.settings import ExportSettings
+    from ....Config.runtime import BackendSettings
 
 from ..utils.file_store import write_json
 
 
 def write_history_snapshot(
-    settings: ExportSettings,
+    settings: BackendSettings,
     date_key: str,
     event_key: str,
     latest_path: str,
@@ -33,11 +33,13 @@ def write_history_snapshot(
 
 
 def write_full_history_snapshots(
-    settings: ExportSettings,
+    settings: BackendSettings,
     telemetry_payload: dict[str, Any],
     checked_at: datetime,
     start_date: date | None = None,
     end_date: date | None = None,
+    start_ts: int | None = None,
+    end_ts: int | None = None,
 ) -> int:
     written_count = 0
 
@@ -56,6 +58,11 @@ def write_full_history_snapshots(
         for event_key, record_payload in day_payload.items():
             if not isinstance(record_payload, dict):
                 continue
+            event_ts = _resolve_event_timestamp(event_key=event_key, record_payload=record_payload)
+            if start_ts is not None and event_ts is not None and event_ts < start_ts:
+                continue
+            if end_ts is not None and event_ts is not None and event_ts > end_ts:
+                continue
 
             write_history_snapshot(
                 settings=settings,
@@ -70,7 +77,24 @@ def write_full_history_snapshots(
     return written_count
 
 
-def build_history_path(settings: ExportSettings, date_key: str, event_key: str) -> Path:
+def _resolve_event_timestamp(event_key: str, record_payload: dict[str, Any]) -> int | None:
+    candidates = (
+        record_payload.get("ts_server"),
+        record_payload.get("ts_sample"),
+        record_payload.get("packet", {}).get("system_data", {}).get("sample_epoch_sec"),
+        event_key,
+    )
+    for candidate in candidates:
+        try:
+            ts_value = int(candidate)
+        except (TypeError, ValueError):
+            continue
+        if ts_value > 0:
+            return ts_value
+    return None
+
+
+def build_history_path(settings: BackendSettings, date_key: str, event_key: str) -> Path:
     dt = datetime.strptime(date_key, "%Y-%m-%d")
     safe_event_key = event_key.replace("/", "_")
     return (

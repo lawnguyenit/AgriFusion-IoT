@@ -1,12 +1,12 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import json
 from pathlib import Path
 
 try:
-    from Services.config.settings import ExportSettings
+    from Config.runtime import BackendSettings
 except ModuleNotFoundError:
-    from ...config.settings import ExportSettings
+    from ....Config.runtime import BackendSettings
 
 from ..utils.file_store import sha256_hex
 from .base import NormalizedSnapshotMixin
@@ -16,7 +16,7 @@ class JsonExportSourceAdapter(NormalizedSnapshotMixin):
     source_type = "json-export"
     skip_duplicate_on_same_source = True
 
-    def __init__(self, settings: ExportSettings):
+    def __init__(self, settings: BackendSettings):
         super().__init__(settings)
         if settings.input_json_path is None:
             raise ValueError("--input-json is required when --source json-export")

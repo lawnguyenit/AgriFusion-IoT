@@ -28,16 +28,16 @@ except ModuleNotFoundError:
     retry = None
 
 try:
-    from Core.utils.common import iso_utc_now
-    from Core.utils.storage import read_json, write_json
+    from Config.common import iso_utc_now
+    from Config.storage import read_json, write_json
 except ModuleNotFoundError:
-    from ....Core.utils.common import iso_utc_now
-    from ....Core.utils.storage import read_json, write_json
+    from ....Config.common import iso_utc_now
+    from ....Config.storage import read_json, write_json
 
 try:
-    from Services.config.settings import SETTINGS as EXPORT_SETTINGS
+    from Config.runtime import BACKEND_SETTINGS
 except ModuleNotFoundError:
-    from ...config.settings import SETTINGS as EXPORT_SETTINGS
+    from ....Config.runtime import BACKEND_SETTINGS
 
 DEFAULT_START_DATE = date(2026, 3, 16)
 DEFAULT_TIMEZONE = "Asia/Ho_Chi_Minh"
@@ -84,8 +84,8 @@ class MeteoStorageSettings:
         if self.base_dir_override is not None:
             return self.base_dir_override
         if self.source_mode == "forecast_ifs":
-            return EXPORT_SETTINGS.meteo_forecast_root
-        return EXPORT_SETTINGS.meteo_archive_root
+            return BACKEND_SETTINGS.meteo_forecast_root
+        return BACKEND_SETTINGS.meteo_archive_root
 
     @property
     def history_root(self) -> Path:
@@ -125,7 +125,7 @@ def build_archive_era5_settings() -> MeteoStorageSettings:
         source_name="open-meteo-era5",
         sensor_type="open_meteo_archive_hourly",
         location_slug="open_meteo_era5_10.0853_105.8678",
-        base_dir_override=EXPORT_SETTINGS.meteo_archive_root,
+        base_dir_override=BACKEND_SETTINGS.meteo_archive_root,
     )
 
 
@@ -137,7 +137,7 @@ def build_forecast_ifs_settings() -> MeteoStorageSettings:
         source_name="open-meteo-ifs",
         sensor_type="open_meteo_ifs_forecast_hourly",
         location_slug="open_meteo_ifs_10.0853_105.8678",
-        base_dir_override=EXPORT_SETTINGS.meteo_forecast_root,
+        base_dir_override=BACKEND_SETTINGS.meteo_forecast_root,
     )
 
 
