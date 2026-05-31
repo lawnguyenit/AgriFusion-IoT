@@ -51,14 +51,12 @@ Moi folder `experiments\expN\` co:
 
 ## Model suite
 
-`v2` hien tai dung cac model downstream sau tren embedding:
+`v2` hien tai co `torch_probe` la DL head co dinh, va sklearn suite mac dinh duoc rut gon:
 
-- `torch_probe`
 - `linear_probe`
-- `random_forest`
-- `hist_gradient_boosting`
 - `xgboost`
-- `lightgbm`
+
+Neu can doi chieu rong hon, co the mo lai cac sklearn head khac bang `--model-names`.
 
 ## Command
 
@@ -105,5 +103,6 @@ python D:\AgriFusion-IoT\Backend\Benchmark\pretrain_supervised\v2\backfill_optio
 
 - Neu event CSV va dataset `Layer2` lech timestamp, so dong co nhan se giam.
 - `v2` dang dung cung bo model head cua `v1`; chua co head chuyen biet chi danh rieng cho `Layer2`.
+- `torch_probe` la head DL co dinh va khong nam trong `--model-names`.
 - Utility `backfill_optional_models.py` chi thay the row metric cua cac model duoc chon trong run hien co; no khong rebuild embedding va khong train lai cac model con lai.
 - `v3` la downstream pipeline cho Layer3 combo benchmark, khac voi `v2` va `v4`.

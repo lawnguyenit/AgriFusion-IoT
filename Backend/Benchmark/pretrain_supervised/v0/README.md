@@ -25,10 +25,10 @@ python D:\AgriFusion-IoT\Backend\Benchmark\pretrain_supervised\v0\main.py
 ## Assumptions
 
 - `v0` uses the same aligned benchmark CSV as `v1`, but with the nutrient and pH raw fields turned into explicit features.
-- The downstream model suite is the same family used by `v1`, `v2`, `v3`, and `v4`.
+- The downstream stack keeps `torch_probe` as the fixed DL head, while the default sklearn suite is compact: `linear_probe` + `xgboost`.
+- Additional sklearn heads can be re-enabled with `--model-names`.
 
 ## Current Limits
 
 - This version is still proxy-label downstream training; it does not turn pH or NPK into direct ground truth.
 - It is meant to test whether keeping pH/NPK helps or hurts before the `v1` baseline.
-

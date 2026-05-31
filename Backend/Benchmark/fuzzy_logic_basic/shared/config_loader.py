@@ -4,15 +4,15 @@ from pathlib import Path
 from typing import Any
 
 try:
-    from Backend.Config.IO.io_json import read_json
-    from Backend.Config.path_manager import get_benchmark_path
+    from Backend.Config.paths import BACKEND_PATHS
+    from Backend.Config.storage import read_json
 except ImportError:
-    from ...Config.IO.io_json import read_json
-    from ...Config.path_manager import get_benchmark_path
+    from ...Config.paths import BACKEND_PATHS
+    from ...Config.storage import read_json
 
 
 def get_config_root() -> Path:
-    return get_benchmark_path() / "fuzzy_logic_basic" / "configs"
+    return BACKEND_PATHS.benchmark_dir / "fuzzy_logic_basic" / "configs"
 
 
 def load_config(name: str) -> dict[str, Any]:
@@ -21,4 +21,3 @@ def load_config(name: str) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise FileNotFoundError(f"Invalid or missing config: {config_path}")
     return payload
-

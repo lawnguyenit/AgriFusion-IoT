@@ -40,7 +40,8 @@ python D:\AgriFusion-IoT\Backend\Benchmark\pretrain_supervised\v3\main.py
 ## Assumptions
 
 - `v3` is the benchmark slot for multi-window combo analysis.
-- The downstream model suite is the same family used by `v1`, `v2`, and `v4`.
+- The downstream stack keeps `torch_probe` as the fixed DL head, while the default sklearn suite is compact: `linear_probe` + `xgboost`.
+- Extra sklearn heads can be re-enabled with `--model-names`.
 
 ## Current Limits
 

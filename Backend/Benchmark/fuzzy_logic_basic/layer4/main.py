@@ -13,7 +13,7 @@ if str(ROOT_DIR) not in sys.path:
 from Backend.Benchmark.fuzzy_logic_basic.shared.config_loader import load_config
 from Backend.Benchmark.fuzzy_logic_basic.shared.fuzzy_math import clamp01, piecewise_score_series, right_shoulder_series
 from Backend.Config.IO.io_csv import load_csv, write_csv
-from Backend.Config.path_manager import get_benchmark_path
+from Backend.Config.paths import BACKEND_PATHS
 
 
 @dataclass(frozen=True)
@@ -26,19 +26,19 @@ class PredictionResult:
 
 
 def default_membership_csv() -> Path:
-    return get_benchmark_path() / "fuzzy_logic_basic" / "dataset" / "flb_membership.csv"
+    return BACKEND_PATHS.benchmark_dir / "fuzzy_logic_basic" / "dataset" / "flb_membership.csv"
 
 
 def default_pressure_csv() -> Path:
-    return get_benchmark_path() / "fuzzy_logic_basic" / "dataset" / "flb_pressure.csv"
+    return BACKEND_PATHS.benchmark_dir / "fuzzy_logic_basic" / "dataset" / "flb_pressure.csv"
 
 
 def default_dynamics_csv() -> Path:
-    return get_benchmark_path() / "fuzzy_logic_basic" / "dataset" / "flb_temporal_dynamics.csv"
+    return BACKEND_PATHS.benchmark_dir / "fuzzy_logic_basic" / "dataset" / "flb_temporal_dynamics.csv"
 
 
 def default_output_csv() -> Path:
-    return get_benchmark_path() / "fuzzy_logic_basic" / "dataset" / "flb_output_prediction.csv"
+    return BACKEND_PATHS.benchmark_dir / "fuzzy_logic_basic" / "dataset" / "flb_output_prediction.csv"
 
 
 def _risk_level(score: float, levels: dict[str, float]) -> str:

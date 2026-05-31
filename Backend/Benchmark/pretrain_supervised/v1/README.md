@@ -31,18 +31,14 @@ The v1 label policy is based on the aggregated `big_label` field from Layer 1.5 
 
 ## Downstream models
 
-This version trains several models on the embedding:
+This version always trains `torch_probe` as the fixed DL head and uses a compact default sklearn suite on the embedding:
 
 - `linear_probe`
   Logistic regression baseline.
-- `random_forest`
-  Tree ensemble on the embedding.
-- `hist_gradient_boosting`
-  Strong tabular baseline on the embedding.
-- `torch_probe`
-  Small neural classifier head on the embedding.
-- `xgboost` and `lightgbm`
-  Optional if the environment already has them installed.
+- `xgboost`
+  Main tabular control arm on the embedding.
+
+Extra sklearn heads can be re-enabled with `--model-names` if the run needs a larger comparison set.
 
 ## Output
 
@@ -80,6 +76,7 @@ python D:\AgriFusion-IoT\Backend\Benchmark\pretrain_supervised\v1\main.py --pret
 - The label row is aligned with the embedding row by chronological ordering.
 - The embedding-pretrain checkpoint and the downstream label CSV must share the same `timestamp` keys after cleaning.
 - `big_label` is treated as the stable top-level label source for v1 because it reduces the tiny event classes into fewer downstream classes.
+- `torch_probe` is the fixed DL head and is not part of `--model-names`.
 
 ## Limits
 

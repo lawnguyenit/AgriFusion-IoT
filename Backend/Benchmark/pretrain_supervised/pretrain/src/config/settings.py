@@ -3,11 +3,9 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
+from Backend.Benchmark.common.paths import FUZZY_LOGIC_BASIC_DATASET_ROOT, PRETRAIN_ROOT
 
-PRETRAIN_ROOT = Path(__file__).resolve().parents[2]
-BENCHMARK_ROOT = PRETRAIN_ROOT.parent
-
-DEFAULT_INPUT_CSV = BENCHMARK_ROOT / "fuzzy_logic_basic" / "dataset" / "flb_input_aligned.csv"
+DEFAULT_INPUT_CSV = FUZZY_LOGIC_BASIC_DATASET_ROOT / "flb_input_aligned.csv"
 DEFAULT_OUTPUT_ROOT = PRETRAIN_ROOT / "outputs"
 DEFAULT_TIMEZONE = "Asia/Ho_Chi_Minh"
 
@@ -58,7 +56,7 @@ class PretrainConfig:
     seed: int = 42
     batch_size: int = 256
     virtual_batch_size: int = 128
-    max_epochs: int = 120
+    max_epochs: int = 100
     patience: int = 8
     early_stopping_min_delta: float = 1e-3
     learning_rate: float = 2e-3

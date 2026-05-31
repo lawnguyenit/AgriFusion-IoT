@@ -15,9 +15,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+from Backend.Benchmark.common.paths import PRETRAIN_ROOT, PRETRAIN_SUPERVISED_ROOT
 
-BASE_DIR = Path(__file__).resolve().parents[1]
-PRETRAIN_OUTPUT_ROOT = BASE_DIR / "pretrain" / "outputs"
+BASE_DIR = PRETRAIN_SUPERVISED_ROOT
+PRETRAIN_OUTPUT_ROOT = PRETRAIN_ROOT / "outputs"
 VERSION_ORDER = ["v0", "v1", "v2", "v3", "v4"]
 TREE_MODELS = ["hist_gradient_boosting", "random_forest", "lightgbm", "xgboost"]
 BASELINE_PRIORITY = ["linear_probe", "torch_probe", "hist_gradient_boosting", "random_forest", "lightgbm", "xgboost"]

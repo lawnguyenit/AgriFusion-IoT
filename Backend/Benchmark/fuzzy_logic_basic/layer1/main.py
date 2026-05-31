@@ -9,8 +9,8 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from Backend.Config.IO.io_csv import write_csv_rows  # noqa: E402
-from Backend.Config.IO.io_json import write_json  # noqa: E402
-from Backend.Config.path_manager import ensure_path_exists  # noqa: E402
+from Backend.Config.paths import BACKEND_PATHS  # noqa: E402
+from Backend.Config.storage import write_json  # noqa: E402
 
 from Backend.Benchmark.fuzzy_logic_basic.layer1.alignment import AlignmentResult, align_layer1_records  # noqa: E402
 from Backend.Benchmark.fuzzy_logic_basic.layer1.config import AlignmentConfig, default_input_root, default_output_root  # noqa: E402
@@ -85,7 +85,7 @@ def run_alignment(config: AlignmentConfig, limit: int | None = None) -> Alignmen
         rows = rows[: max(0, limit)]
 
     # Kiểm tra và tạo thư mục đầu ra nếu chưa tồn tại
-    ensure_path_exists(config.output_root)
+    BACKEND_PATHS.ensure_directory(config.output_root)
     csv_path = config.output_root / "flb_input_aligned.csv"
     manifest_path = config.output_root / "manifest.json"
 

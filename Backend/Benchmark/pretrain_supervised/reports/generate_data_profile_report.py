@@ -14,12 +14,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+from Backend.Benchmark.common.paths import FUZZY_LOGIC_BASIC_DATASET_ROOT, PRETRAIN_ROOT
+from Backend.Config.runtime import BACKEND_SETTINGS
 
 BASE_DIR = Path(__file__).resolve().parents[1]
-BENCHMARK_ROOT = BASE_DIR.parent
-BACKEND_ROOT = BENCHMARK_ROOT.parent
-DATASET_DIR = BENCHMARK_ROOT / "fuzzy_logic_basic" / "dataset"
-PRETRAIN_OUTPUT_ROOT = BASE_DIR / "pretrain" / "outputs"
+DATASET_DIR = FUZZY_LOGIC_BASIC_DATASET_ROOT
+PRETRAIN_OUTPUT_ROOT = PRETRAIN_ROOT / "outputs"
 
 
 def parse_args() -> argparse.Namespace:
@@ -95,7 +95,7 @@ def main() -> None:
 
 
 def get_firebase_manifest_path() -> Path:
-    return BACKEND_ROOT / "Output_data" / "Layer0" / "Firebase_data" / "new_raw" / "source_manifest.json"
+    return BACKEND_SETTINGS.source_manifest_path
 
 
 def get_layer1_manifest_path() -> Path:

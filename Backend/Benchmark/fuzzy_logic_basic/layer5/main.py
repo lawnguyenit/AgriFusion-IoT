@@ -13,7 +13,7 @@ if str(ROOT_DIR) not in sys.path:
 from Backend.Benchmark.fuzzy_logic_basic.shared.config_loader import load_config
 from Backend.Benchmark.fuzzy_logic_basic.shared.fuzzy_math import clamp01, piecewise_score_series, right_shoulder_series
 from Backend.Config.IO.io_csv import load_csv, write_csv
-from Backend.Config.path_manager import get_benchmark_path
+from Backend.Config.paths import BACKEND_PATHS
 
 
 @dataclass(frozen=True)
@@ -24,11 +24,11 @@ class PathwayResult:
 
 
 def default_input_csv() -> Path:
-    return get_benchmark_path() / "fuzzy_logic_basic" / "dataset" / "flb_output_prediction.csv"
+    return BACKEND_PATHS.benchmark_dir / "fuzzy_logic_basic" / "dataset" / "flb_output_prediction.csv"
 
 
 def default_output_csv() -> Path:
-    return get_benchmark_path() / "fuzzy_logic_basic" / "dataset" / "flb_pathway_interpretation.csv"
+    return BACKEND_PATHS.benchmark_dir / "fuzzy_logic_basic" / "dataset" / "flb_pathway_interpretation.csv"
 
 
 def _score_row(row: pd.Series, weights: dict[str, float]) -> float:
@@ -94,8 +94,8 @@ def build_pathway_interpretation(
     final_csv: Path | None = None,
 ) -> PathwayResult:
     source_csv = output_csv or default_input_csv()
-    pressure_path = pressure_csv or (get_benchmark_path() / "fuzzy_logic_basic" / "dataset" / "flb_pressure.csv")
-    dynamics_path = dynamics_csv or (get_benchmark_path() / "fuzzy_logic_basic" / "dataset" / "flb_temporal_dynamics.csv")
+    pressure_path = pressure_csv or (BACKEND_PATHS.benchmark_dir / "fuzzy_logic_basic" / "dataset" / "flb_pressure.csv")
+    dynamics_path = dynamics_csv or (BACKEND_PATHS.benchmark_dir / "fuzzy_logic_basic" / "dataset" / "flb_temporal_dynamics.csv")
     target_path = final_csv or default_output_csv()
 
     prediction = load_csv(source_csv)

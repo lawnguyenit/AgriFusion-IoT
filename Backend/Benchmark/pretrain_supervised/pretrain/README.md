@@ -102,6 +102,7 @@ python D:\AgriFusion-IoT\Backend\Benchmark\pretrain_supervised\pretrain\infer.py
 ## Assumptions
 
 - `timestamp` is used only for sorting, time feature creation, and split creation. Raw timestamp is not used directly as a model feature.
+- default pretrain budget is `100` epochs unless `--max-epochs` is passed explicitly
 - each source schema declares its own required columns and model feature columns
 - if annotation columns such as `big_label` or `event_primary` exist in the CSV, pretrain preserves them as non-feature columns so downstream can reuse them later
 - early stopping resets only when validation loss improves by more than `early_stopping_min_delta`

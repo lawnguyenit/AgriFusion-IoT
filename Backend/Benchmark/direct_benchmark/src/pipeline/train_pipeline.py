@@ -10,8 +10,11 @@ from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import StandardScaler
 
 from Backend.Benchmark.direct_benchmark.src.config.settings import DirectBenchmarkConfig
-from Backend.Benchmark.direct_benchmark.src.data.contracts import DirectModelResult
 from Backend.Benchmark.direct_benchmark.src.data.raw_data import build_direct_data_bundle
+from Backend.Benchmark.direct_benchmark.src.model.tabnet_classifier import (
+    DirectTabNetClassifierConfig,
+    train_direct_tabnet_classifier,
+)
 from Backend.Benchmark.pretrain_supervised.pretrain.src.utils.artifacts import create_run_directory
 from Backend.Benchmark.pretrain_supervised.v1.src.data.contracts import ModelResult
 from Backend.Benchmark.pretrain_supervised.v1.src.data.labels import select_label_policy
@@ -30,8 +33,10 @@ def run_direct_pipeline(config: DirectBenchmarkConfig) -> dict[str, object]:
 
     experiment_reports: list[dict[str, object]] = []
     aggregate_rows: list[dict[str, object]] = []
+    print(f"[direct_benchmark] run_id={run_id} output_dir={output_dir}")
 
-    for experiment_name in config.experiments:
+    for experiment_index, experiment_name in enumerate(config.experiments, start=1):
+        print(f"[direct_benchmark] experiment {experiment_index}/{len(config.experiments)} -> {experiment_name}")
         experiment_output_dir = experiments_dir / experiment_name
         experiment_output_dir.mkdir(parents=True, exist_ok=True)
         experiment_report, experiment_rows = _run_single_experiment(
@@ -79,6 +84,10 @@ def run_direct_pipeline(config: DirectBenchmarkConfig) -> dict[str, object]:
         },
     )
     write_text(output_dir / "best_result.txt", f"{best_row['experiment_name']}::{best_row['model_name']}")
+    print(
+        f"[direct_benchmark] best={best_row['experiment_name']}/{best_row['model_name']} "
+        f"val_macro_f1={float(best_row['validation_macro_f1']):.4f}"
+    )
 
     return {
         "benchmark_family": config.benchmark_family,
@@ -163,26 +172,118 @@ def _run_single_experiment(
         },
     )
 
-    torch_probe_result = train_torch_probe(
-        train_features=train_scaled,
-        train_labels=train_labels,
-        validation_features=validation_scaled,
-        validation_labels=validation_labels,
-        class_names=label_policy.class_names,
-        input_dim=train_scaled.shape[1],
-        output_dim=len(label_policy.class_names),
-        hidden_dim=config.torch_hidden_dim,
-        dropout=config.torch_dropout,
-        batch_size=config.batch_size,
-        learning_rate=config.learning_rate,
-        weight_decay=config.weight_decay,
-        max_epochs=config.max_epochs,
-        patience=config.patience,
-        max_grad_norm=config.max_grad_norm,
-        seed=config.seed,
-        artifact_path=models_dir / "torch_probe.pt",
-    )
+    model_results: list[ModelResult] = []
+    torch_probe_result = None
+    if "torch_probe" in config.model_names:
+        torch_probe_result = train_torch_probe(
+            train_features=train_scaled,
+            train_labels=train_labels,
+            validation_features=validation_scaled,
+            validation_labels=validation_labels,
+            class_names=label_policy.class_names,
+            input_dim=train_scaled.shape[1],
+            output_dim=len(label_policy.class_names),
+            hidden_dim=config.torch_hidden_dim,
+            dropout=config.torch_dropout,
+            batch_size=config.batch_size,
+            learning_rate=config.learning_rate,
+            weight_decay=config.weight_decay,
+            max_epochs=config.max_epochs,
+            patience=config.patience,
+            max_grad_norm=config.max_grad_norm,
+            seed=config.seed,
+            artifact_path=models_dir / "torch_probe.pt",
+        )
+        probe_device = next(torch_probe_result.model.parameters()).device
+        with torch.no_grad():
+            torch_validation_predictions = (
+                torch_probe_result.model(torch.tensor(validation_scaled, dtype=torch.float32, device=probe_device))
+                .argmax(dim=1)
+                .cpu()
+                .numpy()
+            )
+            torch_test_predictions = (
+                torch_probe_result.model(torch.tensor(test_scaled, dtype=torch.float32, device=probe_device))
+                .argmax(dim=1)
+                .cpu()
+                .numpy()
+            )
+        torch_validation_metrics = summarize_classification(validation_labels, torch_validation_predictions, label_policy.class_names)
+        torch_test_metrics = summarize_classification(test_labels, torch_test_predictions, label_policy.class_names)
+        model_results.append(
+            ModelResult(
+                model_name="torch_probe",
+                artifact_path=torch_probe_result.artifact_path,
+                metrics={"validation": torch_validation_metrics, "test": torch_test_metrics, "history": torch_probe_result.history},
+                notes=f"Best epoch {torch_probe_result.best_epoch}",
+            )
+        )
 
+    tabnet_result = None
+    if "tabnet_classifier" in config.model_names:
+        print(f"[direct_benchmark:{experiment_name}] training tabnet_classifier")
+        tabnet_result = train_direct_tabnet_classifier(
+            train_features=train_scaled,
+            train_labels=train_labels,
+            validation_features=validation_scaled,
+            validation_labels=validation_labels,
+            test_features=test_scaled,
+            test_labels=test_labels,
+            class_names=label_policy.class_names,
+            input_dim=train_scaled.shape[1],
+            output_dim=len(label_policy.class_names),
+            config=DirectTabNetClassifierConfig(
+                batch_size=config.tabnet_batch_size,
+                virtual_batch_size=config.tabnet_virtual_batch_size,
+                max_epochs=config.tabnet_max_epochs,
+                patience=config.tabnet_patience,
+                early_stopping_min_delta=config.tabnet_early_stopping_min_delta,
+                learning_rate=config.tabnet_learning_rate,
+                weight_decay=config.tabnet_weight_decay,
+                max_grad_norm=config.tabnet_max_grad_norm,
+                seed=config.seed,
+                n_d=config.tabnet_n_d,
+                n_a=config.tabnet_n_a,
+                n_steps=config.tabnet_n_steps,
+                gamma=config.tabnet_gamma,
+                n_independent=config.tabnet_n_independent,
+                n_shared=config.tabnet_n_shared,
+                momentum=config.tabnet_momentum,
+                mask_type=config.tabnet_mask_type,
+            ),
+            artifact_path=models_dir / "tabnet_classifier.pt",
+            progress_label=f"direct:{experiment_name}:tabnet",
+        )
+        tabnet_device = next(tabnet_result.model.parameters()).device
+        with torch.no_grad():
+            tabnet_validation_logits, _ = tabnet_result.model(
+                torch.tensor(validation_scaled, dtype=torch.float32, device=tabnet_device)
+            )
+            tabnet_test_logits, _ = tabnet_result.model(torch.tensor(test_scaled, dtype=torch.float32, device=tabnet_device))
+        tabnet_validation_metrics = summarize_classification(
+            validation_labels,
+            tabnet_validation_logits.argmax(dim=1).cpu().numpy(),
+            label_policy.class_names,
+        )
+        tabnet_test_metrics = summarize_classification(
+            test_labels,
+            tabnet_test_logits.argmax(dim=1).cpu().numpy(),
+            label_policy.class_names,
+        )
+        model_results.append(
+            ModelResult(
+                model_name="tabnet_classifier",
+                artifact_path=tabnet_result.artifact_path,
+                metrics={
+                    "validation": tabnet_validation_metrics,
+                    "test": tabnet_test_metrics,
+                    "history": tabnet_result.history,
+                },
+                notes=f"Best epoch {tabnet_result.best_epoch}",
+            )
+        )
+
+    sklearn_model_names = [name for name in config.model_names if name not in {"torch_probe", "tabnet_classifier"}]
     sklearn_results = train_model_suite(
         train_features=train_scaled,
         train_labels=train_labels,
@@ -194,33 +295,8 @@ def _run_single_experiment(
         feature_names=feature_columns,
         output_dir=output_dir,
         seed=config.seed,
-        model_names=config.model_names,
-    )
-
-    model_results: list[ModelResult] = []
-    probe_device = next(torch_probe_result.model.parameters()).device
-    with torch.no_grad():
-        torch_validation_predictions = (
-            torch_probe_result.model(torch.tensor(validation_scaled, dtype=torch.float32, device=probe_device))
-            .argmax(dim=1)
-            .cpu()
-            .numpy()
-        )
-        torch_test_predictions = (
-            torch_probe_result.model(torch.tensor(test_scaled, dtype=torch.float32, device=probe_device))
-            .argmax(dim=1)
-            .cpu()
-            .numpy()
-        )
-    torch_validation_metrics = summarize_classification(validation_labels, torch_validation_predictions, label_policy.class_names)
-    torch_test_metrics = summarize_classification(test_labels, torch_test_predictions, label_policy.class_names)
-    model_results.append(
-        ModelResult(
-            model_name="torch_probe",
-            artifact_path=torch_probe_result.artifact_path,
-            metrics={"validation": torch_validation_metrics, "test": torch_test_metrics, "history": torch_probe_result.history},
-            notes=f"Best epoch {torch_probe_result.best_epoch}",
-        )
+        model_names=sklearn_model_names,
+        progress_prefix=f"direct:{experiment_name}:sklearn",
     )
 
     for result in sklearn_results:
@@ -312,7 +388,8 @@ def _run_single_experiment(
             "validation_macro_f1": best_validation_macro_f1,
         },
         "models": metric_rows,
-        "torch_probe_history": torch_probe_result.history,
+        "torch_probe_history": None if torch_probe_result is None else torch_probe_result.history,
+        "tabnet_classifier_history": None if tabnet_result is None else tabnet_result.history,
         "feature_columns": feature_columns,
         "selected_label_counts_full": {
             name: int((dataframe["selected_label_name"] == name).sum()) for name in label_policy.class_names

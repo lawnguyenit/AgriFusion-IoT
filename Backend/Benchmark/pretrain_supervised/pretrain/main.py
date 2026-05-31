@@ -91,7 +91,7 @@ def parse_args() -> argparse.Namespace:
         default=128,
         help="Ghost batch size used inside TabNet blocks.",
     )
-    parser.add_argument("--max-epochs", type=int, default=40, help="Maximum pretraining epochs.")
+    parser.add_argument("--max-epochs", type=int, default=100, help="Maximum pretraining epochs.")
     parser.add_argument("--patience", type=int, default=8, help="Early stopping patience.")
     parser.add_argument(
         "--early-stopping-min-delta",

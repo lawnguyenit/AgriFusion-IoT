@@ -69,6 +69,16 @@ This folder keeps the full benchmark flow:
 - `v4`
   - consume output of `pretrain` when source is `layer2_exp6`
 
+## Default Downstream Suite
+
+- each embedding benchmark still trains `torch_probe` as the fixed DL head
+- the default `torch_probe` training budget for `v0 -> v4` is now `100` epochs
+- the default sklearn downstream suite is now compact:
+  - `linear_probe`
+  - `xgboost`
+- extra sklearn heads can be re-enabled per version with `--model-names`
+- the compact default is intentional so the pretrain side stays aligned with the direct control arm and remains readable in the thesis
+
 ## Assumptions
 
 - each version keeps its own schema contract

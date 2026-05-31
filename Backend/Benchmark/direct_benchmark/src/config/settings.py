@@ -3,12 +3,11 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
+from Backend.Benchmark.common.paths import DIRECT_BENCHMARK_ROOT, FUZZY_LOGIC_BASIC_DATASET_ROOT
 
-DIRECT_BENCHMARK_ROOT = Path(__file__).resolve().parents[2]
-BENCHMARK_ROOT = DIRECT_BENCHMARK_ROOT.parent
-DEFAULT_DATASET_ROOT = BENCHMARK_ROOT / "fuzzy_logic_basic" / "dataset"
-DEFAULT_ALIGNED_CSV = BENCHMARK_ROOT / "fuzzy_logic_basic" / "dataset" / "flb_input_aligned.csv"
-DEFAULT_EVENT_CSV = BENCHMARK_ROOT / "fuzzy_logic_basic" / "dataset" / "flb_input_with_events.csv"
+DEFAULT_DATASET_ROOT = FUZZY_LOGIC_BASIC_DATASET_ROOT
+DEFAULT_ALIGNED_CSV = DEFAULT_DATASET_ROOT / "flb_input_aligned.csv"
+DEFAULT_EVENT_CSV = DEFAULT_DATASET_ROOT / "flb_input_with_events.csv"
 DEFAULT_OUTPUT_ROOT = DIRECT_BENCHMARK_ROOT / "outputs"
 DEFAULT_EXPERIMENTS = ["v0", "v1", "v2", "v3", "v4", "v5"]
 
@@ -39,14 +38,27 @@ class DirectBenchmarkConfig:
     max_grad_norm: float = 1.0
     torch_hidden_dim: int = 64
     torch_dropout: float = 0.20
+    tabnet_batch_size: int = 64
+    tabnet_virtual_batch_size: int = 32
+    tabnet_max_epochs: int = 120
+    tabnet_patience: int = 16
+    tabnet_early_stopping_min_delta: float = 1e-3
+    tabnet_learning_rate: float = 1e-3
+    tabnet_weight_decay: float = 1e-4
+    tabnet_max_grad_norm: float = 1.0
+    tabnet_n_d: int = 16
+    tabnet_n_a: int = 16
+    tabnet_n_steps: int = 4
+    tabnet_gamma: float = 1.3
+    tabnet_n_independent: int = 2
+    tabnet_n_shared: int = 2
+    tabnet_momentum: float = 0.02
+    tabnet_mask_type: str = "sparsemax"
     model_names: list[str] = field(
         default_factory=lambda: [
             "linear_probe",
-            "random_forest",
-            "hist_gradient_boosting",
-            "torch_probe",
             "xgboost",
-            "lightgbm",
+            "tabnet_classifier",
         ]
     )
 
@@ -82,6 +94,24 @@ class DirectBenchmarkConfig:
             raise ValueError("learning_rate must be positive.")
         if self.torch_hidden_dim <= 0:
             raise ValueError("torch_hidden_dim must be positive.")
+        if self.tabnet_batch_size <= 0 or self.tabnet_virtual_batch_size <= 0:
+            raise ValueError("TabNet batch sizes must be positive.")
+        if self.tabnet_max_epochs <= 0 or self.tabnet_patience <= 0:
+            raise ValueError("TabNet epochs and patience must be positive.")
+        if self.tabnet_early_stopping_min_delta < 0.0:
+            raise ValueError("TabNet early_stopping_min_delta must be non-negative.")
+        if self.tabnet_learning_rate <= 0 or self.tabnet_weight_decay < 0:
+            raise ValueError("TabNet learning_rate must be positive and weight_decay non-negative.")
+        if self.tabnet_max_grad_norm <= 0:
+            raise ValueError("TabNet max_grad_norm must be positive.")
+        if self.tabnet_n_d <= 0 or self.tabnet_n_a <= 0 or self.tabnet_n_steps <= 0:
+            raise ValueError("TabNet structural widths and steps must be positive.")
+        if self.tabnet_gamma <= 1.0:
+            raise ValueError("tabnet_gamma must be greater than 1.0.")
+        if self.tabnet_n_independent <= 0 or self.tabnet_n_shared <= 0:
+            raise ValueError("TabNet shared/independent layer counts must be positive.")
+        if self.tabnet_mask_type not in {"sparsemax", "softmax"}:
+            raise ValueError("tabnet_mask_type must be sparsemax or softmax.")
 
     def to_dict(self) -> dict[str, object]:
         payload = asdict(self)

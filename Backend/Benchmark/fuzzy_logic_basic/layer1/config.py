@@ -4,17 +4,17 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 try:
-    from Backend.Config.path_manager import get_benchmark_path, get_layer1_path
+    from Backend.Config.paths import BACKEND_PATHS
 except ImportError:
-    from ...Config.path_manager import get_benchmark_path, get_layer1_path
+    from ...Config.paths import BACKEND_PATHS
 
 
 def default_input_root() -> Path:
-    return get_layer1_path()
+    return BACKEND_PATHS.layer1_dir
 
 
 def default_output_root() -> Path:
-    return get_benchmark_path() / "fuzzy_logic_basic" / "dataset"
+    return BACKEND_PATHS.benchmark_dir / "fuzzy_logic_basic" / "dataset"
 
 
 @dataclass(frozen=True)

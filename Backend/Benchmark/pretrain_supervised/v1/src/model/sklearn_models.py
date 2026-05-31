@@ -27,7 +27,6 @@ except Exception as exc:  # pragma: no cover - optional dependency
     lgb = None
     LIGHTGBM_IMPORT_ERROR = exc
 
-
 @dataclass
 class SklearnModelResult:
     model_name: str
@@ -49,11 +48,14 @@ def _fit_and_score(
     class_names: list[str],
     feature_names: list[str],
     artifact_path: Path,
+    progress_prefix: str | None = None,
 ) -> SklearnModelResult:
     train_frame = pd.DataFrame(train_features, columns=feature_names)
     validation_frame = pd.DataFrame(validation_features, columns=feature_names)
     test_frame = pd.DataFrame(test_features, columns=feature_names)
     sample_weight = compute_sample_weight(class_weight="balanced", y=train_labels)
+    if progress_prefix:
+        print(f"[{progress_prefix}] fitting {model_name}...")
     try:
         model.fit(train_frame, train_labels, sample_weight=sample_weight)
     except TypeError:
@@ -63,6 +65,12 @@ def _fit_and_score(
     test_predictions = model.predict(test_frame)
     validation_metrics = summarize_classification(validation_labels, validation_predictions, class_names)
     test_metrics = summarize_classification(test_labels, test_predictions, class_names)
+    if progress_prefix:
+        print(
+            f"[{progress_prefix}] completed {model_name}: "
+            f"val_macro_f1={validation_metrics['macro_f1']:.4f}, "
+            f"test_macro_f1={test_metrics['macro_f1']:.4f}"
+        )
 
     artifact_path.parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(model, artifact_path)
@@ -88,6 +96,7 @@ def train_model_suite(
     output_dir: Path,
     seed: int,
     model_names: list[str],
+    progress_prefix: str | None = None,
 ) -> list[SklearnModelResult]:
     results: list[SklearnModelResult] = []
     available_label_count = len(class_names)
@@ -199,6 +208,7 @@ def train_model_suite(
             class_names=class_names,
             feature_names=feature_names,
             artifact_path=output_dir / "models" / f"{model_name}.joblib",
+            progress_prefix=progress_prefix,
         )
         result.notes = notes
         results.append(result)

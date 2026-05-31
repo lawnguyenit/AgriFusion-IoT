@@ -3,20 +3,30 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
+from Backend.Benchmark.common.paths import (
+    FUZZY_LOGIC_BASIC_DATASET_ROOT,
+    PRETRAIN_ROOT,
+    PRETRAIN_SUPERVISED_ROOT,
+    TABNET_BENCHMARK_ROOT,
+)
 
-V1_ROOT = Path(__file__).resolve().parents[2]
-PRETRAIN_SUPERVISED_ROOT = V1_ROOT.parent
-BENCHMARK_ROOT = PRETRAIN_SUPERVISED_ROOT.parent
-TABNET_ROOT = BENCHMARK_ROOT / "tabnet"
-PRETRAIN_ROOT = PRETRAIN_SUPERVISED_ROOT / "pretrain"
+V1_ROOT = PRETRAIN_SUPERVISED_ROOT / "v1"
 
-DEFAULT_EVENT_CSV = BENCHMARK_ROOT / "fuzzy_logic_basic" / "dataset" / "flb_input_with_events.csv"
+DEFAULT_EVENT_CSV = FUZZY_LOGIC_BASIC_DATASET_ROOT / "flb_input_with_events.csv"
 DEFAULT_OUTPUT_ROOT = V1_ROOT / "outputs"
 DEFAULT_PRETRAIN_OUTPUT_ROOTS = [
     PRETRAIN_ROOT / "outputs",
     PRETRAIN_ROOT / "outputs" / "pretrain",
-    TABNET_ROOT / "outputs" / "pretrain",
+    TABNET_BENCHMARK_ROOT / "outputs" / "pretrain",
 ]
+DEFAULT_SKLEARN_MODEL_NAMES = ["linear_probe", "xgboost"]
+ALLOWED_SKLEARN_MODEL_NAMES = {
+    "linear_probe",
+    "random_forest",
+    "hist_gradient_boosting",
+    "xgboost",
+    "lightgbm",
+}
 
 
 @dataclass
@@ -33,7 +43,7 @@ class V1Config:
     train_ratio: float = 0.70
     validation_ratio: float = 0.15
     test_ratio: float = 0.15
-    max_epochs: int = 120
+    max_epochs: int = 100
     patience: int = 8
     batch_size: int = 64
     learning_rate: float = 1e-3
@@ -42,14 +52,7 @@ class V1Config:
     torch_hidden_dim: int = 64
     torch_dropout: float = 0.20
     model_names: list[str] = field(
-        default_factory=lambda: [
-            "linear_probe",
-            "random_forest",
-            "hist_gradient_boosting",
-            "torch_probe",
-            "xgboost",
-            "lightgbm",
-        ]
+        default_factory=lambda: list(DEFAULT_SKLEARN_MODEL_NAMES)
     )
 
     def validate(self) -> None:
@@ -76,6 +79,9 @@ class V1Config:
             raise ValueError("learning_rate must be positive.")
         if self.torch_hidden_dim <= 0:
             raise ValueError("torch_hidden_dim must be positive.")
+        invalid_model_names = [name for name in self.model_names if name not in ALLOWED_SKLEARN_MODEL_NAMES]
+        if invalid_model_names:
+            raise ValueError(f"Unsupported sklearn model_names: {invalid_model_names}")
 
     def to_dict(self) -> dict[str, object]:
         payload = asdict(self)

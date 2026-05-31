@@ -15,7 +15,7 @@ from Backend.Benchmark.fuzzy_logic_basic.shared.config_loader import load_config
 from Backend.Benchmark.fuzzy_logic_basic.shared.fuzzy_math import clip01_series
 from Backend.Benchmark.fuzzy_logic_basic.shared.timeseries import rolling_time_slope
 from Backend.Config.IO.io_csv import load_csv, write_csv
-from Backend.Config.path_manager import get_benchmark_path
+from Backend.Config.paths import BACKEND_PATHS
 
 
 @dataclass(frozen=True)
@@ -26,11 +26,11 @@ class DynamicsResult:
 
 
 def default_input_csv() -> Path:
-    return get_benchmark_path() / "fuzzy_logic_basic" / "dataset" / "flb_pressure.csv"
+    return BACKEND_PATHS.benchmark_dir / "fuzzy_logic_basic" / "dataset" / "flb_pressure.csv"
 
 
 def default_output_csv() -> Path:
-    return get_benchmark_path() / "fuzzy_logic_basic" / "dataset" / "flb_temporal_dynamics.csv"
+    return BACKEND_PATHS.benchmark_dir / "fuzzy_logic_basic" / "dataset" / "flb_temporal_dynamics.csv"
 
 
 def _accumulate_pressure(series: pd.Series, dt_hours: pd.Series, tau_hours: float) -> pd.Series:

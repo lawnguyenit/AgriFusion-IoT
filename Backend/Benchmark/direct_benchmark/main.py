@@ -36,6 +36,13 @@ def parse_args() -> argparse.Namespace:
         help="Subset of direct experiments to benchmark. Defaults to the full matched ladder.",
     )
     parser.add_argument(
+        "--model-names",
+        nargs="+",
+        choices=("linear_probe", "random_forest", "hist_gradient_boosting", "torch_probe", "tabnet_classifier", "xgboost", "lightgbm"),
+        default=None,
+        help="Optional subset of downstream models to run. Defaults to a compact 3-model suite.",
+    )
+    parser.add_argument(
         "--output-root",
         type=Path,
         default=None,
@@ -46,6 +53,18 @@ def parse_args() -> argparse.Namespace:
         choices=("auto", "binary", "ternary"),
         default="auto",
         help="Choose the downstream label scheme.",
+    )
+    parser.add_argument(
+        "--split-strategy",
+        choices=("chronological_v1", "chronological_with_lookback_gap"),
+        default="chronological_with_lookback_gap",
+        help="Split strategy used to create train/validation/test.",
+    )
+    parser.add_argument(
+        "--split-gap-minutes",
+        type=int,
+        default=None,
+        help="Optional explicit purge-gap override in minutes. Example: 1440 for 24h.",
     )
     parser.add_argument(
         "--min-class-support",
@@ -78,13 +97,23 @@ def main() -> None:
         config.output_root = args.output_root.resolve()
     if args.experiments is not None:
         config.experiments = list(args.experiments)
+    if args.model_names is not None:
+        config.model_names = list(args.model_names)
     config.label_mode = args.label_mode
+    config.split_strategy = args.split_strategy
+    config.split_gap_minutes_override = args.split_gap_minutes
     config.min_class_support = args.min_class_support
     config.min_class_ratio = args.min_class_ratio
     config.max_epochs = 6 if args.smoke_test else args.max_epochs
     config.patience = 3 if args.smoke_test else args.patience
     config.batch_size = 32 if args.smoke_test else args.batch_size
     config.learning_rate = args.learning_rate
+    if args.smoke_test:
+        config.tabnet_max_epochs = 4
+        config.tabnet_patience = 2
+        config.tabnet_batch_size = 128
+        config.tabnet_virtual_batch_size = 32
+        config.tabnet_learning_rate = 5e-4
 
     report = run_direct_pipeline(config)
     print(f"Benchmark family: {report['benchmark_family']}")

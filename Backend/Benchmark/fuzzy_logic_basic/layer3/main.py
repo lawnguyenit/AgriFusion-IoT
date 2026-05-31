@@ -14,7 +14,7 @@ from Backend.Benchmark.fuzzy_logic_basic.shared.config_loader import load_config
 from Backend.Benchmark.fuzzy_logic_basic.shared.fuzzy_math import clip01_series, left_shoulder_series, right_shoulder_series, weighted_sum_series
 from Backend.Benchmark.fuzzy_logic_basic.shared.timeseries import rolling_time_max, rolling_time_mean
 from Backend.Config.IO.io_csv import load_csv, write_csv
-from Backend.Config.path_manager import get_benchmark_path
+from Backend.Config.paths import BACKEND_PATHS
 
 
 @dataclass(frozen=True)
@@ -25,11 +25,11 @@ class PressureResult:
 
 
 def default_input_csv() -> Path:
-    return get_benchmark_path() / "fuzzy_logic_basic" / "dataset" / "flb_membership.csv"
+    return BACKEND_PATHS.benchmark_dir / "fuzzy_logic_basic" / "dataset" / "flb_membership.csv"
 
 
 def default_output_csv() -> Path:
-    return get_benchmark_path() / "fuzzy_logic_basic" / "dataset" / "flb_pressure.csv"
+    return BACKEND_PATHS.benchmark_dir / "fuzzy_logic_basic" / "dataset" / "flb_pressure.csv"
 
 
 def build_pressure(input_csv: Path | None = None, output_csv: Path | None = None) -> PressureResult:

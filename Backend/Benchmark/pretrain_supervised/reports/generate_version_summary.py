@@ -14,9 +14,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+from Backend.Benchmark.common.paths import PRETRAIN_ROOT, PRETRAIN_SUPERVISED_ROOT
 
-BASE_DIR = Path(__file__).resolve().parents[1]
-BENCHMARK_ROOT = BASE_DIR.parent
+BASE_DIR = PRETRAIN_SUPERVISED_ROOT
 
 
 def parse_args() -> argparse.Namespace:
@@ -126,7 +126,7 @@ def main() -> None:
 
 def find_latest_pretrain_report(version: str) -> Path | None:
     candidates: list[Path] = []
-    for report_path in (BASE_DIR / "pretrain" / "outputs").rglob("pretrain_report.json"):
+    for report_path in (PRETRAIN_ROOT / "outputs").rglob("pretrain_report.json"):
         try:
             report = json.loads(report_path.read_text(encoding="utf-8"))
         except Exception:

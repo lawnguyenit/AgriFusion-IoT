@@ -18,12 +18,35 @@ This file is the top-level snapshot for people who need to understand the curren
 
 - `fuzzy_logic_basic/`
   - benchmark data preparation and layer-by-layer CSV generation
+- `common/`
+  - shared benchmark path registry used by multiple benchmark families
 - `pretrain_supervised/`
   - embedding pretraining and downstream supervised experiments
   - dataset profile reporting for Firebase size and label scarcity lives here under `reports/generate_data_profile_report.py`
 - `direct_benchmark/`
   - direct downstream control-arm benchmark on raw v0-v5 features without embedding pretraining
   - includes a Word-friendly raw-feature profile report generator for tables, boxplots, and label composition charts
+- `ft_transformer_benchmark/`
+  - direct downstream FT-Transformer benchmark on the same raw v0-v5 feature ladder
+  - reuses the direct tabular data bundle and split policy, but keeps a separate DL arm and output tree
+- `tabpfn_benchmark/`
+  - direct downstream TabPFN benchmark on the same raw v0-v5 feature ladder
+  - reuses the direct tabular data bundle and split policy, but keeps a separate pretrained-tabular arm and output tree
+- `context_classifier/`
+  - merged real+synthetic context-classification benchmark dataset builder
+  - prepares tabular `v0/v1/v2/v3` inputs and sequence inputs for future multi-class experiments
+  - is the canonical training path when `TabNet` or `FT-Transformer` must use simulator-augmented rows
+  - now also hosts the augmented `TabPFN` comparator on the same real+synthetic tabular exports
+
+The two benchmark families are aligned by role, not by exact class name:
+
+- shared tabular comparators: `linear_probe`, `xgboost`
+- raw-control DL arm: `tabnet_classifier` in `direct_benchmark`
+- raw-transformer DL arm: `ft_transformer_classifier` in `ft_transformer_benchmark`
+- pretrained-tabular baseline arm: `tabpfn_classifier` in `tabpfn_benchmark`
+- embedding DL arm: `torch_probe` in `pretrain_supervised`
+
+This keeps the comparison meaningful while avoiding duplicate TabNet training on the pretrain side.
 
 ## Current Data Flow
 
@@ -76,6 +99,32 @@ This file is the top-level snapshot for people who need to understand the curren
 -> direct downstream model suite
 -> control-arm metrics for `v0` and `v1`
 
+### Flow F: Direct raw-feature FT-Transformer arm
+
+`flb_input_aligned.csv`
+-> `Backend/Benchmark/ft_transformer_benchmark`
+-> FT-Transformer + classical tabular baselines on the same `v0..v5` ladder
+-> transformer-specific raw-feature control metrics
+
+This flow is real-only. It does not ingest simulator synthetic rows.
+
+### Flow G: Direct raw-feature TabPFN arm
+
+`flb_input_aligned.csv`
+-> `Backend/Benchmark/tabpfn_benchmark`
+-> TabPFN + classical tabular baselines on the same `v0..v5` ladder
+-> pretrained-tabular raw-feature control metrics
+
+This flow is real-only. It does not ingest simulator synthetic rows.
+
+### Flow H: Augmented real+synthetic context benchmark
+
+`flb_input_with_events.csv`
+and `Backend/Simulator/outputs/<run_id>/synthetic_flb_gap_aware.csv`
+-> `Backend/Benchmark/context_classifier`
+-> split-aware `v0/v1/v2/v3` tabular datasets with synthetic rows injected into train only
+-> `TabNet`, `FT-Transformer`, `TabPFN`, `XGBoost`, and `LSTM` on the augmented benchmark
+
 ## Version Contract
 
 - `v1`
@@ -88,6 +137,12 @@ This file is the top-level snapshot for people who need to understand the curren
   - downstream on embeddings generated from `layer2_exp6`
 - direct benchmark
   - downstream on raw benchmark features without embedding pretraining
+- ft-transformer benchmark
+  - downstream FT-Transformer benchmark on the same raw benchmark feature ladder without embedding pretraining
+- tabpfn benchmark
+  - downstream TabPFN benchmark on the same raw benchmark feature ladder without embedding pretraining
+- context classifier
+  - downstream augmented benchmark where simulator rows are available only through the `context_classifier` build/train flow
 
 The current version catalog is defined in:
 - `D:\AgriFusion-IoT\Backend\Benchmark\pretrain_supervised\version_catalog.py`

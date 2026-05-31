@@ -17,12 +17,6 @@ def build_direct_source_registry() -> dict[str, DirectSourceSpec]:
         "v0": DirectSourceSpec(
             source_kind="v0",
             source_csv_names=("flb_input_aligned.csv",),
-            feature_columns=("pH", "N", "P", "K"),
-            description="pH/NPK-only direct control arm.",
-        ),
-        "v1": DirectSourceSpec(
-            source_kind="v1",
-            source_csv_names=("flb_input_aligned.csv",),
             feature_columns=(
                 "soil_temp",
                 "soil_humidity",
@@ -33,10 +27,20 @@ def build_direct_source_registry() -> dict[str, DirectSourceSpec]:
                 "N",
                 "P",
                 "K",
-                "ec_npk_consistency_score",
-                "ec_npk_consistency_flag",
             ),
-            description="Layer1 raw full-schema direct baseline.",
+            description="Layer1 raw full sensor + chemistry baseline.",
+        ),
+        "v1": DirectSourceSpec(
+            source_kind="v1",
+            source_csv_names=("flb_input_aligned.csv",),
+            feature_columns=(
+                "soil_temp",
+                "soil_humidity",
+                "air_temp",
+                "air_humidity",
+                "EC",
+            ),
+            description="Layer1 environment + EC raw ablation arm.",
         ),
         "v2": DirectSourceSpec(
             source_kind="v2",

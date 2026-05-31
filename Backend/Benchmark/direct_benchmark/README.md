@@ -12,6 +12,13 @@ It exists to answer a simple question:
 
 This is the direct counterpart to `pretrain_supervised/`. It is meant for Word-ready comparison and for testing whether pretraining actually adds measurable value.
 
+The direct model suite now includes both ML and DL controls:
+
+- ML: `linear_probe`, `xgboost`
+- DL: `tabnet_classifier`
+
+The default suite is intentionally compact so the comparison stays readable. You can expand it with `--model-names` when you need the larger control set, including `torch_probe` and the heavier tree baselines.
+
 ## Layout
 
 - `main.py`
@@ -26,9 +33,23 @@ This is the direct counterpart to `pretrain_supervised/`. It is meant for Word-r
 ## Versions
 
 - `v0`
-  - direct training on the pH/NPK raw subset from the aligned Layer1 CSV
+  - direct training on the full aligned Layer1 raw sensor + chemistry schema:
+    - `soil_temp`
+    - `soil_humidity`
+    - `air_temp`
+    - `air_humidity`
+    - `EC`
+    - `pH`
+    - `N`
+    - `P`
+    - `K`
 - `v1`
-  - direct training on the full aligned Layer1 raw schema
+  - direct training on the aligned Layer1 environment + EC subset:
+    - `soil_temp`
+    - `soil_humidity`
+    - `air_temp`
+    - `air_humidity`
+    - `EC`
 - `v2`
   - direct training on the Layer2 short-window ablation export `flb_l2_exp2.csv`
 - `v3`
@@ -63,6 +84,8 @@ Main artifacts:
 - `training_report.json`
 - `best_model.txt`
 - `run_status.json`
+- `tabnet_classifier.pt`
+- `torch_probe.pt` when `torch_probe` is enabled
 
 Profile report artifacts:
 
@@ -108,14 +131,35 @@ Run the full matched ladder:
 python D:\AgriFusion-IoT\Backend\Benchmark\direct_benchmark\main.py --experiments v0 v1 v2 v3 v4 v5
 ```
 
+Run the final-report protocol with a fixed 24h purge gap:
+
+```powershell
+python D:\AgriFusion-IoT\Backend\Benchmark\direct_benchmark\main.py --experiments v0 v1 v2 v3 v4 v5 --split-strategy chronological_with_lookback_gap --split-gap-minutes 1440
+```
+
+Run the compact model suite explicitly:
+
+```powershell
+python D:\AgriFusion-IoT\Backend\Benchmark\direct_benchmark\main.py --experiments v0 v1 v2 v3 v4 v5 --model-names linear_probe xgboost tabnet_classifier
+```
+
+Console progress:
+
+- the pipeline now prints run start, current experiment, model start/finish, and epoch-level progress for `tabnet_classifier`
+- sklearn-family models such as `xgboost` now print explicit `fitting` and `completed` messages so long runs are no longer silent
+- PyTorch models such as `tabnet_classifier` also print the selected `device` (`cpu` or `cuda`) and CUDA runtime at training start
+
 ## Assumptions
 
 - The direct benchmark reuses the current event annotation CSV and the current label policy.
 - Splits are built chronologically from the aligned raw rows, using the shared split policy module.
 - The downstream model suite is the same family used by the embedding benchmark, so the comparison isolates the effect of pretraining.
-- `v0` is intentionally narrower than `v1` so the control arm still contains an explicit raw-feature ablation.
+- For thesis-grade comparison, the recommended final split is `chronological_with_lookback_gap` with `--split-gap-minutes 1440` so the direct arm and the pretrain arm are evaluated under the same time-based protocol.
+- `tabnet_classifier` is the supervised TabNet-style deep model trained directly on raw/control features, not on pretrain embeddings.
+- `v1` is intentionally narrower than `v0` so the control arm still contains an explicit raw-feature ablation.
 - `v2` to `v5` are the matched direct-feature controls for the temporal/window ladder used in the embedding benchmark.
 - Windowed direct experiments can contain missing values in early rows; the downstream pipeline applies median imputation before scaling.
+- `torch_probe` is optional and only runs if included in `--model-names`.
 - The profile report is a presentation layer only; it does not alter the benchmark data or training flow.
 
 ## Limits
