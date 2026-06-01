@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+import pandas as pd
+
 from Backend.Benchmark.fuzzy_logic_basic.layer2.src.config import SATURATION_THRESHOLD
 from Backend.Benchmark.fuzzy_logic_basic.layer3_combo.src.experiments import (
     Layer3ComboExperimentSpec,
@@ -47,6 +49,7 @@ def build_layer3_combo_experiments(
     for spec in selected_specs:
         output_csv = target_dir / spec.output_filename
         export_frame = bundle.dataframe[spec.feature_columns].copy()
+        export_frame = _append_train_label_columns(export_frame, base_frame)
         write_layer3_combo_csv(export_frame, output_csv)
         results.append(
             Layer3ComboBuildResult(
@@ -67,3 +70,11 @@ def _select_specs(
     if not experiment_names:
         return [specs[name] for name in ("combo1", "combo2", "combo3", "combo4")]
     return [specs[name] for name in experiment_names]
+
+
+def _append_train_label_columns(export_frame: pd.DataFrame, source_frame: pd.DataFrame) -> pd.DataFrame:
+    if "big_label" not in source_frame.columns:
+        return export_frame
+    labeled = export_frame.copy()
+    labeled["big_label"] = source_frame["big_label"].fillna("none").astype(str).to_numpy()
+    return labeled

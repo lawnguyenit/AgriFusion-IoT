@@ -13,7 +13,6 @@ except ImportError:
     from ...Config.storage import read_json, read_jsonl
 
 from .config import AlignmentConfig
-from .ec_npk_consistency import ECConsistencyModel, check_ec_npk_consistency, fit_ec_model
 
 
 @dataclass(frozen=True)
@@ -33,10 +32,8 @@ class AlignmentResult:
     row_count: int
     input_counts: dict[str, int]
     missing_counts: dict[str, int]
-    flag_distribution: dict[str, int]
     csv_path: Path
     manifest_path: Path
-    ec_model: ECConsistencyModel
     rows: list[dict[str, Any]]
 
 
@@ -183,8 +180,7 @@ def _build_base_row(anchor_ts: int, npk_record: SourceRecord | None, sht_record:
 
 def align_layer1_records(
     config: AlignmentConfig,
-) -> tuple[list[dict[str, Any]], dict[str, int], dict[str, int], ECConsistencyModel, dict[str, int]]:
-    
+) -> tuple[list[dict[str, Any]], dict[str, int], dict[str, int]]:
     source_records = _load_source_records(config.input_root)
     npk_records = source_records.get("npk", [])
     sht_records = source_records.get("sht30", [])
@@ -204,7 +200,6 @@ def align_layer1_records(
     )
 
     rows: list[dict[str, Any]] = []
-    flag_distribution: dict[str, int] = {}
 
     for anchor_ts in anchors:
         npk_record = _nearest_record(npk_records, anchor_ts, config.family_match_tolerance_sec)
@@ -225,31 +220,6 @@ def align_layer1_records(
                 "_anchor_source": "npk" if npk_record is not None else "sht30",
             }
         )
-
-    ec_model = fit_ec_model(
-        rows,
-        default_slope=config.ec_default_slope,
-        default_intercept=config.ec_default_intercept,
-        min_samples=config.ec_model_min_samples,
-    )
-
-    for row in rows:
-        ec_score, ec_flag, ec_reason = check_ec_npk_consistency(
-            row.get("EC"),
-            row.get("N"),
-            row.get("P"),
-            row.get("K"),
-            model=ec_model,
-            warn_ratio=config.ec_residual_warn_ratio,
-            critical_ratio=config.ec_residual_critical_ratio,
-        )
-        row["ec_npk_consistency_score"] = ec_score
-        row["ec_npk_consistency_flag"] = int(ec_score >= config.ec_consistency_binary_threshold)
-        row["_ec_npk_reason"] = ec_reason
-
-        flag_key = str(row["ec_npk_consistency_flag"])
-        flag_distribution[flag_key] = flag_distribution.get(flag_key, 0) + 1
-
     output_rows = [
         {
             "timestamp": row["timestamp"],
@@ -262,8 +232,6 @@ def align_layer1_records(
             "N": row["N"],
             "P": row["P"],
             "K": row["K"],
-            "ec_npk_consistency_score": row["ec_npk_consistency_score"],
-            "ec_npk_consistency_flag": row["ec_npk_consistency_flag"],
         }
         for row in rows
     ]
@@ -284,8 +252,6 @@ def align_layer1_records(
         "N": sum(1 for row in output_rows if row["N"] is None),
         "P": sum(1 for row in output_rows if row["P"] is None),
         "K": sum(1 for row in output_rows if row["K"] is None),
-        "ec_npk_consistency_score": sum(1 for row in output_rows if row["ec_npk_consistency_score"] is None),
-        "ec_npk_consistency_flag": sum(1 for row in output_rows if row["ec_npk_consistency_flag"] is None),
     }
 
-    return output_rows, input_counts, missing_counts, ec_model, flag_distribution
+    return output_rows, input_counts, missing_counts

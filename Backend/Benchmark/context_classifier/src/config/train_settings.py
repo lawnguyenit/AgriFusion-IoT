@@ -101,7 +101,7 @@ def _latest_build_run_dir(output_root: Path, label_scheme_name: str) -> Path:
 class ContextTrainConfig:
     benchmark_family: str = "context_classifier"
     benchmark_version: str = "train_v0"
-    label_scheme: str = "five_class_v1"
+    label_scheme: str = "option2_4class"
     build_run_dir: Path | None = None
     output_root: Path | None = None
     experiment_names: list[str] = field(default_factory=lambda: list(DEFAULT_EXPERIMENTS))

@@ -8,13 +8,13 @@ import pandas as pd
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import StandardScaler
 
+from Backend.Benchmark.common.raw_tabular_dataset import build_raw_tabular_data_bundle
 from Backend.Benchmark.pretrain_supervised.pretrain.src.utils.artifacts import create_run_directory
 from Backend.Benchmark.pretrain_supervised.v1.src.data.contracts import ModelResult
 from Backend.Benchmark.pretrain_supervised.v1.src.data.labels import select_label_policy
 from Backend.Benchmark.pretrain_supervised.v1.src.model.sklearn_models import train_model_suite
 from Backend.Benchmark.pretrain_supervised.v1.src.utils.artifacts import write_json, write_text
 from Backend.Benchmark.tabpfn_benchmark.src.config.settings import TabPFNBenchmarkConfig
-from Backend.Benchmark.tabpfn_benchmark.src.data.raw_data import build_tabpfn_data_bundle
 from Backend.Benchmark.tabpfn_benchmark.src.model.tabpfn_classifier import (
     TabPFNClassifierConfig,
     train_tabpfn_classifier,
@@ -111,7 +111,7 @@ def _run_single_experiment(
     models_dir = output_dir / "models"
     models_dir.mkdir(parents=True, exist_ok=True)
 
-    data_bundle = build_tabpfn_data_bundle(config, experiment_name=experiment_name)
+    data_bundle = build_raw_tabular_data_bundle(config, experiment_name=experiment_name)
     dataframe = data_bundle.dataframe.copy()
     label_policy = select_label_policy(
         dataframe,

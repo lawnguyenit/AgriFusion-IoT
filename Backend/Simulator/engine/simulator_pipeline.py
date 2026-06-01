@@ -9,14 +9,12 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from Backend.Benchmark.fuzzy_logic_basic.layer1.config import AlignmentConfig
-from Backend.Benchmark.fuzzy_logic_basic.layer1.ec_npk_consistency import check_ec_npk_consistency
-
 from ..config.paths import SimulatorPaths
+from .augmentation_taxonomy import build_augmentation_taxonomy
+from .real_train_target import RealTrainSizingTarget
 from ..scenarios.base import Scenario, ScenarioContext, ScenarioSpec
-from ..scenarios.fertigation_spike import FertigationSpikeScenario
 from ..scenarios.packet_loss import PacketLossScenario
-from ..scenarios.rain_humid_context import RainHumidContextScenario
+from ..scenarios.rain_or_fertigation_context import RainOrFertigationContextScenario
 from ..scenarios.water_deficit import WaterDeficitScenario
 from ..seed.aligned_seed_reader import load_aligned_seed_rows
 
@@ -31,8 +29,6 @@ BENCHMARK_COLUMNS = [
     "N",
     "P",
     "K",
-    "ec_npk_consistency_score",
-    "ec_npk_consistency_flag",
 ]
 
 LABELED_EXTRA_COLUMNS = [
@@ -55,15 +51,13 @@ GAP_AWARE_EXTRA_COLUMNS = [
 
 EVENT_DURATION_RANGES: dict[str, tuple[int, int]] = {
     "packet_loss": (6, 28),
-    "rain_humid_context": (8, 24),
-    "fertigation_spike": (6, 16),
+    "rain_or_fertigation_context": (8, 24),
     "water_deficit": (40, 96),
 }
 
 SCENARIO_REGISTRY: dict[str, Scenario] = {
     PacketLossScenario.name: PacketLossScenario(),
-    RainHumidContextScenario.name: RainHumidContextScenario(),
-    FertigationSpikeScenario.name: FertigationSpikeScenario(),
+    RainOrFertigationContextScenario.name: RainOrFertigationContextScenario(),
     WaterDeficitScenario.name: WaterDeficitScenario(),
 }
 
@@ -93,6 +87,7 @@ class SimulationRunResult:
     gap_aware_csv_path: Path
     manifest_path: Path
     label_summary_path: Path
+    augmentation_taxonomy_path: Path
     generated_record_count: int
     interval_seconds: int
     simulation_start_ts: int
@@ -109,6 +104,7 @@ class SimulatorPipeline:
         scenario_specs: list[ScenarioSpec],
         seed_limit: int = 0,
         normal_count: int = 600,
+        real_train_sizing_target: RealTrainSizingTarget | None = None,
     ) -> SimulationRunResult:
         aligned_dataset = load_aligned_seed_rows(self.paths.layer1_root)
         seed_rows = aligned_dataset.rows if seed_limit <= 0 else aligned_dataset.rows[-seed_limit:]
@@ -118,11 +114,15 @@ class SimulatorPipeline:
         interval_seconds = _estimate_interval_seconds(seed_rows)
         latest_seed_ts = int(seed_rows[-1]["timestamp"])
         slot_map = _build_slot_map(seed_rows, interval_seconds)
-        config = AlignmentConfig()
         rng = random.Random(20260526)
+        resolved_normal_count, resolved_scenario_specs, allocation_summary = _resolve_generation_mix(
+            normal_count=normal_count,
+            scenario_specs=scenario_specs,
+            real_train_sizing_target=real_train_sizing_target,
+        )
 
-        episode_plans = _build_episode_plans(scenario_specs, latest_seed_ts, interval_seconds, rng)
-        normal_segments = _allocate_normal_segments(normal_count, len(episode_plans) + 1, rng)
+        episode_plans = _build_episode_plans(resolved_scenario_specs, latest_seed_ts, interval_seconds, rng)
+        normal_segments = _allocate_normal_segments(resolved_normal_count, len(episode_plans) + 1, rng)
 
         benchmark_rows: list[dict[str, Any]] = []
         labeled_rows: list[dict[str, Any]] = []
@@ -140,8 +140,6 @@ class SimulatorPipeline:
             interval_seconds=interval_seconds,
             slot_map=slot_map,
             seed_rows=seed_rows,
-            ec_model=aligned_dataset.ec_model,
-            config=config,
             benchmark_rows=benchmark_rows,
             labeled_rows=labeled_rows,
             gap_aware_rows=gap_aware_rows,
@@ -185,7 +183,6 @@ class SimulatorPipeline:
                     )
                     benchmark_row = scenario.mutate(base_benchmark_row, context)
                     benchmark_row = _sanitize_row(benchmark_row)
-                    benchmark_row = _recompute_ec_consistency(benchmark_row, aligned_dataset.ec_model, config)
                     labeled_row = _build_labeled_row(
                         benchmark_row,
                         scenario_label=plan.scenario_name,
@@ -222,8 +219,6 @@ class SimulatorPipeline:
                 interval_seconds=interval_seconds,
                 slot_map=slot_map,
                 seed_rows=seed_rows,
-                ec_model=aligned_dataset.ec_model,
-                config=config,
                 benchmark_rows=benchmark_rows,
                 labeled_rows=labeled_rows,
                 gap_aware_rows=gap_aware_rows,
@@ -240,20 +235,24 @@ class SimulatorPipeline:
         gap_aware_csv_path = run_dir / "synthetic_flb_gap_aware.csv"
         manifest_path = run_dir / "generation_manifest.json"
         label_summary_path = run_dir / "label_summary.json"
+        augmentation_taxonomy_path = run_dir / "augmentation_taxonomy.json"
 
         _write_csv(csv_path, BENCHMARK_COLUMNS, benchmark_rows)
         _write_csv(labeled_csv_path, BENCHMARK_COLUMNS + LABELED_EXTRA_COLUMNS + GAP_AWARE_EXTRA_COLUMNS, labeled_rows)
         _write_csv(gap_aware_csv_path, BENCHMARK_COLUMNS + LABELED_EXTRA_COLUMNS + GAP_AWARE_EXTRA_COLUMNS, gap_aware_rows)
 
         label_summary = _build_label_summary(gap_aware_rows)
+        augmentation_taxonomy = build_augmentation_taxonomy(gap_aware_rows)
         _write_json(
             label_summary_path,
             {
                 **label_summary,
                 "requested_normal_count": normal_count,
+                "resolved_normal_count": resolved_normal_count,
                 "actual_normal_count": sum(1 for row in gap_aware_rows if row["scenario_label"] == "normal_context"),
             },
         )
+        _write_json(augmentation_taxonomy_path, augmentation_taxonomy)
         _write_json(
             manifest_path,
             {
@@ -261,6 +260,7 @@ class SimulatorPipeline:
                 "input_root": str(self.paths.layer1_root),
                 "seed_row_count": len(seed_rows),
                 "requested_normal_count": normal_count,
+                "resolved_normal_count": resolved_normal_count,
                 "actual_normal_count": sum(1 for row in gap_aware_rows if row["scenario_label"] == "normal_context"),
                 "benchmark_row_count": len(benchmark_rows),
                 "gap_aware_row_count": len(gap_aware_rows),
@@ -272,9 +272,17 @@ class SimulatorPipeline:
                 "interval_seconds": interval_seconds,
                 "simulation_start_ts": simulation_start_ts,
                 "simulation_end_ts": simulation_end_ts,
-                "scenario_specs": [
+                "requested_scenario_specs": [
                     {"name": spec.name, "count": spec.count, "intensity": spec.intensity} for spec in scenario_specs
                 ],
+                "resolved_scenario_specs": [
+                    {"name": spec.name, "count": spec.count, "intensity": spec.intensity}
+                    for spec in resolved_scenario_specs
+                ],
+                "generation_mix": allocation_summary,
+                "real_train_sizing_target": (
+                    real_train_sizing_target.to_manifest_dict() if real_train_sizing_target is not None else {"enabled": False}
+                ),
                 "normal_segments": normal_segments,
                 "episodes": [
                     {
@@ -288,25 +296,21 @@ class SimulatorPipeline:
                     }
                     for episode in episode_runs
                 ],
-                "ec_model": {
-                    "slope": aligned_dataset.ec_model.slope,
-                    "intercept": aligned_dataset.ec_model.intercept,
-                    "sample_count": aligned_dataset.ec_model.sample_count,
-                    "r2": aligned_dataset.ec_model.r2,
-                },
                 "seed_input_counts": aligned_dataset.input_counts,
                 "seed_missing_counts": aligned_dataset.missing_counts,
-                "seed_flag_distribution": aligned_dataset.flag_distribution,
                 "output_files": {
                     "benchmark_csv": str(csv_path),
                     "labeled_csv": str(labeled_csv_path),
                     "gap_aware_csv": str(gap_aware_csv_path),
                     "label_summary": str(label_summary_path),
+                    "augmentation_taxonomy": str(augmentation_taxonomy_path),
                 },
+                "augmentation_taxonomy": augmentation_taxonomy,
                 "assumptions": [
                     "So dong normal duoc khong che bang normal_count thay vi de no phinh theo timeline.",
                     "Packet loss duoc bieu dien bang mat record trong gap-aware timeline.",
                     "Benchmark CSV giu schema flb_input_aligned.csv va tu nhien se co gap timestamp o outage.",
+                    "Khi bat auto target, normal_count va scenario.count duoc dung nhu weight phan bo thay vi count tuyet doi.",
                 ],
             },
         )
@@ -318,6 +322,7 @@ class SimulatorPipeline:
             gap_aware_csv_path=gap_aware_csv_path,
             manifest_path=manifest_path,
             label_summary_path=label_summary_path,
+            augmentation_taxonomy_path=augmentation_taxonomy_path,
             generated_record_count=len(gap_aware_rows),
             interval_seconds=interval_seconds,
             simulation_start_ts=simulation_start_ts,
@@ -332,8 +337,6 @@ class SimulatorPipeline:
         interval_seconds: int,
         slot_map: dict[int, list[dict[str, Any]]],
         seed_rows: list[dict[str, Any]],
-        ec_model,
-        config: AlignmentConfig,
         benchmark_rows: list[dict[str, Any]],
         labeled_rows: list[dict[str, Any]],
         gap_aware_rows: list[dict[str, Any]],
@@ -344,7 +347,6 @@ class SimulatorPipeline:
             benchmark_row = _clone_benchmark_row(base_row)
             benchmark_row["timestamp"] = ts_cursor
             benchmark_row = _sanitize_row(benchmark_row)
-            benchmark_row = _recompute_ec_consistency(benchmark_row, ec_model, config)
             labeled_row = _build_labeled_row(
                 benchmark_row,
                 scenario_label="normal_context",
@@ -411,6 +413,73 @@ def _allocate_normal_segments(normal_count: int, segment_count: int, rng: random
     for index in range(remainder):
         segments[index % segment_count] += 1
     return segments
+
+
+def _resolve_generation_mix(
+    *,
+    normal_count: int,
+    scenario_specs: list[ScenarioSpec],
+    real_train_sizing_target: RealTrainSizingTarget | None,
+) -> tuple[int, list[ScenarioSpec], dict[str, Any]]:
+    if real_train_sizing_target is None:
+        return (
+            normal_count,
+            list(scenario_specs),
+            {
+                "mode": "manual_counts",
+                "target_total_records": normal_count + sum(spec.count for spec in scenario_specs),
+                "normal_weight": normal_count,
+                "scenario_weight_total": sum(spec.count for spec in scenario_specs),
+            },
+        )
+
+    total_weight = max(0, normal_count) + sum(max(0, spec.count) for spec in scenario_specs)
+    if total_weight <= 0:
+        raise ValueError("Khong the auto-scale synthetic khi tong weight normal + scenario <= 0.")
+
+    allocations = _largest_remainder_allocate(
+        target_total=real_train_sizing_target.target_total_records,
+        items=[("normal_context", max(0, normal_count))] + [(spec.name, max(0, spec.count)) for spec in scenario_specs],
+    )
+    resolved_normal_count = allocations.get("normal_context", 0)
+    resolved_specs = [
+        ScenarioSpec(name=spec.name, count=allocations.get(spec.name, 0), intensity=spec.intensity) for spec in scenario_specs
+    ]
+    return (
+        resolved_normal_count,
+        resolved_specs,
+        {
+            "mode": "real_train_multiplier",
+            "target_total_records": real_train_sizing_target.target_total_records,
+            "normal_weight": normal_count,
+            "scenario_weight_total": sum(spec.count for spec in scenario_specs),
+            "resolved_total_records": resolved_normal_count + sum(spec.count for spec in resolved_specs),
+            "allocation_by_label": allocations,
+        },
+    )
+
+
+def _largest_remainder_allocate(target_total: int, items: list[tuple[str, int]]) -> dict[str, int]:
+    positive_items = [(name, weight) for name, weight in items if weight > 0]
+    if target_total < 0:
+        raise ValueError(f"target_total must be non-negative, got {target_total}")
+    if not positive_items or target_total == 0:
+        return {name: 0 for name, _ in items}
+
+    total_weight = sum(weight for _, weight in positive_items)
+    raw_allocations = [
+        (name, weight, (target_total * weight) / total_weight)
+        for name, weight in positive_items
+    ]
+    allocations = {name: int(raw_value) for name, _, raw_value in raw_allocations}
+    remainder = target_total - sum(allocations.values())
+    ranked = sorted(raw_allocations, key=lambda item: (item[2] - int(item[2]), item[1]), reverse=True)
+    for index in range(remainder):
+        name = ranked[index % len(ranked)][0]
+        allocations[name] += 1
+    for name, _ in items:
+        allocations.setdefault(name, 0)
+    return allocations
 
 
 def _next_available_scenario(
@@ -519,21 +588,6 @@ def _sanitize_row(row: dict[str, Any]) -> dict[str, Any]:
     row["N"] = round(max(0.0, float(row["N"])), 1)
     row["P"] = round(max(0.0, float(row["P"])), 1)
     row["K"] = round(max(0.0, float(row["K"])), 1)
-    return row
-
-
-def _recompute_ec_consistency(row: dict[str, Any], ec_model, config: AlignmentConfig) -> dict[str, Any]:
-    score, _, _ = check_ec_npk_consistency(
-        row.get("EC"),
-        row.get("N"),
-        row.get("P"),
-        row.get("K"),
-        model=ec_model,
-        warn_ratio=config.ec_residual_warn_ratio,
-        critical_ratio=config.ec_residual_critical_ratio,
-    )
-    row["ec_npk_consistency_score"] = score
-    row["ec_npk_consistency_flag"] = int(score >= config.ec_consistency_binary_threshold)
     return row
 
 

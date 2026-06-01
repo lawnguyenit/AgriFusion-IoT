@@ -16,12 +16,12 @@ from Backend.Benchmark.context_classifier.src.pipeline.train_pipeline import run
 
 
 DEFAULT_EXPERIMENTS = ["v0", "v1", "v2", "v3"]
-DEFAULT_MODELS = ["tabnet_classifier", "ft_transformer_classifier", "tabpfn_classifier"]
+DEFAULT_MODELS = ["xgboost", "tabnet_classifier", "ft_transformer_classifier"]
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Build and train real+synthetic tabular benchmarks for TabNet, FT-Transformer, and TabPFN."
+        description="Build and train real+synthetic tabular benchmarks for XGBoost, TabNet, and FT-Transformer."
     )
     parser.add_argument(
         "--build-run-dir",
@@ -42,12 +42,6 @@ def parse_args() -> argparse.Namespace:
         help="Path to synthetic_flb_gap_aware.csv. Defaults to the latest simulator run.",
     )
     parser.add_argument(
-        "--synthetic-labeled-csv",
-        type=Path,
-        default=None,
-        help="Path to synthetic_flb_input_labeled.csv. Defaults to the latest simulator run.",
-    )
-    parser.add_argument(
         "--label-scheme",
         choices=tuple(sorted(LABEL_SCHEMES)),
         default="option2_4class",
@@ -63,52 +57,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--model-names",
         nargs="+",
-        choices=("xgboost", "tabnet_classifier", "ft_transformer_classifier", "tabpfn_classifier"),
+        choices=("xgboost", "tabnet_classifier", "ft_transformer_classifier"),
         default=None,
-        help="Tabular models to train. Defaults to TabNet, FT-Transformer, and TabPFN.",
-    )
-    parser.add_argument(
-        "--tabpfn-device",
-        choices=("auto", "cpu", "cuda"),
-        default="auto",
-        help="Preferred device for TabPFN if supported by the installed version.",
-    )
-    parser.add_argument(
-        "--tabpfn-model-path",
-        type=str,
-        default="tabpfn-v2-classifier-v2_default.ckpt",
-        help="Model path or checkpoint name passed to TabPFN.",
-    )
-    parser.add_argument(
-        "--tabpfn-fit-mode",
-        choices=("fit_preprocessors", "low_memory", "batched"),
-        default="fit_preprocessors",
-        help="Best-effort fit mode passed to TabPFN when supported by the installed version.",
-    )
-    parser.add_argument(
-        "--tabpfn-inference-config",
-        choices=("auto", "low_memory", "fast"),
-        default="auto",
-        help=(
-            "Compatibility flag for older experiments. Current TabPFN builds expect "
-            "dict/InferenceConfig/None here, so preset-like values such as low_memory "
-            "or fast are ignored by the wrapper. Use --tabpfn-fit-mode low_memory for "
-            "memory-constrained runs."
-        ),
-    )
-    parser.add_argument(
-        "--tabpfn-prediction-batch-size",
-        type=int,
-        default=128,
-        help="Row batch size used for TabPFN predict/predict_proba to reduce GPU memory spikes.",
-    )
-    parser.add_argument(
-        "--tabpfn-ignore-pretraining-limits",
-        action="store_true",
-        help=(
-            "Pass ignore_pretraining_limits=True to TabPFN. Required for CPU runs with "
-            "more than 1000 training rows."
-        ),
+        help="Tabular models to train. Defaults to XGBoost, TabNet, and FT-Transformer.",
     )
     parser.add_argument(
         "--build-output-root",
@@ -132,8 +83,6 @@ def _configure_build(args: argparse.Namespace) -> ContextClassifierConfig:
         config.real_event_csv = args.real_event_csv.resolve()
     if args.synthetic_gap_aware_csv is not None:
         config.synthetic_gap_aware_csv = args.synthetic_gap_aware_csv.resolve()
-    if args.synthetic_labeled_csv is not None:
-        config.synthetic_labeled_csv = args.synthetic_labeled_csv.resolve()
     if args.build_output_root is not None:
         config.output_root = args.build_output_root.resolve()
     if args.smoke_test:
@@ -146,12 +95,6 @@ def _configure_train(args: argparse.Namespace, build_run_dir: Path) -> ContextTr
     config.build_run_dir = build_run_dir.resolve()
     config.experiment_names = list(args.experiment_names or DEFAULT_EXPERIMENTS)
     config.model_names = list(args.model_names or DEFAULT_MODELS)
-    config.tabpfn_device = args.tabpfn_device
-    config.tabpfn_model_path = args.tabpfn_model_path
-    config.tabpfn_fit_mode = args.tabpfn_fit_mode
-    config.tabpfn_inference_config = args.tabpfn_inference_config
-    config.tabpfn_ignore_pretraining_limits = args.tabpfn_ignore_pretraining_limits
-    config.tabpfn_prediction_batch_size = args.tabpfn_prediction_batch_size
     if args.train_output_root is not None:
         config.output_root = args.train_output_root.resolve()
     if args.smoke_test:

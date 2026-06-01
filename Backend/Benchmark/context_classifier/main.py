@@ -30,12 +30,6 @@ def parse_args() -> argparse.Namespace:
         help="Path to synthetic_flb_gap_aware.csv. Defaults to the latest simulator run.",
     )
     parser.add_argument(
-        "--synthetic-labeled-csv",
-        type=Path,
-        default=None,
-        help="Path to synthetic_flb_input_labeled.csv. Defaults to the latest simulator run.",
-    )
-    parser.add_argument(
         "--output-root",
         type=Path,
         default=None,
@@ -44,8 +38,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--label-scheme",
         choices=tuple(sorted(LABEL_SCHEMES)),
-        default="five_class_v1",
-        help="Canonical label scheme. Option 2 uses a separate output tree by default.",
+        default="option2_4class",
+        help="Canonical label scheme. Defaults to the active 4-class contract; five_class_v1 remains legacy.",
     )
     parser.add_argument(
         "--sequence-lookback",
@@ -74,8 +68,6 @@ def main() -> None:
         config.real_event_csv = args.real_event_csv.resolve()
     if args.synthetic_gap_aware_csv is not None:
         config.synthetic_gap_aware_csv = args.synthetic_gap_aware_csv.resolve()
-    if args.synthetic_labeled_csv is not None:
-        config.synthetic_labeled_csv = args.synthetic_labeled_csv.resolve()
     if args.output_root is not None:
         config.output_root = args.output_root.resolve()
     config.sequence_lookback = args.sequence_lookback

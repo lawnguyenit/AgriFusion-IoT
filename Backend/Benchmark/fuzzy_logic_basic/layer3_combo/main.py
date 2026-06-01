@@ -8,6 +8,7 @@ ROOT_DIR = Path(__file__).resolve().parents[4]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
+from Backend.Benchmark.fuzzy_logic_basic.reporting import build_stage_report, write_report
 from Backend.Benchmark.fuzzy_logic_basic.layer3_combo.src.pipeline import (
     Layer3ComboBuildResult,
     build_layer3_combo_experiments,
@@ -55,11 +56,25 @@ def main() -> None:
         output_dir=args.output_dir,
         experiment_names=experiment_names,
     )
+    requested_names = list(experiment_names or ["combo1", "combo2", "combo3", "combo4"])
+    report_payload = build_stage_report(
+        stage_name="layer3_combo_dataset_builder",
+        input_csv=results[0].input_csv,
+        output_dir=results[0].output_csv.parent,
+        requested_names=requested_names,
+        results=results,
+        notes=[
+            "Layer3 combo builds multi-window train-facing exports from the current FLB dataset source.",
+            "This stage does not generate labels and only retains big_label when it is already present.",
+        ],
+    )
+    report_path = results[0].output_csv.parent / "flb_layer3_combo_build_report.json"
+    write_report(report_path, report_payload)
     print("Layer3 combo datasets complete")
     for result in results:
         _print_result(result)
+    print(f"Build report: {report_path}")
 
 
 if __name__ == "__main__":
     main()
-

@@ -21,10 +21,7 @@ RAW_CORE_SENSOR_COLUMNS = [
     "EC",
 ]
 
-DIAGNOSTIC_SENSOR_COLUMNS = [
-    "ec_npk_consistency_score",
-    "ec_npk_consistency_flag",
-]
+DIAGNOSTIC_SENSOR_COLUMNS: list[str] = []
 
 # Backward-compatible full sensor set used by canonical and sequence builders.
 BASE_SENSOR_COLUMNS = RAW_FULL_SENSOR_COLUMNS + DIAGNOSTIC_SENSOR_COLUMNS

@@ -14,9 +14,10 @@ from sklearn.exceptions import InconsistentVersionWarning
 
 try:
     from Benchmark.context_classifier.src.data.tabular_builder import (
-        build_base_tabular,
-        build_combo_tabular,
-        build_window_tabular,
+        build_v0_tabular,
+        build_v1_tabular,
+        build_v2_tabular,
+        build_v3_tabular,
     )
     from Benchmark.ft_transformer_benchmark.src.model.ft_transformer_classifier import (
         FTTransformerClassifier,
@@ -26,9 +27,10 @@ try:
     from Benchmark.fuzzy_logic_basic.layer1.config import AlignmentConfig
 except ModuleNotFoundError:
     from Backend.Benchmark.context_classifier.src.data.tabular_builder import (
-        build_base_tabular,
-        build_combo_tabular,
-        build_window_tabular,
+        build_v0_tabular,
+        build_v1_tabular,
+        build_v2_tabular,
+        build_v3_tabular,
     )
     from Backend.Benchmark.ft_transformer_benchmark.src.model.ft_transformer_classifier import (
         FTTransformerClassifier,
@@ -47,7 +49,17 @@ DISPLAY_LABELS = {
     "normal_context": "Binh thuong",
     "packet_loss_outage": "Packet loss outage",
     "water_deficit": "Thieu nuoc",
-    "moisture_or_intervention_context": "Am cao / can thiep tuoi-bon",
+    "rain_or_fertigation_context": "Mua-am hoac tuoi-bon",
+    "moisture_or_intervention_context": "Mua-am hoac tuoi-bon",
+}
+
+RUNTIME_METADATA_COLUMNS = {
+    "timestamp",
+    "context_label",
+    "data_origin",
+    "is_synthetic",
+    "source_reference",
+    "split_name",
 }
 
 
@@ -70,7 +82,8 @@ class ContextFTModelArtifact:
 
 
 def display_label_for_context(label: str) -> str:
-    return DISPLAY_LABELS.get(label, label.replace("_", " "))
+    normalized = "rain_or_fertigation_context" if label == "moisture_or_intervention_context" else label
+    return DISPLAY_LABELS.get(normalized, normalized.replace("_", " "))
 
 
 def discover_best_ft_context_artifact(benchmark_root: Path) -> ContextFTModelArtifact | None:
@@ -89,7 +102,6 @@ def discover_best_ft_context_artifact(benchmark_root: Path) -> ContextFTModelArt
             continue
 
         build_manifest = report_payload.get("build_manifest", {})
-        class_names = tuple(str(name) for name in build_manifest.get("class_names", []))
         window_sizes = tuple(int(value) for value in build_manifest.get("window_sizes", [3, 8]))
         metrics_frame = pd.read_csv(aggregate_metrics_path)
         filtered = metrics_frame.loc[
@@ -114,6 +126,14 @@ def discover_best_ft_context_artifact(benchmark_root: Path) -> ContextFTModelArt
                 continue
 
             feature_schema = _load_json(feature_schema_path)
+            class_names = tuple(
+                str(name)
+                for name in (
+                    feature_schema.get("class_names")
+                    or build_manifest.get("class_names")
+                    or []
+                )
+            )
             feature_names = tuple(str(name) for name in feature_schema.get("feature_names", []))
             candidate = ContextFTModelArtifact(
                 aggregate_metrics_path=aggregate_metrics_path,
@@ -137,11 +157,11 @@ def discover_best_ft_context_artifact(benchmark_root: Path) -> ContextFTModelArt
             if (
                 candidate.test_macro_f1,
                 candidate.validation_macro_f1,
-                candidate.experiment_name == "window",
+                _experiment_priority(candidate.experiment_name),
             ) > (
                 best_candidate.test_macro_f1,
                 best_candidate.validation_macro_f1,
-                best_candidate.experiment_name == "window",
+                _experiment_priority(best_candidate.experiment_name),
             ):
                 best_candidate = candidate
     return best_candidate
@@ -193,7 +213,11 @@ class ContextFTRuntimeDiagnosisModel:
 
 
 def build_runtime_feature_row(settings: BackendSettings, artifact: ContextFTModelArtifact) -> dict[str, Any] | None:
-    aligned_rows, _, _, _, _ = align_layer1_records(AlignmentConfig(input_root=settings.layer1_root))
+    alignment_result = align_layer1_records(AlignmentConfig(input_root=settings.layer1_root))
+    if isinstance(alignment_result, tuple):
+        aligned_rows = alignment_result[0]
+    else:
+        aligned_rows = alignment_result
     if not aligned_rows:
         return None
 
@@ -205,15 +229,11 @@ def build_runtime_feature_row(settings: BackendSettings, artifact: ContextFTMode
     canonical_df["split_name"] = "runtime"
 
     _inject_packet_loss_runtime_features(canonical_df)
-
-    if artifact.experiment_name == "base":
-        feature_df = build_base_tabular(canonical_df)
-    elif artifact.experiment_name == "window":
-        feature_df = build_window_tabular(canonical_df, window_sizes=list(artifact.window_sizes))
-    elif artifact.experiment_name == "combo":
-        feature_df = build_combo_tabular(build_window_tabular(canonical_df, window_sizes=list(artifact.window_sizes)))
-    else:
-        raise ValueError(f"Unsupported FT runtime experiment: {artifact.experiment_name}")
+    feature_df = _select_runtime_feature_frame(
+        canonical_df=canonical_df,
+        feature_names=artifact.feature_names,
+        experiment_name=artifact.experiment_name,
+    )
 
     if feature_df.empty:
         return None
@@ -272,3 +292,48 @@ def _inject_packet_loss_runtime_features(frame: pd.DataFrame) -> None:
 def _load_json(path: Path) -> dict[str, Any]:
     with path.open("r", encoding="utf-8") as handle:
         return json.load(handle)
+
+
+def _experiment_priority(experiment_name: str) -> int:
+    priority = {
+        "base": 0,
+        "v0": 0,
+        "v1": 1,
+        "window": 2,
+        "v2": 2,
+        "combo": 3,
+        "v3": 3,
+    }
+    return priority.get(str(experiment_name), -1)
+
+
+def _select_runtime_feature_frame(
+    *,
+    canonical_df: pd.DataFrame,
+    feature_names: tuple[str, ...],
+    experiment_name: str,
+) -> pd.DataFrame:
+    candidates = {
+        "v0": build_v0_tabular(canonical_df),
+        "v1": build_v1_tabular(canonical_df),
+        "v2": build_v2_tabular(canonical_df),
+        "v3": build_v3_tabular(canonical_df),
+    }
+    required = list(feature_names)
+    matching: list[tuple[int, int, str, pd.DataFrame]] = []
+
+    for candidate_name, frame in candidates.items():
+        candidate_columns = set(frame.columns)
+        if not all(name in candidate_columns for name in required):
+            continue
+        model_feature_count = len([name for name in frame.columns if name not in RUNTIME_METADATA_COLUMNS])
+        matching.append((model_feature_count, -_experiment_priority(candidate_name), candidate_name, frame))
+
+    if matching:
+        matching.sort(key=lambda item: (item[0], item[1], item[2]))
+        return matching[0][3]
+
+    raise ValueError(
+        "No runtime tabular builder matches FT artifact "
+        f"experiment={experiment_name} with features={required}"
+    )

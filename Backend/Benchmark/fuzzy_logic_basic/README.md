@@ -1,170 +1,111 @@
-# Fuzzy Logic Basic
+# Fuzzy Logic Basic Benchmark Dataset
 
-Đây là pipeline benchmark cho fuzzy logic của AgriFusion-IoT. Thư mục này chỉ dùng để tái cấu trúc và sinh dữ liệu cho Layer 1 → Layer 5, không phải nguồn dữ liệu gốc.
+## Purpose
 
-## Tổng quan
+`fuzzy_logic_basic/` now owns benchmark dataset preparation only.
 
-- `prepare_layer2_fuzzy.py`
-  Entry point chạy toàn bộ chuỗi:
-  `layer1 -> layer15 -> layer2 -> layer3 -> layer35 -> layer4 -> layer5`
+Its job is to turn local Layer1 histories into:
 
+- one aligned benchmark CSV
+- one managed real-labeled benchmark CSV
+- Layer2 ablation exports
+- Layer3 combo exports
+
+It does not own the old fuzzy risk-inference chain anymore.
+
+## Layout
+
+- `main.py`
+  - root entrypoint for the current dataset build
 - `layer1/`
-  FLB input alignment. Lấy dữ liệu từ `Backend/Output_data/Layer1` và xuất CSV input sạch cho fuzzy.
-
-- `layer15/`
-  Event annotation. Đánh nhãn reset, debug pull sensor, anomaly sau replug, candidate tưới buổi sáng, candidate mưa/thời tiết cho CSV Layer 1.
-
+  - align local Layer1 histories into `flb_input_aligned.csv`
+- `real_event_labeling/`
+  - rebuild `flb_input_with_events.csv` from the aligned benchmark CSV plus Layer0 Firebase metadata
 - `layer2/`
-  Fuzzy membership. Biến tín hiệu sensor/context thành membership trong `[0, 1]`.
-
-- `layer3/`
-  Fuzzy rule inference. Gom membership thành áp lực tức thời và confidence.
-
-- `layer35/`
-  Temporal fuzzy dynamics. Tính accumulated pressure, velocity, acceleration, recovery theo `timestamp` gốc.
-
-- `layer4/`
-  FLB prediction output. Tổng hợp risk score, risk level, recommendation và reason codes.
-
-- `layer5/`
-  Risk pathway interpretation. Giải thích hệ thống đang drift về pathway nào.
-
-- `shared/`
-  Helper dùng chung cho config, fuzzy math, alignment theo timestamp và rolling slope.
-
-- `configs/`
-  Config JSON cho threshold, weight, dynamics, risk level và pathway mapping.
-
+  - build `exp1..exp6` benchmark feature exports and retain `big_label`
+- `layer3_combo/`
+  - build `combo1..combo4` benchmark feature exports and retain `big_label`
 - `dataset/`
-  Output CSV được sinh từ pipeline. Đây là artifact, không phải input gốc.
+  - generated benchmark CSVs and build reports
 
-## Input mặc định
+## Input
 
 - `D:\AgriFusion-IoT\Backend\Output_data\Layer1`
 
-## Output mặc định
+## Generated Output
 
 - `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_input_aligned.csv`
 - `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_input_with_events.csv`
-- `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_membership.csv`
-- `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_pressure.csv`
-- `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_temporal_dynamics.csv`
-- `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_output_prediction.csv`
-- `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_pathway_interpretation.csv`
+- `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_l2_exp1.csv`
+- `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_l2_exp2.csv`
+- `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_l2_exp3.csv`
+- `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_l2_exp4.csv`
+- `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_l2_exp5.csv`
+- `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_l2_exp6.csv`
+- `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_l3_combo1.csv`
+- `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_l3_combo2.csv`
+- `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_l3_combo3.csv`
+- `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_l3_combo4.csv`
+- `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\manifest.json`
+- `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_real_event_labeling_report.json`
+- `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_layer2_build_report.json`
+- `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_layer3_combo_build_report.json`
+- `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_dataset_build_report.json`
 
-## Schema Layer 1
+## Commands
 
-`flb_input_aligned.csv` chỉ giữ input để phục vụ fuzzy:
-
-- `timestamp`
-- `soil_temp`
-- `soil_humidity`
-- `air_temp`
-- `air_humidity`
-- `EC`
-- `pH`
-- `N`
-- `P`
-- `K`
-- `ec_npk_consistency_score`
-- `ec_npk_consistency_flag`
-
-Quy ước:
-- `ec_npk_consistency_flag = 1` nếu `ec_npk_consistency_score >= 0.9`
-- `ec_npk_consistency_flag = 0` nếu thấp hơn ngưỡng trên
-
-Không đưa `ec_npk_reason` hoặc `optional_quality_flags` vào CSV Layer 1 này.
-
-## Schema Layer 1.5
-
-`flb_input_with_events.csv` giữ toàn bộ cột của Layer 1 và thêm event/context để debug:
-
-- `sample_time_local`
-- `upload_time_local`
-- `sample_time_reconstructed`
-- `gap_minutes_since_prev`
-- `gap_minutes_to_next`
-- `upload_gap_minutes_since_prev`
-- `upload_gap_minutes_to_next`
-- `soil_humidity_delta`
-- `air_humidity_delta`
-- `EC_delta`
-- `pH_delta`
-- `N_delta`
-- `P_delta`
-- `K_delta`
-- `event_system_reset`
-- `event_telemetry_gap_since_prev`
-- `event_telemetry_gap_to_next`
-- `event_post_reset_warmup`
-- `event_sensor_missing_row`
-- `event_npk_sensor_fault`
-- `event_sht30_sensor_fault`
-- `event_debug_sensor_pull_candidate`
-- `event_ec_npk_replug_low_candidate`
-- `event_post_replug_recovery_candidate`
-- `event_morning_irrigation_candidate`
-- `event_rain_weather_candidate`
-- `event_fertilizer_context_candidate`
-- `event_ec_npk_anomaly`
-- `event_heat_episode`
-- `event_dry_soil_episode`
-- `event_source`
-- `event_confidence`
-- `event_reason`
-- `event_primary`
-- `event_labels`
-- `big_label`
-
-Lưu ý:
-- `event_primary` chỉ là nhãn hiển thị / ưu tiên thống kê.
-- Target multi-label nên dùng các cột event 0/1.
-
-## Cách chạy
-
-Mặc định:
+Build the full current dataset package:
 
 ```powershell
-python D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\prepare_layer2_fuzzy.py
+python D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\main.py
 ```
 
-Dry run:
+Build only the feature package and skip real labels:
 
 ```powershell
-python D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\prepare_layer2_fuzzy.py --limit 50
+python D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\main.py --skip-real-event-labeling
 ```
 
-## Debug nhanh
-
-- Nếu layer nào lỗi import khi chạy trực tiếp, kiểm tra bootstrap `sys.path` trong `layer*/main.py`.
-- Nếu số dòng CSV khác nhau giữa các layer, kiểm tra output trung gian trong `dataset/` theo thứ tự layer.
-- Nếu risk/pathway không hợp lý, xem lại config trong `configs/` trước khi sửa code.
-
-## Giả định xử lý
-
-- Master timeline cho Layer 2-5 là `timestamp` đã align trong `flb_input_aligned.csv`.
-- Không ép resample về `1h`; dữ liệu đi theo `timestamp` gốc và `dt_hours` thực tế.
-- `pH` là context risk chậm, không dùng để tính đạo hàm nhanh.
-- `EC`, `N`, `P`, `K` là proxy electrochemical / nutrient context, không phải lab truth.
-- `sensor_uncertainty` và `plant_pressure` được tách riêng.
-
-## Giới hạn hiện tại
-
-- Threshold và weight vẫn là prototype heuristic, chưa calibrate bằng field event log đầy đủ.
-- Heuristic cho `recent_irrigation_signal` và `recent_fertilization_signal` chỉ là tạm thời.
-- `layer5` chỉ giải thích risk pathway, không khẳng định bệnh lý.
-
-## Preview export JSON nhanh
-
-Khi cần đổi một file export RTDB tải về thành CSV có cấu trúc giống `flb_input_aligned.csv`, chạy:
+Rebuild only Layer1 + Layer2:
 
 ```powershell
-python D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\preview_download_export_to_flb_csv.py --input "C:\Users\lawng\Downloads\agri-fusion-iot-default-rtdb-telemetry-export (12).json"
+python D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\main.py --skip-layer3-combo
 ```
 
-Script sinh 2 file:
+Reuse an existing aligned CSV and rebuild only engineered exports:
 
-- `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\download_export_preview.csv`
-- `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\download_export_preview_readable.csv`
+```powershell
+python D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\main.py --skip-layer1
+```
 
-File đầu giữ schema giống `flb_input_aligned.csv`. File thứ hai thêm `sample_time_local` để nhìn trực quan hơn khi debug.
+Build only selected Layer2 experiments:
+
+```powershell
+python D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\main.py --layer2-experiments exp2 exp6 --skip-layer3-combo
+```
+
+Build only selected Layer3 combos:
+
+```powershell
+python D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\main.py --skip-layer1 --skip-layer2 --layer3-combo-experiments combo2 combo4
+```
+
+Rebuild only the real labeled artifact:
+
+```powershell
+python D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\real_event_labeling\main.py
+```
+
+## Assumptions
+
+- `layer1` is the only stage here that reads from `Backend/Output_data/Layer1`.
+- `real_event_labeling` consumes `flb_input_aligned.csv` and Layer0 Firebase metadata keyed by `timestamp`.
+- `layer2` and `layer3_combo` consume the labeled CSV by default and only retain `big_label` beyond their feature contract.
+- All generated CSVs are benchmark dataset artifacts, not raw source of truth.
+- The managed `flb_input_with_events.csv` always uses the aligned CSV as the feature source of truth.
+
+## Risks / Limits
+
+- The real label stage is still heuristic and depends on Layer0 Firebase metadata being available.
+- `layer2` and `layer3_combo` currently write lightweight build reports, not dated run directories.
+- If the aligned Layer1 schema changes, downstream benchmark contracts may need version bumps.

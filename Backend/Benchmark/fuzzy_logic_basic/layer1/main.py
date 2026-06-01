@@ -27,8 +27,6 @@ CSV_COLUMNS = [
     "N",
     "P",
     "K",
-    "ec_npk_consistency_score",
-    "ec_npk_consistency_flag",
 ]
 DATA_COLUMNS = list(CSV_COLUMNS)
 
@@ -80,7 +78,7 @@ def _count_missing(rows: list[dict[str, object]], fieldnames: list[str]) -> dict
 
 
 def run_alignment(config: AlignmentConfig, limit: int | None = None) -> AlignmentResult:
-    rows, input_counts, _, ec_model, _ = align_layer1_records(config)
+    rows, input_counts, _ = align_layer1_records(config)
     if limit is not None:
         rows = rows[: max(0, limit)]
 
@@ -93,11 +91,6 @@ def run_alignment(config: AlignmentConfig, limit: int | None = None) -> Alignmen
     write_csv_rows(rows, csv_path, CSV_COLUMNS)
 
     missing_counts = _count_missing(rows, DATA_COLUMNS)
-    flag_distribution: dict[str, int] = {}
-    for row in rows:
-        raw_flag = row.get("ec_npk_consistency_flag")
-        flag = "unknown" if raw_flag is None else str(int(raw_flag))
-        flag_distribution[flag] = flag_distribution.get(flag, 0) + 1
 
     manifest = {
         "schema_version": 1,
@@ -107,13 +100,6 @@ def run_alignment(config: AlignmentConfig, limit: int | None = None) -> Alignmen
         "row_count": len(rows),
         "input_counts": input_counts,
         "missing_counts": missing_counts,
-        "flag_distribution": flag_distribution,
-        "ec_model": {
-            "slope": ec_model.slope,
-            "intercept": ec_model.intercept,
-            "sample_count": ec_model.sample_count,
-            "r2": ec_model.r2,
-        },
         "notes": {
             "layer1_input_only": True,
             "meteo_not_exported": True,
@@ -130,10 +116,8 @@ def run_alignment(config: AlignmentConfig, limit: int | None = None) -> Alignmen
         row_count=len(rows),
         input_counts=input_counts,
         missing_counts=missing_counts,
-        flag_distribution=flag_distribution,
         csv_path=csv_path,
         manifest_path=manifest_path,
-        ec_model=ec_model,
         rows=rows,
     )
 
@@ -157,14 +141,6 @@ def main() -> None:
     )
     print(f"Aligned rows: {result.row_count}")
     print(f"Missing counts: {result.missing_counts}")
-    print(f"ec_npk_consistency_flag distribution: {result.flag_distribution}")
-    print(
-        "EC model: "
-        f"slope={result.ec_model.slope:.6f}, "
-        f"intercept={result.ec_model.intercept:.6f}, "
-        f"samples={result.ec_model.sample_count}, "
-        f"r2={None if result.ec_model.r2 is None else round(result.ec_model.r2, 4)}"
-    )
 
 
 if __name__ == "__main__":

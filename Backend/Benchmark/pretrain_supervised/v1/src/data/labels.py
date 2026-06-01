@@ -40,8 +40,21 @@ def load_event_label_frame(event_csv: Path) -> pd.DataFrame:
 
 def merge_event_labels(dataframe: pd.DataFrame, event_csv: Path) -> tuple[pd.DataFrame, dict[str, object]]:
     label_frame = load_event_label_frame(event_csv)
-    label_columns = [column for column in label_frame.columns if column != "timestamp"]
-    merged = dataframe.merge(label_frame, on="timestamp", how="left", validate="one_to_one")
+    label_columns = [
+        column
+        for column in label_frame.columns
+        if column != "timestamp" and column not in dataframe.columns
+    ]
+    if not label_columns:
+        report = {
+            "event_csv": str(event_csv),
+            "labeled_rows": int(dataframe["big_label"].notna().sum()) if "big_label" in dataframe.columns else 0,
+            "unlabeled_rows": int(dataframe["big_label"].isna().sum()) if "big_label" in dataframe.columns else int(len(dataframe)),
+            "merge_columns": ["timestamp"],
+            "notes": ["All available label columns were already present in the source dataframe."],
+        }
+        return dataframe.copy(), report
+    merged = dataframe.merge(label_frame[["timestamp", *label_columns]], on="timestamp", how="left", validate="one_to_one")
     report = {
         "event_csv": str(event_csv),
         "labeled_rows": int(merged["big_label"].notna().sum()) if "big_label" in merged.columns else 0,

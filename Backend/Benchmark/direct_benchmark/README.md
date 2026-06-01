@@ -151,7 +151,7 @@ Console progress:
 
 ## Assumptions
 
-- The direct benchmark reuses the current event annotation CSV and the current label policy.
+- The direct benchmark reuses the current real labeled CSV and the current label policy.
 - Splits are built chronologically from the aligned raw rows, using the shared split policy module.
 - The downstream model suite is the same family used by the embedding benchmark, so the comparison isolates the effect of pretraining.
 - For thesis-grade comparison, the recommended final split is `chronological_with_lookback_gap` with `--split-gap-minutes 1440` so the direct arm and the pretrain arm are evaluated under the same time-based protocol.

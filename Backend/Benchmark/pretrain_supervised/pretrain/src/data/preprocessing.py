@@ -97,8 +97,6 @@ def prepare_pretraining_dataframe(config: PretrainConfig) -> PreparedDataset:
     split_manifest = build_split_manifest(dataframe=dataframe, split_plan=split_plan)
 
     quality_report = {
-        "consistency_flag_distribution": _build_consistency_flag_distribution(dataframe),
-        "consistency_score": _build_consistency_score_summary(dataframe),
         "optional_proxy": proxy_report,
     }
 
@@ -112,22 +110,3 @@ def prepare_pretraining_dataframe(config: PretrainConfig) -> PreparedDataset:
         split_slices=split_slices,
         split_manifest=split_manifest,
     )
-
-
-def _build_consistency_flag_distribution(dataframe: pd.DataFrame) -> dict[str, int] | None:
-    if "ec_npk_consistency_flag" not in dataframe.columns:
-        return None
-    return {
-        str(int(flag)): int(count)
-        for flag, count in dataframe["ec_npk_consistency_flag"].value_counts(dropna=False).sort_index().items()
-    }
-
-
-def _build_consistency_score_summary(dataframe: pd.DataFrame) -> dict[str, float] | None:
-    if "ec_npk_consistency_score" not in dataframe.columns:
-        return None
-    return {
-        "min": float(dataframe["ec_npk_consistency_score"].min()),
-        "max": float(dataframe["ec_npk_consistency_score"].max()),
-        "mean": float(dataframe["ec_npk_consistency_score"].mean()),
-    }

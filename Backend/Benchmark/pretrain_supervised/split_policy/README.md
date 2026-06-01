@@ -2,54 +2,48 @@
 
 ## Purpose
 
-This module owns benchmark split strategy definitions.
+This module owns reusable train/validation/test split strategies for benchmark runs.
 
 Its job is to:
-- define split strategies,
-- create explicit split plans,
-- and expose split metadata as artifacts instead of hiding split behavior inside preprocessing code.
 
-## Current Strategy
+- define strategy names
+- build explicit split plans
+- expose split metadata as artifacts instead of hiding split logic inside preprocessing
+
+## Current Strategies
 
 - `chronological_with_lookback_gap`
-
-Behavior:
-- sort by `timestamp`
-- infer a purge gap from feature lookback such as `3h`, `8h`, `24h`, `72h`, unless an explicit override is provided
-- keep train, validation, and test chronological
-- exclude rows inside purge gaps
-- train 70 percent
-- validation 15 percent
-- test 15 percent
-
-Legacy compatibility strategy still exists:
+  - current default
+  - infers purge-gap minutes from feature lookback unless an override is provided
 - `chronological_v1`
+  - legacy compatibility strategy without the newer lookback-gap behavior
 
 ## Input
 
-- cleaned row count
+- ordered row count
 - split ratios
 - strategy name
+- timestamps when the strategy needs explicit temporal gaps
+- feature columns when auto gap inference is enabled
 
 ## Output
 
 - `SplitPlan`
 - split slices
 - split counts
-- split manifest dictionary for artifact export
+- split manifest payloads
 
 ## Command
 
-This module is called by pretrain. It does not have a standalone CLI yet.
+This module is import-only. It currently has no standalone CLI.
 
 ## Assumptions
 
-- the dataframe has already been sorted by `timestamp`
-- split ownership stays with benchmark pretrain unless a later benchmark protocol moves it higher
+- rows are already sorted by `timestamp`
+- split ownership still lives with the benchmark pipelines that call this module
 
 ## Current Limits
 
-- only `chronological_v1` is implemented
-- no purge gap
-- no block-by-day
+- no day-block split yet
 - no episode-aware split yet
+- gap inference only looks at feature names such as `3h`, `8h`, `24h`

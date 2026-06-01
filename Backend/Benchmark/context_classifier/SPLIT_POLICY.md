@@ -60,4 +60,4 @@ Recommended for thesis-grade reporting:
 
 - The current builder emits the metadata needed for episode-aware and real-only evaluation.
 - Real rows are still split primarily by chronological coverage-aware boundaries rather than explicit upstream episode ids.
-- `option2_4class` improves validation/test coverage by merging `rain_humid_context` and `fertigation_spike` into `moisture_or_intervention_context`, but it does not create new real abnormal rows.
+- `option2_4class` improves validation/test coverage by merging `rain_humid_context` and `fertigation_spike` into `rain_or_fertigation_context`, but it does not create new real abnormal rows.

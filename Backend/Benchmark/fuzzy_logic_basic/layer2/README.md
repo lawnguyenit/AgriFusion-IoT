@@ -1,57 +1,73 @@
-# Layer2
+# Layer2 Benchmark Exports
 
 ## Purpose
 
-- Convert the aligned Layer1 CSV into several ablation CSVs for benchmark pretraining.
-- Isolate one feature group per experiment where possible so the benchmark can answer which temporal horizon actually matters.
+`layer2/` builds the single-window benchmark feature exports used by:
 
-## Current experiments
+- `pretrain_supervised/v2`
+- `pretrain_supervised/v4`
+- `direct_benchmark` raw control arms `v2`, `v4`, `v5`
 
-- `Exp1`: `L1 + delta`
-- `Exp2`: `L1 + delta + 3h window`
-- `Exp3`: `L1 + delta + 8h window`
-- `Exp4`: `L1 + delta + 24h window`
-- `Exp5`: `L1 + delta + saturation`
-- `Exp6`: full `L2` set
-  - used as the full-set benchmark export consumed by `pretrain_supervised/v4`
+This stage consumes `flb_input_with_events.csv` by default and writes feature-engineered benchmark CSVs.
+Each export retains `big_label` only, without carrying the full event-audit payload from the real-label source file.
 
 ## Input
 
-- Default input:
-  - `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_input_aligned.csv`
+- `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_input_with_events.csv`
 
 ## Output
 
-- Written to the shared dataset root:
-  - `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_l2_exp1.csv`
-  - `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_l2_exp2.csv`
-  - `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_l2_exp3.csv`
-  - `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_l2_exp4.csv`
-  - `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_l2_exp5.csv`
-  - `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_l2_exp6.csv`
+- `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_l2_exp1.csv`
+- `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_l2_exp2.csv`
+- `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_l2_exp3.csv`
+- `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_l2_exp4.csv`
+- `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_l2_exp5.csv`
+- `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_l2_exp6.csv`
+- `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_layer2_build_report.json`
 
-## Command
+## Experiment Meaning
 
-Run all Layer2 ablations:
+- `exp1`
+  - base Layer1 columns + one-step deltas
+- `exp2`
+  - `exp1` + 3h window features
+- `exp3`
+  - `exp1` + 8h window features
+- `exp4`
+  - `exp1` + 24h window features
+- `exp5`
+  - `exp1` + air-humidity saturation persistence features
+- `exp6`
+  - full Layer2 feature set
+
+## Commands
+
+Build all Layer2 exports:
 
 ```powershell
 python D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\layer2\main.py
 ```
 
-Run one experiment:
+Build one export:
 
 ```powershell
 python D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\layer2\main.py --experiment exp3
 ```
 
+Build Layer2 through the root pipeline:
+
+```powershell
+python D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\main.py --skip-layer3-combo
+```
+
 ## Assumptions
 
-- All windows are strict backward-looking.
-- `pH`, `N`, `P`, `K`, `ec_npk_consistency_score`, and `ec_npk_consistency_flag` stay out of the main ablation dataset.
-- `air_humidity_saturation_flag` uses the current saturation threshold configured in Layer2.
+- All temporal windows are backward-looking.
+- Layer2 owns benchmark feature engineering, not label generation.
+- Train-facing exports keep `big_label` only when the source CSV already carries labels.
+- The build report records which exports were requested and which files were written.
 
-## Limits
+## Risks / Limits
 
-- `L3` relational features are handled later, not here.
-- The full dataset still depends on enough lookback history for the longer windows.
-- This is an ablation benchmark, not the final clinical/nutrient inference layer.
+- Early rows can contain incomplete lookback information depending on the feature horizon.
+- This stage does not validate or create `flb_input_with_events.csv`; it only reuses it when present.

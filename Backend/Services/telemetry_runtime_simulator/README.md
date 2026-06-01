@@ -18,19 +18,19 @@ The mock date defaults to `2026-05-20` so demo records are easy to find and dele
 - Firebase latest payload under `Node1/latest/current`
 - Firebase latest metadata under `Node1/latest/meta`
 - Optional existing day payload under `Node1/telemetry/2026-05-20`
-- Template id `0..4`
+- Template id `0..3`
 
 ## Templates
 
 - `0`: `normal_context`
 - `1`: `packet_loss_outage`
 - `2`: `water_deficit`
-- `3`: `rain_humid_context`
-- `4`: `fertigation_spike`
+- `3`: `rain_or_fertigation_context`
 
 For runtime 4-class diagnosis:
 
-- `3` and `4` both map to `moisture_or_intervention_context`
+- template `3` phu hop nhan canonical `rain_or_fertigation_context`
+- template `4` neu con duoc goi se duoc xu ly nhu alias tuong thich nguoc cua nhom nay
 
 ## Output
 

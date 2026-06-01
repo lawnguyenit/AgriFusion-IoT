@@ -31,8 +31,6 @@ def build_feature_schema(
             "N": "Excluded from the main feature set when the source schema still contains N.",
             "P": "Excluded from the main feature set when the source schema still contains P.",
             "K": "Excluded from the main feature set when the source schema still contains K.",
-            "ec_npk_consistency_flag": "Used only for reporting and data-quality inspection when present.",
-            "ec_npk_consistency_score": "Used only for reporting and data-quality inspection when present.",
         },
         "include_npk_proxy": config.include_npk_proxy,
     }

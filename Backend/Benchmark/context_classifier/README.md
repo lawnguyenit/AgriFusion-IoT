@@ -55,7 +55,6 @@ The module supports parallel label-scheme branches so the original 5-class bench
 - `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_input_with_events.csv`
 - latest simulator outputs under `D:\AgriFusion-IoT\Backend\Simulator\outputs\`
   - `synthetic_flb_gap_aware.csv`
-  - `synthetic_flb_input_labeled.csv`
 
 ## Output
 
@@ -67,10 +66,16 @@ Each run writes a new folder under:
 Main artifacts:
 
 - `canonical_context_dataset.csv`
+- `real_canonical_labeled.csv`
+- `synthetic_canonical_labeled.csv`
 - `context_label_summary.json`
+- `real_label_summary.json`
+- `synthetic_label_summary.json`
 - `run_config.json`
 - `dataset_manifest.json`
 - `splits/train/canonical.csv`
+- `splits/train/canonical_real.csv`
+- `splits/train/canonical_synthetic.csv`
 - `splits/train/tabular_v0.csv`
 - `splits/train/tabular_v1.csv`
 - `splits/train/tabular_v2.csv`
@@ -82,12 +87,26 @@ Training artifacts:
 
 - `outputs/training/<DD-MM-YYYY>/context_train_<HHMMSS>/aggregate_model_metrics.csv`
 - `outputs/training/<DD-MM-YYYY>/context_train_<HHMMSS>/training_report.json`
+- `outputs/training/<DD-MM-YYYY>/context_train_<HHMMSS>/environment_manifest.json`
+- `outputs/training/<DD-MM-YYYY>/context_train_<HHMMSS>/scientific_run_manifest.json`
 - `outputs/training/<DD-MM-YYYY>/context_train_<HHMMSS>/experiments/v0/...`
 - `outputs/training/<DD-MM-YYYY>/context_train_<HHMMSS>/experiments/v1/...`
 - `outputs/training/<DD-MM-YYYY>/context_train_<HHMMSS>/experiments/v2/...`
 - `outputs/training/<DD-MM-YYYY>/context_train_<HHMMSS>/experiments/v3/...`
 - `outputs/training/<DD-MM-YYYY>/context_train_<HHMMSS>/experiments/sequence/...`
 - same training structure under `outputs_option2_4class/training/` for `option2_4class`
+
+Per-model scientific artifacts:
+
+- `experiments/<experiment_name>/scientific_artifacts/<model_name>/scientific_manifest.json`
+- `experiments/<experiment_name>/scientific_artifacts/<model_name>/training_history.csv`
+- `experiments/<experiment_name>/scientific_artifacts/<model_name>/scalar_metrics.csv`
+- `experiments/<experiment_name>/scientific_artifacts/<model_name>/classwise_metrics.csv`
+- `experiments/<experiment_name>/scientific_artifacts/<model_name>/confusion_matrix.csv`
+- `experiments/<experiment_name>/scientific_artifacts/<model_name>/pr_curve_points.csv`
+- `experiments/<experiment_name>/scientific_artifacts/<model_name>/roc_curve_points.csv`
+- `experiments/<experiment_name>/scientific_artifacts/<model_name>/calibration_curve_points.csv`
+- `experiments/<experiment_name>/scientific_artifacts/<model_name>/{train,validation,test}_prediction_records.csv`
 
 Report artifacts:
 
@@ -118,10 +137,18 @@ Build the full dataset package:
 python D:\AgriFusion-IoT\Backend\Benchmark\context_classifier\main.py
 ```
 
+Mac dinh hien tai dung label scheme 4-class canonical `option2_4class`.
+
 Build the Option 2 4-class dataset package:
 
 ```powershell
 python D:\AgriFusion-IoT\Backend\Benchmark\context_classifier\main.py --label-scheme option2_4class
+```
+
+If the default real labeled artifact does not exist yet, either rebuild it from `fuzzy_logic_basic/real_event_labeling` or pass an explicit real labeled CSV:
+
+```powershell
+python D:\AgriFusion-IoT\Backend\Benchmark\context_classifier\main.py --label-scheme option2_4class --real-event-csv D:\path\to\labeled_real_source.csv
 ```
 
 Build a smoke-test package:
@@ -133,7 +160,7 @@ python D:\AgriFusion-IoT\Backend\Benchmark\context_classifier\main.py --smoke-te
 Build with explicit simulator inputs:
 
 ```powershell
-python D:\AgriFusion-IoT\Backend\Benchmark\context_classifier\main.py --synthetic-gap-aware-csv D:\AgriFusion-IoT\Backend\Simulator\outputs\<run_id>\synthetic_flb_gap_aware.csv --synthetic-labeled-csv D:\AgriFusion-IoT\Backend\Simulator\outputs\<run_id>\synthetic_flb_input_labeled.csv
+python D:\AgriFusion-IoT\Backend\Benchmark\context_classifier\main.py --synthetic-gap-aware-csv D:\AgriFusion-IoT\Backend\Simulator\outputs\<run_id>\synthetic_flb_gap_aware.csv
 ```
 
 Train all context-classifier models from the latest build run:
@@ -154,28 +181,22 @@ Train only FT-Transformer on the tabular ladder:
 python D:\AgriFusion-IoT\Backend\Benchmark\context_classifier\train.py --experiment-names v0 v1 v2 v3 --model-names ft_transformer_classifier
 ```
 
-Build the latest real+synthetic dataset and immediately train `TabNet + FT-Transformer + TabPFN`:
+Build the latest real+synthetic dataset and immediately train `XGBoost + TabNet + FT-Transformer`:
 
 ```powershell
 python D:\AgriFusion-IoT\Backend\Benchmark\context_classifier\train_augmented_tabular.py
 ```
 
-Reuse an existing build run and retrain only the tabular deep models:
+Reuse an existing build run and retrain the default tabular pipeline:
 
 ```powershell
 python D:\AgriFusion-IoT\Backend\Benchmark\context_classifier\train_augmented_tabular.py --build-run-dir D:\AgriFusion-IoT\Backend\Benchmark\context_classifier\outputs_option2_4class\<DD-MM-YYYY>\context_build_<HHMMSS>
 ```
 
-Build from an explicit simulator run and train `TabNet + FT-Transformer + TabPFN` on `v0/v1/v2/v3`:
+Build from an explicit simulator run and train `XGBoost + TabNet + FT-Transformer` on `v0/v1/v2/v3`:
 
 ```powershell
-python D:\AgriFusion-IoT\Backend\Benchmark\context_classifier\train_augmented_tabular.py --synthetic-gap-aware-csv D:\AgriFusion-IoT\Backend\Simulator\outputs\<run_id>\synthetic_flb_gap_aware.csv --synthetic-labeled-csv D:\AgriFusion-IoT\Backend\Simulator\outputs\<run_id>\synthetic_flb_input_labeled.csv
-```
-
-If `TabPFN` hits GPU memory pressure on `v2` or `v3`, use `fit_mode=low_memory`, reduce prediction chunk size, or force CPU:
-
-```powershell
-python D:\AgriFusion-IoT\Backend\Benchmark\context_classifier\train_augmented_tabular.py --tabpfn-fit-mode low_memory --tabpfn-device cpu --tabpfn-ignore-pretraining-limits --tabpfn-prediction-batch-size 64
+python D:\AgriFusion-IoT\Backend\Benchmark\context_classifier\train_augmented_tabular.py --synthetic-gap-aware-csv D:\AgriFusion-IoT\Backend\Simulator\outputs\<run_id>\synthetic_flb_gap_aware.csv
 ```
 
 Generate a comparison report for the current 5-class and 4-class runs:
@@ -196,6 +217,12 @@ Run a training smoke test:
 python D:\AgriFusion-IoT\Backend\Benchmark\context_classifier\train.py --smoke-test
 ```
 
+Backfill scientific artifacts for an existing training run without retraining:
+
+```powershell
+python D:\AgriFusion-IoT\Backend\Benchmark\context_classifier\backfill_training_artifacts.py --train-run-dir D:\AgriFusion-IoT\Backend\Benchmark\context_classifier\outputs_option2_4class\training\<DD-MM-YYYY>\context_train_<HHMMSS>
+```
+
 Console progress:
 
 - the training pipeline now prints the active label scheme, experiment name, and model start/finish state
@@ -203,6 +230,7 @@ Console progress:
 - `FT-Transformer` prints epoch-level progress with train loss, validation loss, validation macro-F1, and test macro-F1
 - `XGBoost` prints explicit `fitting` and `completed` messages
 - PyTorch models also print the selected `device` (`cpu` or `cuda`) and CUDA runtime at training start
+- after a successful training run, the pipeline also backfills prediction-level scientific artifacts automatically so later report requests do not require retraining
 
 By default, `--smoke-test` only trains:
 
@@ -222,7 +250,9 @@ Legacy build compatibility:
 - Real rows are split first using chronological order and a purge gap.
 - The default split mode is `coverage_aware_temporal` so validation/test retain more real abnormal coverage when possible.
 - Synthetic rows are added only into the train split.
-- `TabNet`, `FT-Transformer`, `TabPFN`, and `XGBoost` will consume the same split-specific `v0/v1/v2/v3` tabular exports.
+- Real-only and synthetic-only canonical snapshots are materialized explicitly so label provenance can be inspected without re-splitting in memory.
+- The build cannot start until a real labeled CSV with `big_label` and the telemetry-gap/provenance fields emitted by `fuzzy_logic_basic/real_event_labeling` exists.
+- `TabNet`, `FT-Transformer`, and `XGBoost` will consume the same split-specific `v0/v1/v2/v3` tabular exports in the active augmented-tabular pipeline.
 - `v0` = raw full sensor set: `soil_temp`, `soil_humidity`, `air_temp`, `air_humidity`, `EC`, `pH`, `N`, `P`, `K`.
 - `v1` = raw core sensor set: `soil_temp`, `soil_humidity`, `air_temp`, `air_humidity`, `EC`.
 - `v2` = `v1` + `delta_1step` + the historical 3h contract: `air_temp_slope_3h`, `air_temp_range_3h`, `air_temp_mean_3h`, `soil_temp_slope_3h`, `soil_humidity_slope_3h`, `soil_humidity_range_3h`, `EC_slope_3h`, `EC_range_3h`.
@@ -230,12 +260,11 @@ Legacy build compatibility:
 - `LSTM` will consume split-specific sequence exports, not the same tabular `v0/v1/v2/v3` ladder.
 - `train_augmented_tabular.py` is the fastest safe entrypoint when the goal is to retrain the augmented tabular models on the real+synthetic dataset.
 - Current training defaults use `100` max epochs for `TabNet`, `FT-Transformer`, and `LSTM`; early stopping still applies.
-- `TabPFN` does not use epoch-based training; the wrapper now runs prediction/probability inference in row batches to reduce GPU memory spikes on larger augmented splits.
-- The currently installed `tabpfn` build expects `inference_config` as `dict/InferenceConfig/None`; preset-like strings such as `low_memory` or `fast` are ignored by the wrapper for backward compatibility.
-- CPU runs with more than `1000` train rows require `ignore_pretraining_limits=True`; `train_augmented_tabular.py` now exposes this as `--tabpfn-ignore-pretraining-limits`.
-- Packet-loss, consistency, and ad-hoc interaction features are retained in canonical/debug outputs only; they are not part of the main `v0/v1/v2/v3` ladder.
-- `five_class_v1` keeps separate `rain_humid_context` and `fertigation_spike`.
-- `option2_4class` merges them into `moisture_or_intervention_context`.
+- `TabPFN` remains available through the broader training pipeline, but `train_augmented_tabular.py` no longer includes it in the default augmented-tabular workflow.
+- The scientific-artifact backfill reuses saved model checkpoints and build splits; it does not retrain models.
+- Packet-loss and ad-hoc interaction features are retained in canonical/debug outputs only; they are not part of the main `v0/v1/v2/v3` ladder.
+- `five_class_v1` keeps separate `rain_humid_context` and `fertigation_spike` o nhanh legacy.
+- `option2_4class` merges them into `rain_or_fertigation_context` va day la contract active hien tai.
 - The training pipeline currently compares:
   - `XGBoost` on tabular `v0/v1/v2/v3`
   - `TabNet` on tabular `v0/v1/v2/v3`
@@ -248,5 +277,8 @@ Legacy build compatibility:
 - Real label mapping collapses some operational labels into `packet_loss` for now.
 - Sequence export is emitted in long format and still needs a training-side tensorization step.
 - Real rows do not yet carry explicit episode ids, so the current split is chronological with purge gap rather than fully episode-aware.
+- The build consumes only `synthetic_flb_gap_aware.csv`; `synthetic_flb_input_labeled.csv` remains a simulator-side auxiliary artifact and is not part of this benchmark contract.
 - `v2` and `v3` intentionally follow the older direct-benchmark window contracts so their metrics can be compared back to the earlier runs.
 - `suspected_cause` for packet loss is currently a heuristic proxy meant for interpretation, not a supervised target.
+- If `flb_input_with_events.csv` has never been created for the current workspace, build-time failure is expected until `fuzzy_logic_basic/real_event_labeling` is run or another labeled real CSV is supplied explicitly.
+- Scientific-artifact backfill depends on the saved model artifact, `run_config.json`, `training_report.json`, and the original `build_run_dir` still existing on disk.

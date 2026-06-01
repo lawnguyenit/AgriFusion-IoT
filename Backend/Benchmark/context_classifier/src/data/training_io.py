@@ -147,6 +147,21 @@ def load_tabular_bundle(build_run_dir: Path, experiment_name: str) -> TabularDat
     )
 
 
+def load_tabular_split_frames(build_run_dir: Path, experiment_name: str) -> dict[str, pd.DataFrame]:
+    file_name_map = {
+        "v0": "tabular_v0.csv",
+        "v1": "tabular_v1.csv",
+        "v2": "tabular_v2.csv",
+        "v3": "tabular_v3.csv",
+    }
+    file_name = file_name_map[experiment_name]
+    return {
+        "train": _load_split_frame(build_run_dir, "train", file_name),
+        "validation": _load_split_frame(build_run_dir, "validation", file_name),
+        "test": _load_split_frame(build_run_dir, "test", file_name),
+    }
+
+
 def _sequence_feature_columns(df: pd.DataFrame) -> list[str]:
     blacklist = {
         "sequence_id",
@@ -209,6 +224,14 @@ def load_sequence_bundle(build_run_dir: Path) -> SequenceDataBundle:
         scaler_mean=mean.astype(np.float32),
         scaler_std=std.astype(np.float32),
     )
+
+
+def load_sequence_split_frames(build_run_dir: Path) -> dict[str, pd.DataFrame]:
+    return {
+        "train": _load_split_frame(build_run_dir, "train", "sequence_long.csv"),
+        "validation": _load_split_frame(build_run_dir, "validation", "sequence_long.csv"),
+        "test": _load_split_frame(build_run_dir, "test", "sequence_long.csv"),
+    }
 
 
 def load_build_manifest(build_run_dir: Path) -> dict[str, object]:

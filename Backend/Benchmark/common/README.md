@@ -21,6 +21,10 @@ with slightly different assumptions.
   - `FT_TRANSFORMER_BENCHMARK_ROOT`
   - `CONTEXT_CLASSIFIER_ROOT`
   - `SIMULATOR_ROOT`
+- Shared raw-tabular benchmark helpers in:
+  - `raw_tabular_dataset.py`
+  - source registry for `v0..v5`
+  - shared tabular bundle builder reused by `direct_benchmark`, `ft_transformer_benchmark`, and `tabpfn_benchmark`
 
 ## Command
 

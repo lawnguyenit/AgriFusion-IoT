@@ -9,7 +9,7 @@ Module nay duoc tao de:
 - tai dung cung ladder nguon du lieu `v0 -> v5` de so sanh cong bang voi `XGBoost` va cac baseline tabular khac;
 - giu toan bo output, metrics va artifact trong mot folder benchmark rieng de de doi chieu khi bao cao.
 
-Module khong tao dataset moi, khong doi split policy, va khong thay schema du lieu benchmark goc. No dung lai cung nguon CSV va cung merge label nhu `direct_benchmark`.
+Module khong tao dataset moi, khong doi split policy, va khong thay schema du lieu benchmark goc. No dung lai cung nguon CSV va cung merge label nhu `direct_benchmark`, nhung raw tabular bundle hien duoc dat o `Backend/Benchmark/common/raw_tabular_dataset.py`.
 
 ## Input
 

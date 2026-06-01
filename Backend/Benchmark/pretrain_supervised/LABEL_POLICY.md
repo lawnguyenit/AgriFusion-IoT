@@ -12,6 +12,9 @@ Current downstream label merge uses:
 
 - `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_input_with_events.csv`
 
+This CSV is an upstream labeled artifact consumed by benchmark modules.
+It is rebuilt by the real-event-labeling stage inside `Backend/Benchmark/fuzzy_logic_basic/`.
+
 The current merge is performed by:
 
 - `D:\AgriFusion-IoT\Backend\Benchmark\pretrain_supervised\v1\src\data\labels.py`
@@ -19,14 +22,10 @@ The current merge is performed by:
 
 ## Current Label Columns
 
-The downstream system currently reads these annotation columns when present:
+The downstream system currently reads these label columns when present:
 
-- `event_source`
-- `event_confidence`
-- `event_reason`
-- `event_primary`
-- `event_labels`
 - `big_label`
+- `event_primary`
 
 `big_label` is currently treated as the most stable top-level label source.
 If `big_label` is missing, downstream falls back to `event_primary`.
@@ -101,7 +100,7 @@ not:
 
 These are still open:
 
-1. The exact producer path for `big_label` inside the current benchmark tree is not fully documented.
+1. The current benchmark tree still depends on heuristic real-event labeling from Layer0 metadata to rebuild `flb_input_with_events.csv`.
 2. The current benchmark merges all non-`none` events into a single abnormal bucket.
 3. Unknown abnormal states that were never annotated are still effectively treated as normal during supervised training.
 

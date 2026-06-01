@@ -46,8 +46,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--label-scheme",
         choices=tuple(sorted(LABEL_SCHEMES)),
-        default="five_class_v1",
-        help="Training label scheme. Must match the build run directory.",
+        default="option2_4class",
+        help="Training label scheme. Defaults to the active 4-class contract and must match the build run directory.",
     )
     parser.add_argument("--smoke-test", action="store_true", help="Run a shorter training smoke test.")
     return parser.parse_args()

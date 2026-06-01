@@ -6,18 +6,11 @@ This document defines who owns train/validation/test splitting for benchmark run
 
 ## Current Owner
 
-The current split owner is the pretrain data pipeline:
+The reusable split owner is now:
 
-- `D:\AgriFusion-IoT\Backend\Benchmark\pretrain_supervised\pretrain\src\data\preprocessing.py`
+- `D:\AgriFusion-IoT\Backend\Benchmark\pretrain_supervised\split_policy`
 
-The current split math was originally implemented in:
-
-- `D:\AgriFusion-IoT\Backend\Benchmark\pretrain_supervised\pretrain\src\data\splitting.py`
-
-It is now being extracted into a dedicated split-policy module so that:
-- split logic is versioned explicitly,
-- pretrain and downstream share the same split contract,
-- and evaluation can become stricter later without hiding split behavior in preprocessing code.
+The current benchmark pipelines call this module rather than re-implementing split math locally.
 
 ## Current Strategy
 
@@ -48,11 +41,10 @@ This strategy is more fair than the old contiguous split, but still not the fina
 
 ## Current Weaknesses
 
-1. No purge gap between train and validation
-2. No purge gap between validation and test
-3. No episode-aware grouping
-4. No block-by-day or block-by-event split
-5. Validation and test can still be too close in temporal regime
+1. The gap is based on lookback horizon, not on explicit event episodes.
+2. There is still no day-block or block-by-event split.
+3. Validation and test can still be close in temporal regime even when a purge gap exists.
+4. Gap inference depends on feature naming conventions such as `3h`, `8h`, `24h`.
 
 ## Current Contract
 
@@ -83,25 +75,13 @@ Reason:
 ### Stage 2
 
 Add:
-- `chronological_with_gap`
-
-Behavior:
-- keep chronological order
-- insert an explicit gap between:
-  - train and validation
-  - validation and test
-
-### Stage 3
-
-Add:
 - `block_by_day`
 
 Behavior:
 - split by day blocks instead of raw contiguous row counts
 
-### Stage 4
+### Stage 3
 
-Add:
 - `episode_aware`
 
 Behavior:

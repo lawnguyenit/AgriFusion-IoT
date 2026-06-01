@@ -17,8 +17,8 @@ It exists to keep a separate pretrained-tabular baseline family with:
 - `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_input_aligned.csv`
 - `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_input_with_events.csv`
 
-The module reuses the raw-feature bundle builder from:
-- `D:\AgriFusion-IoT\Backend\Benchmark\direct_benchmark`
+The module reuses the shared raw-feature bundle builder from:
+- `D:\AgriFusion-IoT\Backend\Benchmark\common\raw_tabular_dataset.py`
 
 ## Output
 
@@ -84,7 +84,7 @@ python -m Backend.Benchmark.tabpfn_benchmark.report --run-dir D:\AgriFusion-IoT\
   - `auto`
   - `binary`
   - `ternary`
-- Data split ownership stays with the reused raw bundle pipeline.
+- Data split ownership stays with the shared raw bundle pipeline.
 
 ## Risks / Current Limits
 

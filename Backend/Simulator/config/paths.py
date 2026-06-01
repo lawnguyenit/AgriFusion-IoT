@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from Config.paths import BACKEND_PATHS
+from Backend.Config.paths import BACKEND_PATHS
 
 
 @dataclass(frozen=True)

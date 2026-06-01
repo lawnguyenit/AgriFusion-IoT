@@ -1,13 +1,19 @@
-# Layer3 Combo Benchmark
+# Layer3 Combo Benchmark Exports
 
 ## Purpose
 
-- Build the multi-window combo benchmark CSVs for the Layer2 family without touching the legacy pressure-focused `layer3` folder.
-- This layer is the bridge between the single-window ablations in `layer2` and the full-set upper bound in `v4`.
+`layer3_combo/` builds multi-window benchmark exports on top of the labeled Layer1 benchmark dataset.
+
+These exports are used by:
+
+- `pretrain_supervised/v3`
+- `direct_benchmark` raw control arm `v3`
+
+This stage is separate from `layer2` so combo experiments stay distinct from the single-window ablation family.
 
 ## Input
 
-- `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_input_aligned.csv`
+- `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_input_with_events.csv`
 
 ## Output
 
@@ -15,27 +21,47 @@
 - `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_l3_combo2.csv`
 - `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_l3_combo3.csv`
 - `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_l3_combo4.csv`
+- `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_layer3_combo_build_report.json`
 
-## Command
+## Combo Meaning
+
+- `combo1`
+  - base columns + 3h and 8h windows
+- `combo2`
+  - `combo1` + one-step deltas
+- `combo3`
+  - base columns + 3h, 8h, and 24h windows
+- `combo4`
+  - `combo3` + one-step deltas
+
+## Commands
+
+Build all combos:
 
 ```powershell
 python D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\layer3_combo\main.py
 ```
 
-Specific combo:
+Build one combo:
 
 ```powershell
 python D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\layer3_combo\main.py --experiment combo2
 ```
 
+Build combos through the root pipeline:
+
+```powershell
+python D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\main.py --skip-layer2
+```
+
 ## Assumptions
 
-- The combo layer is built from the aligned Layer1 dataset and the shared Layer2 feature builders in `Backend/Core/layer2`.
-- All windows are strict backward-looking windows.
-- Saturation is intentionally excluded here so `v4` remains the full-set upper bound.
+- Combo exports reuse the same labeled Layer1 base as Layer2.
+- This stage changes feature composition only; it does not generate labels.
+- Train-facing exports keep `big_label` only when the source CSV already carries labels.
+- The build report records the selected combos and generated files.
 
-## Current Limits
+## Risks / Limits
 
-- This benchmark branch does not encode a new physical label meaning; it only changes the feature combinations used for representation learning.
-- The legacy `Backend/Benchmark/fuzzy_logic_basic/layer3` folder is still present and unrelated; do not confuse it with this combo benchmark.
-
+- Combo exports still depend on enough lookback history for longer windows.
+- This stage does not create or validate the real labeled CSV.

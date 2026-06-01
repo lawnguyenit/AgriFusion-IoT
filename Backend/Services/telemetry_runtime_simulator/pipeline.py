@@ -15,8 +15,8 @@ TEMPLATE_ID_TO_NAME = {
     0: "normal_context",
     1: "packet_loss_outage",
     2: "water_deficit",
-    3: "rain_humid_context",
-    4: "fertigation_spike",
+    3: "rain_or_fertigation_context",
+    4: "rain_or_fertigation_context",
 }
 DEFAULT_MOCK_DATE_KEY = "2026-05-20"
 DEMO_BASELINE_START_HOUR = 0
@@ -517,16 +517,16 @@ class TelemetryRuntimeTemplateInjector:
             air_temp = current_air_temp + 1.0 + 1.6 * progress
             air_humidity = max(45.0, current_air_humidity - (8.0 + 14.0 * progress))
         elif template_id == 3:
-            soil_temp = current_soil_temp - (0.4 + 0.3 * progress)
-            soil_humidity = min(94.0, current_soil_humidity + (4.5 + 6.0 * progress))
-            ec_value = max(150.0, current_ec - (18.0 + 5.0 * progress))
-            ph_value = current_ph
-            n_value = current_n
-            p_value = current_p
-            k_value = current_k
-            air_temp = max(21.0, current_air_temp - (2.2 + 1.2 * progress))
-            air_humidity = min(99.99, max(95.5, current_air_humidity + (10.0 + 2.0 * progress)))
-        else:
+            soil_temp = current_soil_temp - (0.3 + 0.2 * progress)
+            soil_humidity = min(95.0, current_soil_humidity + (5.0 + 5.5 * progress))
+            ec_value = current_ec + (18.0 + 36.0 * progress)
+            ph_value = max(5.8, min(7.2, current_ph - (0.03 + 0.03 * progress)))
+            n_value = current_n + (6.0 + 5.0 * progress)
+            p_value = current_p + (8.0 + 8.0 * progress)
+            k_value = current_k + (6.0 + 6.0 * progress)
+            air_temp = max(21.0, current_air_temp - (1.4 + 0.8 * progress))
+            air_humidity = min(99.99, max(92.0, current_air_humidity + (8.0 + 4.0 * progress)))
+        elif template_id == 4:
             soil_temp = current_soil_temp + 0.15
             soil_humidity = min(96.0, current_soil_humidity + (6.5 + 4.5 * progress))
             ec_value = current_ec + (95.0 + 70.0 * (1.0 - 0.5 * progress))
@@ -536,6 +536,16 @@ class TelemetryRuntimeTemplateInjector:
             k_value = current_k + (18.0 + 12.0 * (1.0 - 0.2 * progress))
             air_temp = max(22.0, current_air_temp - (0.6 + 0.2 * progress))
             air_humidity = min(99.99, current_air_humidity + (6.0 + 3.0 * progress))
+        else:
+            soil_temp = current_soil_temp - (0.4 + 0.3 * progress)
+            soil_humidity = min(94.0, current_soil_humidity + (4.5 + 6.0 * progress))
+            ec_value = max(150.0, current_ec - (18.0 + 5.0 * progress))
+            ph_value = current_ph
+            n_value = current_n
+            p_value = current_p
+            k_value = current_k
+            air_temp = max(21.0, current_air_temp - (2.2 + 1.2 * progress))
+            air_humidity = min(99.99, max(95.5, current_air_humidity + (10.0 + 2.0 * progress)))
 
         npk_data["temp"] = round(soil_temp, 2)
         npk_data["hum"] = round(soil_humidity, 2)

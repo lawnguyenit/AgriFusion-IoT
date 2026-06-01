@@ -33,11 +33,10 @@ def _latest_simulator_run_dir() -> Path:
 class ContextClassifierConfig:
     benchmark_family: str = "context_classifier"
     benchmark_version: str = "dataset_builder_v1"
-    label_scheme: str = "five_class_v1"
+    label_scheme: str = "option2_4class"
     dataset_root: Path = field(default_factory=lambda: DEFAULT_DATASET_ROOT.resolve())
     real_event_csv: Path = field(default_factory=lambda: DEFAULT_REAL_EVENT_CSV.resolve())
     synthetic_gap_aware_csv: Path | None = None
-    synthetic_labeled_csv: Path | None = None
     output_root: Path | None = None
     window_sizes: list[int] = field(default_factory=lambda: list(DEFAULT_WINDOW_SIZES))
     sequence_lookback: int = 12
@@ -60,21 +59,21 @@ class ContextClassifierConfig:
             self.synthetic_gap_aware_csv = (latest_run / "synthetic_flb_gap_aware.csv").resolve()
         else:
             self.synthetic_gap_aware_csv = self.synthetic_gap_aware_csv.resolve()
-        if self.synthetic_labeled_csv is None:
-            self.synthetic_labeled_csv = (latest_run / "synthetic_flb_input_labeled.csv").resolve()
-        else:
-            self.synthetic_labeled_csv = self.synthetic_labeled_csv.resolve()
 
     def validate(self) -> None:
         self.resolve_defaults()
         if not self.dataset_root.exists():
             raise FileNotFoundError(f"Dataset root not found: {self.dataset_root}")
         if not self.real_event_csv.exists():
-            raise FileNotFoundError(f"Real event CSV not found: {self.real_event_csv}")
+            raise FileNotFoundError(
+                f"Real event CSV not found: {self.real_event_csv}. "
+                "context_classifier requires a labeled real-data artifact with big_label plus telemetry-gap/provenance fields "
+                "from fuzzy_logic_basic real-event-labeling. Rebuild "
+                "Backend/Benchmark/fuzzy_logic_basic/dataset/flb_input_with_events.csv first, or pass "
+                "--real-event-csv <labeled_real_csv> explicitly."
+            )
         if self.synthetic_gap_aware_csv is None or not self.synthetic_gap_aware_csv.exists():
             raise FileNotFoundError(f"Synthetic gap-aware CSV not found: {self.synthetic_gap_aware_csv}")
-        if self.synthetic_labeled_csv is None or not self.synthetic_labeled_csv.exists():
-            raise FileNotFoundError(f"Synthetic labeled CSV not found: {self.synthetic_labeled_csv}")
         if not self.window_sizes:
             raise ValueError("At least one window size is required.")
         if any(size <= 0 for size in self.window_sizes):
@@ -105,6 +104,5 @@ class ContextClassifierConfig:
         payload["dataset_root"] = str(self.dataset_root)
         payload["real_event_csv"] = str(self.real_event_csv)
         payload["synthetic_gap_aware_csv"] = str(self.synthetic_gap_aware_csv) if self.synthetic_gap_aware_csv else None
-        payload["synthetic_labeled_csv"] = str(self.synthetic_labeled_csv) if self.synthetic_labeled_csv else None
         payload["output_root"] = str(self.output_root) if self.output_root else None
         return payload

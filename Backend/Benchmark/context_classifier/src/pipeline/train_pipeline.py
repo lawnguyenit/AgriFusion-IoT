@@ -12,6 +12,9 @@ from Backend.Benchmark.context_classifier.src.data.training_io import (
     load_tabular_bundle,
 )
 from Backend.Benchmark.context_classifier.src.model.lstm_classifier import LstmClassifierConfig, train_lstm_classifier
+from Backend.Benchmark.context_classifier.src.pipeline.scientific_artifact_pipeline import (
+    backfill_training_run_scientific_artifacts,
+)
 from Backend.Benchmark.direct_benchmark.src.model.tabnet_classifier import (
     DirectTabNetClassifierConfig,
     train_direct_tabnet_classifier,
@@ -144,6 +147,7 @@ def run_training_pipeline(config: ContextTrainConfig) -> dict[str, object]:
         },
     )
     _write_text(output_dir / "best_result.txt", f"{best_row['experiment_name']}::{best_row['model_name']}")
+    backfill_training_run_scientific_artifacts(output_dir)
     print(
         f"[context_classifier] best={best_row['experiment_name']}/{best_row['model_name']} "
         f"val_macro_f1={float(best_row['validation_macro_f1']):.4f}"

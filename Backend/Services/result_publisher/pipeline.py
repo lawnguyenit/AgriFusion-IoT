@@ -722,6 +722,15 @@ class ResultPublisherPipeline:
                     f"va nhiet do khong khi {format_metric_value(air_latest.get('temperature_c'), 'C')}; can uu tien kiem tra ke hoach tuoi som.{probability_suffix}"
                 ),
             },
+            "rain_or_fertigation_context": {
+                "level": "info",
+                "groups": ["air", "soil", "npk"],
+                "text": (
+                    f"FT-Transformer phat hien '{display_label}'. Quan sat them do am khong khi {format_metric_value(air_latest.get('humidity_pct'), '%')}, "
+                    f"do am dat {format_metric_value(soil_latest.get('humidity_pct'), '%')} va NPK N={format_metric_value(npk_latest.get('n_ppm'), 'ppm')} "
+                    f"de xac dinh day la mua/ngu canh am hay can thiep tuoi-bon.{probability_suffix}"
+                ),
+            },
             "moisture_or_intervention_context": {
                 "level": "info",
                 "groups": ["air", "soil", "npk"],

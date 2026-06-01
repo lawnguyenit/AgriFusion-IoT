@@ -9,8 +9,8 @@ import torch
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import StandardScaler
 
+from Backend.Benchmark.common.raw_tabular_dataset import build_raw_tabular_data_bundle
 from Backend.Benchmark.direct_benchmark.src.config.settings import DirectBenchmarkConfig
-from Backend.Benchmark.direct_benchmark.src.data.raw_data import build_direct_data_bundle
 from Backend.Benchmark.direct_benchmark.src.model.tabnet_classifier import (
     DirectTabNetClassifierConfig,
     train_direct_tabnet_classifier,
@@ -113,7 +113,7 @@ def _run_single_experiment(
     models_dir = output_dir / "models"
     models_dir.mkdir(parents=True, exist_ok=True)
 
-    data_bundle = build_direct_data_bundle(config, experiment_name=experiment_name)
+    data_bundle = build_raw_tabular_data_bundle(config, experiment_name=experiment_name)
     dataframe = data_bundle.dataframe.copy()
     label_policy = select_label_policy(
         dataframe,

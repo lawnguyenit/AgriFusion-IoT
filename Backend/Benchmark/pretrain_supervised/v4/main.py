@@ -20,7 +20,7 @@ def parse_args() -> argparse.Namespace:
         "--event-csv",
         type=Path,
         default=None,
-        help="Path to the event-annotated CSV. Defaults to the Layer1.5 annotated file.",
+        help="Path to the real labeled CSV. Defaults to flb_input_with_events.csv.",
     )
     parser.add_argument(
         "--experiments",

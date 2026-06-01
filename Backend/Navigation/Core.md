@@ -2,8 +2,9 @@
 [Go to Core](../Core)
 
 This folder contains:
-- L3_Tabnet: TabNet model implementations
-- processors: Source-specific Layer 2 processors
-- pipelines: Core orchestration pipelines
-- fusion: Layer 2.5 multi-source fusion
-- canonical: Model-facing canonical table builders
+- `layer1`: preprocessing from Layer0 raw artifacts into structured snapshots
+- `layer2`: reusable feature builders
+- `fusion`: Layer2.5 multi-source fusion
+- `canonical`: model-facing canonical table builders
+- `contracts`: schema/version markers
+- `utils`: thin compatibility layer over shared config helpers

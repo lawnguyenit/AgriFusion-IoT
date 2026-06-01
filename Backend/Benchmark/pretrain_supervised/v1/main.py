@@ -18,7 +18,7 @@ def parse_args() -> argparse.Namespace:
         "--event-csv",
         type=Path,
         default=None,
-        help="Path to the annotated label CSV used only for downstream label merge. Defaults to flb_input_with_events.csv.",
+        help="Path to the real labeled CSV used for downstream label merge. Defaults to flb_input_with_events.csv.",
     )
     parser.add_argument(
         "--pretrain-checkpoint",

@@ -3,6 +3,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+RAIN_OR_FERTIGATION_CONTEXT = "rain_or_fertigation_context"
+LEGACY_MOISTURE_OR_INTERVENTION_CONTEXT = "moisture_or_intervention_context"
+
+CONTEXT_LABEL_ALIASES: dict[str, str] = {
+    LEGACY_MOISTURE_OR_INTERVENTION_CONTEXT: RAIN_OR_FERTIGATION_CONTEXT,
+}
+
 
 @dataclass(frozen=True)
 class LabelScheme:
@@ -45,23 +52,25 @@ OPTION2_4CLASS = LabelScheme(
         "normal_context",
         "packet_loss_outage",
         "water_deficit",
-        "moisture_or_intervention_context",
+        RAIN_OR_FERTIGATION_CONTEXT,
     ),
     real_label_map={
         "none": "normal_context",
-        "weather_context": "moisture_or_intervention_context",
-        "intervention_context": "moisture_or_intervention_context",
+        "weather_context": RAIN_OR_FERTIGATION_CONTEXT,
+        "intervention_context": RAIN_OR_FERTIGATION_CONTEXT,
         "stress_context": "water_deficit",
         "system_timing": "packet_loss_outage",
         "sensor_fault_anomaly": "packet_loss_outage",
     },
     synthetic_label_map={
         "packet_loss": "packet_loss_outage",
-        "rain_humid_context": "moisture_or_intervention_context",
-        "fertigation_spike": "moisture_or_intervention_context",
+        "rain_humid_context": RAIN_OR_FERTIGATION_CONTEXT,
+        "fertigation_spike": RAIN_OR_FERTIGATION_CONTEXT,
+        RAIN_OR_FERTIGATION_CONTEXT: RAIN_OR_FERTIGATION_CONTEXT,
+        LEGACY_MOISTURE_OR_INTERVENTION_CONTEXT: RAIN_OR_FERTIGATION_CONTEXT,
     },
     output_folder_name="outputs_option2_4class",
-    description="Option 2 practical 4-class benchmark that merges rain and fertigation into one context.",
+    description="Practical 4-class benchmark that merges rain-humid and fertigation cues into one canonical context.",
 )
 
 
@@ -85,10 +94,15 @@ def default_output_root(context_classifier_root: Path, label_scheme_name: str) -
 
 
 def infer_label_scheme_from_context_labels(context_labels: list[str] | set[str]) -> LabelScheme | None:
-    labels = {str(label) for label in context_labels if str(label)}
+    labels = {normalize_context_label_name(str(label)) for label in context_labels if str(label)}
     if not labels:
         return None
     for scheme in LABEL_SCHEMES.values():
-        if labels.issubset(set(scheme.class_names)):
+        if labels.issubset({normalize_context_label_name(name) for name in scheme.class_names}):
             return scheme
     return None
+
+
+def normalize_context_label_name(label: str) -> str:
+    normalized = str(label).strip()
+    return CONTEXT_LABEL_ALIASES.get(normalized, normalized)

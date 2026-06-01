@@ -25,6 +25,10 @@ def _write_json(payload: dict[str, object], output_path: Path) -> None:
     output_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
+def _origin_slice(frame: pd.DataFrame, origin_name: str) -> pd.DataFrame:
+    return frame.loc[frame["data_origin"] == origin_name].copy().reset_index(drop=True)
+
+
 def run_build_pipeline(config: ContextClassifierConfig) -> dict[str, object]:
     config.validate()
     label_scheme = get_label_scheme(config.label_scheme)
@@ -53,14 +57,22 @@ def run_build_pipeline(config: ContextClassifierConfig) -> dict[str, object]:
     ).sort_values(["timestamp", "split_name", "is_synthetic"]).reset_index(drop=True)
 
     canonical_path = output_dir / "canonical_context_dataset.csv"
+    real_canonical_path = output_dir / "real_canonical_labeled.csv"
+    synthetic_canonical_path = output_dir / "synthetic_canonical_labeled.csv"
     label_summary_path = output_dir / "context_label_summary.json"
+    real_label_summary_path = output_dir / "real_label_summary.json"
+    synthetic_label_summary_path = output_dir / "synthetic_label_summary.json"
     run_config_path = output_dir / "run_config.json"
     manifest_path = output_dir / "dataset_manifest.json"
     splits_dir = output_dir / "splits"
     splits_dir.mkdir(parents=True, exist_ok=True)
 
     canonical_df.to_csv(canonical_path, index=False)
+    real_df.to_csv(real_canonical_path, index=False)
+    synthetic_df.to_csv(synthetic_canonical_path, index=False)
     write_label_summary(canonical_df, label_summary_path, config.label_scheme)
+    write_label_summary(real_df, real_label_summary_path, config.label_scheme)
+    write_label_summary(synthetic_df, synthetic_label_summary_path, config.label_scheme)
     _write_json(config.to_dict(), run_config_path)
 
     split_output_files: dict[str, dict[str, str]] = {}
@@ -75,14 +87,20 @@ def run_build_pipeline(config: ContextClassifierConfig) -> dict[str, object]:
         split_v2_path = split_folder / "tabular_v2.csv"
         split_v3_path = split_folder / "tabular_v3.csv"
         split_sequence_path = split_folder / "sequence_long.csv"
+        split_real_only_path = split_folder / "canonical_real.csv"
+        split_synthetic_only_path = split_folder / "canonical_synthetic.csv"
 
         v0_df = build_v0_tabular(split_df)
         v1_df = build_v1_tabular(split_df)
         v2_df = build_v2_tabular(split_df)
         v3_df = build_v3_tabular(split_df)
         sequence_df = build_sequence_long(split_df, config.sequence_lookback, config.sequence_stride)
+        split_real_only_df = _origin_slice(split_df, "real")
+        split_synthetic_only_df = _origin_slice(split_df, "synthetic")
 
         split_df.to_csv(split_canonical_path, index=False)
+        split_real_only_df.to_csv(split_real_only_path, index=False)
+        split_synthetic_only_df.to_csv(split_synthetic_only_path, index=False)
         v0_df.to_csv(split_v0_path, index=False)
         v1_df.to_csv(split_v1_path, index=False)
         v2_df.to_csv(split_v2_path, index=False)
@@ -91,6 +109,8 @@ def run_build_pipeline(config: ContextClassifierConfig) -> dict[str, object]:
 
         split_output_files[split_name] = {
             "canonical": str(split_canonical_path),
+            "canonical_real": str(split_real_only_path),
+            "canonical_synthetic": str(split_synthetic_only_path),
             "tabular_v0": str(split_v0_path),
             "tabular_v1": str(split_v1_path),
             "tabular_v2": str(split_v2_path),
@@ -117,8 +137,9 @@ def run_build_pipeline(config: ContextClassifierConfig) -> dict[str, object]:
         "label_scheme_description": label_scheme.description,
         "real_event_csv": str(config.real_event_csv),
         "synthetic_gap_aware_csv": str(config.synthetic_gap_aware_csv),
-        "synthetic_labeled_csv": str(config.synthetic_labeled_csv),
         "canonical_row_count": int(len(canonical_df)),
+        "real_canonical_row_count": int(len(real_df)),
+        "synthetic_canonical_row_count": int(len(synthetic_df)),
         "split_row_counts": split_row_counts,
         "sequence_row_count": total_sequence_rows,
         "sequence_lookback": config.sequence_lookback,
@@ -130,8 +151,12 @@ def run_build_pipeline(config: ContextClassifierConfig) -> dict[str, object]:
         "split_strategy": config.split_strategy,
         "output_files": {
             "canonical": str(canonical_path),
+            "real_canonical": str(real_canonical_path),
+            "synthetic_canonical": str(synthetic_canonical_path),
             "splits": split_output_files,
             "label_summary": str(label_summary_path),
+            "real_label_summary": str(real_label_summary_path),
+            "synthetic_label_summary": str(synthetic_label_summary_path),
             "run_config": str(run_config_path),
         },
         "assumptions": [

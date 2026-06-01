@@ -9,6 +9,39 @@ from Backend.Benchmark.context_classifier.src.data.contracts import BASE_SENSOR_
 from Backend.Benchmark.context_classifier.src.data.label_schemes import get_label_scheme
 
 
+def _json_safe_scalar(value: object) -> object:
+    if pd.isna(value):
+        return None
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
+    return str(value)
+
+
+def _json_safe_key(value: object) -> str:
+    normalized = _json_safe_scalar(value)
+    return "null" if normalized is None else str(normalized)
+
+
+def _value_counts_to_json_dict(series: pd.Series) -> dict[str, int]:
+    counts = series.value_counts(dropna=False)
+    return {
+        _json_safe_key(label): int(count)
+        for label, count in counts.items()
+    }
+
+
+def _records_to_json_safe(records: list[dict[str, object]]) -> list[dict[str, object]]:
+    safe_records: list[dict[str, object]] = []
+    for record in records:
+        safe_records.append(
+            {
+                str(key): _json_safe_scalar(value)
+                for key, value in record.items()
+            }
+        )
+    return safe_records
+
+
 def _estimate_loss_steps_from_minutes(value: object, fallback_minutes: float = 16.0) -> int:
     if pd.isna(value):
         return 0
@@ -112,6 +145,15 @@ def build_real_canonical(real_event_csv: Path, label_scheme_name: str) -> pd.Dat
 def build_synthetic_canonical(synthetic_gap_aware_csv: Path, label_scheme_name: str) -> pd.DataFrame:
     label_scheme = get_label_scheme(label_scheme_name)
     df = pd.read_csv(synthetic_gap_aware_csv)
+    if (
+        label_scheme.name == "five_class_v1"
+        and "scenario_label" in df.columns
+        and df["scenario_label"].astype(str).eq("rain_or_fertigation_context").any()
+    ):
+        raise ValueError(
+            "five_class_v1 khong the duoc build tu synthetic da merge thanh rain_or_fertigation_context. "
+            "Hay dung option2_4class, hoac cung cap synthetic legacy voi rain_humid_context va fertigation_spike tach rieng."
+        )
     result = pd.DataFrame()
     result["timestamp"] = df["timestamp"]
     for column in BASE_SENSOR_COLUMNS:
@@ -197,11 +239,11 @@ def write_label_summary(canonical_df: pd.DataFrame, output_path: Path, label_sch
         "label_scheme": label_scheme.name,
         "class_names": list(label_scheme.class_names),
         "row_count": int(len(canonical_df)),
-        "data_origin_counts": canonical_df["data_origin"].value_counts(dropna=False).to_dict(),
-        "context_label_counts": canonical_df["context_label"].value_counts(dropna=False).to_dict(),
+        "data_origin_counts": _value_counts_to_json_dict(canonical_df["data_origin"]),
+        "context_label_counts": _value_counts_to_json_dict(canonical_df["context_label"]),
         "packet_loss_flag_count": int(canonical_df["packet_loss_flag"].fillna(0).astype(int).sum()),
-        "split_counts": canonical_df["split_name"].value_counts(dropna=False).to_dict(),
-        "split_origin_counts": (
+        "split_counts": _value_counts_to_json_dict(canonical_df["split_name"]),
+        "split_origin_counts": _records_to_json_safe(
             canonical_df.groupby(["split_name", "data_origin"]).size().rename("row_count").reset_index().to_dict(orient="records")
         ),
     }

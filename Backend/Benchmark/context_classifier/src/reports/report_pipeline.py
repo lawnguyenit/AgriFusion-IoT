@@ -169,7 +169,7 @@ def _label_mapping_plot(output_path: Path) -> None:
     ax.text(
         0.72,
         0.50,
-        "moisture_or_intervention_context",
+        "rain_or_fertigation_context",
         ha="center",
         va="center",
         fontsize=14,
@@ -299,6 +299,8 @@ def _write_markdown_summary(
     lines.append("# Context Classifier Report")
     lines.append("")
     lines.append("## Tong quan")
+    lines.append("")
+    lines.append("- Nhan canonical active 4-class hien tai la: `normal_context`, `packet_loss_outage`, `water_deficit`, `rain_or_fertigation_context`.")
     lines.append("")
     for label_scheme in ["five_class_v1", "option2_4class"]:
         scheme_df = combined_metrics[combined_metrics["label_scheme"] == label_scheme]
