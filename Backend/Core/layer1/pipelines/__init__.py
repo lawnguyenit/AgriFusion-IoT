@@ -1,3 +1,3 @@
-from .preprocessing import Layer2Result, PreprocessingPipeline
+from .preprocessing import Layer1Result, PreprocessingPipeline
 
-__all__ = ["Layer2Result", "PreprocessingPipeline"]
+__all__ = ["Layer1Result", "PreprocessingPipeline"]

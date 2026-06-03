@@ -18,7 +18,7 @@ def parse_args() -> argparse.Namespace:
         "--event-csv",
         type=Path,
         default=None,
-        help="Path to flb_input_with_events.csv. Defaults to the Layer 1.5 annotated CSV.",
+        help="Path to the real labeled CSV used for downstream label merge. Defaults to flb_input_with_events.csv.",
     )
     parser.add_argument(
         "--pretrain-checkpoint",
@@ -50,7 +50,14 @@ def parse_args() -> argparse.Namespace:
         default=0.10,
         help="Minimum minority-to-majority ratio required for ternary mode when label-mode is auto.",
     )
-    parser.add_argument("--max-epochs", type=int, default=40, help="Max epochs for the torch probe.")
+    parser.add_argument(
+        "--model-names",
+        nargs="+",
+        choices=("linear_probe", "random_forest", "hist_gradient_boosting", "xgboost", "lightgbm"),
+        default=None,
+        help="Optional sklearn suite override. Torch probe is always trained separately.",
+    )
+    parser.add_argument("--max-epochs", type=int, default=100, help="Max epochs for the torch probe.")
     parser.add_argument("--patience", type=int, default=8, help="Early stopping patience for the torch probe.")
     parser.add_argument("--batch-size", type=int, default=64, help="Batch size for the torch probe.")
     parser.add_argument("--learning-rate", type=float, default=1e-3, help="Learning rate for the torch probe.")
@@ -67,6 +74,8 @@ def main() -> None:
         config.pretrain_checkpoint = args.pretrain_checkpoint.resolve()
     if args.output_root is not None:
         config.output_root = args.output_root.resolve()
+    if args.model_names is not None:
+        config.model_names = list(args.model_names)
     config.label_mode = args.label_mode
     config.min_class_support = args.min_class_support
     config.min_class_ratio = args.min_class_ratio

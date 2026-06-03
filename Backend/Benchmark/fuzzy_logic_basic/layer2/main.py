@@ -8,6 +8,7 @@ ROOT_DIR = Path(__file__).resolve().parents[4]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
+from Backend.Benchmark.fuzzy_logic_basic.reporting import build_stage_report, write_report
 from Backend.Benchmark.fuzzy_logic_basic.layer2.src.pipeline import Layer2BuildResult, build_layer2_experiments
 
 
@@ -29,7 +30,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--experiment",
-        choices=("all", "exp1", "exp2", "exp3", "exp4", "exp5"),
+        choices=("all", "exp1", "exp2", "exp3", "exp4", "exp5", "exp6"),
         default="all",
         help="Which L2 ablation dataset to emit.",
     )
@@ -52,9 +53,24 @@ def main() -> None:
         output_dir=args.output_dir,
         experiment_names=experiment_names,
     )
+    requested_names = list(experiment_names or ["exp1", "exp2", "exp3", "exp4", "exp5", "exp6"])
+    report_payload = build_stage_report(
+        stage_name="layer2_dataset_builder",
+        input_csv=results[0].input_csv,
+        output_dir=results[0].output_csv.parent,
+        requested_names=requested_names,
+        results=results,
+        notes=[
+            "Layer2 builds train-facing benchmark exports from the current FLB dataset source.",
+            "This stage does not generate labels and only retains big_label when it is already present.",
+        ],
+    )
+    report_path = results[0].output_csv.parent / "flb_layer2_build_report.json"
+    write_report(report_path, report_payload)
     print("Layer2 ablation datasets complete")
     for result in results:
         _print_result(result)
+    print(f"Build report: {report_path}")
 
 
 if __name__ == "__main__":

@@ -1,13 +1,14 @@
 import argparse
 from datetime import date, timedelta
+from pathlib import Path
 
 
 if __package__:
     from .Core import Layer25FusionPipeline, PreprocessingPipeline
-    from .Services.config.settings import SETTINGS, ExportSettings
+    from .Config.runtime import BACKEND_SETTINGS, BackendSettings
 else:
     from Core import Layer25FusionPipeline, PreprocessingPipeline
-    from Services.config.settings import SETTINGS, ExportSettings
+    from Config.runtime import BACKEND_SETTINGS, BackendSettings
 
 
 LAYER_ALIASES = {
@@ -140,7 +141,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--include-meteo-archive-layer1",
         action="store_true",
-        help="Also preprocess ERA5 archive into a separate Layer1/meteo_archive_era5 folder.",
+        help="Force include ERA5 archive in Layer1 meteo stitching. Archive is auto-enabled when history already exists.",
     )
     parser.add_argument(
         "--layer2-only",
@@ -156,6 +157,65 @@ def parse_args() -> argparse.Namespace:
         "--skip-layer25",
         action="store_true",
         help="Deprecated alias for stopping before Layer2.5 fusion.",
+    )
+    parser.add_argument(
+        "--publish-result",
+        action="store_true",
+        help="Publish local Layer1 artifacts to Firebase RTDB under the result branch for frontend consumption.",
+    )
+    parser.add_argument(
+        "--result-mode",
+        choices=("snapshot", "append"),
+        default="snapshot",
+        help="Result publish mode: snapshot bootstraps all history, append only pushes records newer than the last publish state.",
+    )
+    parser.add_argument(
+        "--result-dry-run",
+        action="store_true",
+        help="Build the result payload and local manifest without writing to Firebase RTDB.",
+    )
+    parser.add_argument(
+        "--only-result",
+        action="store_true",
+        help="Skip Layer0/Layer1/Layer2.5 and publish result from existing local artifacts only.",
+    )
+    parser.add_argument(
+        "--inject-telemetry-template",
+        type=int,
+        choices=tuple(range(5)),
+        help="Inject one demo telemetry template into Firebase telemetry: 0 normal, 1 packet-loss gap, 2 water-deficit, 3 rain-humid, 4 fertigation-like.",
+    )
+    parser.add_argument(
+        "--inject-packet-gap-minutes",
+        type=int,
+        default=64,
+        help="Gap in minutes used by template 1 to simulate packet-loss/outage continuity.",
+    )
+    parser.add_argument(
+        "--inject-date-key",
+        type=str,
+        default="2026-05-20",
+        help="Date key used for injected mock telemetry in YYYY-MM-DD. Defaults to 2026-05-20 for easy cleanup.",
+    )
+    parser.add_argument(
+        "--server-cycle-once",
+        action="store_true",
+        help="Run one full server lifecycle: optional telemetry template injection, latest-only export, Layer1, optional Layer2.5, FT result publish.",
+    )
+    parser.add_argument(
+        "--demo-bootstrap-day",
+        action="store_true",
+        help="Inject a deterministic normal baseline for 2026-05-20 00:00->12:00, sync it into Layer0/Layer1, and prepare local demo history.",
+    )
+    parser.add_argument(
+        "--server-cycle-demo",
+        action="store_true",
+        help="Inject a post-12h demo episode for the selected template, sync that ts range from Firebase, run Layer1, and publish FT result.",
+    )
+    parser.add_argument(
+        "--server-cycle-skip-layer25",
+        action="store_true",
+        help="When --server-cycle-once is used, skip Layer2.5 fusion and only refresh Layer0/Layer1/result.",
     )
 
     args = parser.parse_args()
@@ -183,6 +243,24 @@ def validate_args(args: argparse.Namespace, parser: argparse.ArgumentParser) -> 
         or args.meteo_end_date is not None
     ):
         parser.error("--latest-only cannot be combined with date-range options.")
+    if args.only_result and not args.publish_result:
+        parser.error("--only-result requires --publish-result.")
+    if args.result_dry_run and not args.publish_result:
+        parser.error("--result-dry-run requires --publish-result.")
+    if args.server_cycle_once and args.only_result:
+        parser.error("--server-cycle-once cannot be combined with --only-result.")
+    if args.demo_bootstrap_day and args.server_cycle_once:
+        parser.error("--demo-bootstrap-day cannot be combined with --server-cycle-once.")
+    if args.demo_bootstrap_day and args.server_cycle_demo:
+        parser.error("--demo-bootstrap-day cannot be combined with --server-cycle-demo.")
+    if args.server_cycle_demo and args.server_cycle_once:
+        parser.error("--server-cycle-demo cannot be combined with --server-cycle-once.")
+    if args.server_cycle_demo and args.inject_telemetry_template is None:
+        parser.error("--server-cycle-demo requires --inject-telemetry-template.")
+    try:
+        date.fromisoformat(args.inject_date_key)
+    except ValueError:
+        parser.error(f"--inject-date-key must use YYYY-MM-DD, got: {args.inject_date_key}")
 
 
 def normalize_layer_name(value: str) -> str:
@@ -193,6 +271,8 @@ def normalize_layer_name(value: str) -> str:
 
 
 def resolve_layer_plan(args: argparse.Namespace) -> tuple[bool, bool, bool]:
+    if args.only_result:
+        return False, False, False
     if args.only_layer0:
         return True, False, False
     if args.only_layer1:
@@ -214,12 +294,12 @@ def resolve_layer_plan(args: argparse.Namespace) -> tuple[bool, bool, bool]:
     return run_layer0, run_layer1, run_layer25
 
 
-def build_runtime_settings(args: argparse.Namespace) -> ExportSettings:
+def build_runtime_settings(args: argparse.Namespace) -> BackendSettings:
     node_slug_override = args.node_slug
     if args.node_id is not None and args.node_slug is None:
         node_slug_override = ""
 
-    settings = SETTINGS.with_overrides(
+    settings = BACKEND_SETTINGS.with_overrides(
         source_type=args.source,
         input_json_path=args.input_json,
         node_id=args.node_id,
@@ -267,9 +347,27 @@ def get_meteo_date_range(args: argparse.Namespace) -> tuple[date | None, date | 
     )
 
 
+def has_any_json_files(root: Path) -> bool:
+    return root.exists() and any(root.rglob("*.json"))
+
+
+def meteo_archive_history_exists(settings: object) -> bool:
+    return has_any_json_files(settings.history_root)
+
+
+def meteo_archive_store_exists(settings: object) -> bool:
+    archive_root = settings.base_dir
+    new_raw_root = archive_root / "new_raw"
+    return (
+        has_any_json_files(settings.history_root)
+        or (new_raw_root / "latest.json").exists()
+        or (new_raw_root / "latest_meta.json").exists()
+    )
+
+
 def sync_meteo_layer0(args: argparse.Namespace) -> None:
     if __package__:
-        from .Services.exporters.sources.open_meteo import (
+        from .Services.layer0_ingestion.sources.open_meteo import (
             build_archive_era5_settings,
             get_local_today,
             run_archive_era5_sync,
@@ -277,7 +375,7 @@ def sync_meteo_layer0(args: argparse.Namespace) -> None:
             run_forecast_ifs_sync,
         )
     else:
-        from Services.exporters.sources.open_meteo import (
+        from Services.layer0_ingestion.sources.open_meteo import (
             build_archive_era5_settings,
             get_local_today,
             run_archive_era5_sync,
@@ -303,6 +401,7 @@ def sync_meteo_layer0(args: argparse.Namespace) -> None:
     explicit_date_range = requested_start is not None or requested_end is not None
     local_today = get_local_today(archive_settings)
     era_available_until = local_today - timedelta(days=5)
+    archive_history_exists = meteo_archive_history_exists(archive_settings)
 
     if explicit_date_range:
         range_start = requested_start or archive_settings.default_start_date
@@ -344,25 +443,34 @@ def sync_meteo_layer0(args: argparse.Namespace) -> None:
 
     if args.meteo_mode in {"all", "archive"}:
         if archive_start <= archive_end:
-            print_result(
-                "Open-Meteo ERA5 archive",
-                run_archive_era5_sync(
-                    force_full_sync=args.full_history or explicit_date_range,
-                    start_date_override=archive_start,
-                    end_date_override=archive_end,
-                ),
+            should_sync_archive = (
+                explicit_date_range
+                or args.full_history
+                or args.meteo_mode == "archive"
+                or not archive_history_exists
             )
+            if should_sync_archive:
+                print_result(
+                    "Open-Meteo ERA5 archive",
+                    run_archive_era5_sync(
+                        force_full_sync=args.full_history or explicit_date_range,
+                        start_date_override=archive_start,
+                        end_date_override=archive_end,
+                    ),
+                )
+            else:
+                print("--- Bo qua ERA5 archive: da co lich su bootstrap, chi can forecast/latest de mo rong ---")
         elif explicit_date_range:
             print("--- Bo qua ERA5 archive vi khoang ngay nam trong vung du lieu qua moi ---")
 
 
-def run_layer0(args: argparse.Namespace, settings: ExportSettings) -> bool:
+def run_layer0(args: argparse.Namespace, settings: BackendSettings) -> bool:
     if __package__:
-        from .Services.exporters import ExportPipeline
-        from .Services.clients.firebase import FirebaseService
+        from .Services.clients import FirebaseRTDBClient
+        from .Services.layer0_ingestion import Layer0IngestionPipeline
     else:
-        from Services.exporters import ExportPipeline
-        from Services.clients.firebase import FirebaseService
+        from Services.clients import FirebaseRTDBClient
+        from Services.layer0_ingestion import Layer0IngestionPipeline
 
     history_start_date, history_end_date = get_source_date_range(args)
     date_window_requested = history_start_date is not None or history_end_date is not None
@@ -370,9 +478,9 @@ def run_layer0(args: argparse.Namespace, settings: ExportSettings) -> bool:
 
     firebase_service = None
     if settings.source_type == "firebase":
-        firebase_service = FirebaseService()
+        firebase_service = FirebaseRTDBClient()
 
-    pipeline = ExportPipeline(firebase_service=firebase_service, settings=settings)
+    pipeline = Layer0IngestionPipeline(firebase_client=firebase_service, settings=settings)
 
     print("--- Dang bat dau tien trinh Layer0 ingestion ---")
     print(f"Source adapter: {settings.source_type}")
@@ -423,10 +531,14 @@ def run_layer0(args: argparse.Namespace, settings: ExportSettings) -> bool:
     return True
 
 
-def run_layer1(args: argparse.Namespace, settings: ExportSettings) -> None:
+def run_layer1(args: argparse.Namespace, settings: BackendSettings) -> None:
+    include_meteo_archive = args.include_meteo_archive_layer1 or meteo_archive_store_exists(settings)
+    if include_meteo_archive and not args.include_meteo_archive_layer1:
+        print("--- Tu dong bao gom ERA5 archive vao Layer1 meteo vi da co history ---")
+
     layer1_result = PreprocessingPipeline(
         base_dir=settings.base_dir,
-        include_meteo_archive=args.include_meteo_archive_layer1,
+        include_meteo_archive=include_meteo_archive,
     ).run()
     print("--- Layer1 preprocessing hoan tat ---")
     print(f"Layer1 status: {layer1_result.status}")
@@ -452,6 +564,150 @@ def run_layer25() -> None:
     print(f"Layer2.5 CSV: {layer25_result.csv_path}")
 
 
+def run_result_publish(args: argparse.Namespace, settings: BackendSettings) -> None:
+    if __package__:
+        from .Services.result_publisher import ResultPublisherPipeline
+    else:
+        from Services.result_publisher import ResultPublisherPipeline
+
+    firebase_service = None
+    if not args.result_dry_run:
+        if __package__:
+            from .Services.clients import FirebaseRTDBClient
+        else:
+            from Services.clients import FirebaseRTDBClient
+        firebase_service = FirebaseRTDBClient()
+    publisher = ResultPublisherPipeline(settings=settings, firebase_service=firebase_service)
+    publish_result = publisher.run(mode=args.result_mode, dry_run=args.result_dry_run)
+
+    print("--- Result publisher hoan tat ---")
+    print(f"Result status: {publish_result.status}")
+    print(f"Requested mode: {publish_result.requested_mode}")
+    print(f"Effective mode: {publish_result.effective_mode}")
+    print(f"Dry run: {publish_result.dry_run}")
+    print(f"Result path: {publish_result.result_path}")
+    print(f"Last published ts: {publish_result.last_published_ts}")
+    print(f"Diagnosis label: {publish_result.diagnosis_label}")
+    print(f"Diagnosis abnormal probability: {publish_result.diagnosis_probability}")
+    print(f"History counts: {publish_result.history_counts}")
+    print(f"History last ts: {publish_result.history_last_ts}")
+    print(f"Result state path: {publish_result.state_path}")
+    print(f"Result payload path: {publish_result.payload_path}")
+    print(f"Result manifest path: {publish_result.manifest_path}")
+
+
+def run_telemetry_template_injection(args: argparse.Namespace, settings: BackendSettings) -> None:
+    if __package__:
+        from .Services.clients import FirebaseRTDBClient
+        from .Services.telemetry_runtime_simulator import TelemetryRuntimeTemplateInjector
+    else:
+        from Services.clients import FirebaseRTDBClient
+        from Services.telemetry_runtime_simulator import TelemetryRuntimeTemplateInjector
+
+    firebase_service = FirebaseRTDBClient()
+    injector = TelemetryRuntimeTemplateInjector(settings=settings, firebase_service=firebase_service)
+    inject_result = injector.run(
+        template_id=int(args.inject_telemetry_template),
+        packet_gap_minutes=int(args.inject_packet_gap_minutes),
+        inject_date_key=str(args.inject_date_key),
+    )
+    print("--- Da inject telemetry template vao Firebase ---")
+    print(f"Template id: {inject_result.template_id}")
+    print(f"Template name: {inject_result.template_name}")
+    print(f"Telemetry path: {inject_result.telemetry_path}")
+    print(f"Sample ts: {inject_result.sample_ts}")
+    print(f"Server ts: {inject_result.server_ts}")
+    print(f"Latest meta path: {inject_result.latest_meta_path}")
+
+
+def run_server_cycle_once(args: argparse.Namespace, settings: BackendSettings) -> None:
+    if __package__:
+        from .Services.clients import FirebaseRTDBClient
+        from .Services.telemetry_orchestrator import TelemetryServerCyclePipeline
+    else:
+        from Services.clients import FirebaseRTDBClient
+        from Services.telemetry_orchestrator import TelemetryServerCyclePipeline
+
+    firebase_service = FirebaseRTDBClient()
+    cycle = TelemetryServerCyclePipeline(settings=settings, firebase_service=firebase_service)
+    cycle_result = cycle.run_once(
+        template_id=args.inject_telemetry_template,
+        packet_gap_minutes=int(args.inject_packet_gap_minutes),
+        inject_date_key=str(args.inject_date_key),
+        include_layer25=not args.server_cycle_skip_layer25,
+        result_mode="append",
+    )
+    print("--- Server cycle hoan tat ---")
+    print(f"Cycle status: {cycle_result.status}")
+    print(f"Injected template: {cycle_result.injected_template_name}")
+    print(f"Telemetry path: {cycle_result.telemetry_path}")
+    print(f"Export status: {cycle_result.export_status}")
+    print(f"Layer1 status: {cycle_result.layer1_status}")
+    print(f"Layer2.5 status: {cycle_result.layer25_status}")
+    print(f"Result status: {cycle_result.result_status}")
+    print(f"Result label: {cycle_result.result_label}")
+    print(f"Result path: {cycle_result.result_path}")
+
+
+def run_demo_bootstrap_day(args: argparse.Namespace, settings: BackendSettings) -> None:
+    if __package__:
+        from .Services.clients import FirebaseRTDBClient
+        from .Services.telemetry_orchestrator import TelemetryServerCyclePipeline
+    else:
+        from Services.clients import FirebaseRTDBClient
+        from Services.telemetry_orchestrator import TelemetryServerCyclePipeline
+
+    firebase_service = FirebaseRTDBClient()
+    cycle = TelemetryServerCyclePipeline(settings=settings, firebase_service=firebase_service)
+    result = cycle.bootstrap_demo_day(
+        inject_date_key=str(args.inject_date_key),
+        include_layer25=not args.server_cycle_skip_layer25,
+    )
+    print("--- Demo bootstrap 20/5 hoan tat ---")
+    print(f"Bootstrap status: {result.status}")
+    print(f"Injected template: {result.injected_template_name}")
+    print(f"Telemetry first path: {result.telemetry_first_path}")
+    print(f"Telemetry last path: {result.telemetry_last_path}")
+    print(f"Range sync count: {result.range_sync_count}")
+    print(f"Range start ts: {result.range_start_ts}")
+    print(f"Range end ts: {result.range_end_ts}")
+    print(f"Export status: {result.export_status}")
+    print(f"Layer1 status: {result.layer1_status}")
+    print(f"Layer2.5 status: {result.layer25_status}")
+
+
+def run_server_cycle_demo(args: argparse.Namespace, settings: BackendSettings) -> None:
+    if __package__:
+        from .Services.clients import FirebaseRTDBClient
+        from .Services.telemetry_orchestrator import TelemetryServerCyclePipeline
+    else:
+        from Services.clients import FirebaseRTDBClient
+        from Services.telemetry_orchestrator import TelemetryServerCyclePipeline
+
+    firebase_service = FirebaseRTDBClient()
+    cycle = TelemetryServerCyclePipeline(settings=settings, firebase_service=firebase_service)
+    result = cycle.run_demo_cycle(
+        template_id=int(args.inject_telemetry_template),
+        packet_gap_minutes=int(args.inject_packet_gap_minutes),
+        inject_date_key=str(args.inject_date_key),
+        include_layer25=not args.server_cycle_skip_layer25,
+        result_mode="append",
+    )
+    print("--- Server demo cycle hoan tat ---")
+    print(f"Cycle status: {result.status}")
+    print(f"Injected template: {result.injected_template_name}")
+    print(f"Telemetry path: {result.telemetry_path}")
+    print(f"Range sync count: {result.range_sync_count}")
+    print(f"Range start ts: {result.range_start_ts}")
+    print(f"Range end ts: {result.range_end_ts}")
+    print(f"Export status: {result.export_status}")
+    print(f"Layer1 status: {result.layer1_status}")
+    print(f"Layer2.5 status: {result.layer25_status}")
+    print(f"Result status: {result.result_status}")
+    print(f"Result label: {result.result_label}")
+    print(f"Result path: {result.result_path}")
+
+
 def main() -> None:
     args = parse_args()
     if (args.meteo_start_date is not None or args.meteo_end_date is not None) and not args.sync_meteo:
@@ -459,6 +715,23 @@ def main() -> None:
         print("--- Tu dong bat --sync-meteo vi co meteo start/end date ---")
 
     settings = build_runtime_settings(args)
+
+    if args.demo_bootstrap_day:
+        run_demo_bootstrap_day(args=args, settings=settings)
+        return
+
+    if args.server_cycle_demo:
+        run_server_cycle_demo(args=args, settings=settings)
+        return
+
+    if args.server_cycle_once:
+        run_server_cycle_once(args=args, settings=settings)
+        return
+
+    if args.inject_telemetry_template is not None:
+        run_telemetry_template_injection(args=args, settings=settings)
+        return
+
     run_layer0_flag, run_layer1_flag, run_layer25_flag = resolve_layer_plan(args)
 
     if run_layer0_flag:
@@ -476,6 +749,11 @@ def main() -> None:
         run_layer25()
     else:
         print("--- Bo qua Layer2.5 fusion ---")
+
+    if args.publish_result:
+        run_result_publish(args=args, settings=settings)
+    else:
+        print("--- Bo qua Result publisher ---")
 
 
 if __name__ == "__main__":

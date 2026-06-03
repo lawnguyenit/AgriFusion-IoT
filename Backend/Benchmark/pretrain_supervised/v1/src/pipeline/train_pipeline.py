@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import asdict
-from datetime import datetime
 from pathlib import Path
 
 import joblib
@@ -10,18 +9,19 @@ import pandas as pd
 import torch
 from sklearn.preprocessing import StandardScaler
 
+from Backend.Benchmark.pretrain_supervised.pretrain.src.utils.artifacts import create_run_directory
 from Backend.Benchmark.pretrain_supervised.v1.src.config.settings import V1Config
 from Backend.Benchmark.pretrain_supervised.v1.src.data.contracts import ModelResult
 from Backend.Benchmark.pretrain_supervised.v1.src.data.embeddings import build_embedding_bundle
-from Backend.Benchmark.pretrain_supervised.v1.src.data.labels import build_label_frame, select_label_policy
+from Backend.Benchmark.pretrain_supervised.v1.src.data.labels import (
+    build_label_frame,
+    merge_event_labels,
+    select_label_policy,
+)
 from Backend.Benchmark.pretrain_supervised.v1.src.model.metrics import summarize_classification
 from Backend.Benchmark.pretrain_supervised.v1.src.model.probe import train_torch_probe
 from Backend.Benchmark.pretrain_supervised.v1.src.model.sklearn_models import train_model_suite
 from Backend.Benchmark.pretrain_supervised.v1.src.utils.artifacts import write_json, write_text
-
-
-def _make_run_id(prefix: str) -> str:
-    return f"{prefix}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
 
 def _slice_features(features: np.ndarray, split_slices: dict[str, slice]) -> dict[str, np.ndarray]:
@@ -30,14 +30,14 @@ def _slice_features(features: np.ndarray, split_slices: dict[str, slice]) -> dic
 
 def run_v1_pipeline(config: V1Config) -> dict[str, object]:
     config.validate()
-    run_id = _make_run_id(config.benchmark_version)
-    output_dir = config.output_root / run_id
+    run_id, output_dir = create_run_directory(config.output_root, prefix=config.benchmark_version)
     models_dir = output_dir / "models"
     output_dir.mkdir(parents=True, exist_ok=True)
     models_dir.mkdir(parents=True, exist_ok=True)
 
     embedding_bundle = build_embedding_bundle(config)
-    dataframe = build_label_frame(embedding_bundle.dataframe)
+    merged_dataframe, label_merge_report = merge_event_labels(embedding_bundle.dataframe, config.event_csv)
+    dataframe = build_label_frame(merged_dataframe)
     label_policy = select_label_policy(
         dataframe,
         requested_mode=config.label_mode,
@@ -207,6 +207,8 @@ def run_v1_pipeline(config: V1Config) -> dict[str, object]:
         "embedding_dim": embedding_bundle.embedding_dim,
         "input_rows": int(len(dataframe)),
         "split_counts": embedding_bundle.split_counts,
+        "split_policy": embedding_bundle.split_manifest,
+        "label_merge_report": label_merge_report,
         "label_policy": {
             "selected_mode": label_policy.label_mode,
             "label_column": label_policy.label_column,

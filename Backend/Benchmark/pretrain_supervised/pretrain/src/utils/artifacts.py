@@ -7,8 +7,11 @@ from pathlib import Path
 
 def create_run_directory(output_root: Path, prefix: str = "pretrain") -> tuple[str, Path]:
     output_root.mkdir(parents=True, exist_ok=True)
-    run_id = f"{prefix}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-    output_dir = output_root / run_id
+    now = datetime.now()
+    run_id = f"{prefix}_{now.strftime('%Y%m%d_%H%M%S')}"
+    date_bucket = now.strftime("%d-%m-%Y")
+    run_leaf = f"{prefix}_{now.strftime('%H%M%S')}"
+    output_dir = output_root / date_bucket / run_leaf
     output_dir.mkdir(parents=True, exist_ok=False)
     return run_id, output_dir
 

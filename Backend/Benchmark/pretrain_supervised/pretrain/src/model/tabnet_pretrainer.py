@@ -183,7 +183,8 @@ class TabNetMaskedPretrainer:
             train_history.append(train_loss)
             validation_history.append(validation_loss)
 
-            if validation_loss < best_validation_loss:
+            improvement = best_validation_loss - validation_loss
+            if improvement > self.config.early_stopping_min_delta:
                 best_validation_loss = validation_loss
                 best_epoch = epoch_index
                 best_state = copy.deepcopy(self.model.state_dict())
@@ -213,6 +214,7 @@ class TabNetMaskedPretrainer:
                 f"train_loss={train_loss:.6f} "
                 f"val_loss={validation_loss:.6f} "
                 f"best_val={best_validation_loss:.6f} "
+                f"min_delta={self.config.early_stopping_min_delta:.6f} "
                 f"grad_norm={train_summary['grad_norm']:.4f} "
                 f"entropy={validation_summary['attention_entropy']:.4f} "
                 f"time={epoch_seconds:.2f}s"

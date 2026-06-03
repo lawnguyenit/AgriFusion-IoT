@@ -6,9 +6,9 @@ from pathlib import Path
 from typing import Any
 
 try:
-    from Services.config.settings import SETTINGS as EXPORT_SETTINGS
+    from Config.runtime import BACKEND_SETTINGS
 except ModuleNotFoundError:
-    from ...Services.config.settings import SETTINGS as EXPORT_SETTINGS
+    from ...Config.runtime import BACKEND_SETTINGS
 
 from ..utils.common import iso_utc_now, safe_int
 from ..utils.storage import read_jsonl, write_json, write_jsonl
@@ -30,8 +30,8 @@ class Layer25Result:
 
 class Layer25FusionPipeline:
     def __init__(self, layer1_root: Path | None = None, output_root: Path | None = None):
-        self.layer1_root = layer1_root or EXPORT_SETTINGS.layer1_root
-        self.output_root = output_root or (EXPORT_SETTINGS.layer25_root / "super_table")
+        self.layer1_root = layer1_root or BACKEND_SETTINGS.layer1_root
+        self.output_root = output_root or (BACKEND_SETTINGS.layer25_root / "super_table")
 
     def run(self) -> Layer25Result:
         snapshots = self._load_layer2_snapshots()

@@ -64,6 +64,15 @@ node_modules/
 
 # dotenv environment variables file
 .env
+.env.*
+!.env.example
+
+# Local runtime config
+public/config.local.json
+
+# Local browser profiles / session caches
+tmp-edge-profile/
+tmp-*-profile/
 
 # dataconnect generated files
 .dataconnect

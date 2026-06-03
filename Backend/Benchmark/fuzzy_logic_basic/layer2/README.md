@@ -1,95 +1,73 @@
-# Layer2
+# Layer2 Benchmark Exports
 
-## Mục đích
+## Purpose
 
-- Biến output `L1` đã align thành các CSV `L2` phục vụ ablation cho pretrain.
-- Tách riêng từng nhóm feature để sau đó benchmark:
-  - `Exp1`: `L1 + delta`
-  - `Exp2`: `L1 + delta + 3h/8h window`
-  - `Exp3`: `L1 + delta + 3h/8h window + 24h window`
-  - `Exp4`: `L1 + delta + 3h/8h window + saturation`
-  - `Exp5`: full `L2` set
+`layer2/` builds the single-window benchmark feature exports used by:
+
+- `pretrain_supervised/v2`
+- `pretrain_supervised/v4`
+- `direct_benchmark` raw control arms `v2`, `v4`, `v5`
+
+This stage consumes `flb_input_with_events.csv` by default and writes feature-engineered benchmark CSVs.
+Each export retains `big_label` only, without carrying the full event-audit payload from the real-label source file.
 
 ## Input
 
-- Mặc định đọc:
-  - `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_input_aligned.csv`
+- `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_input_with_events.csv`
 
 ## Output
 
-- Ghi ra cùng dataset root:
-  - `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_l2_exp1.csv`
-  - `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_l2_exp2.csv`
-  - `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_l2_exp3.csv`
-  - `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_l2_exp4.csv`
-  - `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_l2_exp5.csv`
+- `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_l2_exp1.csv`
+- `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_l2_exp2.csv`
+- `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_l2_exp3.csv`
+- `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_l2_exp4.csv`
+- `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_l2_exp5.csv`
+- `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_l2_exp6.csv`
+- `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_layer2_build_report.json`
 
-## Feature groups
+## Experiment Meaning
 
-- `L2_DELTA`
-  - `air_temp_delta_1step`
-  - `soil_temp_delta_1step`
-  - `soil_humidity_delta_1step`
-  - `EC_delta_1step`
+- `exp1`
+  - base Layer1 columns + one-step deltas
+- `exp2`
+  - `exp1` + 3h window features
+- `exp3`
+  - `exp1` + 8h window features
+- `exp4`
+  - `exp1` + 24h window features
+- `exp5`
+  - `exp1` + air-humidity saturation persistence features
+- `exp6`
+  - full Layer2 feature set
 
-- `L2_WINDOW_SHORT`
-  - `air_temp_slope_3h`
-  - `air_temp_range_3h`
-  - `air_temp_mean_3h`
-  - `soil_temp_slope_3h`
-  - `soil_humidity_slope_3h`
-  - `soil_humidity_range_3h`
-  - `EC_slope_3h`
-  - `EC_range_3h`
+## Commands
 
-- `L2_WINDOW_MEDIUM`
-  - `air_temp_slope_8h`
-  - `air_temp_range_8h`
-  - `soil_temp_slope_8h`
-  - `soil_temp_mean_8h`
-  - `soil_humidity_slope_8h`
-  - `soil_humidity_range_8h`
-  - `EC_slope_8h`
-  - `EC_range_8h`
-
-- `L2_WINDOW_LONG`
-  - `soil_temp_range_24h`
-  - `soil_humidity_mean_24h`
-  - `soil_humidity_min_24h`
-  - `EC_mean_24h`
-  - `EC_range_24h`
-  - `EC_exposure_24h`
-
-- `L2_SATURATION`
-  - `air_humidity_saturation_flag`
-  - `air_humidity_saturation_duration_3h`
-  - `air_humidity_saturation_duration_8h`
-  - `air_humidity_saturation_ratio_3h`
-  - `air_humidity_saturation_ratio_8h`
-
-## Command
-
-Chạy toàn bộ ablation:
+Build all Layer2 exports:
 
 ```powershell
 python D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\layer2\main.py
 ```
 
-Chạy riêng một thí nghiệm:
+Build one export:
 
 ```powershell
 python D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\layer2\main.py --experiment exp3
 ```
 
-## Giả định xử lý
+Build Layer2 through the root pipeline:
 
-- `L2` cắt bỏ `pH`, `N`, `P`, `K`, `ec_npk_consistency_score`, `ec_npk_consistency_flag` khỏi main dataset.
-- Mọi window đều strict backward-looking.
-- `air_humidity_saturation_flag` dùng ngưỡng bão hòa hiện tại là `95.0`.
-- `EC_exposure_24h` được định nghĩa là tỷ lệ thời gian trong 24h gần nhất mà `EC` nằm trên mean 24h cục bộ.
+```powershell
+python D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\main.py --skip-layer3-combo
+```
 
-## Rủi ro hoặc giới hạn hiện tại
+## Assumptions
 
-- `L3` relational features chưa được thêm ở bước này.
-- Một số cột window dài sẽ tạo `NaN` ở đầu chuỗi; việc drop hay giữ sẽ do pretrain version tương ứng quyết định.
-- Ngưỡng saturation và định nghĩa exposure hiện đang là kỹ thuật baseline để phục vụ ablation, chưa phải công thức cuối cùng của nghiên cứu.
+- All temporal windows are backward-looking.
+- Layer2 owns benchmark feature engineering, not label generation.
+- Train-facing exports keep `big_label` only when the source CSV already carries labels.
+- The build report records which exports were requested and which files were written.
+
+## Risks / Limits
+
+- Early rows can contain incomplete lookback information depending on the feature horizon.
+- This stage does not validate or create `flb_input_with_events.csv`; it only reuses it when present.

@@ -26,18 +26,25 @@ layer1/
 
 ## Meteo realtime va archive
 
-Open-Meteo duoc chia thanh hai luong rieng:
+Open-Meteo van co 2 luong o Layer0:
 
 ```text
-Output_data/Layer0/OpenMeteo_Data/Meteo_forecast_ifs
--> Output_data/Layer1/meteo_forecast_ifs
-
 Output_data/Layer0/OpenMeteo_Data/Meteo_archive_era5
--> Output_data/Layer1/meteo_archive_era5
+Output_data/Layer0/OpenMeteo_Data/Meteo_forecast_ifs
 ```
 
-- `meteo_forecast_ifs`: du lieu IFS gan hien tai, dung cho realtime inference.
-- `meteo_archive_era5`: du lieu ERA5 qua khu, dung cho backfill/training/doi chieu. Luong nay chi dua vao Layer1 khi bat `--include-meteo-archive-layer1`.
+Layer1 khong coi day la hai stream doc lap nua. Processor meteo gop IFS + ERA5
+thanh mot stream logic duy nhat:
+
+```text
+Output_data/Layer0/OpenMeteo_Data/Meteo_archive_era5
+Output_data/Layer0/OpenMeteo_Data/Meteo_forecast_ifs
+-> Output_data/Layer1/meteo
+```
+
+- `meteo_archive_era5` dung lam bootstrap/backfill ban dau.
+- `meteo_forecast_ifs` dung de mo rong latest va cap nhat cac ngay gan hien tai.
+- Layer1 se tu dong gom archive khi history archive da ton tai; flag `--include-meteo-archive-layer1` chi la override cuong biet.
 
 ## Vi sao meteo van co processor?
 

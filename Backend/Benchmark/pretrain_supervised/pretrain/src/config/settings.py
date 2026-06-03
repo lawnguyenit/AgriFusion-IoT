@@ -3,11 +3,9 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
+from Backend.Benchmark.common.paths import FUZZY_LOGIC_BASIC_DATASET_ROOT, PRETRAIN_ROOT
 
-PRETRAIN_ROOT = Path(__file__).resolve().parents[2]
-BENCHMARK_ROOT = PRETRAIN_ROOT.parent
-
-DEFAULT_INPUT_CSV = BENCHMARK_ROOT / "fuzzy_logic_basic" / "dataset" / "flb_input_aligned.csv"
+DEFAULT_INPUT_CSV = FUZZY_LOGIC_BASIC_DATASET_ROOT / "flb_input_aligned.csv"
 DEFAULT_OUTPUT_ROOT = PRETRAIN_ROOT / "outputs"
 DEFAULT_TIMEZONE = "Asia/Ho_Chi_Minh"
 
@@ -18,12 +16,6 @@ DEFAULT_REQUIRED_COLUMNS = [
     "air_temp",
     "air_humidity",
     "EC",
-    "pH",
-    "N",
-    "P",
-    "K",
-    "ec_npk_consistency_score",
-    "ec_npk_consistency_flag",
 ]
 
 DEFAULT_FEATURE_COLUMNS = [
@@ -32,7 +24,6 @@ DEFAULT_FEATURE_COLUMNS = [
     "air_temp",
     "air_humidity",
     "EC",
-    "pH",
     "hour_sin",
     "hour_cos",
     "dayofweek_sin",
@@ -41,6 +32,7 @@ DEFAULT_FEATURE_COLUMNS = [
 ]
 
 OPTIONAL_PROXY_FEATURE = "ec_npk_proxy_index"
+DEFAULT_SPLIT_STRATEGY = "chronological_with_lookback_gap"
 
 
 @dataclass
@@ -56,14 +48,17 @@ class PretrainConfig:
     feature_columns: list[str] = field(default_factory=lambda: list(DEFAULT_FEATURE_COLUMNS))
     optional_proxy_feature: str = OPTIONAL_PROXY_FEATURE
     mask_ratio: float = 0.2
+    split_strategy: str = DEFAULT_SPLIT_STRATEGY
+    split_gap_minutes_override: int | None = None
     train_ratio: float = 0.70
     validation_ratio: float = 0.15
     test_ratio: float = 0.15
     seed: int = 42
     batch_size: int = 256
     virtual_batch_size: int = 128
-    max_epochs: int = 40
+    max_epochs: int = 100
     patience: int = 8
+    early_stopping_min_delta: float = 1e-3
     learning_rate: float = 2e-3
     weight_decay: float = 1e-5
     max_grad_norm: float = 1.0
@@ -89,10 +84,16 @@ class PretrainConfig:
         total = self.train_ratio + self.validation_ratio + self.test_ratio
         if abs(total - 1.0) > 1e-9:
             raise ValueError(f"Split ratios must sum to 1.0, got {total}")
+        if self.split_strategy not in {"chronological_v1", "chronological_with_lookback_gap"}:
+            raise ValueError(f"Unsupported split_strategy: {self.split_strategy}")
+        if self.split_gap_minutes_override is not None and self.split_gap_minutes_override < 0:
+            raise ValueError("split_gap_minutes_override must be non-negative when provided.")
         if self.batch_size <= 0 or self.virtual_batch_size <= 0:
             raise ValueError("Batch sizes must be positive.")
         if self.max_epochs <= 0:
             raise ValueError("max_epochs must be positive.")
+        if self.early_stopping_min_delta < 0.0:
+            raise ValueError("early_stopping_min_delta must be non-negative.")
         if self.include_npk_proxy:
             required_for_proxy = {"EC", "N", "P", "K"}
             if not required_for_proxy.issubset(self.required_columns):

@@ -1,3 +1,3 @@
-from .firebase import FirebaseService
+from .firebase_rtdb import FirebaseRTDBClient
 
-__all__ = ["FirebaseService"]
+__all__ = ["FirebaseRTDBClient"]

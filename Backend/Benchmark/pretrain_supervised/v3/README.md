@@ -1,25 +1,49 @@
 # V3
 
-## Mục đích
+## Purpose
 
-- Dành cho downstream models consume embedding sinh từ `Layer3` relational schema.
+- Downstream benchmark for the Layer3 combo export family.
+- This version compares multi-window combinations without the saturation features reserved for `v4`.
 
 ## Input
 
-- Pretrain artifact sinh từ source `layer3`.
+- Pretrain artifacts from:
+  - `layer3_combo1`
+  - `layer3_combo2`
+  - `layer3_combo3`
+  - `layer3_combo4`
 
 ## Output
 
-- `D:\AgriFusion-IoT\Backend\Benchmark\pretrain_supervised\v3\outputs\<run_id>\`
+- `D:\AgriFusion-IoT\Backend\Benchmark\pretrain_supervised\v3\outputs\<DD-MM-YYYY>\<run_name>\`
 
 ## Command
 
-- Chưa có command ở bước này.
+Build the Layer3 combo CSVs:
 
-## Giả định xử lý
+```powershell
+python D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\layer3_combo\main.py
+```
 
-- `Layer3` sẽ thêm relational features và giữ contract độc lập với `v2`.
+Pretrain the default combo source:
 
-## Rủi ro hoặc giới hạn hiện tại
+```powershell
+python D:\AgriFusion-IoT\Backend\Benchmark\pretrain_supervised\pretrain\main.py --benchmark-version v3
+```
 
-- Mới scaffold contract.
+Train downstream models:
+
+```powershell
+python D:\AgriFusion-IoT\Backend\Benchmark\pretrain_supervised\v3\main.py
+```
+
+## Assumptions
+
+- `v3` is the benchmark slot for multi-window combo analysis.
+- The downstream stack keeps `torch_probe` as the fixed DL head, while the default sklearn suite is compact: `linear_probe` + `xgboost`.
+- Extra sklearn heads can be re-enabled with `--model-names`.
+
+## Current Limits
+
+- `v3` focuses on window combinations only; saturation remains outside this family so `v4` can remain the full-set upper bound.
+- It still shares the same proxy-label downstream setup used by the other embedding benchmarks.

@@ -5,6 +5,8 @@ Secrets/
 /.idea/
 .DS_Store
 Thumbs.db
+AGENTS.MD
+Docs
 
 # Python caches and environments
 __pycache__/
@@ -23,9 +25,62 @@ Backend/Firebase_data/
 # Docs
 Docs/Dataset_Durian/
 Docs/Papers/
+Docs/IoT_data
 
 #output data 
 Backend/Output_data/
+Backend/Output_data copy/
+Backend/.cache/
 
-# 
-Backend/Benchmark/Tabnet_vanilla/Input
+# Benchmark artifacts and generated data
+Backend/Simulator/outputs/
+Backend/Simulator/outputs/**
+Backend/Benchmark/*/outputs/
+Backend/Benchmark/**/outputs/
+Backend/Benchmark/**/outputs/**
+Backend/Benchmark/*/outputs*/
+Backend/Benchmark/*/outputs*/**
+Backend/Benchmark/**/outputs*/
+Backend/Benchmark/**/outputs*/**
+Backend/Benchmark/*/reports/outputs*/
+Backend/Benchmark/*/reports/outputs*/**
+Backend/Benchmark/**/reports/outputs*/
+Backend/Benchmark/**/reports/outputs*/**
+Backend/Benchmark/*/reports/[0-9][0-9]-[0-9][0-9]-[0-9][0-9][0-9][0-9]/
+Backend/Benchmark/*/reports/[0-9][0-9]-[0-9][0-9]-[0-9][0-9][0-9][0-9]/**
+Backend/Benchmark/**/reports/[0-9][0-9]-[0-9][0-9]-[0-9][0-9][0-9][0-9]/
+Backend/Benchmark/**/reports/[0-9][0-9]-[0-9][0-9]-[0-9][0-9][0-9][0-9]/**
+Backend/Benchmark/**/charts_summary/
+Backend/Benchmark/**/data_profile_report/
+Backend/Benchmark/**/report_pack/
+Backend/Benchmark/**/report_pack_lite/
+Backend/Benchmark/**/chapter5_evidence/
+Backend/Benchmark/*/dataset/*.csv
+Backend/Benchmark/*/dataset/*.json
+Backend/Benchmark/*/dataset/*.pkl
+Backend/Benchmark/*/dataset/*.pt
+Backend/Benchmark/*/dataset/*.yaml
+Backend/Benchmark/*/dataset/*.yml
+Backend/Benchmark/*/dataset/*.parquet
+Backend/Benchmark/*/dataset/*.feather
+Backend/Benchmark/*/dataset/*.xlsx
+Backend/Benchmark/*/dataset/*.xls
+Backend/Benchmark/*/dataset/*.tsv
+Backend/Benchmark/*/dataset/*.zip
+Backend/Benchmark/**/dataset/*.csv
+Backend/Benchmark/**/dataset/*.json
+Backend/Benchmark/**/dataset/*.pkl
+Backend/Benchmark/**/dataset/*.pt
+Backend/Benchmark/**/dataset/*.joblib
+Backend/Benchmark/**/dataset/*.yaml
+Backend/Benchmark/**/dataset/*.yml
+Backend/Benchmark/**/dataset/*.parquet
+Backend/Benchmark/**/dataset/*.feather
+Backend/Benchmark/**/dataset/*.xlsx
+Backend/Benchmark/**/dataset/*.xls
+Backend/Benchmark/**/dataset/*.tsv
+Backend/Benchmark/**/dataset/*.zip
+Backend/Benchmark/**/models/
+Backend/Benchmark/**/*.pt
+Backend/Benchmark/**/*.pkl
+Backend/Benchmark/**/*.joblib

@@ -28,6 +28,7 @@ class EmbeddingBundle:
     checkpoint_config: dict[str, object]
     split_counts: dict[str, int]
     split_slices: dict[str, slice]
+    split_manifest: dict[str, object]
     embedding_dim: int
 
 
@@ -38,4 +39,3 @@ class ModelResult:
     metrics: dict[str, object]
     available: bool = True
     notes: str = ""
-

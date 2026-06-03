@@ -14,9 +14,9 @@ from ...signals.fuzzy_signals import (
 )
 
 try:
-    from Services.config.settings import SETTINGS as EXPORT_SETTINGS
+    from Config.runtime import BACKEND_SETTINGS
 except ModuleNotFoundError:
-    from .....Services.config.settings import SETTINGS as EXPORT_SETTINGS
+    from .....Config.runtime import BACKEND_SETTINGS
 
 
 class NPKProcessor:
@@ -47,8 +47,14 @@ class NPKProcessor:
 
     def extract_sensor_id(self, source_record: Any) -> str | None:
         packet_payload: dict[str, Any] = source_record.payload.get("packet", {}).get("npk_data", {})
+        sensor_payload: dict[str, Any] = source_record.payload.get("sensors", {}).get("npk", {})
         sensor_id = packet_payload.get("sensor_id")
-        return str(sensor_id) if sensor_id else None
+        if sensor_id:
+            return str(sensor_id)
+        sensor_id = sensor_payload.get("sensor_id")
+        if sensor_id:
+            return str(sensor_id)
+        return BACKEND_SETTINGS.npk_sensor_id
 
     def should_accept_source_record(self, source_record: Any) -> bool:
         packet_payload: dict[str, Any] = source_record.payload.get("packet", {}).get("npk_data", {})
@@ -80,9 +86,14 @@ class NPKProcessor:
         record_payload: dict[str, Any] = source_record.payload
         packet_payload: dict[str, Any] = record_payload.get("packet", {}).get("npk_data", {})
 
-        sensor_id = str(packet_payload.get("sensor_id"))
+        sensor_payload: dict[str, Any] = record_payload.get("sensors", {}).get("npk", {})
+        sensor_id = str(
+            packet_payload.get("sensor_id")
+            or sensor_payload.get("sensor_id")
+            or BACKEND_SETTINGS.npk_sensor_id
+        )
         ts_server = source_record.ts_server
-        local_iso = format_local_iso(ts_server, EXPORT_SETTINGS.timezone)
+        local_iso = format_local_iso(ts_server, BACKEND_SETTINGS.timezone)
 
         perception = {
             "n_ppm": safe_float(packet_payload.get("N")),
@@ -133,7 +144,11 @@ class NPKProcessor:
             "layer": "layer2",
             "processor_name": self.processor_name,
             "sensor_id": sensor_id,
-            "sensor_type": packet_payload.get("sensor_type"),
+            "sensor_type": (
+                packet_payload.get("sensor_type")
+                or sensor_payload.get("sensor_type")
+                or BACKEND_SETTINGS.npk_sensor_type
+            ),
             "source": {
                 "event_key": source_record.event_key,
                 "date_key": source_record.date_key,

@@ -17,6 +17,7 @@ class PreparedDataset:
     removal_counts: dict[str, int]
     quality_report: dict[str, object]
     split_slices: dict[str, slice]
+    split_manifest: dict[str, object]
 
 
 @dataclass
@@ -41,6 +42,11 @@ class DataPipelineArtifacts:
     feature_schema_path: Path
     scaler_path: Path
     scaler_stats_path: Path
+    split_manifest_path: Path
+    split_train_path: Path
+    split_validation_path: Path
+    split_test_path: Path
+    split_excluded_gap_path: Path
 
 
 @dataclass
