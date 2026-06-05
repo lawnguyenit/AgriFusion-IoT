@@ -8,10 +8,10 @@ ROOT_DIR = Path(__file__).resolve().parents[3]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from Backend.Benchmark.context_classifier.src.config.settings import ContextClassifierConfig
+from Backend.Benchmark.context_classifier.src.config.settings import CONTEXT_CLASSIFIER_ROOT
 from Backend.Benchmark.context_classifier.src.config.train_settings import ContextTrainConfig
 from Backend.Benchmark.context_classifier.src.data.label_schemes import LABEL_SCHEMES
-from Backend.Benchmark.context_classifier.src.pipeline.build_pipeline import run_build_pipeline
+from Backend.Benchmark.context_classifier.src.pipeline.real_only_build_pipeline import run_real_only_build_pipeline
 from Backend.Benchmark.context_classifier.src.pipeline.train_pipeline import run_training_pipeline
 
 
@@ -21,31 +21,25 @@ DEFAULT_MODELS = ["xgboost", "tabnet_classifier", "ft_transformer_classifier"]
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Build and train real+synthetic tabular benchmarks for XGBoost, TabNet, and FT-Transformer."
+        description="Derive a real-only build run, then train the tabular context-classifier models without synthetic augmentation."
     )
     parser.add_argument(
-        "--build-run-dir",
+        "--source-build-run-dir",
         type=Path,
         default=None,
-        help="Reuse an existing built context_classifier dataset run. Skips dataset build when provided.",
+        help="Augmented build run dir to strip synthetic data from. Defaults to the latest build run for the label scheme.",
     )
     parser.add_argument(
-        "--real-event-csv",
+        "--derived-build-run-dir",
         type=Path,
         default=None,
-        help="Path to flb_input_with_events.csv. Defaults to the fuzzy benchmark dataset export.",
-    )
-    parser.add_argument(
-        "--synthetic-gap-aware-csv",
-        type=Path,
-        default=None,
-        help="Path to synthetic_flb_gap_aware.csv. Defaults to the latest simulator run.",
+        help="Reuse an existing derived real-only build run. Skips the derive step when provided.",
     )
     parser.add_argument(
         "--label-scheme",
         choices=tuple(sorted(LABEL_SCHEMES)),
         default="four_class",
-        help="Canonical label scheme for both build and train steps.",
+        help="Canonical label scheme for both derive and train steps.",
     )
     parser.add_argument(
         "--experiment-names",
@@ -65,29 +59,34 @@ def parse_args() -> argparse.Namespace:
         "--build-output-root",
         type=Path,
         default=None,
-        help="Optional output root for the dataset build stage.",
+        help="Optional output root for derived real-only build artifacts. Defaults to artifacts/builds/<label_scheme>/real_only.",
     )
     parser.add_argument(
         "--train-output-root",
         type=Path,
         default=None,
-        help="Optional output root for the training stage.",
+        help="Optional output root for training artifacts. Defaults to artifacts/training/<label_scheme>/real_only.",
     )
     parser.add_argument("--smoke-test", action="store_true", help="Run a fast validation pass.")
     return parser.parse_args()
 
 
-def _configure_build(args: argparse.Namespace) -> ContextClassifierConfig:
-    config = ContextClassifierConfig(label_scheme=args.label_scheme)
-    if args.real_event_csv is not None:
-        config.real_event_csv = args.real_event_csv.resolve()
-    if args.synthetic_gap_aware_csv is not None:
-        config.synthetic_gap_aware_csv = args.synthetic_gap_aware_csv.resolve()
-    if args.build_output_root is not None:
-        config.output_root = args.build_output_root.resolve()
-    if args.smoke_test:
-        config.sequence_lookback = 6
-    return config
+def _default_real_only_build_root(label_scheme: str) -> Path:
+    return (CONTEXT_CLASSIFIER_ROOT / "artifacts" / "builds" / label_scheme / "real_only").resolve()
+
+
+def _default_real_only_training_root(label_scheme: str) -> Path:
+    return (CONTEXT_CLASSIFIER_ROOT / "artifacts" / "training" / label_scheme / "real_only").resolve()
+
+
+def _resolve_source_build_run_dir(label_scheme: str, source_build_run_dir: Path | None) -> Path:
+    if source_build_run_dir is not None:
+        return source_build_run_dir.resolve()
+    config = ContextTrainConfig(label_scheme=label_scheme)
+    config.resolve_defaults()
+    if config.build_run_dir is None:
+        raise FileNotFoundError(f"Could not resolve latest source build run for label_scheme={label_scheme}")
+    return config.build_run_dir.resolve()
 
 
 def _configure_train(args: argparse.Namespace, build_run_dir: Path) -> ContextTrainConfig:
@@ -95,8 +94,15 @@ def _configure_train(args: argparse.Namespace, build_run_dir: Path) -> ContextTr
     config.build_run_dir = build_run_dir.resolve()
     config.experiment_names = list(args.experiment_names or DEFAULT_EXPERIMENTS)
     config.model_names = list(args.model_names or DEFAULT_MODELS)
-    if args.train_output_root is not None:
-        config.output_root = args.train_output_root.resolve()
+    config.output_root = (
+        args.train_output_root.resolve()
+        if args.train_output_root is not None
+        else (
+            args.build_output_root.resolve()
+            if args.build_output_root is not None
+            else _default_real_only_training_root(args.label_scheme)
+        )
+    )
     if args.smoke_test:
         config.tabnet_max_epochs = 6
         config.tabnet_patience = 3
@@ -114,23 +120,29 @@ def _configure_train(args: argparse.Namespace, build_run_dir: Path) -> ContextTr
 
 def main() -> None:
     args = parse_args()
-
-    if args.build_run_dir is None:
-        build_config = _configure_build(args)
-        build_report = run_build_pipeline(build_config)
+    if args.derived_build_run_dir is None:
+        source_build_run_dir = _resolve_source_build_run_dir(args.label_scheme, args.source_build_run_dir)
+        build_report = run_real_only_build_pipeline(
+            source_build_run_dir=source_build_run_dir,
+            output_root=args.build_output_root.resolve() if args.build_output_root is not None else None,
+        )
         build_run_dir = Path(build_report["output_dir"]).resolve()
-        print(f"Build run: {build_run_dir}")
+        print(f"Source build run: {build_report['source_build_run_dir']}")
+        print(f"Derived real-only build run: {build_run_dir}")
     else:
-        build_run_dir = args.build_run_dir.resolve()
-        print(f"Reusing build run: {build_run_dir}")
+        build_run_dir = args.derived_build_run_dir.resolve()
+        print(f"Reusing derived real-only build run: {build_run_dir}")
 
     train_config = _configure_train(args, build_run_dir)
     train_report = run_training_pipeline(train_config)
     print(f"Label scheme: {train_report['label_scheme']}")
     print(f"Experiments: {', '.join(train_report['experiments'])}")
-    print(f"Best experiment/model: {train_report['best_result']['experiment_name']} / {train_report['best_result']['model_name']}")
+    print(
+        "Best experiment/model: "
+        f"{train_report['best_result']['experiment_name']} / {train_report['best_result']['model_name']}"
+    )
     print(f"Best validation macro_f1: {train_report['best_result']['validation_macro_f1']:.4f}")
-    print(f"Training output: {train_report['output_dir']}")
+    print(f"Real-only training output: {train_report['output_dir']}")
 
 
 if __name__ == "__main__":

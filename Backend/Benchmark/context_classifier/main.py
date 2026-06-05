@@ -33,25 +33,25 @@ def parse_args() -> argparse.Namespace:
         "--output-root",
         type=Path,
         default=None,
-        help="Optional output root. Defaults to Backend/Benchmark/context_classifier/outputs.",
+        help="Optional output root. Defaults to Backend/Benchmark/context_classifier/artifacts/builds/four_class/augmented.",
     )
     parser.add_argument(
         "--label-scheme",
         choices=tuple(sorted(LABEL_SCHEMES)),
-        default="option2_4class",
-        help="Canonical label scheme. Defaults to the active 4-class contract; five_class_v1 remains legacy.",
+        default="four_class",
+        help="Canonical label scheme. Defaults to the active 4-class contract.",
     )
     parser.add_argument(
         "--sequence-lookback",
         type=int,
         default=12,
-        help="Lookback length in steps for LSTM sequence dataset generation.",
+        help="Sequence export lookback. Kept only for backward-compatible build artifacts; active training is tabular-only.",
     )
     parser.add_argument(
         "--sequence-stride",
         type=int,
         default=1,
-        help="Stride in steps for sequence dataset generation.",
+        help="Sequence export stride. Kept only for backward-compatible build artifacts; active training is tabular-only.",
     )
     parser.add_argument(
         "--smoke-test",
@@ -81,7 +81,7 @@ def main() -> None:
     print(f"Label scheme: {report['label_scheme']}")
     print(f"Canonical rows: {report['canonical_row_count']}")
     print(f"Tabular outputs: {', '.join(report['tabular_outputs'].keys())}")
-    print(f"Sequence rows: {report['sequence_row_count']}")
+    print(f"Sequence rows (legacy export): {report['sequence_row_count']}")
     print(f"Output folder: {report['output_dir']}")
 
 

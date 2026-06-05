@@ -164,8 +164,8 @@ def run_build_pipeline(config: ContextClassifierConfig) -> dict[str, object]:
             "Synthetic chi nam trong split train; validation va test la real-only.",
             "v0/v1/v2/v3 duoc build rieng cho tung split de tranh leakage qua ranh gioi train/validation/test.",
             "v0 = raw full, v1 = raw core, v2 = v1 + delta_1step + 3h slope/range/mean, v3 = v2 + 8h slope/range/mean.",
-            "TabNet, FT-Transformer, TabPFN, va XGBoost se dung tabular_v0/tabular_v1/tabular_v2/tabular_v3 cua tung split.",
-            "LSTM se dung sequence_long cua tung split va tu tensorize o buoc train sau.",
+            "XGBoost, TabNet, va FT-Transformer se dung tabular_v0/tabular_v1/tabular_v2/tabular_v3 cua tung split.",
+            "sequence_long duoc giu lai chi de backward-compatible voi artifact cu; train active hien tai la tabular-only.",
             f"Label scheme hien tai la {label_scheme.name}.",
         ],
     }

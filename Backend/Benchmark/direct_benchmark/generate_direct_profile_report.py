@@ -12,7 +12,7 @@ import pandas as pd
 
 ROOT_DIR = Path(__file__).resolve().parent
 OUTPUT_ROOT = ROOT_DIR / "data_profile_report"
-DEFAULT_RUN_ROOT = ROOT_DIR / "outputs"
+DEFAULT_RUN_ROOT = ROOT_DIR / "artifacts"
 
 
 def parse_args() -> argparse.Namespace:
@@ -21,7 +21,7 @@ def parse_args() -> argparse.Namespace:
         "--run-dir",
         type=Path,
         default=None,
-        help="Path to a direct benchmark run directory. Defaults to the latest run under direct_benchmark/outputs.",
+        help="Path to a direct benchmark run directory. Defaults to the latest run under direct_benchmark/artifacts.",
     )
     parser.add_argument(
         "--experiment",
@@ -39,7 +39,16 @@ def parse_args() -> argparse.Namespace:
 
 
 def discover_latest_run_dir(output_root: Path) -> Path:
-    candidates = [path for path in output_root.rglob("training_report.json") if path.is_file()]
+    candidates: list[Path] = []
+    for path in output_root.rglob("training_report.json"):
+        if not path.is_file():
+            continue
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            continue
+        if isinstance(payload, dict) and "experiment_reports" in payload and "best_result" in payload:
+            candidates.append(path)
     if not candidates:
         raise FileNotFoundError(f"No direct benchmark runs found under {output_root}")
     return max((path.parent for path in candidates), key=lambda path: path.stat().st_mtime)

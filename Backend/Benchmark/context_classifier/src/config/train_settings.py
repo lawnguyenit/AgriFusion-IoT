@@ -5,15 +5,15 @@ import json
 from pathlib import Path
 
 from Backend.Benchmark.context_classifier.src.config.settings import CONTEXT_CLASSIFIER_ROOT
-from Backend.Benchmark.context_classifier.src.data.label_schemes import (
-    default_output_root,
+from Backend.Benchmark.shared.labels import (
+    default_context_build_root,
+    default_context_training_root,
     get_label_scheme,
     infer_label_scheme_from_context_labels,
 )
 
-
-DEFAULT_EXPERIMENTS = ["v0", "v1", "v2", "v3", "sequence"]
-DEFAULT_MODELS = ["xgboost", "tabnet_classifier", "ft_transformer_classifier", "tabpfn_classifier", "lstm_classifier"]
+DEFAULT_EXPERIMENTS = ["v0", "v1", "v2", "v3"]
+DEFAULT_MODELS = ["xgboost", "tabnet_classifier", "ft_transformer_classifier"]
 
 
 def _infer_build_run_label_scheme(run_dir: Path) -> str | None:
@@ -25,7 +25,10 @@ def _infer_build_run_label_scheme(run_dir: Path) -> str | None:
             manifest = {}
         manifest_scheme = manifest.get("label_scheme")
         if isinstance(manifest_scheme, str) and manifest_scheme:
-            return manifest_scheme
+            try:
+                return get_label_scheme(manifest_scheme).name
+            except ValueError:
+                pass
         class_names = manifest.get("class_names")
         if isinstance(class_names, list) and class_names:
             inferred = infer_label_scheme_from_context_labels(class_names)
@@ -40,7 +43,10 @@ def _infer_build_run_label_scheme(run_dir: Path) -> str | None:
             summary = {}
         summary_scheme = summary.get("label_scheme")
         if isinstance(summary_scheme, str) and summary_scheme:
-            return summary_scheme
+            try:
+                return get_label_scheme(summary_scheme).name
+            except ValueError:
+                pass
         class_names = summary.get("class_names")
         if isinstance(class_names, list) and class_names:
             inferred = infer_label_scheme_from_context_labels(class_names)
@@ -55,11 +61,13 @@ def _infer_build_run_label_scheme(run_dir: Path) -> str | None:
     return None
 
 
-def _candidate_output_roots(preferred_output_root: Path) -> list[Path]:
+def _candidate_build_roots(preferred_output_root: Path) -> list[Path]:
+    scheme = preferred_output_root.resolve()
     candidates = [
-        preferred_output_root.resolve(),
-        (CONTEXT_CLASSIFIER_ROOT / "outputs").resolve(),
+        scheme,
+        (CONTEXT_CLASSIFIER_ROOT / "artifacts" / "builds" / "four_class" / "augmented").resolve(),
         (CONTEXT_CLASSIFIER_ROOT / "outputs_option2_4class").resolve(),
+        (CONTEXT_CLASSIFIER_ROOT / "outputs").resolve(),
     ]
     unique: list[Path] = []
     seen: set[Path] = set()
@@ -71,28 +79,38 @@ def _candidate_output_roots(preferred_output_root: Path) -> list[Path]:
     return unique
 
 
+def _iter_run_dirs(root: Path, prefix: str) -> list[Path]:
+    run_dirs: list[Path] = []
+    if not root.exists():
+        return run_dirs
+    for child in root.iterdir():
+        if not child.is_dir():
+            continue
+        if child.name.startswith(prefix):
+            run_dirs.append(child)
+            continue
+        for nested in child.iterdir():
+            if nested.is_dir() and nested.name.startswith(prefix):
+                run_dirs.append(nested)
+    return run_dirs
+
+
 def _latest_build_run_dir(output_root: Path, label_scheme_name: str) -> Path:
+    requested_scheme = get_label_scheme(label_scheme_name).name
     matched_run_dirs: list[Path] = []
     visited_roots: list[Path] = []
-    for root in _candidate_output_roots(output_root):
+    for root in _candidate_build_roots(output_root):
         if not root.exists():
             continue
         visited_roots.append(root)
-        for date_dir in root.iterdir():
-            if not date_dir.is_dir():
-                continue
-            for run_dir in date_dir.iterdir():
-                if not run_dir.is_dir() or not run_dir.name.startswith("context_build_"):
-                    continue
-                inferred_scheme = _infer_build_run_label_scheme(run_dir)
-                if inferred_scheme is None:
-                    continue
-                if inferred_scheme == label_scheme_name:
-                    matched_run_dirs.append(run_dir)
+        for run_dir in _iter_run_dirs(root, "context_build"):
+            inferred_scheme = _infer_build_run_label_scheme(run_dir)
+            if inferred_scheme == requested_scheme:
+                matched_run_dirs.append(run_dir)
     if not matched_run_dirs:
         searched = ", ".join(str(path) for path in visited_roots) if visited_roots else str(output_root)
         raise FileNotFoundError(
-            f"No context build runs found for label_scheme={label_scheme_name} under: {searched}"
+            f"No context build runs found for label_scheme={requested_scheme} under: {searched}"
         )
     return max(matched_run_dirs, key=lambda path: path.stat().st_mtime)
 
@@ -100,21 +118,13 @@ def _latest_build_run_dir(output_root: Path, label_scheme_name: str) -> Path:
 @dataclass
 class ContextTrainConfig:
     benchmark_family: str = "context_classifier"
-    benchmark_version: str = "train_v0"
-    label_scheme: str = "option2_4class"
+    benchmark_version: str = "train_v2"
+    label_scheme: str = "four_class"
     build_run_dir: Path | None = None
     output_root: Path | None = None
     experiment_names: list[str] = field(default_factory=lambda: list(DEFAULT_EXPERIMENTS))
     model_names: list[str] = field(default_factory=lambda: list(DEFAULT_MODELS))
     seed: int = 42
-    max_epochs: int = 100
-    patience: int = 12
-    batch_size: int = 64
-    learning_rate: float = 1e-3
-    weight_decay: float = 1e-4
-    max_grad_norm: float = 1.0
-    torch_hidden_dim: int = 64
-    torch_dropout: float = 0.20
     tabnet_batch_size: int = 64
     tabnet_virtual_batch_size: int = 32
     tabnet_max_epochs: int = 100
@@ -146,30 +156,17 @@ class ContextTrainConfig:
     ft_attention_dropout: float = 0.10
     ft_residual_dropout: float = 0.0
     ft_classifier_hidden_dim: int = 64
-    lstm_hidden_dim: int = 64
-    lstm_layers: int = 2
-    lstm_dropout: float = 0.15
-    lstm_max_epochs: int = 100
-    lstm_patience: int = 12
-    tabpfn_model_path: str = "tabpfn-v2-classifier-v2_default.ckpt"
-    tabpfn_device: str = "auto"
-    tabpfn_fit_mode: str = "fit_preprocessors"
-    tabpfn_inference_config: str = "auto"
-    tabpfn_ignore_pretraining_limits: bool = False
-    tabpfn_prediction_batch_size: int = 128
-    lstm_batch_size: int = 64
-    lstm_learning_rate: float = 1e-3
-    lstm_weight_decay: float = 1e-4
-    lstm_max_grad_norm: float = 1.0
 
     def resolve_defaults(self) -> None:
-        get_label_scheme(self.label_scheme)
+        scheme = get_label_scheme(self.label_scheme)
+        self.label_scheme = scheme.name
         if self.output_root is None:
-            self.output_root = default_output_root(CONTEXT_CLASSIFIER_ROOT, self.label_scheme)
+            self.output_root = default_context_training_root(CONTEXT_CLASSIFIER_ROOT, self.label_scheme)
         else:
             self.output_root = self.output_root.resolve()
         if self.build_run_dir is None:
-            self.build_run_dir = _latest_build_run_dir(self.output_root, self.label_scheme)
+            preferred_build_root = default_context_build_root(CONTEXT_CLASSIFIER_ROOT, self.label_scheme)
+            self.build_run_dir = _latest_build_run_dir(preferred_build_root, self.label_scheme)
         else:
             self.build_run_dir = self.build_run_dir.resolve()
 
@@ -189,14 +186,6 @@ class ContextTrainConfig:
         invalid_models = [name for name in self.model_names if name not in allowed_models]
         if invalid_models:
             raise ValueError(f"Unsupported models: {invalid_models}")
-        if self.tabpfn_device not in {"auto", "cpu", "cuda"}:
-            raise ValueError(f"Unsupported tabpfn_device: {self.tabpfn_device}")
-        if self.tabpfn_fit_mode not in {"fit_preprocessors", "low_memory", "batched"}:
-            raise ValueError(f"Unsupported tabpfn_fit_mode: {self.tabpfn_fit_mode}")
-        if self.tabpfn_inference_config not in {"auto", "low_memory", "fast"}:
-            raise ValueError(f"Unsupported tabpfn_inference_config: {self.tabpfn_inference_config}")
-        if self.tabpfn_prediction_batch_size <= 0:
-            raise ValueError("tabpfn_prediction_batch_size must be positive.")
 
     def to_dict(self) -> dict[str, object]:
         payload = asdict(self)

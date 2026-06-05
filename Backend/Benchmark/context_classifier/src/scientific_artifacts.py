@@ -15,7 +15,7 @@ from sklearn.metrics import (
     roc_curve,
 )
 
-from Backend.Benchmark.pretrain_supervised.pretrain.src.utils.artifacts import write_json
+from Backend.Benchmark.shared.artifacts import write_json
 
 
 TOP1_CALIBRATION_LABEL = "__top1__"

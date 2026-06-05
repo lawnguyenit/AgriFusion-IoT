@@ -16,49 +16,34 @@ from Backend.Benchmark.context_classifier.src.reports.report_pipeline import (
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Generate academic comparison charts and summary tables for context-classifier training runs."
+        description="Generate comparison charts and summary tables for one or more context-classifier training runs."
     )
     parser.add_argument(
-        "--five-class-run-dir",
+        "--run-dir",
         type=Path,
+        action="append",
         required=True,
-        help="Training run directory for the original five_class_v1 benchmark.",
+        help="Training run directory to include in the report. Repeat this flag to compare multiple runs.",
     )
     parser.add_argument(
-        "--option2-run-dir",
-        type=Path,
-        required=True,
-        help="Training run directory for the Option 2 4-class benchmark.",
-    )
-    parser.add_argument(
-        "--option2-sequence-run-dir",
-        type=Path,
+        "--label-scheme",
+        action="append",
         default=None,
-        help="Optional sequence-only training run for Option 2 if it was trained separately.",
-    )
-    parser.add_argument(
-        "--five-class-sequence-run-dir",
-        type=Path,
-        default=None,
-        help="Optional sequence-only training run for five_class_v1 if it was trained separately.",
+        help="Optional label scheme for each --run-dir. If omitted, four_class is assumed for every run.",
     )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    run_specs = [
-        TrainingRunSpec(label_scheme="five_class_v1", run_dir=args.five_class_run_dir.resolve()),
-        TrainingRunSpec(label_scheme="option2_4class", run_dir=args.option2_run_dir.resolve()),
-    ]
-    if args.five_class_sequence_run_dir is not None:
-        run_specs.append(
-            TrainingRunSpec(label_scheme="five_class_v1", run_dir=args.five_class_sequence_run_dir.resolve())
-        )
-    if args.option2_sequence_run_dir is not None:
-        run_specs.append(
-            TrainingRunSpec(label_scheme="option2_4class", run_dir=args.option2_sequence_run_dir.resolve())
-        )
+    label_schemes = list(args.label_scheme or [])
+    if label_schemes and len(label_schemes) != len(args.run_dir):
+        raise ValueError("When --label-scheme is provided, it must appear the same number of times as --run-dir.")
+
+    run_specs: list[TrainingRunSpec] = []
+    for index, run_dir in enumerate(args.run_dir):
+        scheme = label_schemes[index] if label_schemes else "four_class"
+        run_specs.append(TrainingRunSpec(label_scheme=scheme, run_dir=run_dir.resolve()))
 
     report = run_report_pipeline(run_specs=run_specs)
     print(f"Report run: {report['run_id']}")

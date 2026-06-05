@@ -8,22 +8,35 @@ ROOT_DIR = Path(__file__).resolve().parents[3]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from Backend.Benchmark.direct_benchmark.src.config.settings import DirectBenchmarkConfig
-from Backend.Benchmark.direct_benchmark.src.pipeline.train_pipeline import run_direct_pipeline
+from Backend.Benchmark.direct_benchmark.src.config.settings import (
+    DirectBenchmarkTrainConfig,
+    default_dataset_output_root,
+)
+from Backend.Benchmark.direct_benchmark.src.pipeline.train_pipeline import run_training_pipeline
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Convenience wrapper: build a real-only dataset lane then train the unified direct benchmark suite."
+        description="Train the unified 3-model suite from a prepared direct benchmark build run."
     )
-    parser.add_argument("--aligned-csv", type=Path, default=None, help="Path to flb_input_aligned.csv.")
-    parser.add_argument("--event-csv", type=Path, default=None, help="Path to flb_input_with_events.csv.")
+    parser.add_argument(
+        "--build-run-dir",
+        type=Path,
+        default=None,
+        help="Prepared direct benchmark build run directory. Defaults to the latest run for the selected label lane.",
+    )
+    parser.add_argument(
+        "--label-mode",
+        choices=("binary", "tri_class", "four_class"),
+        required=True,
+        help="Fixed label lane to train.",
+    )
     parser.add_argument(
         "--experiments",
         nargs="+",
         choices=("v0", "v1", "v2", "v3", "v4", "v5"),
         default=None,
-        help="Subset of direct experiments to benchmark.",
+        help="Subset of direct experiments to train.",
     )
     parser.add_argument(
         "--model-names",
@@ -33,43 +46,30 @@ def parse_args() -> argparse.Namespace:
         help="Optional subset of the unified 3-model suite.",
     )
     parser.add_argument("--output-root", type=Path, default=None, help="Optional training output root.")
-    parser.add_argument(
-        "--label-mode",
-        choices=("auto", "binary", "tri_class", "four_class"),
-        default="auto",
-        help="Choose the active label ladder level for direct training.",
-    )
-    parser.add_argument(
-        "--split-strategy",
-        choices=("chronological_v1", "chronological_with_lookback_gap", "coverage_aware_temporal"),
-        default="coverage_aware_temporal",
-        help="Split strategy used to create train/validation/test.",
-    )
-    parser.add_argument("--split-gap-minutes", type=int, default=None, help="Optional explicit purge-gap override in minutes.")
-    parser.add_argument("--min-class-support", type=int, default=20, help="Minimum class support required in auto mode.")
-    parser.add_argument("--min-class-ratio", type=float, default=0.10, help="Minimum minority-to-majority ratio required in auto mode.")
     parser.add_argument("--smoke-test", action="store_true", help="Use a shorter run for quick validation.")
     return parser.parse_args()
 
 
+def _latest_build_run_dir(label_mode: str) -> Path:
+    root = default_dataset_output_root(label_mode)
+    if not root.exists():
+        raise FileNotFoundError(f"Dataset build root not found: {root}")
+    candidates = [path.parent for path in root.rglob("dataset_manifest.json") if path.is_file()]
+    if not candidates:
+        raise FileNotFoundError(f"No prepared build runs found under: {root}")
+    return max(candidates, key=lambda path: path.stat().st_mtime)
+
+
 def main() -> None:
     args = parse_args()
-    config = DirectBenchmarkConfig()
-    if args.aligned_csv is not None:
-        config.aligned_csv = args.aligned_csv.resolve()
-    if args.event_csv is not None:
-        config.event_csv = args.event_csv.resolve()
-    if args.output_root is not None:
-        config.output_root = args.output_root.resolve()
+    config = DirectBenchmarkTrainConfig(label_mode=args.label_mode)
+    config.build_run_dir = args.build_run_dir.resolve() if args.build_run_dir is not None else _latest_build_run_dir(args.label_mode)
     if args.experiments is not None:
         config.experiments = list(args.experiments)
     if args.model_names is not None:
         config.model_names = list(args.model_names)
-    config.label_mode = args.label_mode
-    config.split_strategy = args.split_strategy
-    config.split_gap_minutes_override = args.split_gap_minutes
-    config.min_class_support = args.min_class_support
-    config.min_class_ratio = args.min_class_ratio
+    if args.output_root is not None:
+        config.output_root = args.output_root.resolve()
     if args.smoke_test:
         config.tabnet_max_epochs = 4
         config.tabnet_patience = 2
@@ -83,7 +83,7 @@ def main() -> None:
         config.ft_num_heads = 4
         config.ft_num_layers = 2
 
-    report = run_direct_pipeline(config)
+    report = run_training_pipeline(config)
     print(f"Benchmark family: {report['benchmark_family']}")
     print(f"Benchmark version: {report['benchmark_version']}")
     print(f"Label mode: {report['label_mode']}")

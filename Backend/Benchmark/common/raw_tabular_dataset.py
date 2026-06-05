@@ -6,9 +6,8 @@ from typing import Protocol
 
 import pandas as pd
 
-from Backend.Benchmark.pretrain_supervised.split_policy.artifacts import build_split_manifest
-from Backend.Benchmark.pretrain_supervised.split_policy.builder import build_split_plan
-from Backend.Benchmark.pretrain_supervised.v1.src.data.labels import build_label_frame, merge_event_labels
+from Backend.Benchmark.shared.labels import build_label_frame, merge_event_labels
+from Backend.Benchmark.shared.split_policy import build_split_manifest, build_split_plan
 
 
 class RawTabularBenchmarkConfig(Protocol):
@@ -271,19 +270,21 @@ def build_raw_tabular_data_bundle(config: RawTabularBenchmarkConfig, experiment_
     if missing_columns:
         raise ValueError(f"Missing feature columns for {experiment_name}: {missing_columns}")
 
+    merged_frame, _label_merge_report = merge_event_labels(frame, config.event_csv)
+    labeled_frame = build_label_frame(merged_frame)
     split_plan = build_split_plan(
-        row_count=len(frame),
+        row_count=len(labeled_frame),
         train_ratio=config.train_ratio,
         validation_ratio=config.validation_ratio,
         test_ratio=config.test_ratio,
         strategy_name=config.split_strategy,
-        timestamps=frame["timestamp"].tolist(),
+        timestamps=labeled_frame["timestamp"].tolist(),
         feature_columns=spec.feature_columns,
         gap_minutes_override=config.split_gap_minutes_override,
+        coverage_labels=labeled_frame["four_class_label_name"].tolist(),
+        normal_label="normal_context",
     )
-    split_frame = _assign_split_labels(frame, split_plan)
-    merged_frame, _label_merge_report = merge_event_labels(split_frame, config.event_csv)
-    labeled_frame = build_label_frame(merged_frame)
+    labeled_frame = _assign_split_labels(labeled_frame, split_plan)
     split_manifest = build_split_manifest(dataframe=labeled_frame, split_plan=split_plan)
     return RawTabularDataBundle(
         dataframe=labeled_frame,

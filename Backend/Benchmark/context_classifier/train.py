@@ -15,7 +15,7 @@ from Backend.Benchmark.context_classifier.src.pipeline.train_pipeline import run
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Train context-classifier models on split-aware real+synthetic benchmark datasets."
+        description="Train context-classifier tabular models on split-aware real+synthetic benchmark datasets."
     )
     parser.add_argument(
         "--build-run-dir",
@@ -26,27 +26,27 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--experiment-names",
         nargs="+",
-        choices=("v0", "v1", "v2", "v3", "sequence"),
+        choices=("v0", "v1", "v2", "v3"),
         default=None,
-        help="Subset of experiments to train. Defaults to the full ladder.",
+        help="Subset of experiments to train. Defaults to the full tabular ladder.",
     )
     parser.add_argument(
         "--model-names",
         nargs="+",
-        choices=("xgboost", "tabnet_classifier", "ft_transformer_classifier", "tabpfn_classifier", "lstm_classifier"),
+        choices=("xgboost", "tabnet_classifier", "ft_transformer_classifier"),
         default=None,
-        help="Subset of models to train. Defaults to all context-classifier models.",
+        help="Subset of models to train. Defaults to the full 3-model active suite.",
     )
     parser.add_argument(
         "--output-root",
         type=Path,
         default=None,
-        help="Optional training output root. Defaults to the context_classifier outputs root.",
+        help="Optional training output root. Defaults to the context_classifier artifacts/training root.",
     )
     parser.add_argument(
         "--label-scheme",
         choices=tuple(sorted(LABEL_SCHEMES)),
-        default="option2_4class",
+        default="four_class",
         help="Training label scheme. Defaults to the active 4-class contract and must match the build run directory.",
     )
     parser.add_argument("--smoke-test", action="store_true", help="Run a shorter training smoke test.")
@@ -66,10 +66,7 @@ def main() -> None:
         config.output_root = args.output_root.resolve()
     if args.smoke_test:
         if args.experiment_names is None:
-            config.experiment_names = ["v0", "sequence"]
-        config.max_epochs = 6
-        config.patience = 3
-        config.batch_size = 32
+            config.experiment_names = ["v0"]
         config.tabnet_max_epochs = 6
         config.tabnet_patience = 3
         config.tabnet_batch_size = 32
@@ -81,10 +78,6 @@ def main() -> None:
         config.ft_token_dim = 32
         config.ft_num_heads = 4
         config.ft_num_layers = 2
-        config.tabpfn_fit_mode = "fit_preprocessors"
-        config.lstm_max_epochs = 6
-        config.lstm_patience = 3
-        config.lstm_batch_size = 32
 
     report = run_training_pipeline(config)
     print(f"Benchmark family: {report['benchmark_family']}")

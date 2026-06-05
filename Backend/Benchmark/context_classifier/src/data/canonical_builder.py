@@ -145,15 +145,6 @@ def build_real_canonical(real_event_csv: Path, label_scheme_name: str) -> pd.Dat
 def build_synthetic_canonical(synthetic_gap_aware_csv: Path, label_scheme_name: str) -> pd.DataFrame:
     label_scheme = get_label_scheme(label_scheme_name)
     df = pd.read_csv(synthetic_gap_aware_csv)
-    if (
-        label_scheme.name == "five_class_v1"
-        and "scenario_label" in df.columns
-        and df["scenario_label"].astype(str).eq("rain_or_fertigation_context").any()
-    ):
-        raise ValueError(
-            "five_class_v1 khong the duoc build tu synthetic da merge thanh rain_or_fertigation_context. "
-            "Hay dung option2_4class, hoac cung cap synthetic legacy voi rain_humid_context va fertigation_spike tach rieng."
-        )
     result = pd.DataFrame()
     result["timestamp"] = df["timestamp"]
     for column in BASE_SENSOR_COLUMNS:

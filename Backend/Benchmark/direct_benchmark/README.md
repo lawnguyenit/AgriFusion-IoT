@@ -1,170 +1,139 @@
 # Direct Benchmark
 
-## Purpose
+## Mục đích
 
-This folder is the control-arm benchmark for the AgriFusion-IoT backend.
+`direct_benchmark/` là family train active duy nhất cho flow `real-only`.
 
-It exists to answer a simple question:
+Family này chạy cùng 3 model:
 
-- if we skip embedding pretraining entirely,
-- and train the downstream model suite directly on raw benchmark features,
-- how far do we get?
+- `xgboost`
+- `tabnet_classifier`
+- `ft_transformer_classifier`
 
-This is the direct counterpart to `pretrain_supervised/`. It is meant for Word-ready comparison and for testing whether pretraining actually adds measurable value.
+trên 3 lane nhãn song song:
 
-The direct model suite now includes both ML and DL controls:
+- `binary`
+- `tri_class`
+- `four_class`
 
-- ML: `linear_probe`, `xgboost`
-- DL: `tabnet_classifier`
+## Flow
 
-The default suite is intentionally compact so the comparison stays readable. You can expand it with `--model-names` when you need the larger control set, including `torch_probe` and the heavier tree baselines.
+Flow chuẩn hiện tại:
 
-## Layout
+1. `prepare.py`
+   - build dataset `real-only` cho một lane nhãn cố định
+2. `train.py`
+   - train 3-model suite từ build run đã chuẩn bị
+3. `report.py`
+   - sinh bảng metric và chart tổng hợp từ training run
 
-- `main.py`
-  - entrypoint for the direct benchmark run
-- `generate_direct_profile_report.py`
-  - build a Word-friendly raw-feature profile report with summary table, boxplots, and label composition charts
-- `src/`
-  - config, raw feature loading, and training pipeline
-- `outputs/`
-  - date-bucketed run folders with per-experiment metrics and reports
+`main.py` vẫn tồn tại như convenience wrapper `build + train` trong một lệnh, nhưng flow active khuyến nghị là tách riêng 3 bước trên.
 
-## Versions
+Mặc định flow active dùng `coverage_aware_temporal`:
 
-- `v0`
-  - direct training on the full aligned Layer1 raw sensor + chemistry schema:
-    - `soil_temp`
-    - `soil_humidity`
-    - `air_temp`
-    - `air_humidity`
-    - `EC`
-    - `pH`
-    - `N`
-    - `P`
-    - `K`
-- `v1`
-  - direct training on the aligned Layer1 environment + EC subset:
-    - `soil_temp`
-    - `soil_humidity`
-    - `air_temp`
-    - `air_humidity`
-    - `EC`
-- `v2`
-  - direct training on the Layer2 short-window ablation export `flb_l2_exp2.csv`
-- `v3`
-  - direct training on the Layer3 combo export `flb_l3_combo2.csv`
-- `v4`
-  - direct training on the Layer2 full-set export `flb_l2_exp6.csv`
-- `v5`
-  - union control arm that combines the raw Layer1 schema with the full Layer2 engineered feature set
-
-The direct benchmark does not use any embedding checkpoint.
+- vẫn tôn trọng trục thời gian
+- vẫn giữ purge gap nếu feature schema có lookback
+- nhưng tự điều chỉnh ranh giới train/validation/test để các lớp hiếm của `four_class` có cơ hội xuất hiện ở validation và test
 
 ## Input
 
 - `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_input_aligned.csv`
 - `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_input_with_events.csv`
+- các export engineered hiện có trong `fuzzy_logic_basic\dataset\`
 
 ## Output
 
-Each run writes a new folder under:
+Output được chuẩn hóa theo trục label lane:
 
-- `D:\AgriFusion-IoT\Backend\Benchmark\direct_benchmark\outputs\<DD-MM-YYYY>\<run_name>\`
+- `D:\AgriFusion-IoT\Backend\Benchmark\direct_benchmark\artifacts\binary\datasets\<run_id>\`
+- `D:\AgriFusion-IoT\Backend\Benchmark\direct_benchmark\artifacts\binary\training\<run_id>\`
+- `D:\AgriFusion-IoT\Backend\Benchmark\direct_benchmark\artifacts\binary\reports\<run_id>\`
 
-Main artifacts:
+- `D:\AgriFusion-IoT\Backend\Benchmark\direct_benchmark\artifacts\tri_class\datasets\<run_id>\`
+- `D:\AgriFusion-IoT\Backend\Benchmark\direct_benchmark\artifacts\tri_class\training\<run_id>\`
+- `D:\AgriFusion-IoT\Backend\Benchmark\direct_benchmark\artifacts\tri_class\reports\<run_id>\`
 
-- `direct_dataset.csv`
-- `imputer.pkl`
-- `scaler.pkl`
+- `D:\AgriFusion-IoT\Backend\Benchmark\direct_benchmark\artifacts\four_class\datasets\<run_id>\`
+- `D:\AgriFusion-IoT\Backend\Benchmark\direct_benchmark\artifacts\four_class\training\<run_id>\`
+- `D:\AgriFusion-IoT\Backend\Benchmark\direct_benchmark\artifacts\four_class\reports\<run_id>\`
+
+Build artifacts chính:
+
+- `dataset_manifest.json`
+- `prepared_dataset.csv`
 - `feature_schema.json`
 - `label_policy.json`
-- `run_config.json`
-- `model_metrics.csv`
+- `split_label_summary.json`
+
+Training artifacts chính:
+
+- `aggregate_model_metrics.csv`
 - `training_report.json`
-- `best_model.txt`
+- `run_config.json`
 - `run_status.json`
-- `tabnet_classifier.pt`
-- `torch_probe.pt` when `torch_probe` is enabled
+- `best_result.txt`
+- `experiments/<experiment>/models/*.joblib|*.pt`
 
-Profile report artifacts:
+Report artifacts chính:
 
-- `D:\AgriFusion-IoT\Backend\Benchmark\direct_benchmark\data_profile_report\<YYYY-MM-DD>-profile\`
-- `*_feature_summary.csv`
-- `*_feature_summary_table.png`
-- `*_feature_boxplots.png`
-- `*_context_timeline.png`
-- `*_composition_donut.png`
-- `*_profile_report.md`
-- `manifest.json`
-- `models/`
+- `combined_model_metrics.csv`
+- `summary_model_metrics.csv`
+- `report_summary.md`
+- `chart_test_macro_f1.png`
+- `chart_test_accuracy.png`
 
 ## Command
 
-Run the full direct benchmark:
+Build lane `binary`:
 
 ```powershell
-python D:\AgriFusion-IoT\Backend\Benchmark\direct_benchmark\main.py
+python D:\AgriFusion-IoT\Backend\Benchmark\direct_benchmark\prepare.py --label-mode binary
 ```
 
-Run a smoke test:
+Build lane `tri_class`:
 
 ```powershell
-python D:\AgriFusion-IoT\Backend\Benchmark\direct_benchmark\main.py --smoke-test
+python D:\AgriFusion-IoT\Backend\Benchmark\direct_benchmark\prepare.py --label-mode tri_class
 ```
 
-Generate the raw-feature profile report for Word:
+Build lane `four_class`:
 
 ```powershell
-python D:\AgriFusion-IoT\Backend\Benchmark\direct_benchmark\generate_direct_profile_report.py --experiment v1
+python D:\AgriFusion-IoT\Backend\Benchmark\direct_benchmark\prepare.py --label-mode four_class
 ```
 
-Run only one experiment:
+Train từ build run mới nhất của lane:
 
 ```powershell
-python D:\AgriFusion-IoT\Backend\Benchmark\direct_benchmark\main.py --experiments v1
+python D:\AgriFusion-IoT\Backend\Benchmark\direct_benchmark\train.py --label-mode tri_class
 ```
 
-Run the full matched ladder:
+Train 2 model cụ thể:
 
 ```powershell
-python D:\AgriFusion-IoT\Backend\Benchmark\direct_benchmark\main.py --experiments v0 v1 v2 v3 v4 v5
+python D:\AgriFusion-IoT\Backend\Benchmark\direct_benchmark\train.py --label-mode four_class --model-names xgboost tabnet_classifier
 ```
 
-Run the final-report protocol with a fixed 24h purge gap:
+Sinh report:
 
 ```powershell
-python D:\AgriFusion-IoT\Backend\Benchmark\direct_benchmark\main.py --experiments v0 v1 v2 v3 v4 v5 --split-strategy chronological_with_lookback_gap --split-gap-minutes 1440
+python D:\AgriFusion-IoT\Backend\Benchmark\direct_benchmark\report.py --label-mode tri_class
 ```
 
-Run the compact model suite explicitly:
+Convenience wrapper cũ:
 
 ```powershell
-python D:\AgriFusion-IoT\Backend\Benchmark\direct_benchmark\main.py --experiments v0 v1 v2 v3 v4 v5 --model-names linear_probe xgboost tabnet_classifier
+python D:\AgriFusion-IoT\Backend\Benchmark\direct_benchmark\main.py --label-mode binary
 ```
 
-Console progress:
+## Giả định
 
-- the pipeline now prints run start, current experiment, model start/finish, and epoch-level progress for `tabnet_classifier`
-- sklearn-family models such as `xgboost` now print explicit `fitting` and `completed` messages so long runs are no longer silent
-- PyTorch models such as `tabnet_classifier` also print the selected `device` (`cpu` or `cuda`) and CUDA runtime at training start
+- `tri_class` và `four_class` vẫn được phép build/train dù lệch lớp; sự lệch lớp được ghi vào artifact thay vì chặn cứng
+- chỉ `auto` mới còn ý nghĩa fallback ở convenience path cũ
+- `big_label` từ `flb_input_with_events.csv` là nguồn sự thật cho `binary`, `tri_class`, `four_class`
+- split active được tối ưu theo nhãn `four_class`, vì nếu lane chi tiết nhất giữ được coverage thì `binary` và `tri_class` cũng được hưởng lợi
 
-## Assumptions
+## Rủi ro / giới hạn
 
-- The direct benchmark reuses the current real labeled CSV and the current label policy.
-- Splits are built chronologically from the aligned raw rows, using the shared split policy module.
-- The downstream model suite is the same family used by the embedding benchmark, so the comparison isolates the effect of pretraining.
-- For thesis-grade comparison, the recommended final split is `chronological_with_lookback_gap` with `--split-gap-minutes 1440` so the direct arm and the pretrain arm are evaluated under the same time-based protocol.
-- `tabnet_classifier` is the supervised TabNet-style deep model trained directly on raw/control features, not on pretrain embeddings.
-- `v1` is intentionally narrower than `v0` so the control arm still contains an explicit raw-feature ablation.
-- `v2` to `v5` are the matched direct-feature controls for the temporal/window ladder used in the embedding benchmark.
-- Windowed direct experiments can contain missing values in early rows; the downstream pipeline applies median imputation before scaling.
-- `torch_probe` is optional and only runs if included in `--model-names`.
-- The profile report is a presentation layer only; it does not alter the benchmark data or training flow.
-
-## Limits
-
-- This benchmark is still proxy-label supervised training.
-- It does not turn pH/NPK or raw sensor values into ground-truth nutrient diagnosis.
-- `v0` and `v1` are control arms, not the final diagnosis target.
-- If the raw schema changes strongly, this benchmark should be versioned again instead of being stretched to fit.
+- dữ liệu `tri_class` và `four_class` real-only hiện rất lệch lớp nên metric có thể dao động mạnh
+- output historical trong `outputs/` vẫn còn tồn tại để đối chiếu nhưng không còn là contract active

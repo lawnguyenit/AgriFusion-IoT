@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
 from pathlib import Path
 
 from Backend.Benchmark.common.paths import (
@@ -9,10 +8,8 @@ from Backend.Benchmark.common.paths import (
     FUZZY_LOGIC_BASIC_DATASET_ROOT,
     SIMULATOR_ROOT,
 )
-from Backend.Benchmark.context_classifier.src.data.label_schemes import (
-    default_output_root,
-    get_label_scheme,
-)
+from Backend.Benchmark.shared.artifacts import create_run_directory
+from Backend.Benchmark.shared.labels import default_context_build_root, get_label_scheme
 
 DEFAULT_DATASET_ROOT = FUZZY_LOGIC_BASIC_DATASET_ROOT
 DEFAULT_REAL_EVENT_CSV = DEFAULT_DATASET_ROOT / "flb_input_with_events.csv"
@@ -32,8 +29,8 @@ def _latest_simulator_run_dir() -> Path:
 @dataclass
 class ContextClassifierConfig:
     benchmark_family: str = "context_classifier"
-    benchmark_version: str = "dataset_builder_v1"
-    label_scheme: str = "option2_4class"
+    benchmark_version: str = "dataset_builder_v2"
+    label_scheme: str = "four_class"
     dataset_root: Path = field(default_factory=lambda: DEFAULT_DATASET_ROOT.resolve())
     real_event_csv: Path = field(default_factory=lambda: DEFAULT_REAL_EVENT_CSV.resolve())
     synthetic_gap_aware_csv: Path | None = None
@@ -49,9 +46,10 @@ class ContextClassifierConfig:
     seed: int = 42
 
     def resolve_defaults(self) -> None:
-        get_label_scheme(self.label_scheme)
+        scheme = get_label_scheme(self.label_scheme)
+        self.label_scheme = scheme.name
         if self.output_root is None:
-            self.output_root = default_output_root(CONTEXT_CLASSIFIER_ROOT, self.label_scheme)
+            self.output_root = default_context_build_root(CONTEXT_CLASSIFIER_ROOT, self.label_scheme)
         else:
             self.output_root = self.output_root.resolve()
         latest_run = _latest_simulator_run_dir()
@@ -93,10 +91,7 @@ class ContextClassifierConfig:
             raise ValueError(f"Unsupported split_strategy: {self.split_strategy}")
 
     def make_run_dir(self) -> Path:
-        date_bucket = datetime.now().strftime("%d-%m-%Y")
-        run_name = datetime.now().strftime("context_build_%H%M%S")
-        run_dir = self.output_root / date_bucket / run_name
-        run_dir.mkdir(parents=True, exist_ok=True)
+        _, run_dir = create_run_directory(self.output_root, prefix="context_build")
         return run_dir
 
     def to_dict(self) -> dict[str, object]:
