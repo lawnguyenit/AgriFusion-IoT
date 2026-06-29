@@ -13,8 +13,12 @@ from ..processors.meteo import MeteoProcessor
 from ..processors.npk import NPKProcessor
 from ..processors.sht30 import SHT30Processor
 from ...contracts import LAYER1_SCHEMA_VERSION
-from ...utils.common import iso_utc_now, safe_int, trim_recent_ids
+from ...utils.common import iso_utc_now, resolve_window_ts, safe_int, trim_recent_ids
 from ...utils.storage import append_jsonl, read_json, read_jsonl, write_json
+
+
+HOUR_SECONDS = 3600
+PROGRESS_LOG_EVERY = 500
 
 
 @dataclass(frozen=True)
@@ -114,10 +118,20 @@ class PreprocessingPipeline:
         # 1. Tải tất cả bản ghi mới nhất và lịch sử và hợp nhất lại
         source_records = self._load_source_records()
         run_state = Layer2RunState()
+        print(f"--- Layer1 da nap {len(source_records)} source record tu local Layer0 ---")
 
         # 2. Lặp qua từng bộ và xử lý chính 
         for processor in self.processors:
-            for source_record in source_records:
+            print(
+                f"--- Layer1 dang chay {processor.processor_name} "
+                f"tren {len(source_records)} source record ---"
+            )
+            for index, source_record in enumerate(source_records, start=1):
+                self._log_processor_progress(
+                    processor=processor,
+                    current_index=index,
+                    total_records=len(source_records),
+                )
                 self._process_source_record(
                     processor=processor,
                     source_record=source_record,
@@ -186,12 +200,22 @@ class PreprocessingPipeline:
             return
         
         prior_history = run_state.sensor_histories[target.key] + run_state.sensor_pending_rows[target.key]
+        processing_window_hours = self._processor_history_window_hours(processor)
+        bounded_history = self._slice_history_rows(
+            rows=prior_history,
+            observed_ts=source_record.ts_server,
+            window_hours=processing_window_hours,
+        )
         
         #Luồng hoạt động chính
         snapshot = processor.build_snapshot(
             source_record=source_record,
-            history_records=prior_history,
-            peer_histories=self._build_peer_histories(run_state),
+            history_records=bounded_history,
+            peer_histories=self._build_peer_histories(
+                run_state,
+                observed_ts=source_record.ts_server,
+                window_hours=processing_window_hours,
+            ),
         )
         if not self._snapshot_is_accepted(snapshot):
             self._mark_filtered_record(
@@ -208,12 +232,65 @@ class PreprocessingPipeline:
         run_state.touched_targets.add(target.key)
         self._update_state_from_snapshot(state=state, snapshot=snapshot)
 
-    def _build_peer_histories(self, run_state: Layer2RunState) -> dict[str, list[dict[str, Any]]]:
+    def _build_peer_histories(
+        self,
+        run_state: Layer2RunState,
+        observed_ts: int | None,
+        window_hours: int,
+    ) -> dict[str, list[dict[str, Any]]]:
         return {
-            target_key: run_state.sensor_histories.get(target_key, [])
-            + run_state.sensor_pending_rows.get(target_key, [])
+            target_key: self._slice_history_rows(
+                rows=run_state.sensor_histories.get(target_key, [])
+                + run_state.sensor_pending_rows.get(target_key, []),
+                observed_ts=observed_ts,
+                window_hours=window_hours,
+            )
             for target_key in set(run_state.sensor_histories) | set(run_state.sensor_pending_rows)
         }
+
+    def _processor_history_window_hours(self, processor: Any) -> int:
+        raw_window_hours = getattr(processor, "window_hours", ())
+        hours = [int(value) for value in raw_window_hours if isinstance(value, int | float)]
+        if not hours:
+            return 0
+        return max(hours)
+
+    def _slice_history_rows(
+        self,
+        rows: list[dict[str, Any]],
+        observed_ts: int | None,
+        window_hours: int,
+    ) -> list[dict[str, Any]]:
+        if observed_ts is None or window_hours <= 0 or not rows:
+            return rows
+
+        window_start = observed_ts - (window_hours * HOUR_SECONDS)
+        previous_row: dict[str, Any] | None = None
+        selected_rows: list[dict[str, Any]] = []
+
+        for row in rows:
+            row_ts = resolve_window_ts(row)
+            if row_ts is None:
+                continue
+            if row_ts < window_start:
+                previous_row = row
+                continue
+            if row_ts <= observed_ts:
+                selected_rows.append(row)
+
+        if previous_row is not None:
+            return [previous_row, *selected_rows]
+        return selected_rows
+
+    def _log_processor_progress(self, processor: Any, current_index: int, total_records: int) -> None:
+        if current_index == 1:
+            print(f"  [{processor.processor_name}] bat dau quet source record...")
+            return
+        if current_index % PROGRESS_LOG_EVERY == 0 or current_index == total_records:
+            print(
+                f"  [{processor.processor_name}] da quet "
+                f"{current_index}/{total_records} source record"
+            )
 
     def _build_target(self, processor: Any, sensor_id: str, source_record: SourceRecord) -> Layer2Target:
         resolver = getattr(processor, "resolve_stream_name", None)

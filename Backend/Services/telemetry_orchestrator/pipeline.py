@@ -5,27 +5,27 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-try:
-    from Backend.Core import Layer25FusionPipeline, PreprocessingPipeline
+if __package__ and __package__.startswith("Backend."):
+    from Backend.Core import SuperTableFusionPipeline, PreprocessingPipeline
+    from Backend.Config.runtime import BackendSettings
+    from Backend.Services.clients import FirebaseRTDBClient
+    from Backend.Services.layer0_ingestion import Layer0IngestionPipeline
+    from Backend.Services.layer0_ingestion.stores.telemetry_store import write_full_history_snapshots
+    from Backend.Services.result_publisher import ResultPublisherPipeline
+    from Backend.Services.telemetry_runtime_simulator import (
+        DEFAULT_MOCK_DATE_KEY,
+        DEMO_BASELINE_END_HOUR,
+        TelemetryRuntimeBatchInjectResult,
+        TelemetryRuntimeTemplateInjector,
+    )
+else:
+    from Core import SuperTableFusionPipeline, PreprocessingPipeline
     from Config.runtime import BackendSettings
     from Services.clients import FirebaseRTDBClient
     from Services.layer0_ingestion import Layer0IngestionPipeline
     from Services.layer0_ingestion.stores.telemetry_store import write_full_history_snapshots
     from Services.result_publisher import ResultPublisherPipeline
     from Services.telemetry_runtime_simulator import (
-        DEFAULT_MOCK_DATE_KEY,
-        DEMO_BASELINE_END_HOUR,
-        TelemetryRuntimeBatchInjectResult,
-        TelemetryRuntimeTemplateInjector,
-    )
-except ModuleNotFoundError:
-    from ...Core import Layer25FusionPipeline, PreprocessingPipeline
-    from ...Config.runtime import BackendSettings
-    from ..clients import FirebaseRTDBClient
-    from ..layer0_ingestion import Layer0IngestionPipeline
-    from ..layer0_ingestion.stores.telemetry_store import write_full_history_snapshots
-    from ..result_publisher import ResultPublisherPipeline
-    from ..telemetry_runtime_simulator import (
         DEFAULT_MOCK_DATE_KEY,
         DEMO_BASELINE_END_HOUR,
         TelemetryRuntimeBatchInjectResult,
@@ -39,7 +39,7 @@ class TelemetryServerCycleResult:
     injected_template_name: str | None
     export_status: str | None
     layer1_status: str | None
-    layer25_status: str | None
+    super_table_status: str | None
     result_status: str | None
     result_label: str | None
     telemetry_path: str | None
@@ -55,7 +55,7 @@ class TelemetryDemoBootstrapResult:
     injected_template_name: str
     export_status: str | None
     layer1_status: str | None
-    layer25_status: str | None
+    super_table_status: str | None
     telemetry_first_path: str | None
     telemetry_last_path: str | None
     range_sync_count: int
@@ -72,7 +72,7 @@ class TelemetryServerCyclePipeline:
         self,
         *,
         inject_date_key: str = DEFAULT_MOCK_DATE_KEY,
-        include_layer25: bool = False,
+        include_super_table: bool = False,
     ) -> TelemetryDemoBootstrapResult:
         print("[demo-bootstrap] stage 1/4 -> injecting 00:00-12:00 baseline")
         injected = TelemetryRuntimeTemplateInjector(
@@ -100,17 +100,17 @@ class TelemetryServerCyclePipeline:
             include_meteo_archive=include_meteo_archive,
         ).run()
 
-        layer25_status: str | None = None
-        if include_layer25:
-            print("[demo-bootstrap] optional -> layer2.5 fusion")
-            layer25_status = Layer25FusionPipeline().run().status
+        super_table_status: str | None = None
+        if include_super_table:
+            print("[demo-bootstrap] optional -> super-table fusion")
+            super_table_status = SuperTableFusionPipeline().run().status
 
         return TelemetryDemoBootstrapResult(
             status="completed",
             injected_template_name=injected.template_name,
             export_status=None if export_result is None else export_result.status,
             layer1_status=layer1_result.status,
-            layer25_status=layer25_status,
+            super_table_status=super_table_status,
             telemetry_first_path=injected.telemetry_paths[0] if injected.telemetry_paths else None,
             telemetry_last_path=injected.telemetry_paths[-1] if injected.telemetry_paths else None,
             range_sync_count=range_sync_count,
@@ -124,7 +124,7 @@ class TelemetryServerCyclePipeline:
         template_id: int,
         packet_gap_minutes: int = 64,
         inject_date_key: str = DEFAULT_MOCK_DATE_KEY,
-        include_layer25: bool = True,
+        include_super_table: bool = True,
         result_mode: str = "append",
     ) -> TelemetryServerCycleResult:
         print("[server-demo] stage 1/5 -> injecting event episode")
@@ -158,7 +158,7 @@ class TelemetryServerCyclePipeline:
                 injected_template_name=injected.template_name,
                 export_status=None,
                 layer1_status=None,
-                layer25_status=None,
+                super_table_status=None,
                 result_status=None,
                 result_label=None,
                 telemetry_path=injected.telemetry_paths[-1] if injected.telemetry_paths else None,
@@ -175,10 +175,10 @@ class TelemetryServerCyclePipeline:
             include_meteo_archive=include_meteo_archive,
         ).run()
 
-        layer25_status: str | None = None
-        if include_layer25:
-            print("[server-demo] optional -> layer2.5 fusion")
-            layer25_status = Layer25FusionPipeline().run().status
+        super_table_status: str | None = None
+        if include_super_table:
+            print("[server-demo] optional -> super-table fusion")
+            super_table_status = SuperTableFusionPipeline().run().status
 
         print("[server-demo] stage 5/5 -> result publish")
         publish_result = ResultPublisherPipeline(
@@ -191,7 +191,7 @@ class TelemetryServerCyclePipeline:
             injected_template_name=injected.template_name,
             export_status=export_result.status,
             layer1_status=layer1_result.status,
-            layer25_status=layer25_status,
+            super_table_status=super_table_status,
             result_status=publish_result.status,
             result_label=publish_result.diagnosis_label,
             telemetry_path=injected.telemetry_paths[-1] if injected.telemetry_paths else None,
@@ -207,7 +207,7 @@ class TelemetryServerCyclePipeline:
         template_id: int | None = None,
         packet_gap_minutes: int = 64,
         inject_date_key: str = DEFAULT_MOCK_DATE_KEY,
-        include_layer25: bool = True,
+        include_super_table: bool = True,
         result_mode: str = "append",
     ) -> TelemetryServerCycleResult:
         injected_template_name: str | None = None
@@ -236,7 +236,7 @@ class TelemetryServerCyclePipeline:
                 injected_template_name=injected_template_name,
                 export_status=None,
                 layer1_status=None,
-                layer25_status=None,
+                super_table_status=None,
                 result_status=None,
                 result_label=None,
                 telemetry_path=telemetry_path,
@@ -249,7 +249,7 @@ class TelemetryServerCyclePipeline:
                 injected_template_name=injected_template_name,
                 export_status=export_result.status,
                 layer1_status=None,
-                layer25_status=None,
+                super_table_status=None,
                 result_status=None,
                 result_label=None,
                 telemetry_path=telemetry_path,
@@ -263,10 +263,10 @@ class TelemetryServerCyclePipeline:
             include_meteo_archive=include_meteo_archive,
         ).run()
 
-        layer25_status: str | None = None
-        if include_layer25:
-            print("[server-cycle] stage 3/4 -> layer2.5 fusion")
-            layer25_status = Layer25FusionPipeline().run().status
+        super_table_status: str | None = None
+        if include_super_table:
+            print("[server-cycle] stage 3/4 -> super-table fusion")
+            super_table_status = SuperTableFusionPipeline().run().status
 
         print("[server-cycle] stage 4/4 -> result publish")
         publish_result = ResultPublisherPipeline(
@@ -279,7 +279,7 @@ class TelemetryServerCyclePipeline:
             injected_template_name=injected_template_name,
             export_status=export_result.status,
             layer1_status=layer1_result.status,
-            layer25_status=layer25_status,
+            super_table_status=super_table_status,
             result_status=publish_result.status,
             result_label=publish_result.diagnosis_label,
             telemetry_path=telemetry_path,

@@ -1,40 +1,38 @@
 # Telemetry Runtime Simulator
 
-## Purpose
+## 1. Mục đích
 
-This module injects deterministic demo telemetry into Firebase RTDB so the server lifecycle can be demonstrated end-to-end without waiting for a physical device.
+`telemetry_runtime_simulator` tạo dữ liệu demo có kiểm soát trong Firebase RTDB để trình diễn luồng từ inject -> Layer0 -> Layer1 -> publish -> web mà không cần chờ node thật.
 
-The runtime path now uses the standardized Firebase client boundary in `Services/clients/firebase_rtdb.py`.
+## 2. Kiến trúc xử lý
 
-It now supports two runtime demo modes:
+```text
+đọc latest/current làm seed
+-> chọn template
+-> dựng sequence demo
+-> ghi Node1/telemetry/<date>/<event>
+-> cập nhật latest/current và latest/meta
+-> ghi status event phục vụ audit
+```
 
-- bootstrap a normal baseline for `2026-05-20 00:00 -> 12:00`
-- inject a post-12:00 event episode made of multiple telemetry records
-
-The mock date defaults to `2026-05-20` so demo records are easy to find and delete.
-
-## Input
-
-- Firebase latest payload under `Node1/latest/current`
-- Firebase latest metadata under `Node1/latest/meta`
-- Optional existing day payload under `Node1/telemetry/2026-05-20`
-- Template id `0..3`
-
-## Templates
+## 3. Template hỗ trợ
 
 - `0`: `normal_context`
 - `1`: `packet_loss_outage`
 - `2`: `water_deficit`
 - `3`: `rain_or_fertigation_context`
+- `4`: alias tương thích ngược của template `3`
 
-For runtime 4-class diagnosis:
+## 4. Input
 
-- template `3` phu hop nhan canonical `rain_or_fertigation_context`
-- template `4` neu con duoc goi se duoc xu ly nhu alias tuong thich nguoc cua nhom nay
+- `Node1/latest/current`
+- `Node1/latest/meta`
+- tùy chọn `Node1/telemetry/<date>`
+- `template_id`
+- `inject_date_key`
+- `inject_sample_datetime`
 
-## Output
-
-Firebase RTDB writes:
+## 5. Output
 
 - `Node1/telemetry/<date>/<event>`
 - `Node1/latest/current`
@@ -42,40 +40,62 @@ Firebase RTDB writes:
 - `Node1/live`
 - `Node1/status_events/<event>_demo`
 
-## Commands
+## 6. Chế độ hoạt động
 
-Inject a single-record demo sample:
+### 6.1. Single-record injection
+
+- inject một record tại một timestamp
+
+### 6.2. Bootstrap baseline
+
+- tạo nền bình thường từ `00:00 -> 12:00`
+
+### 6.3. Episode injection
+
+- tạo chuỗi record sau 12h theo một pattern cụ thể
+
+## 7. Ví dụ kết quả
+
+```json
+{
+  "template_id": 2,
+  "template_name": "water_deficit",
+  "telemetry_path": "Node1/telemetry/2026-05-20/1779258600",
+  "sample_ts": 1779258600
+}
+```
+
+## 8. Cách tái lập
+
+### 8.1. Inject một record
 
 ```powershell
 python Backend\main.py --inject-telemetry-template 0
 ```
 
-Bootstrap the normal baseline for `20/5` from midnight to noon:
+### 8.2. Inject một record tại thời điểm xác định
 
 ```powershell
-python Backend\main.py --demo-bootstrap-day --server-cycle-skip-layer25
+python Backend\main.py --inject-telemetry-template 2 --inject-sample-datetime 2026-05-20T14:30
 ```
 
-Inject a post-noon water-deficit episode:
+### 8.3. Bootstrap baseline
 
 ```powershell
-python Backend\main.py --server-cycle-demo --inject-telemetry-template 2 --server-cycle-skip-layer25
+python Backend\main.py --demo-bootstrap-day --server-cycle-skip-super-table
 ```
 
-Inject a packet-loss episode with a controlled gap:
+## 9. Thư viện cần cài
 
-```powershell
-python Backend\main.py --server-cycle-demo --inject-telemetry-template 1 --inject-packet-gap-minutes 64 --server-cycle-skip-layer25
-```
+- `firebase-admin`
+- `python-dotenv`
 
-## Assumptions
+## 10. Giả định xử lý
 
-- Firebase already contains a valid normalized `latest/current` payload that can be used as a structural seed.
-- Demo episodes are deterministic and overwrite the same `2026-05-20` timestamps on repeated runs.
-- The baseline is expected to be prepared first before running post-12:00 episodes.
+- Firebase đã có `latest/current` hợp lệ để làm seed cấu trúc.
+- Ngày demo mặc định `2026-05-20` được giữ riêng cho mục đích trình diễn.
 
-## Risks / current limits
+## 11. Rủi ro và giới hạn
 
-- Packet loss is approximated by a controlled timestamp gap plus recovery records, not by replaying a real communication outage.
-- Event episodes are template-driven for demo purposes and are not meant to replace benchmark/train datasets.
-- Repeated demo runs on the same date overwrite the same timestamp keys, which is useful for cleanup but means the date should remain reserved for demo.
+- Dữ liệu demo là dữ liệu tổng hợp có kiểm soát, không dùng làm ground truth train.
+- Chạy lặp lại trên cùng timestamp sẽ ghi đè record cũ.

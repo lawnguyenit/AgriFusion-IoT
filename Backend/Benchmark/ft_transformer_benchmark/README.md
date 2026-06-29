@@ -2,32 +2,32 @@
 
 ## Muc dich cua module
 
-`ft_transformer_benchmark/` la benchmark downstream doc lap cho du lieu tabular tho va feature-engineered trong `Backend/Benchmark/fuzzy_logic_basic/dataset`.
+`ft_transformer_benchmark/` la benchmark downstream doc lap cho du lieu tabular tho va feature-engineered trong `Backend/Benchmark/benchmark_dataset/dataset`.
 
 Module nay duoc tao de:
-- bo sung mot nhanh `FT-Transformer` rieng, tach biet voi `direct_benchmark`;
+- bo sung mot nhanh `FT-Transformer` rieng, tach biet voi `tabular_benchmark`;
 - tai dung cung ladder nguon du lieu `v0 -> v5` de so sanh cong bang voi `XGBoost` va cac baseline tabular khac;
 - giu toan bo output, metrics va artifact trong mot folder benchmark rieng de de doi chieu khi bao cao.
 
-Module khong tao dataset moi, khong doi split policy, va khong thay schema du lieu benchmark goc. No dung lai cung nguon CSV va cung merge label nhu `direct_benchmark`, nhung raw tabular bundle hien duoc dat o `Backend/Benchmark/common/raw_tabular_dataset.py`.
+Module khong tao dataset moi, khong doi split policy, va khong thay schema du lieu benchmark goc. No dung lai cung nguon CSV va cung merge label nhu `tabular_benchmark`, nhung raw tabular bundle hien duoc dat o `Backend/Benchmark/common/raw_tabular_dataset.py`.
 
 ## Input
 
 Input mac dinh:
-- `Backend/Benchmark/fuzzy_logic_basic/dataset/flb_input_aligned.csv`
-- `Backend/Benchmark/fuzzy_logic_basic/dataset/flb_input_with_events.csv`
+- `Backend/Benchmark/benchmark_dataset/dataset/benchmark_input_aligned.csv`
+- `Backend/Benchmark/benchmark_dataset/dataset/benchmark_input_labeled.csv`
 - cac CSV feature-engineered da co:
-  - `flb_l2_exp2.csv`
-  - `flb_l2_exp6.csv`
-  - `flb_l3_combo2.csv`
+  - `single_window_exp2.csv`
+  - `single_window_exp6.csv`
+  - `multi_window_combo2.csv`
 
 Ladder thi nghiem:
 - `v0`: full Layer1 raw sensor + chemistry schema
 - `v1`: Layer1 environment + EC raw ablation
 - `v2`: 3h single-window feature arm
 - `v3`: delta + 3h + 8h combo arm
-- `v4`: full Layer2 engineered arm
-- `v5`: union Layer1 raw + full Layer2 engineered arm
+- `v4`: full single-window engineered arm
+- `v5`: union Layer1 raw + full single-window engineered arm
 
 ## Output
 
@@ -155,8 +155,8 @@ Neu run cu duoc train truoc khi co he thong nay, cac artifact tren se khong day 
 
 ## Gia dinh xu ly
 
-- Split train/validation/test van bam theo benchmark raw tabular hien co va dung cung split policy voi `direct_benchmark`.
-- Label downstream van bam vao `flb_input_with_events.csv` va cung rule chon label voi nhanh raw benchmark hien tai.
+- Split train/validation/test van bam theo benchmark raw tabular hien co va dung cung split policy voi `tabular_benchmark`.
+- Label downstream van bam vao `benchmark_input_labeled.csv` va cung rule chon label voi nhanh raw benchmark hien tai.
 - FT-Transformer chi xu ly numeric tabular features, nen du lieu duoc median-impute va standardize truoc khi train.
 - Categorical embedding chuyen biet chua duoc them vi ladder `v0-v5` hien chu yeu la feature so hoac co 0/1 co the xem nhu numeric token.
 

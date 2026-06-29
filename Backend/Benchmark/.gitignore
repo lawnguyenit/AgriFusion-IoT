@@ -1,0 +1,19 @@
+# Benchmark-generated artifacts and caches
+__pycache__/
+*.tmp.pyc
+
+# Active benchmark build/train outputs
+**/artifacts/
+**/artifacts/**
+**/data_profile_report/
+**/data_profile_report/**
+
+# Report bundles generated during analysis
+**/charts_summary/
+**/charts_summary/**
+**/report_pack/
+**/report_pack/**
+**/report_pack_lite/
+**/report_pack_lite/**
+**/chapter5_evidence/
+**/chapter5_evidence/**

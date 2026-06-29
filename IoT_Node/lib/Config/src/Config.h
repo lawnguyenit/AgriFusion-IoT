@@ -1,6 +1,12 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+#if __has_include("Config.private.h")
+  #include "Config.private.h"
+#else
+  #include "Config.private.example.h"
+#endif
+
 // ================= [DEBUG] =================
 #define DEBUG_MODE 1                  // 1 = bat log debug, 0 = tat log debug
 #define DEBUG_PORT Serial0            // cong serial dung de in log debug
@@ -47,9 +53,6 @@
 // APP_FIREBASE_SIM_TRANSPORT_ENABLED:
 // 1 = ghi RTDB qua HTTP(S) engine cua modem SIM.
 // 0 = tat cloud khi dang o SIM mode.
-#define APP_FIREBASE_DATABASE_URL      "https://agri-fusion-iot-default-rtdb.asia-southeast1.firebasedatabase.app" // URL RTDB
-#define APP_FIREBASE_API_KEY           "AIzaSyAih-kFW-VkgEKVXnTd7aiFCiUjNy-6j18" // API key Firebase client
-#define APP_FIREBASE_LEGACY_TOKEN      "wZehBBnCza75i6iNpcUgKQT463dmHXMbfqRuYVsc" // token ghi RTDB dang dung
 #define APP_FIREBASE_SIM_TRANSPORT_ENABLED 1                    // 1 = dung RTDB REST qua HTTP(S) engine cua modem; 0 = chan cloud qua SIM
 
 // Cac path duoi day la schema cloud hien tai.

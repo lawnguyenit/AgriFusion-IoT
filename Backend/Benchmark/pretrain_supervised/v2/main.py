@@ -14,20 +14,20 @@ from Backend.Benchmark.pretrain_supervised.v2.src.pipeline.train_pipeline import
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Train downstream v2 models on embeddings produced from Layer2 pretrain experiments."
+        description="Train downstream v2 models on embeddings produced from single-window pretrain experiments."
     )
     parser.add_argument(
         "--event-csv",
         type=Path,
         default=None,
-        help="Path to the real labeled CSV. Defaults to flb_input_with_events.csv.",
+        help="Path to the real labeled CSV. Defaults to benchmark_input_labeled.csv.",
     )
     parser.add_argument(
         "--experiments",
         nargs="+",
         choices=("exp1", "exp2", "exp3", "exp4", "exp5"),
         default=None,
-        help="Subset of Layer2 experiments to benchmark. Defaults to all exp1..exp5.",
+        help="Subset of single-window experiments to benchmark. Defaults to all exp1..exp5.",
     )
     parser.add_argument(
         "--output-root",

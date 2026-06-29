@@ -19,7 +19,7 @@ SCENARIO_NAME_ALIASES = {
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Sinh CSV mo phong theo schema flb_input_aligned.csv de phuc vu benchmark/train."
+        description="Sinh CSV mo phong theo schema benchmark_input_aligned.csv de phuc vu benchmark/train."
     )
     parser.add_argument(
         "--seed-limit",
@@ -66,7 +66,7 @@ def parse_args() -> argparse.Namespace:
         "--real-event-csv",
         type=Path,
         default=None,
-        help="CSV real labeled de estimate kich thuoc train real. Mac dinh dung artifact cua context_classifier.",
+        help="CSV real labeled de estimate kich thuoc train real. Mac dinh dung benchmark_input_labeled.csv va split contract cua context_benchmark.",
     )
     parser.add_argument(
         "--label-scheme",

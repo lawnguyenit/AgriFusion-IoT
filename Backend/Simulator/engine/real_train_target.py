@@ -3,9 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from Backend.Benchmark.context_classifier.src.config.settings import ContextClassifierConfig
-from Backend.Benchmark.context_classifier.src.data.canonical_builder import build_real_canonical
-from Backend.Benchmark.context_classifier.src.data.splitting import split_real_dataset
+from Backend.Benchmark.context_benchmark.src.config.settings import ContextBenchmarkConfig
+from Backend.Benchmark.context_benchmark.src.data.canonical_builder import build_real_canonical
+from Backend.Benchmark.context_benchmark.src.data.splitting import split_real_dataset
 
 
 @dataclass(frozen=True)
@@ -55,7 +55,7 @@ def estimate_real_train_sizing_target(
     if multiplier <= 0:
         raise ValueError(f"multiplier must be positive, got {multiplier}")
 
-    defaults = ContextClassifierConfig()
+    defaults = ContextBenchmarkConfig()
     resolved_label_scheme = label_scheme or defaults.label_scheme
     resolved_real_event_csv = (real_event_csv or defaults.real_event_csv).resolve()
     resolved_train_ratio = defaults.train_ratio if train_ratio is None else train_ratio
@@ -107,7 +107,7 @@ def build_explicit_real_train_sizing_target(
     if multiplier <= 0:
         raise ValueError(f"multiplier must be positive, got {multiplier}")
 
-    defaults = ContextClassifierConfig()
+    defaults = ContextBenchmarkConfig()
     resolved_label_scheme = label_scheme or defaults.label_scheme
     resolved_real_event_csv = (real_event_csv or defaults.real_event_csv).resolve()
     resolved_train_ratio = defaults.train_ratio if train_ratio is None else train_ratio

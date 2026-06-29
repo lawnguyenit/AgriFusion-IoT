@@ -1,63 +1,109 @@
-# Core Layer 1 Processing
+# Core Layer1
 
-Thu muc nay gom tat ca logic bien raw artifact trong `Output_data/Layer0`
-thanh snapshot xu ly co cau truc.
+## 1. Mục đích
 
-## Thanh phan
+`Backend/Core/layer1` là nơi biến raw artifact của `Layer0` thành snapshot đã chuẩn hóa theo từng stream logic:
+
+- `sht30`
+- `npk`
+- `meteo`
+
+Mỗi snapshot được thiết kế để:
+
+- giữ lại dữ liệu đo đã chuẩn hóa
+- thêm thống kê cửa sổ thời gian
+- thêm signal giải thích được
+- vẫn đủ đơn giản để debug lại từ raw
+
+## 2. Kiến trúc xử lý
 
 ```text
 layer1/
-|-- pipelines/preprocessing.py
+|-- pipelines/
+|   `-- preprocessing.py
 |-- processors/
-|   |-- npk/
 |   |-- sht30/
+|   |-- npk/
 |   `-- meteo/
 `-- signals/
     |-- fuzzy_signals/
     `-- external_weather/
 ```
 
-## Ranh gioi
-
-- `processors`: chuan hoa payload va tinh `memory.windows`.
-- `fuzzy_signals`: rule/fuzzy cho tat ca sensor.
-- `external_weather`: tin hieu thoi tiet bo sung rieng cho meteo va quan he macro-micro voi SHT30.
-- `fusion/canonical`: nam ngoai `layer1` vi do la buoc hop bang va tao matrix cho ML.
-
-## Meteo realtime va archive
-
-Open-Meteo van co 2 luong o Layer0:
+## 3. Luồng xử lý nội bộ
 
 ```text
-Output_data/Layer0/OpenMeteo_Data/Meteo_archive_era5
-Output_data/Layer0/OpenMeteo_Data/Meteo_forecast_ifs
+SourceRecord
+-> processor theo stream
+-> snapshot perception + memory
+-> fuzzy_signals
+-> external_weather (chỉ cho meteo)
+-> history.jsonl / latest.json / state.json
 ```
 
-Layer1 khong coi day la hai stream doc lap nua. Processor meteo gop IFS + ERA5
-thanh mot stream logic duy nhat:
+## 4. Input
 
-```text
-Output_data/Layer0/OpenMeteo_Data/Meteo_archive_era5
-Output_data/Layer0/OpenMeteo_Data/Meteo_forecast_ifs
--> Output_data/Layer1/meteo
+- `Backend/Output_data/Layer0/Firebase_data/**`
+- `Backend/Output_data/Layer0/OpenMeteo_Data/**`
+
+## 5. Output
+
+- `Backend/Output_data/Layer1/sht30/*`
+- `Backend/Output_data/Layer1/npk/*`
+- `Backend/Output_data/Layer1/meteo/*`
+- `Backend/Output_data/Layer1/manifest.json`
+
+## 6. Ý nghĩa từng thành phần
+
+- `processors/`: bóc và chuẩn hóa payload nguồn.
+- `signals/fuzzy_signals/`: sinh tín hiệu mức độ, trend, risk score từ snapshot.
+- `signals/external_weather/`: sinh tín hiệu thời tiết vĩ mô, nền ẩm, mưa, drying demand cho meteo.
+- `pipelines/`: điều phối toàn bộ lần chạy và ghi output.
+
+## 7. Ví dụ kết quả
+
+```json
+{
+  "processor_name": "sht30_preprocessor",
+  "sensor_id": "sht30_1",
+  "perception": {
+    "temp_air_c": 35.09,
+    "humidity_air_pct": 69.09
+  },
+  "memory": {
+    "window_hours": [3, 6, 24, 72]
+  },
+  "fuzzy_signals": {
+    "evaluated_signal_count": 5
+  }
+}
 ```
 
-- `meteo_archive_era5` dung lam bootstrap/backfill ban dau.
-- `meteo_forecast_ifs` dung de mo rong latest va cap nhat cac ngay gan hien tai.
-- Layer1 se tu dong gom archive khi history archive da ton tai; flag `--include-meteo-archive-layer1` chi la override cuong biet.
+## 8. Cách tái lập
 
-## Vi sao meteo van co processor?
-
-`external_weather` khong thay the `processors/meteo`.
-
-Luong dung la:
-
-```text
-raw Open-Meteo Layer0
--> processors/meteo tao perception + memory
--> signals/fuzzy_signals tao rule features chung
--> signals/external_weather tao wetness/rain/drying/heat-cold/macro-micro
+```powershell
+python Backend\main.py --only-layer1
 ```
 
-Processor meteo giu vai tro adapter tu raw Open-Meteo sang snapshot chuan. External
-weather chi doc snapshot chuan do de tao feature domain bo sung.
+Nếu cần build từ đầu:
+
+```powershell
+python Backend\main.py --only-layer0 --source firebase --node-id Node1
+python Backend\main.py --only-layer1
+```
+
+## 9. Thư viện cần cài
+
+- `numpy`
+- `pandas`
+
+## 10. Giả định xử lý
+
+- Processor không được phép kéo dữ liệu trực tiếp từ Firebase.
+- Raw phải đi qua `Layer0` trước khi vào `Layer1`.
+- Mỗi stream có `history.jsonl`, `latest.json`, `state.json` riêng để debug độc lập.
+
+## 11. Rủi ro và giới hạn
+
+- Dữ liệu sparse hoặc mất continuity sẽ làm một số window chuyển sang `insufficient_samples`.
+- Các signal ở đây là signal giải thích kỹ thuật, chưa phải kết luận nghiệp vụ cuối cùng.

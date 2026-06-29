@@ -14,11 +14,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from Backend.Benchmark.common.paths import FUZZY_LOGIC_BASIC_DATASET_ROOT, PRETRAIN_ROOT
+from Backend.Benchmark.common.paths import BENCHMARK_DATASETS_ROOT, PRETRAIN_ROOT
 from Backend.Config.runtime import BACKEND_SETTINGS
 
 BASE_DIR = Path(__file__).resolve().parents[1]
-DATASET_DIR = FUZZY_LOGIC_BASIC_DATASET_ROOT
+DATASET_DIR = BENCHMARK_DATASETS_ROOT
 PRETRAIN_OUTPUT_ROOT = PRETRAIN_ROOT / "outputs"
 
 
@@ -103,7 +103,7 @@ def get_layer1_manifest_path() -> Path:
 
 
 def get_event_csv_path() -> Path:
-    return DATASET_DIR / "flb_input_with_events.csv"
+    return DATASET_DIR / "benchmark_input_labeled.csv"
 
 
 def build_source_summary() -> pd.DataFrame:
@@ -125,7 +125,7 @@ def build_source_summary() -> pd.DataFrame:
         {
             "stage": "event_annotated_rows",
             "count": int(len(event_df)),
-            "detail": "flb_input_with_events.csv",
+            "detail": "benchmark_input_labeled.csv",
         },
     ]
     return pd.DataFrame(rows)
@@ -230,7 +230,7 @@ def extract_label_metadata(report: dict[str, object]) -> tuple[dict[str, object]
 def build_label_summary() -> dict[str, pd.DataFrame]:
     event_df = pd.read_csv(get_event_csv_path())
     if "big_label" not in event_df.columns:
-        raise KeyError("flb_input_with_events.csv does not contain a big_label column")
+        raise KeyError("benchmark_input_labeled.csv does not contain a big_label column")
 
     big_label_series = event_df["big_label"].fillna("none").astype(str)
     event_primary_series = event_df["event_primary"].fillna("none").astype(str) if "event_primary" in event_df.columns else pd.Series(["none"] * len(event_df))
@@ -306,7 +306,7 @@ def build_source_composition(
 def build_abnormal_primary_breakdown() -> pd.DataFrame:
     event_df = pd.read_csv(get_event_csv_path())
     if "event_primary" not in event_df.columns:
-        raise KeyError("flb_input_with_events.csv does not contain an event_primary column")
+        raise KeyError("benchmark_input_labeled.csv does not contain an event_primary column")
     abnormal_df = event_df.loc[event_df["event_primary"].fillna("none").astype(str) != "none"].copy()
     counts = abnormal_df["event_primary"].fillna("none").astype(str).value_counts(dropna=False)
     total_abnormal = len(abnormal_df)

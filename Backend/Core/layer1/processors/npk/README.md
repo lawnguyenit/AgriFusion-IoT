@@ -1,32 +1,99 @@
 # Bộ xử lý NPK
 
-## Mục đích
+## 1. Mục đích
 
-Package này tạo snapshot Layer 2 cho cảm biến đất RS485/NPK.
+Module này chuẩn hóa dữ liệu cảm biến đất/NPK thành snapshot stream `npk` trong `Layer1`.
 
-Hướng thiết kế hiện tại là thận trọng: Layer 2 không tự đánh giá “đất tốt/xấu”, không tự tính `confidence`, và không kết luận rửa trôi hay mất cân bằng dinh dưỡng. Nó chỉ giữ dữ liệu đã chuẩn hóa và các thống kê mô tả để tầng sau phân tích tiếp.
+Nó lưu lại:
 
-## Cấu trúc file
+- N, P, K
+- nhiệt độ đất
+- độ ẩm đất
+- pH
+- EC
 
-| File | Vai trò |
-| --- | --- |
-| `__init__.py` | Export `NPKProcessor` cho pipeline dùng chung. |
-| `processor.py` | Lọc packet NPK hợp lệ, chuẩn hóa perception, tính rolling windows và derived signals. |
+và sinh các thống kê cửa sổ thời gian để các tầng sau dùng lại.
 
-## Output chính
+## 2. Kiến trúc xử lý
 
-- `perception`: `n_ppm`, `p_ppm`, `k_ppm`, `soil_temp_c`, `soil_humidity_pct`, `soil_ph`, `soil_ec_us_cm`.
-- `quality`: các cờ trực tiếp từ packet như `read_ok`, `frame_ok`, `crc_ok`, `values_valid`, `sensor_alarm`, `retry_count`.
-- `memory.windows`: thống kê rolling theo `3h`, `6h`, `24h`, `72h`.
-- `derived_signals`: feature phẳng được rút từ `memory.windows` cho mọi lát thời gian, ví dụ `n_delta_from_start_3h`, `n_trend_24h`, `soil_moisture_avg_72h`, `ec_trend_per_hour_24h`.
-- `context`: metadata vận hành như giờ quan sát, interval lấy mẫu và transport.
+```text
+SourceRecord
+-> extract_sensor_id()
+-> should_accept_source_record()
+-> build_snapshot()
+    -> perception
+    -> memory.windows
+    -> fuzzy_signals
+```
 
-## Nguyên tắc downstream
+## 3. Input
 
-`memory.windows` là bản đầy đủ để debug và audit. `derived_signals` không tính lại số liệu, chỉ flatten các thống kê đã có để Layer 2.5, TabNet hoặc notebook dùng nhanh hơn.
+- `packet.npk_data`
+- `sensors.npk`
+- metadata nguồn của `SourceRecord`
 
-Các kết luận như thiếu dinh dưỡng, mất cân bằng, mặn hóa hoặc rửa trôi phải thuộc về tầng phân tích có cơ sở hiệu chuẩn riêng.
+## 4. Output
 
-## Giả định runtime
+- stream output: `Backend/Output_data/Layer1/npk/*`
+- perception chính:
+  - `n_ppm`
+  - `p_ppm`
+  - `k_ppm`
+  - `soil_temp_c`
+  - `soil_humidity_pct`
+  - `soil_ph`
+  - `soil_ec_us_cm`
 
-Nếu telemetry runtime không mang `packet.npk_data.sensor_id` hoặc `sensor_type`, processor sẽ fallback sang cấu hình mặc định trong `Backend/Config/runtime.py`. Điều này giữ cho pipeline demo/server vẫn xử lý được record hợp lệ từ Firebase ngay cả khi payload thiết bị chỉ gửi giá trị đo và cờ chất lượng.
+## 5. Điều kiện chấp nhận record
+
+- có `packet.npk_data`
+- có đủ trường:
+  - `N`
+  - `P`
+  - `K`
+  - `temp`
+  - `hum`
+  - `ph`
+  - `ec`
+- `read_ok = true`
+- `npk_values_valid = true`
+- `frame_ok != false`
+- `crc_ok != false`
+
+## 6. Ví dụ kết quả
+
+```json
+{
+  "processor_name": "npk_preprocessor",
+  "sensor_id": "npk_7in1_1",
+  "perception": {
+    "n_ppm": 43.0,
+    "p_ppm": 147.0,
+    "k_ppm": 140.0,
+    "soil_humidity_pct": 55.8,
+    "soil_ph": 5.6,
+    "soil_ec_us_cm": 394.0
+  }
+}
+```
+
+## 7. Cách tái lập
+
+```powershell
+python Backend\main.py --only-layer1
+```
+
+## 8. Thư viện cần cài
+
+- không có package ngoài riêng
+- dùng chung môi trường `Backend/requirements.txt`
+
+## 9. Giả định xử lý
+
+- nếu payload thiếu `sensor_id` hoặc `sensor_type`, module fallback về cấu hình trong `Backend/Config/runtime.py`
+- module chỉ chuẩn hóa và thống kê, không tự kết luận “đất tốt/xấu”
+
+## 10. Rủi ro và giới hạn
+
+- nhiễu từ cảm biến hoặc packet lỗi sẽ bị chặn ở bước accept, nên số lượng record có thể thấp hơn raw
+- signal dinh dưỡng ở đây vẫn là tín hiệu kỹ thuật, chưa phải label cuối cùng

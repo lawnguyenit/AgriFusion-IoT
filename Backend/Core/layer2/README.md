@@ -1,37 +1,66 @@
-# Core Layer2
+# Core Layer2 Feature Builders
 
-## Mục đích
+## 1. Mục đích
 
-- Chứa các helper dùng chung để sinh feature theo time window cho L2.
-- Tách phần toán feature ra khỏi benchmark orchestration để `fuzzy_logic_basic/layer2` chỉ còn lo input/output và ablation.
+`Backend/Core/layer2` chứa các helper sinh feature time-series dùng lại cho benchmark và các bước phân tích downstream. Đây không phải là bước bắt buộc trong đường đi tối thiểu từ Firebase lên web, nhưng là một phần quan trọng để tái lập quá trình tạo đặc trưng.
 
-## Input
+## 2. Kiến trúc xử lý
 
-- DataFrame đã có:
-  - `timestamp`
-  - `soil_temp`
-  - `soil_humidity`
-  - `air_temp`
-  - `air_humidity`
-  - `EC`
+```text
+DataFrame đầu vào
+-> builders.py
+-> timeseries.py
+-> feature bundle đầu ra
+```
 
-## Output
+## 3. Input
 
-- DataFrame feature bundle với:
-  - các cột base giữ nguyên
-  - các cột delta / window / saturation dùng lại cho các thí nghiệm `exp1..exp5`
+DataFrame chuẩn hóa có các cột kiểu:
 
-## Command
+- `timestamp`
+- `soil_temp`
+- `soil_humidity`
+- `air_temp`
+- `air_humidity`
+- `EC`
 
-- Không có command riêng. Module này được gọi từ `Backend/Benchmark/fuzzy_logic_basic/layer2`.
+## 4. Output
 
-## Giả định xử lý
+- DataFrame hoặc bundle feature có:
+  - cột gốc
+  - cột delta
+  - cột range/window
+  - cột slope
+  - cột saturation/exposure nếu cần
 
-- `timestamp` là Unix epoch theo UTC.
-- Cửa sổ đều là strict backward-looking, không dùng dữ liệu tương lai.
-- Các hàm duration/ratio theo saturation và exposure được tính theo khoảng thời gian giữa các bản ghi.
+## 5. Ví dụ kết quả
 
-## Rủi ro / giới hạn hiện tại
+```text
+timestamp
+soil_temp
+soil_humidity
+air_temp
+air_humidity
+EC
+air_temp_delta_1step
+soil_humidity_range_3h
+EC_slope_3h
+```
 
-- Các ngưỡng như saturation hiện đang cấu hình cục bộ trong code, chưa đưa ra JSON config riêng.
-- Exposure cho `EC` hiện được định nghĩa là tỷ lệ thời gian trong 24h mà `EC` nằm trên mean 24h cục bộ; đây là định nghĩa kỹ thuật để phục vụ ablation, không phải ground truth vật lý cuối cùng.
+## 6. Cách tái lập
+
+Module này được gọi gián tiếp từ benchmark dataset builder. Không có command riêng trong flow chính lên web.
+
+## 7. Thư viện cần cài
+
+- `numpy`
+- `pandas`
+
+## 8. Giả định xử lý
+
+- `timestamp` là Unix epoch.
+- Cửa sổ là backward-looking, không nhìn tương lai.
+
+## 9. Rủi ro và giới hạn
+
+- Một số ngưỡng kỹ thuật vẫn đang nằm trong code, chưa tách thành config riêng.

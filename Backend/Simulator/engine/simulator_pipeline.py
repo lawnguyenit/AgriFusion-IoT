@@ -230,9 +230,9 @@ class SimulatorPipeline:
         run_dir = self.paths.outputs_root / run_id
         run_dir.mkdir(parents=True, exist_ok=True)
 
-        csv_path = run_dir / "synthetic_flb_input.csv"
-        labeled_csv_path = run_dir / "synthetic_flb_input_labeled.csv"
-        gap_aware_csv_path = run_dir / "synthetic_flb_gap_aware.csv"
+        csv_path = run_dir / "synthetic_benchmark_input.csv"
+        labeled_csv_path = run_dir / "synthetic_benchmark_input_labeled.csv"
+        gap_aware_csv_path = run_dir / "synthetic_benchmark_gap_aware.csv"
         manifest_path = run_dir / "generation_manifest.json"
         label_summary_path = run_dir / "label_summary.json"
         augmentation_taxonomy_path = run_dir / "augmentation_taxonomy.json"
@@ -309,7 +309,7 @@ class SimulatorPipeline:
                 "assumptions": [
                     "So dong normal duoc khong che bang normal_count thay vi de no phinh theo timeline.",
                     "Packet loss duoc bieu dien bang mat record trong gap-aware timeline.",
-                    "Benchmark CSV giu schema flb_input_aligned.csv va tu nhien se co gap timestamp o outage.",
+                    "Benchmark CSV giu schema benchmark_input_aligned.csv va tu nhien se co gap timestamp o outage.",
                     "Khi bat auto target, normal_count va scenario.count duoc dung nhu weight phan bo thay vi count tuyet doi.",
                 ],
             },

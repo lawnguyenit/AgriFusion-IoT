@@ -1,94 +1,159 @@
 # Frontend Dashboard
 
-## Purpose
+## 1. Muc dich
 
-`Frontend/` contains the static dashboard that reads processed telemetry and server-side diagnosis from Firebase RTDB.
+`Frontend/` la dashboard tinh dung de doc nhanh `result/*` tu Firebase RTDB va hien thi:
 
-The current UI keeps the existing layout and focuses on:
+- lich su du lieu
+- snapshot hien tai
+- ket qua phan tich runtime
+- anomaly va recommendation do backend publish
 
-- historical charts and current snapshot
-- server-side diagnosis/prediction in the same screen
-- realtime reading of the published `result` payload
-- direct display of the 4-class FT-Transformer diagnosis label
-- frontend-side mapping from runtime `labelId` to Vietnamese diagnosis copy so the UI does not depend on backend display strings
-- short preset windows automatically borrow a few nearest prior points when realtime history is too sparse, so the chart does not collapse into an empty panel
-- runtime Firebase config is loaded from a local untracked file so repo commits do not carry environment-specific tokens or endpoints
+## 2. Kien truc xu ly
 
-## Input
+```text
+Frontend/public/config.js
+-> nap config.local.json neu co
+-> ket noi Firebase RTDB
+-> subscribe result/*
+-> normalize payload
+-> render chart + side views + prediction card
+```
 
-Frontend expects Firebase RTDB branches:
+File chinh:
+
+- `public/index.html`
+- `public/style.css`
+- `public/app.js`
+- `public/config.js`
+- `public/config.local.example.json`
+- `firebase.json`
+
+## 3. Input
+
+Frontend ky vong cac node:
 
 - `result/meta`
+- `result/pipeline`
 - `result/latest`
 - `result/history/air`
 - `result/history/soil`
 - `result/history/npk`
-- `result/history/weather`
-- `result/pipeline` or `result/meta/pipeline`
+- `result/history/weather` neu backend co publish meteo
 - `result/analysis`
 - `result/analysis/diagnosis`
 - `result/analysis/forecast/{air,soil,npk,weather}`
 - `result/analysis/anomalies`
 - `result/analysis/recommendations`
 
-Frontend also expects a local runtime config file when live Firebase mode is needed:
+## 4. Output
 
-- `public/config.local.json` (untracked, copied from `public/config.local.example.json`)
+Dashboard hien thi:
 
-## Output
+- bieu do chinh
+- card trang thai pipeline
+- card snapshot
+- card prediction
+- recommendation
+- anomaly marker
 
-The dashboard renders:
+## 5. Contract diagnosis hien tai
 
-- main historical chart
-- summary, snapshot, and prediction side views
-- pipeline status card
-- FT-Transformer diagnosis label from `result/analysis/diagnosis`
-- recommendation card from server output
-- fallback demo mode when no local Firebase config is present
+Frontend ho tro hai contract:
 
-## Prediction view behavior
+### 5.1. Contract runtime uu tien hien tai
 
-When the backend publishes FT runtime diagnosis, the prediction tab shows:
+- `label = normal_context | packet_loss_outage | water_deficit | rain_or_fertigation_context`
+- `model.family = xgboost` hoac model runtime tuong thich
+- `model.labelScheme = four_class`
 
-- predicted label directly from `analysis.diagnosis.displayLabel`
-- model name from `analysis.modelName`
-- server recommendation text if available
+### 5.2. Contract nhi phan fallback
 
-The preferred runtime contract is:
+- `label = normal | abnormal`
+- `model.family = xgboost`
+- `model.labelScheme = binary`
 
-- backend sends stable keys such as `label`, `labelId`, `abnormalProbability`, `severity`
-- frontend maps `labelId` to Vietnamese accented UI text and visual tone locally
+Frontend se tu phan biet hai contract nay de khong hieu sai `abnormal` thanh `packet_loss_outage`.
 
-The current 4-class diagnosis labels are:
+## 6. Vi du ket qua
 
-- `normal_context`
-- `packet_loss_outage`
-- `water_deficit`
-- `moisture_or_intervention_context`
+### 6.1. Vi du diagnosis doc duoc
 
-## Command
+```json
+{
+  "label": "packet_loss_outage",
+  "displayLabel": "Packet loss outage",
+  "abnormalProbability": 0.96,
+  "model": {
+    "family": "xgboost",
+    "labelScheme": "four_class"
+  }
+}
+```
 
-Preview locally:
+### 6.2. Vi du config local
+
+```json
+{
+  "mode": "auto",
+  "resultPath": "result",
+  "firebase": {
+    "apiKey": "...",
+    "authDomain": "...",
+    "databaseURL": "...",
+    "projectId": "...",
+    "appId": "..."
+  }
+}
+```
+
+## 7. Cache va deploy
+
+Frontend hien tai da duoc them hai lop chong cache cu:
+
+- `index.html` nap `app.js`, `config.js`, `style.css` kem query version
+- `firebase.json` gan header `Cache-Control: no-cache, no-store, must-revalidate` cho `index.html`, `app.js`, `config.js`, `style.css`
+
+Dieu nay tranh truong hop backend da publish payload moi nhung browser van giu `app.js` cu, dan toi UI hien sai contract diagnosis.
+
+## 8. Cach tai lap
+
+### 8.1. Chay local preview
 
 ```powershell
 python -m http.server 4173 -d Frontend/public
 ```
 
-To enable live Firebase data without committing secrets:
+### 8.2. Dung Firebase that
 
 ```powershell
 Copy-Item Frontend/public/config.local.example.json Frontend/public/config.local.json
 ```
 
-## Assumptions
+Sau do sua `config.local.json` theo project Firebase that.
 
-- Hosting remains static; data updates come from Firebase listeners.
-- Backend publishes the normalized `result` schema already expected by the dashboard.
-- If no live Firebase result exists, frontend can still fall back to demo data.
-- `public/config.local.json` is created locally and stays out of git via `Frontend/.gitignore`.
+### 8.3. Deploy lai hosting sau khi sua UI
 
-## Risks / current limits
+```powershell
+cd Frontend
+firebase deploy --only hosting
+```
 
-- The prediction panel depends on the server-published `analysis` payload; if the backend falls back or omits diagnosis, the UI will show the default waiting text.
-- The dashboard does not run FT locally; it only reads the server-published result.
-- `public/config.local.json` is optional; when missing or incomplete the dashboard intentionally remains in demo mode.
+Sau deploy, neu browser van giu giao dien cu thi hard refresh `Ctrl + F5`.
+
+## 9. Thu vien can cai
+
+- khong can `npm install` cho ban public tinh hien tai
+- Firebase SDK duoc tai tu CDN trong trinh duyet
+- can Firebase CLI neu muon deploy hosting
+
+## 10. Gia dinh xu ly
+
+- backend da publish contract `result/*` dung schema
+- neu thieu config local hoac thieu du lieu that, frontend se fallback sang demo mode
+
+## 11. Rui ro va gioi han
+
+- frontend khong chay model cuc bo
+- prediction card phu thuoc hoan toan vao payload backend
+- diagnosis nhi phan chi cho biet `normal/abnormal`, nguoi doc van can xem chart va anomaly de dien giai nguyen nhan

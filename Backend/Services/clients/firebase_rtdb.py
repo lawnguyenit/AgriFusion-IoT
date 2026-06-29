@@ -66,6 +66,17 @@ class FirebaseRTDBClient:
             print(f"Firebase set error: {exc!r}")
             return False
 
+    def delete_data(self, node_path: str) -> bool:
+        try:
+            clean_path = node_path.strip("/") if node_path else ""
+            target_ref = self.root_ref.child(clean_path) if clean_path else self.root_ref
+            target_ref.delete()
+            print(f"Deleted data successfully at '{clean_path or '/'}'")
+            return True
+        except Exception as exc:
+            print(f"Firebase delete error: {exc!r}")
+            return False
+
     def update_data(self, node_path: str, payload: dict[str, Any]) -> bool:
         try:
             clean_path = node_path.strip("/") if node_path else ""

@@ -3,11 +3,11 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
-from Backend.Benchmark.common.paths import FT_TRANSFORMER_BENCHMARK_ROOT, FUZZY_LOGIC_BASIC_DATASET_ROOT
+from Backend.Benchmark.common.paths import FT_TRANSFORMER_BENCHMARK_ROOT, BENCHMARK_DATASETS_ROOT
 
-DEFAULT_DATASET_ROOT = FUZZY_LOGIC_BASIC_DATASET_ROOT
-DEFAULT_ALIGNED_CSV = DEFAULT_DATASET_ROOT / "flb_input_aligned.csv"
-DEFAULT_EVENT_CSV = DEFAULT_DATASET_ROOT / "flb_input_with_events.csv"
+DEFAULT_DATASET_ROOT = BENCHMARK_DATASETS_ROOT
+DEFAULT_ALIGNED_CSV = DEFAULT_DATASET_ROOT / "benchmark_input_aligned.csv"
+DEFAULT_EVENT_CSV = DEFAULT_DATASET_ROOT / "benchmark_input_labeled.csv"
 DEFAULT_OUTPUT_ROOT = FT_TRANSFORMER_BENCHMARK_ROOT / "outputs"
 DEFAULT_EXPERIMENTS = ["v0", "v1", "v2", "v3", "v4", "v5"]
 

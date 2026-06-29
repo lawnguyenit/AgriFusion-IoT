@@ -6,9 +6,9 @@ from typing import Protocol
 
 import pandas as pd
 
-from Backend.Benchmark.pretrain_supervised.split_policy.artifacts import build_split_manifest
-from Backend.Benchmark.pretrain_supervised.split_policy.builder import build_split_plan
-from Backend.Benchmark.pretrain_supervised.v1.src.data.labels import build_label_frame, merge_event_labels
+from Backend.Benchmark.common.artifact_paths import resolve_dataset_artifact
+from Backend.Benchmark.shared.labels import build_label_frame, merge_event_labels
+from Backend.Benchmark.shared.split_policy import build_split_manifest, build_split_plan
 
 
 class RawTabularBenchmarkConfig(Protocol):
@@ -46,7 +46,7 @@ def build_raw_tabular_source_registry() -> dict[str, RawTabularSourceSpec]:
     return {
         "v0": RawTabularSourceSpec(
             source_kind="v0",
-            source_csv_names=("flb_input_aligned.csv",),
+            source_csv_names=("benchmark_input_aligned.csv",),
             feature_columns=(
                 "soil_temp",
                 "soil_humidity",
@@ -62,7 +62,7 @@ def build_raw_tabular_source_registry() -> dict[str, RawTabularSourceSpec]:
         ),
         "v1": RawTabularSourceSpec(
             source_kind="v1",
-            source_csv_names=("flb_input_aligned.csv",),
+            source_csv_names=("benchmark_input_aligned.csv",),
             feature_columns=(
                 "soil_temp",
                 "soil_humidity",
@@ -74,7 +74,7 @@ def build_raw_tabular_source_registry() -> dict[str, RawTabularSourceSpec]:
         ),
         "v2": RawTabularSourceSpec(
             source_kind="v2",
-            source_csv_names=("flb_l2_exp2.csv",),
+            source_csv_names=("single_window_exp2.csv",),
             feature_columns=(
                 "soil_temp",
                 "soil_humidity",
@@ -98,7 +98,7 @@ def build_raw_tabular_source_registry() -> dict[str, RawTabularSourceSpec]:
         ),
         "v3": RawTabularSourceSpec(
             source_kind="v3",
-            source_csv_names=("flb_l3_combo2.csv",),
+            source_csv_names=("multi_window_combo2.csv",),
             feature_columns=(
                 "soil_temp",
                 "soil_humidity",
@@ -130,7 +130,7 @@ def build_raw_tabular_source_registry() -> dict[str, RawTabularSourceSpec]:
         ),
         "v4": RawTabularSourceSpec(
             source_kind="v4",
-            source_csv_names=("flb_l2_exp6.csv",),
+            source_csv_names=("single_window_exp6.csv",),
             feature_columns=(
                 "soil_temp",
                 "soil_humidity",
@@ -169,11 +169,11 @@ def build_raw_tabular_source_registry() -> dict[str, RawTabularSourceSpec]:
                 "air_humidity_saturation_ratio_3h",
                 "air_humidity_saturation_ratio_8h",
             ),
-            description="Layer2 full-set raw tabular arm.",
+            description="Full single-window raw tabular arm.",
         ),
         "v5": RawTabularSourceSpec(
             source_kind="v5",
-            source_csv_names=("flb_input_aligned.csv", "flb_l2_exp6.csv"),
+            source_csv_names=("benchmark_input_aligned.csv", "single_window_exp6.csv"),
             feature_columns=(
                 "soil_temp",
                 "soil_humidity",
@@ -216,13 +216,13 @@ def build_raw_tabular_source_registry() -> dict[str, RawTabularSourceSpec]:
                 "air_humidity_saturation_ratio_3h",
                 "air_humidity_saturation_ratio_8h",
             ),
-            description="Union raw tabular arm: Layer1 raw plus the full Layer2 engineered feature set.",
+            description="Union raw tabular arm: Layer1 raw plus the full single-window engineered feature set.",
         ),
     }
 
 
 def resolve_raw_tabular_source_paths(dataset_root: Path, registry_item: RawTabularSourceSpec) -> tuple[Path, ...]:
-    return tuple((dataset_root / name).resolve() for name in registry_item.source_csv_names)
+    return tuple(resolve_dataset_artifact(dataset_root, name) for name in registry_item.source_csv_names)
 
 
 def _load_source_dataframe(source_csv: Path) -> pd.DataFrame:
@@ -271,19 +271,21 @@ def build_raw_tabular_data_bundle(config: RawTabularBenchmarkConfig, experiment_
     if missing_columns:
         raise ValueError(f"Missing feature columns for {experiment_name}: {missing_columns}")
 
+    merged_frame, _label_merge_report = merge_event_labels(frame, config.event_csv)
+    labeled_frame = build_label_frame(merged_frame)
     split_plan = build_split_plan(
-        row_count=len(frame),
+        row_count=len(labeled_frame),
         train_ratio=config.train_ratio,
         validation_ratio=config.validation_ratio,
         test_ratio=config.test_ratio,
         strategy_name=config.split_strategy,
-        timestamps=frame["timestamp"].tolist(),
+        timestamps=labeled_frame["timestamp"].tolist(),
         feature_columns=spec.feature_columns,
         gap_minutes_override=config.split_gap_minutes_override,
+        coverage_labels=labeled_frame["four_class_label_name"].tolist(),
+        normal_label="normal_context",
     )
-    split_frame = _assign_split_labels(frame, split_plan)
-    merged_frame, _label_merge_report = merge_event_labels(split_frame, config.event_csv)
-    labeled_frame = build_label_frame(merged_frame)
+    labeled_frame = _assign_split_labels(labeled_frame, split_plan)
     split_manifest = build_split_manifest(dataframe=labeled_frame, split_plan=split_plan)
     return RawTabularDataBundle(
         dataframe=labeled_frame,

@@ -1,23 +1,23 @@
-# Bảng Canonical
+# Canonical Tables
 
-`canonical/` chứa các bộ dựng bảng dữ liệu chuẩn cho mô hình.
+`canonical/` chua cac builders tao bang chuan cho model consumers.
 
-Hiện tại `tabnet_super_table.py` đọc trực tiếp:
+Hien tai `tabnet_super_table.py` doc truc tiep:
 
 ```text
-Output_data/Layer2.5/super_table/super_table.csv
+Output_data/SuperTable/super_table.csv
 ```
 
-và tạo:
+va tao:
 
 ```text
 Output_data/TabNet/tabnet_matrix.csv
 Output_data/TabNet/tabnet_schema.json
 ```
 
-Package này không phụ thuộc vào `tabnet_ready.csv`, `present__*`, `health`, `handoff` hoặc `confidence`. Các field đó đã bị loại khỏi contract mới.
+Package nay khong phu thuoc vao `tabnet_ready.csv`, `present__*`, `health`, `handoff`, hoac `confidence`. Cac field do da bi loai khoi contract moi.
 
-Chạy từ thư mục `Backend`:
+Chay tu thu muc `Backend`:
 
 ```powershell
 python Core\canonical\tabnet_super_table.py

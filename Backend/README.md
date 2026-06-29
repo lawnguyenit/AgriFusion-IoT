@@ -1,92 +1,175 @@
 # Backend Data Pipelines
 
-`Backend` hien duoc chuan hoa theo 5 vai tro:
+## 1. Mục đích
 
-- `Config`: settings, path, helper IO/coercion dung chung.
-- `Services`: giao tiep he ngoai va runtime online.
-- `Core`: xu ly du lieu noi bo Layer0 -> Layer1 -> Layer2.5.
-- `Benchmark`: build dataset, train va report nghien cuu.
-- `DemoUI`: local web control panel de bam nut chay command trong buoi demo/bao cao.
+`Backend/` là phần điều phối toàn bộ luồng xử lý dữ liệu từ lúc lấy dữ liệu thô về máy cho đến lúc publish kết quả để web đọc được.
 
-## Muc dich
+Backend hiện phục vụ 4 việc chính:
 
-- Keo raw data tu Firebase RTDB, JSON export, va Open-Meteo vao Layer0.
-- Tien xu ly Layer0 thanh snapshot Layer1 theo tung stream.
-- Hop nhat Layer1 thanh bang Layer2.5 cho benchmark va runtime feature reuse.
-- Cung cap local UI de thao tac nhanh cac command demo va benchmark dataset pipeline.
+- Kéo dữ liệu từ Firebase RTDB, JSON export và Open-Meteo.
+- Chuẩn hóa dữ liệu thô thành snapshot có cấu trúc theo từng stream.
+- Hợp nhất snapshot thành bảng chung phục vụ benchmark và tái sử dụng feature.
+- Publish kết quả runtime lên nhánh `result/*` trong Firebase RTDB.
 
-## Input
+## 2. Kiến trúc xử lý
+
+```text
+Backend/main.py
+    |
+    +-- Config/
+    |     `-- env, path, runtime setting, helper IO
+    |
+    +-- Services/
+    |     +-- clients/                 -> giao tiếp Firebase RTDB
+    |     +-- layer0_ingestion/        -> kéo raw data về Layer0
+    |     +-- telemetry_runtime_simulator/
+    |     +-- telemetry_orchestrator/
+    |     +-- result_publisher/        -> đẩy result/* lên Firebase
+    |     `-- output_cutoff_maintenance/
+    |
+    +-- Core/
+    |     +-- layer1/                  -> chuẩn hóa raw thành snapshot theo stream
+    |     +-- fusion/                  -> tạo SuperTable
+    |     +-- layer2/                  -> helper sinh feature time-series cho benchmark
+    |     `-- canonical/
+    |
+    +-- DemoUI/
+    `-- Benchmark/
+```
+
+## 3. Các giai đoạn chính trong flow
+
+### Giai đoạn 1. Chuẩn bị môi trường
+
+- Đọc `Backend/Services/.env`
+- Xác định đường dẫn output
+- Xác định nguồn dữ liệu và thông số runtime
+
+### Giai đoạn 2. Layer0 ingestion
+
+- Kéo metadata `latest/meta`
+- Quyết định có fetch `latest/current` hay bỏ qua
+- Ghi audit artifact và lịch sử raw về local
+
+### Giai đoạn 3. Layer1 preprocessing
+
+- Đọc raw artifact từ `Layer0`
+- Phân luồng qua `SHT30Processor`, `NPKProcessor`, `MeteoProcessor`
+- Tạo snapshot có `perception`, `memory`, `fuzzy_signals`, `external_weather`
+
+### Giai đoạn 4. Fusion
+
+- Gộp các snapshot theo `ts_server`
+- Flatten thành một hàng chung trong `SuperTable`
+
+### Giai đoạn 5. Result publish
+
+- Đọc `Layer1`
+- Dựng lại feature runtime
+- Nạp model runtime
+- Tạo payload `result/*`
+- Ghi local debug artifact và publish lên Firebase
+
+## 4. Input
 
 - `Backend/Services/.env`
-- Firebase RTDB hoac file JSON export
-- Open-Meteo API khi bat `--sync-meteo`
-- raw/local artifacts duoi `Backend/Output_data`
+- Firebase RTDB hoặc file JSON export
+- Open-Meteo API nếu bật sync meteo
+- các artifact local trong `Backend/Output_data`
+- model artifact trong `Backend/Benchmark`
 
-## Output
+## 5. Output
 
 - `Backend/Output_data/Layer0/**`
 - `Backend/Output_data/Layer1/**`
-- `Backend/Output_data/Layer2.5/**`
+- `Backend/Output_data/SuperTable/**`
 - `Backend/Output_data/Result_publish/**`
-- local web page tai `http://127.0.0.1:8787` khi chay `DemoUI`
+- dữ liệu `result/*` trên Firebase RTDB
 
-## Cau truc chuan
+## 6. Ví dụ kết quả
 
-```text
-Backend/
-|-- Config/
-|-- Core/
-|-- DemoUI/
-|-- Services/
-|   |-- clients/
-|   |-- layer0_ingestion/
-|   |-- result_publisher/
-|   |-- telemetry_runtime_simulator/
-|   `-- telemetry_orchestrator/
-|-- Benchmark/
-|-- Output_data/
-`-- main.py
+### 6.1. Ví dụ output sau Layer1
+
+```json
+{
+  "sensor_id": "sht30_1",
+  "timestamps": {
+    "ts_server": 1778387046,
+    "observed_at_local": "2026-05-10T11:24:06+07:00"
+  },
+  "perception": {
+    "temp_air_c": 35.09,
+    "humidity_air_pct": 69.09
+  }
+}
 ```
 
-## Command chay
+### 6.2. Ví dụ output sau publish
+
+```json
+{
+  "meta": {
+    "source": "server"
+  },
+  "latest": {
+    "air": {},
+    "soil": {},
+    "npk": {},
+    "weather": {}
+  },
+  "analysis": {
+    "diagnosis": {},
+    "forecast": {},
+    "anomalies": {}
+  }
+}
+```
+
+## 7. Cách tái lập
+
+### 7.1. Cài thư viện
+
+```powershell
+cd Backend
+python -m pip install -r requirements.txt
+```
+
+### 7.2. Xem toàn bộ command hỗ trợ
 
 ```powershell
 python main.py --help
-python main.py --only-layer0 --source firebase --node-id Node1
-python main.py --only-layer1
-python main.py --only-layer2.5
-python main.py --to-layer layer2.5 --source firebase --node-id Node1
-python main.py --only-result --publish-result --result-mode append
-python -m Backend.DemoUI.server --open-browser
 ```
 
-## Gia dinh xu ly
-
-- `Config/runtime.py` la nguon chuan cho settings runtime.
-- `Services/layer0_ingestion` la package chuan cho Layer0.
-- `Core` khong giu service client hay env loader.
-- `DemoUI` khong chua logic xu ly du lieu; no chi boc command san co bang local web UI.
-- Output data path duoc giu nguyen de khong lam gay benchmark/runtime hien tai.
-
-## Rui ro / gioi han hien tai
-
-- Mot phan benchmark tree lich su van con import tuyet doi kieu `Backend.*`; duong chay backend chinh da duoc kiem tra lai va van hoat dong.
-- Ten folder output chua doi vat ly de tranh migration du lieu lon ngoai pham vi task.
-- Cac command co pull/push Firebase van ghi du lieu that, nen chi chay khi chu y.
-- `DemoUI` hien chi hien log sau khi command ket thuc, chua stream log theo thoi gian thuc.
-
-## DemoUI
-
-- `Backend/DemoUI` la local web control panel de bam nut chay command demo.
-- Module nay khong chua logic xu ly moi; no chi goi lai command san co trong `Backend/main.py` va `Backend/Benchmark/fuzzy_logic_basic/main.py`.
-- Xem them: `Backend/DemoUI/README.md`.
-
-## Tests
-
-Kiem tra nhe khong ghi du lieu:
+### 7.3. Chạy từng lớp độc lập
 
 ```powershell
-python -m py_compile Backend\main.py Backend\Config\runtime.py Backend\Services\layer0_ingestion\pipeline.py Backend\Core\layer1\pipelines\preprocessing.py Backend\DemoUI\server.py
-python Backend\main.py --help
-python -m Backend.DemoUI.server --help
+python main.py --only-layer0 --source firebase --node-id Node1
+python main.py --only-layer1
+python main.py --only-super-table
+python main.py --only-result --publish-result --result-mode snapshot
 ```
+
+### 7.4. Chạy full flow từ Layer0 đến publish
+
+```powershell
+python main.py --to-layer super-table --source firebase --node-id Node1 --full-history --publish-result --result-mode snapshot
+```
+
+## 8. Thư viện cần cài
+
+- Nhóm bắt buộc cho flow chính: `firebase-admin`, `python-dotenv`, `openmeteo-requests`, `requests-cache`, `retry-requests`, `numpy`, `pandas`, `scikit-learn`, `joblib`, `matplotlib`, `xgboost`
+- Nhóm benchmark mở rộng: `pytorch-tabnet`
+- Nhóm benchmark Torch: `torch` cài riêng theo CPU/CUDA
+
+## 9. Giả định xử lý
+
+- `ts_server` là trục thời gian chính.
+- `Backend/main.py` là entrypoint chuẩn của toàn bộ backend.
+- `Config/` không chứa business logic lớn.
+- `Services/` không thay thế `Core/`; nó chỉ giao tiếp với nguồn ngoài và runtime online.
+
+## 10. Rủi ro và giới hạn
+
+- Một số nhánh benchmark vẫn tồn tại vì mục đích nghiên cứu, nên không nên nhầm toàn bộ `Benchmark/` là đường chạy production.
+- Snapshot trong `Layer1` vẫn mang trường `layer = "layer2"` do legacy contract; README sẽ ghi rõ, nhưng code không đổi schema ở đợt này.
+- Các command có tương tác Firebase là command ghi dữ liệu thật.

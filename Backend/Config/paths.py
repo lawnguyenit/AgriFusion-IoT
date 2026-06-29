@@ -36,8 +36,8 @@ class BackendPaths:
         return self.output_data_dir / "Layer1"
 
     @property
-    def layer25_dir(self) -> Path:
-        return self.output_data_dir / "Layer2.5"
+    def super_table_dir(self) -> Path:
+        return self.output_data_dir / "SuperTable"
 
     @property
     def result_publish_dir(self) -> Path:

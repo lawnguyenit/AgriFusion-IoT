@@ -15,16 +15,16 @@ with slightly different assumptions.
 
 - Shared constants such as:
   - `BENCHMARK_ROOT`
-  - `FUZZY_LOGIC_BASIC_DATASET_ROOT`
+  - `BENCHMARK_DATASETS_ROOT`
   - `PRETRAIN_ROOT`
-  - `DIRECT_BENCHMARK_ROOT`
+  - `TABULAR_BENCHMARK_ROOT`
   - `FT_TRANSFORMER_BENCHMARK_ROOT`
-  - `CONTEXT_CLASSIFIER_ROOT`
+  - `CONTEXT_BENCHMARK_ROOT`
   - `SIMULATOR_ROOT`
 - Shared raw-tabular benchmark helpers in:
   - `raw_tabular_dataset.py`
   - source registry for `v0..v5`
-  - shared tabular bundle builder reused by `direct_benchmark`, `ft_transformer_benchmark`, and `tabpfn_benchmark`
+  - shared tabular bundle builder reused by `tabular_benchmark`, `ft_transformer_benchmark`, and `tabpfn_benchmark`
 
 ## Command
 

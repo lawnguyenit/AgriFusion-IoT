@@ -2,19 +2,19 @@
 
 ## Muc dich
 
-- Train downstream models tren embedding sinh tu `Layer2` pretrain.
+- Train downstream models tren embedding sinh tu family `single_window_features`.
 - Giu ket qua tach bach theo tung ablation `exp1..exp5` va theo tung model de so sanh truc quan.
 
 ## Input
 
 - Event CSV:
-  - `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_input_with_events.csv`
+  - `D:\AgriFusion-IoT\Backend\Benchmark\benchmark_dataset\dataset\benchmark_input_labeled.csv`
 - Pretrain checkpoint tuong ung voi tung exp:
-  - `layer2_exp1`
-  - `layer2_exp2`
-  - `layer2_exp3`
-  - `layer2_exp4`
-  - `layer2_exp5`
+  - `single_window_exp1`
+  - `single_window_exp2`
+  - `single_window_exp3`
+  - `single_window_exp4`
+  - `single_window_exp5`
 
 `v2` tu tim checkpoint moi nhat phu hop voi tung exp trong:
 - `D:\AgriFusion-IoT\Backend\Benchmark\pretrain_supervised\pretrain\outputs`
@@ -92,7 +92,7 @@ python D:\AgriFusion-IoT\Backend\Benchmark\pretrain_supervised\v2\backfill_optio
 
 ## Gia dinh xu ly
 
-- Timestamp cua event CSV khop voi timestamp cua dataset da di qua `Layer2`.
+- Timestamp cua event CSV khop voi timestamp cua dataset da di qua `single_window_features`.
 - `v2` merge nhan tu event CSV vao dataset feature/pretrain theo `timestamp`.
 - Label policy hien tai van tai dung chien luoc `binary/ternary` cua `v1`.
 - `v2` hien la embedding-first downstream pipeline, chua fine-tune nguoc vao pretrain backbone.
@@ -101,8 +101,8 @@ python D:\AgriFusion-IoT\Backend\Benchmark\pretrain_supervised\v2\backfill_optio
 
 ## Rui ro hoac gioi han hien tai
 
-- Neu event CSV va dataset `Layer2` lech timestamp, so dong co nhan se giam.
-- `v2` dang dung cung bo model head cua `v1`; chua co head chuyen biet chi danh rieng cho `Layer2`.
+- Neu event CSV va dataset `single_window_features` lech timestamp, so dong co nhan se giam.
+- `v2` dang dung cung bo model head cua `v1`; chua co head chuyen biet chi danh rieng cho `single_window_features`.
 - `torch_probe` la head DL co dinh va khong nam trong `--model-names`.
 - Utility `backfill_optional_models.py` chi thay the row metric cua cac model duoc chon trong run hien co; no khong rebuild embedding va khong train lai cac model con lai.
-- `v3` la downstream pipeline cho Layer3 combo benchmark, khac voi `v2` va `v4`.
+- `v3` la downstream pipeline cho multi-window combo benchmark, khac voi `v2` va `v4`.

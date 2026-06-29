@@ -2,16 +2,16 @@
 
 ## Purpose
 
-- Downstream benchmark for the Layer3 combo export family.
+- Downstream benchmark for the multi-window combo export family.
 - This version compares multi-window combinations without the saturation features reserved for `v4`.
 
 ## Input
 
 - Pretrain artifacts from:
-  - `layer3_combo1`
-  - `layer3_combo2`
-  - `layer3_combo3`
-  - `layer3_combo4`
+  - `multi_window_combo1`
+  - `multi_window_combo2`
+  - `multi_window_combo3`
+  - `multi_window_combo4`
 
 ## Output
 
@@ -19,10 +19,10 @@
 
 ## Command
 
-Build the Layer3 combo CSVs:
+Build the multi-window combo CSVs:
 
 ```powershell
-python D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\layer3_combo\main.py
+python D:\AgriFusion-IoT\Backend\Benchmark\benchmark_dataset\multi_window_features\main.py
 ```
 
 Pretrain the default combo source:

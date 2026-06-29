@@ -6,7 +6,7 @@ from Backend.Benchmark.pretrain_supervised.v4.src.data.contracts import Experime
 
 
 EXPERIMENT_TO_SOURCE_KIND = {
-    "exp6": "layer2_exp6",
+    "exp6": "single_window_exp6",
 }
 
 

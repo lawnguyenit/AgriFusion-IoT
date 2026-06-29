@@ -84,8 +84,8 @@ class BackendSettings:
         return self.output_data_root / "Layer1"
 
     @property
-    def layer25_root(self) -> Path:
-        return self.output_data_root / "Layer2.5"
+    def super_table_root(self) -> Path:
+        return self.output_data_root / "SuperTable"
 
     @property
     def firebase_layer0_root(self) -> Path:

@@ -3,8 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from Backend.Benchmark.fuzzy_logic_basic.layer1.alignment import align_layer1_records
-from Backend.Benchmark.fuzzy_logic_basic.layer1.config import AlignmentConfig
+from Backend.Benchmark.benchmark_dataset.alignment.alignment import align_layer1_records
+from Backend.Benchmark.benchmark_dataset.alignment.config import AlignmentConfig
 
 
 @dataclass(frozen=True)

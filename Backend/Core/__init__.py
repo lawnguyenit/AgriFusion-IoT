@@ -1,11 +1,11 @@
 """Research-grade data processing layers for the backend pipeline."""
 
-from .fusion import Layer25FusionPipeline, Layer25Result
+from .fusion import SuperTableFusionPipeline, SuperTableFusionResult
 from .layer1.pipelines import Layer1Result, PreprocessingPipeline
 
 __all__ = [
     "Layer1Result",
     "PreprocessingPipeline",
-    "Layer25Result",
-    "Layer25FusionPipeline",
+    "SuperTableFusionResult",
+    "SuperTableFusionPipeline",
 ]

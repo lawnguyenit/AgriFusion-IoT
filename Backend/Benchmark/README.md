@@ -2,153 +2,73 @@
 
 ## Purpose
 
-`Backend/Benchmark` is the research workspace for:
+`Backend/Benchmark` is the reproducible benchmark workspace, kept separate from `Backend/Core` and `Backend/Services`.
 
-- benchmark dataset preparation
-- embedding pretraining
-- downstream supervised experiments
-- raw-feature control arms
-- augmented real+synthetic context benchmarks
-- report generation from frozen artifacts
+The active architecture is:
 
-This tree is separate from `Backend/Services` and `Backend/Core` so benchmark code can evolve without changing the production data pipeline.
+- `benchmark_dataset/`
+- `tabular_benchmark/`
+- `reporting/`
 
-## Current Layout
+## Active Families
 
-- `common/`
-  - shared benchmark path registry
-- `fuzzy_logic_basic/`
-  - current benchmark dataset builder
-  - owns `layer1`, `real_event_labeling`, `layer2`, and `layer3_combo`
+### `benchmark_dataset/`
+
+- builds the benchmark base tables
+- owns `benchmark_input_aligned.csv`
+- owns `benchmark_input_labeled.csv`
+- exports single-window and multi-window feature datasets
+
+### `tabular_benchmark/`
+
+- active real-only training family
+- supports `binary`, `tri_class`, and `four_class`
+- always trains the same 3-model suite:
+  - `xgboost`
+  - `tabnet_classifier`
+  - `ft_transformer_classifier`
+
+### `reporting/`
+
+- shared report/chart aggregation namespace for active benchmark artifacts
+
+## Retained / Historical Families
+
+These trees are not the main active train lane, but they are still kept for specific purposes:
+
+- `context_benchmark/`
+  - retained because runtime FT diagnosis and some simulator sizing helpers still read its artifacts
 - `pretrain_supervised/`
-  - embedding pretrain plus downstream `v0..v4`
-- `direct_benchmark/`
-  - raw-feature control arm on `v0..v5`
-- `ft_transformer_benchmark/`
-  - FT-Transformer arm on the same raw-feature ladder
+  - retained for embedding-oriented experiments and historical comparisons
 - `tabpfn_benchmark/`
-  - TabPFN arm on the same raw-feature ladder
-- `context_classifier/`
-  - real+synthetic canonical dataset build and multi-class training/report flow
+  - retained as an auxiliary benchmark family
+- `ft_transformer_benchmark/`
+  - retained as a standalone historical family outside the unified `tabular_benchmark` train lane
 
-## Dataset Ownership
+Historical outputs are kept on disk. Active rebuilds should prefer `benchmark_dataset/` and `tabular_benchmark/` unless a runtime or research consumer explicitly needs one of the retained families.
 
-### `fuzzy_logic_basic/`
+## Data Flow
 
-This module now owns benchmark dataset preparation only.
+1. `benchmark_dataset`
+   - rebuilds the benchmark tables and `big_label`
+2. `tabular_benchmark/prepare.py`
+   - builds a real-only dataset for one label lane
+3. `tabular_benchmark/train.py`
+   - trains the unified 3-model suite
+4. `tabular_benchmark/report.py`
+   - generates metric summaries and charts
 
-Produced artifacts:
+## Output Layout
 
-- `flb_input_aligned.csv`
-- `flb_input_with_events.csv`
-- `flb_l2_exp1.csv` .. `flb_l2_exp6.csv`
-- `flb_l3_combo1.csv` .. `flb_l3_combo4.csv`
-- `manifest.json`
-- `flb_real_event_labeling_report.json`
-- `flb_layer2_build_report.json`
-- `flb_layer3_combo_build_report.json`
-- `flb_dataset_build_report.json`
+Active `tabular_benchmark` artifacts are standardized under:
 
-It no longer owns the old fuzzy risk-inference chain.
+- `tabular_benchmark/artifacts/binary/datasets/...`
+- `tabular_benchmark/artifacts/binary/training/...`
+- `tabular_benchmark/artifacts/binary/reports/...`
+- `tabular_benchmark/artifacts/tri_class/...`
+- `tabular_benchmark/artifacts/four_class/...`
 
-### `flb_input_with_events.csv`
+## Risks / Limits
 
-This file is consumed by downstream benchmark families for labels and minimal context provenance.
-It is rebuilt by the real-event-labeling stage inside `fuzzy_logic_basic/`.
-
-Treat it as an upstream labeled artifact that lives in:
-
-- `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_input_with_events.csv`
-
-Current consumers:
-
-- `pretrain_supervised/v0..v4`
-- `direct_benchmark`
-- `ft_transformer_benchmark`
-- `tabpfn_benchmark`
-- `context_classifier`
-
-## Current Data Flow
-
-### Flow A: benchmark dataset build
-
-`Backend/Output_data/Layer1`
--> `Backend/Benchmark/fuzzy_logic_basic/layer1`
--> `flb_input_aligned.csv`
--> `Backend/Benchmark/fuzzy_logic_basic/real_event_labeling`
--> `flb_input_with_events.csv`
--> `Backend/Benchmark/fuzzy_logic_basic/layer2`
--> `flb_l2_exp1..exp6.csv`
--> `Backend/Benchmark/fuzzy_logic_basic/layer3_combo`
--> `flb_l3_combo1..combo4.csv`
-
-### Flow B: embedding benchmark
-
-`flb_input_aligned.csv`
-or one of:
-- `flb_l2_exp1..exp6.csv`
-- `flb_l3_combo1..combo4.csv`
-
--> `Backend/Benchmark/pretrain_supervised/pretrain`
--> embedding checkpoints and split artifacts
--> `Backend/Benchmark/pretrain_supervised/v0..v4`
-
-### Flow C: raw-feature control arms
-
-`flb_input_aligned.csv`
-plus optional engineered exports:
-- `flb_l2_exp2.csv`
-- `flb_l2_exp6.csv`
-- `flb_l3_combo2.csv`
-
--> `direct_benchmark`
--> `ft_transformer_benchmark`
--> `tabpfn_benchmark`
-
-All three families also consume `flb_input_with_events.csv` for labels.
-
-### Flow D: real+synthetic context benchmark
-
-`flb_input_with_events.csv`
-and simulator outputs under `Backend/Simulator/outputs/<run_id>/`
--> `context_classifier`
--> canonical split-aware tabular and sequence datasets
--> augmented training outputs and reports
-
-## Version Contract
-
-- `v0`
-  - nutrient/pH ablation before the Layer1 embedding baseline
-- `v1`
-  - Layer1 embedding baseline
-- `v2`
-  - Layer2 single-window ablation family `exp1..exp5`
-- `v3`
-  - Layer3 combo family `combo1..combo4`
-- `v4`
-  - Layer2 full-set benchmark `exp6`
-- direct benchmark
-  - raw-feature control arm `v0..v5`
-- FT benchmark
-  - FT-Transformer arm on the raw-feature ladder `v0..v5`
-- TabPFN benchmark
-  - TabPFN arm on the raw-feature ladder `v0..v5`
-- context classifier
-  - real+synthetic multi-class benchmark with its own build/train/report flow
-
-The current version catalog lives in:
-
-- `D:\AgriFusion-IoT\Backend\Benchmark\pretrain_supervised\version_catalog.py`
-
-## Shared Policy Owners
-
-- split policy:
-  - `D:\AgriFusion-IoT\Backend\Benchmark\pretrain_supervised\split_policy`
-- label policy:
-  - `D:\AgriFusion-IoT\Backend\Benchmark\pretrain_supervised\LABEL_POLICY.md`
-  - `D:\AgriFusion-IoT\Backend\Benchmark\context_classifier\LABEL_POLICY.md`
-
-## Current Limits
-
-- The current real label stage is still heuristic and depends on the availability of Layer0 Firebase metadata.
-- Simple dataset-builder stages still use lightweight build reports instead of full dated run directories.
+- `tri_class` and `four_class` remain highly imbalanced on real-only data
+- historical outputs still exist on disk, and some older tooling may still need fallback handling for them

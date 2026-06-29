@@ -1,64 +1,93 @@
 # Telemetry Orchestrator
 
-## Purpose
+## 1. Mục đích
 
-This module runs runtime demo lifecycles that connect Firebase telemetry to local Layer0/Layer1 processing and FT-based result publishing.
+`telemetry_orchestrator` nối nhiều bước rời rạc thành một chu kỳ demo hoàn chỉnh:
 
-Internally, the orchestration path now calls the standardized `Layer0IngestionPipeline` and relies on the standardized Firebase client boundary in `Services/clients/firebase_rtdb.py`.
+- inject telemetry demo
+- sync dữ liệu đó về `Layer0`
+- chạy `Layer1`
+- tùy chọn chạy `SuperTable`
+- publish `result/*`
 
-It now supports three orchestration paths:
+## 2. Kiến trúc xử lý
 
-1. one-shot latest-only server cycle
-2. demo baseline bootstrap for `2026-05-20 00:00 -> 12:00`
-3. post-12:00 demo episode cycle that syncs a telemetry `ts` range instead of only the single latest point
+```text
+telemetry_runtime_simulator
+-> layer0_ingestion
+-> Core/layer1
+-> Core/fusion (optional)
+-> result_publisher
+```
 
-## Input
+## 3. Input
 
 - `Backend/Services/.env`
-- Firebase telemetry under `Node1/telemetry`
-- Local Layer0/Layer1 pipeline already wired through `Backend/main.py`
-- `Backend/Services/layer0_ingestion`
+- Firebase telemetry dưới `Node1/telemetry`
+- local backend pipeline đã cài đủ
 
-## Output
+## 4. Output
 
-- Updated local artifacts under `Backend/Output_data`
-- Updated Firebase `result`
+- local artifact trong `Backend/Output_data`
+- dữ liệu `result/*` trên Firebase
 
-## Commands
+## 5. Chế độ hoạt động
 
-Run the original latest-only one-shot cycle:
+### 5.1. `run_once`
 
-```powershell
-python Backend\main.py --server-cycle-once --server-cycle-skip-layer25
+- latest-only cycle
+
+### 5.2. `bootstrap_demo_day`
+
+- inject nền bình thường `00:00 -> 12:00`
+
+### 5.3. `run_demo_cycle`
+
+- inject episode sau 12h và sync theo `ts` range
+
+## 6. Ví dụ kết quả
+
+```json
+{
+  "status": "completed",
+  "injected_template_name": "water_deficit",
+  "export_status": "new_data",
+  "layer1_status": "ok",
+  "result_status": "published",
+  "result_label": "abnormal"
+}
 ```
 
-Prepare the demo-day baseline:
+## 7. Cách tái lập
+
+### 7.1. Chạy cycle latest-only
 
 ```powershell
-python Backend\main.py --demo-bootstrap-day --server-cycle-skip-layer25
+python Backend\main.py --server-cycle-once --server-cycle-skip-super-table
 ```
 
-Run a post-noon episode demo and publish FT result:
+### 7.2. Bootstrap baseline
 
 ```powershell
-python Backend\main.py --server-cycle-demo --inject-telemetry-template 2 --server-cycle-skip-layer25
+python Backend\main.py --demo-bootstrap-day --server-cycle-skip-super-table
 ```
 
-Packet-loss demo with a larger gap:
+### 7.3. Chạy episode demo
 
 ```powershell
-python Backend\main.py --server-cycle-demo --inject-telemetry-template 1 --inject-packet-gap-minutes 64 --server-cycle-skip-layer25
+python Backend\main.py --server-cycle-demo --inject-telemetry-template 2 --server-cycle-skip-super-table
 ```
 
-## Assumptions
+## 8. Thư viện cần cài
 
-- The demo-day baseline is prepared first before post-noon episodes are injected.
-- Runtime FT diagnosis consumes Layer1-aligned data; Layer2.5 is optional for these demo cycles.
-- The mock date `2026-05-20` is reserved for demo cleanup.
-- Layer0 ingestion naming has been standardized; legacy `exporters` imports are compatibility-only.
+- toàn bộ môi trường `Backend/requirements.txt`
 
-## Risks / current limits
+## 9. Giả định xử lý
 
-- `--server-cycle-demo` syncs the post-noon telemetry window for one day, not a general-purpose arbitrary cross-day replay engine.
-- If the demo date already contains stale post-noon records from old experiments, the safest flow is to re-run the bootstrap and then the episode you want to show.
-- This remains a one-shot orchestration path, not a long-running watcher/daemon yet.
+- Baseline nên được chạy trước khi inject episode sau 12h.
+- `SuperTable` là tùy chọn trong demo cycle, không bắt buộc để publish lên web.
+
+## 10. Rủi ro và giới hạn
+
+- Đây là orchestrator one-shot, không phải daemon theo dõi liên tục.
+- Episode demo hiện tối ưu cho flow một ngày demo, chưa phải replay engine tổng quát nhiều ngày.

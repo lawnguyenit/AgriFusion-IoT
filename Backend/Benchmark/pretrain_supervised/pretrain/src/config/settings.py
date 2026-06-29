@@ -3,9 +3,9 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
-from Backend.Benchmark.common.paths import FUZZY_LOGIC_BASIC_DATASET_ROOT, PRETRAIN_ROOT
+from Backend.Benchmark.common.paths import BENCHMARK_DATASETS_ROOT, PRETRAIN_ROOT
 
-DEFAULT_INPUT_CSV = FUZZY_LOGIC_BASIC_DATASET_ROOT / "flb_input_aligned.csv"
+DEFAULT_INPUT_CSV = BENCHMARK_DATASETS_ROOT / "benchmark_input_aligned.csv"
 DEFAULT_OUTPUT_ROOT = PRETRAIN_ROOT / "outputs"
 DEFAULT_TIMEZONE = "Asia/Ho_Chi_Minh"
 

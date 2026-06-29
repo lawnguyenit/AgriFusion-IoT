@@ -57,17 +57,25 @@ class TelemetryRuntimeTemplateInjector:
         template_id: int,
         packet_gap_minutes: int = 64,
         inject_date_key: str = DEFAULT_MOCK_DATE_KEY,
+        inject_sample_datetime: str | None = None,
     ) -> TelemetryRuntimeInjectResult:
         if template_id not in TEMPLATE_ID_TO_NAME:
             raise ValueError(f"Unsupported telemetry template id: {template_id}")
 
+        if inject_sample_datetime is not None:
+            start_dt_local = self._parse_exact_local_datetime(inject_sample_datetime)
+            inject_date_key = start_dt_local.date().isoformat()
+        else:
+            start_dt_local = None
+
         runtime_context = self._load_runtime_context(inject_date_key=inject_date_key)
-        start_dt_local = self._resolve_single_record_time(
-            template_id=template_id,
-            runtime_context=runtime_context,
-            inject_date_key=inject_date_key,
-            packet_gap_minutes=packet_gap_minutes,
-        )
+        if start_dt_local is None:
+            start_dt_local = self._resolve_single_record_time(
+                template_id=template_id,
+                runtime_context=runtime_context,
+                inject_date_key=inject_date_key,
+                packet_gap_minutes=packet_gap_minutes,
+            )
         sequence = self._build_demo_sequence(
             runtime_context=runtime_context,
             template_id=template_id,
@@ -507,35 +515,37 @@ class TelemetryRuntimeTemplateInjector:
             air_temp = max(23.5, current_air_temp - 0.6 + 0.1 * oscillation)
             air_humidity = min(99.99, current_air_humidity + 3.5 + 0.8 * abs(oscillation))
         elif template_id == 2:
-            soil_temp = current_soil_temp + 0.9 + (1.6 * progress)
-            soil_humidity = max(24.0, current_soil_humidity - (7.0 + 14.0 * progress))
-            ec_value = current_ec + (45.0 + 110.0 * progress)
-            ph_value = max(5.8, current_ph - (0.05 + 0.1 * progress))
-            n_value = max(10.0, current_n - (4.0 + 6.0 * progress))
-            p_value = max(20.0, current_p - (6.0 + 10.0 * progress))
-            k_value = max(20.0, current_k - (5.0 + 8.0 * progress))
-            air_temp = current_air_temp + 1.0 + 1.6 * progress
-            air_humidity = max(45.0, current_air_humidity - (8.0 + 14.0 * progress))
+            # Keep the demo inside the learned water-deficit zone instead of
+            # pushing soil temperature/humidity beyond the real training range.
+            soil_temp = min(29.7, current_soil_temp + 0.12 + (0.42 * progress))
+            soil_humidity = max(53.0, current_soil_humidity - (2.0 + 4.5 * progress))
+            ec_value = min(560.0, current_ec + (14.0 + 42.0 * progress))
+            ph_value = max(5.8, current_ph - (0.03 + 0.05 * progress))
+            n_value = max(26.0, current_n - (2.0 + 4.0 * progress))
+            p_value = max(90.0, current_p - (4.0 + 7.0 * progress))
+            k_value = max(90.0, current_k - (3.0 + 6.0 * progress))
+            air_temp = min(35.2, current_air_temp + 2.2 + 3.2 * progress)
+            air_humidity = max(64.0, current_air_humidity - (8.0 + 20.0 * progress))
         elif template_id == 3:
-            soil_temp = current_soil_temp - (0.3 + 0.2 * progress)
-            soil_humidity = min(95.0, current_soil_humidity + (5.0 + 5.5 * progress))
-            ec_value = current_ec + (18.0 + 36.0 * progress)
-            ph_value = max(5.8, min(7.2, current_ph - (0.03 + 0.03 * progress)))
-            n_value = current_n + (6.0 + 5.0 * progress)
-            p_value = current_p + (8.0 + 8.0 * progress)
-            k_value = current_k + (6.0 + 6.0 * progress)
-            air_temp = max(21.0, current_air_temp - (1.4 + 0.8 * progress))
-            air_humidity = min(99.99, max(92.0, current_air_humidity + (8.0 + 4.0 * progress)))
+            soil_temp = max(27.8, current_soil_temp - (0.55 + 0.35 * progress))
+            soil_humidity = min(78.0, current_soil_humidity + (6.0 + 8.5 * progress))
+            ec_value = min(650.0, current_ec + (82.0 + 95.0 * progress))
+            ph_value = max(5.8, min(6.8, current_ph - (0.02 + 0.02 * progress)))
+            n_value = current_n + (7.0 + 6.0 * progress)
+            p_value = current_p + (12.0 + 10.0 * progress)
+            k_value = current_k + (10.0 + 8.0 * progress)
+            air_temp = max(25.8, current_air_temp - (1.8 + 1.0 * progress))
+            air_humidity = min(99.99, max(95.0, current_air_humidity + (10.0 + 5.0 * progress)))
         elif template_id == 4:
-            soil_temp = current_soil_temp + 0.15
-            soil_humidity = min(96.0, current_soil_humidity + (6.5 + 4.5 * progress))
-            ec_value = current_ec + (95.0 + 70.0 * (1.0 - 0.5 * progress))
-            ph_value = min(7.4, current_ph + (0.05 + 0.06 * progress))
-            n_value = current_n + (18.0 + 12.0 * (1.0 - 0.2 * progress))
-            p_value = current_p + (24.0 + 14.0 * (1.0 - 0.2 * progress))
-            k_value = current_k + (18.0 + 12.0 * (1.0 - 0.2 * progress))
-            air_temp = max(22.0, current_air_temp - (0.6 + 0.2 * progress))
-            air_humidity = min(99.99, current_air_humidity + (6.0 + 3.0 * progress))
+            soil_temp = max(28.0, current_soil_temp - (0.45 + 0.25 * progress))
+            soil_humidity = min(76.0, current_soil_humidity + (8.0 + 8.0 * progress))
+            ec_value = min(670.0, current_ec + (135.0 + 100.0 * (1.0 - 0.2 * progress)))
+            ph_value = min(6.6, current_ph + (0.03 + 0.04 * progress))
+            n_value = current_n + (16.0 + 12.0 * (1.0 - 0.2 * progress))
+            p_value = current_p + (22.0 + 16.0 * (1.0 - 0.2 * progress))
+            k_value = current_k + (18.0 + 14.0 * (1.0 - 0.2 * progress))
+            air_temp = max(26.2, current_air_temp - (1.5 + 0.9 * progress))
+            air_humidity = min(99.99, current_air_humidity + (10.0 + 5.0 * progress))
         else:
             soil_temp = current_soil_temp - (0.4 + 0.3 * progress)
             soil_humidity = min(94.0, current_soil_humidity + (4.5 + 6.0 * progress))
@@ -664,6 +674,17 @@ class TelemetryRuntimeTemplateInjector:
             minute=minute,
             tzinfo=self.settings.timezone,
         )
+
+    def _parse_exact_local_datetime(self, value: str) -> datetime:
+        normalized = str(value).strip().replace("Z", "+00:00")
+        if "T" not in normalized and " " not in normalized:
+            raise ValueError(
+                "inject_sample_datetime must include both date and time, for example 2026-05-20T13:45."
+            )
+        parsed = datetime.fromisoformat(normalized)
+        if parsed.tzinfo is None:
+            return parsed.replace(tzinfo=self.settings.timezone)
+        return parsed.astimezone(self.settings.timezone)
 
     def _resolve_server_ts_from_path(self, telemetry_path: str) -> int:
         try:

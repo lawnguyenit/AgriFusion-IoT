@@ -879,6 +879,8 @@ function renderMainChart(chartModel) {
   }
 
   chartTitle.textContent = chartModel.group.label;
+  chartMeta.hidden = true;
+  chartMeta.textContent = "";
 
   if (!chartModel.series.length || !chartModel.xBounds.minTs || !chartModel.xBounds.maxTs) {
     chartMeta.textContent = "Chưa có dữ liệu trong khoảng thời gian đang chọn.";
@@ -899,7 +901,6 @@ function renderMainChart(chartModel) {
   renderYAxis(yAxisRight, chartModel.axisExtents.right);
 
   mainLegend.innerHTML = chartModel.series.map((series) => buildLegendCard(series, chartModel)).join("");
-  chartMeta.innerHTML = buildChartMeta(chartModel);
 }
 
 function renderYAxis(container, axisExtent) {
@@ -1083,6 +1084,11 @@ const DIAGNOSIS_LABEL_ID_BY_KEY = {
   moisture_or_intervention_context: 3,
 };
 
+const BINARY_DIAGNOSIS_PRESET_BY_LABEL = {
+  normal: "binary_normal",
+  abnormal: "binary_abnormal",
+};
+
 const DIAGNOSIS_UI_PRESETS = {
   [-1]: {
     title: "\u0110ang ch\u1edd ph\u00e2n t\u00edch",
@@ -1095,6 +1101,30 @@ const DIAGNOSIS_UI_PRESETS = {
     recommendationLevel: "normal",
     recommendationBadge: "Theo d\u00f5i",
     horizonText: "--",
+  },
+  binary_normal: {
+    title: "B\u00ecnh th\u01b0\u1eddng",
+    statusText: "B\u00ecnh th\u01b0\u1eddng",
+    badgeText: "\u1ed4n \u0111\u1ecbnh",
+    tone: "good",
+    description: "Runtime XGBoost \u0111ang xem b\u1ea3n ghi m\u1edbi nh\u1ea5t l\u00e0 nh\u00f3m b\u00ecnh th\u01b0\u1eddng.",
+    summary: "Kh\u00f4ng c\u00f3 d\u1ea5u hi\u1ec7u b\u1ea5t th\u01b0\u1eddng n\u1ed5i b\u1eadt trong c\u1eeda s\u1ed5 d\u1eef li\u1ec7u hi\u1ec7n t\u1ea1i.",
+    recommendation: "Ti\u1ebfp t\u1ee5c duy tr\u00ec chu k\u1ef3 theo d\u00f5i hi\u1ec7n t\u1ea1i v\u00e0 ch\u1edd b\u1ea3n ghi m\u1edbi.",
+    recommendationLevel: "good",
+    recommendationBadge: "Theo d\u00f5i",
+    horizonText: "\u0110ang \u1ed5n \u0111\u1ecbnh",
+  },
+  binary_abnormal: {
+    title: "B\u1ea5t th\u01b0\u1eddng c\u1ea7n ki\u1ec3m tra",
+    statusText: "B\u1ea5t th\u01b0\u1eddng",
+    badgeText: "C\u1ea3nh b\u00e1o",
+    tone: "warning",
+    description: "Runtime XGBoost \u0111ang g\u1eafn b\u1ea3n ghi m\u1edbi nh\u1ea5t v\u00e0o nh\u00f3m b\u1ea5t th\u01b0\u1eddng nh\u01b0ng kh\u00f4ng ph\u00e2n lo\u1ea1i chi ti\u1ebft theo t\u1eebng ng\u1eef c\u1ea3nh 4 l\u1edbp.",
+    summary: "C\u1ea7n \u0111\u1ed1i chi\u1ebfu th\u00eam chart l\u1ecbch s\u1eed, anomaly rules v\u00e0 b\u1ed1i c\u1ea3nh v\u1eadn h\u00e0nh \u0111\u1ec3 x\u00e1c \u0111\u1ecbnh nguy\u00ean nh\u00e2n c\u1ee5 th\u1ec3.",
+    recommendation: "Ki\u1ec3m tra telemetry g\u1ea7n nh\u1ea5t, c\u00e1c ch\u1ec9 s\u1ed1 \u0111\u1ea5t/kh\u00f4ng kh\u00ed v\u00e0 c\u00e1c anomaly do backend publish tr\u01b0\u1edbc khi k\u1ebft lu\u1eadn nguy\u00ean nh\u00e2n.",
+    recommendationLevel: "warn",
+    recommendationBadge: "L\u01b0u \u00fd",
+    horizonText: "C\u1ea7n \u0111\u1ed1i chi\u1ebfu th\u00eam",
   },
   0: {
     title: "B\u00ecnh th\u01b0\u1eddng",
@@ -1222,9 +1252,9 @@ function renderPredictionHero(diagnosisUi) {
 }
 
 function buildDiagnosisUiModel(diagnosis, chartModel) {
-  const labelId = resolveDiagnosisLabelId(diagnosis);
-  const preset = DIAGNOSIS_UI_PRESETS[labelId] || DIAGNOSIS_UI_PRESETS[-1];
-  const confidenceRatio = resolveDiagnosisConfidenceRatio(diagnosis, labelId);
+  const presetKey = resolveDiagnosisPresetKey(diagnosis);
+  const preset = DIAGNOSIS_UI_PRESETS[presetKey] || DIAGNOSIS_UI_PRESETS[-1];
+  const confidenceRatio = resolveDiagnosisConfidenceRatio(diagnosis, presetKey);
   const confidenceText = confidenceRatio === null
     ? "\u0110ang \u0111\u1ee3i x\u00e1c su\u1ea5t"
     : `\u0110\u1ed9 tin c\u1eady ${Math.round(confidenceRatio * 100)}%`;
@@ -1241,15 +1271,33 @@ function buildDiagnosisUiModel(diagnosis, chartModel) {
   };
 }
 
-function resolveDiagnosisLabelId(diagnosis) {
+function diagnosisUsesBinaryContract(diagnosis) {
+  if (!diagnosis) return false;
+  const modelFamily = String(diagnosis.model?.family || "").trim().toLowerCase();
+  const labelScheme = String(diagnosis.model?.labelScheme || "").trim().toLowerCase();
+  const label = String(diagnosis.label || "").trim().toLowerCase();
+
+  return (
+    labelScheme === "binary"
+    || (modelFamily === "xgboost" && (label === "normal" || label === "abnormal"))
+    || label === "normal"
+    || label === "abnormal"
+  );
+}
+
+function resolveDiagnosisPresetKey(diagnosis) {
   if (!diagnosis) return -1;
+  if (diagnosisUsesBinaryContract(diagnosis)) {
+    const label = String(diagnosis.label || "").trim().toLowerCase();
+    return BINARY_DIAGNOSIS_PRESET_BY_LABEL[label] || -1;
+  }
   if (Number.isFinite(diagnosis.labelId)) {
     return diagnosis.labelId;
   }
   return DIAGNOSIS_LABEL_ID_BY_KEY[diagnosis.label] ?? -1;
 }
 
-function resolveDiagnosisConfidenceRatio(diagnosis, labelId) {
+function resolveDiagnosisConfidenceRatio(diagnosis, presetKey) {
   if (!diagnosis) return null;
   const probabilityMap = diagnosis.probabilities && typeof diagnosis.probabilities === "object"
     ? diagnosis.probabilities
@@ -1262,7 +1310,7 @@ function resolveDiagnosisConfidenceRatio(diagnosis, labelId) {
   const abnormalProbability = toNumber(diagnosis.abnormalProbability);
   if (!Number.isFinite(abnormalProbability)) return null;
 
-  if (labelId === 0) {
+  if (presetKey === 0 || presetKey === "binary_normal") {
     return Math.min(1, Math.max(0, 1 - abnormalProbability));
   }
 

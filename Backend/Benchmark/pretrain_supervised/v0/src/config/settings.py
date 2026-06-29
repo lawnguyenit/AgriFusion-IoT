@@ -4,7 +4,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 from Backend.Benchmark.common.paths import (
-    FUZZY_LOGIC_BASIC_DATASET_ROOT,
+    BENCHMARK_DATASETS_ROOT,
     PRETRAIN_ROOT,
     PRETRAIN_SUPERVISED_ROOT,
     TABNET_BENCHMARK_ROOT,
@@ -12,7 +12,7 @@ from Backend.Benchmark.common.paths import (
 
 V0_ROOT = PRETRAIN_SUPERVISED_ROOT / "v0"
 
-DEFAULT_EVENT_CSV = FUZZY_LOGIC_BASIC_DATASET_ROOT / "flb_input_with_events.csv"
+DEFAULT_EVENT_CSV = BENCHMARK_DATASETS_ROOT / "benchmark_input_labeled.csv"
 DEFAULT_OUTPUT_ROOT = V0_ROOT / "outputs"
 DEFAULT_PRETRAIN_OUTPUT_ROOTS = [
     PRETRAIN_ROOT / "outputs",

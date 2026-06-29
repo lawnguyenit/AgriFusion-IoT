@@ -158,67 +158,67 @@ def _l3_combo_profile(
 
 
 def build_source_registry(root_dir: Path) -> dict[str, BenchmarkSourceProfile]:
-    fuzzy_root = root_dir / "Backend" / "Benchmark" / "fuzzy_logic_basic"
+    benchmark_dataset_root = root_dir / "Backend" / "Benchmark" / "benchmark_dataset"
     return {
         "layer0_ph": _l0_profile(
             name="layer0_ph",
             description="Layer0 baseline with raw pH added on top of the Layer1 sensor base.",
-            default_csv=fuzzy_root / "dataset" / "flb_input_aligned.csv",
+            default_csv=benchmark_dataset_root / "dataset" / "benchmark_input_aligned.csv",
             extra_columns=[*L0_PH_COLUMNS],
         ),
         "layer0_npk": _l0_profile(
             name="layer0_npk",
             description="Layer0 baseline with raw NPK added on top of the Layer1 sensor base.",
-            default_csv=fuzzy_root / "dataset" / "flb_input_aligned.csv",
+            default_csv=benchmark_dataset_root / "dataset" / "benchmark_input_aligned.csv",
             extra_columns=[*L0_NPK_COLUMNS],
         ),
         "layer0_ph_npk": _l0_profile(
             name="layer0_ph_npk",
             description="Layer0 baseline with raw pH and raw NPK added on top of the Layer1 sensor base.",
-            default_csv=fuzzy_root / "dataset" / "flb_input_aligned.csv",
+            default_csv=benchmark_dataset_root / "dataset" / "benchmark_input_aligned.csv",
             extra_columns=[*L0_PH_COLUMNS, *L0_NPK_COLUMNS],
         ),
         "layer1": BenchmarkSourceProfile(
             name="layer1",
-            description="Current aligned CSV built from fuzzy Layer1 output.",
-            default_csv=fuzzy_root / "dataset" / "flb_input_aligned.csv",
+            description="Current aligned CSV built from Layer1 normalization output.",
+            default_csv=benchmark_dataset_root / "dataset" / "benchmark_input_aligned.csv",
             required_columns=list(L1_REQUIRED_COLUMNS),
             default_feature_columns=list(L1_FEATURE_COLUMNS),
         ),
-        "layer2_exp1": _l2_profile(
-            name="layer2_exp1",
-            description="Fuzzy Layer2 experiment 1: base columns plus delta features.",
-            default_csv=fuzzy_root / "dataset" / "flb_l2_exp1.csv",
+        "single_window_exp1": _l2_profile(
+            name="single_window_exp1",
+            description="Single-window experiment 1: base columns plus delta features.",
+            default_csv=benchmark_dataset_root / "dataset" / "single_window_exp1.csv",
             extra_columns=[*L2_DELTA_COLUMNS],
         ),
-        "layer2_exp2": _l2_profile(
-            name="layer2_exp2",
-            description="Fuzzy Layer2 experiment 2: Exp1 plus 3h short-window features.",
-            default_csv=fuzzy_root / "dataset" / "flb_l2_exp2.csv",
+        "single_window_exp2": _l2_profile(
+            name="single_window_exp2",
+            description="Single-window experiment 2: Exp1 plus 3h short-window features.",
+            default_csv=benchmark_dataset_root / "dataset" / "single_window_exp2.csv",
             extra_columns=[*L2_DELTA_COLUMNS, *L2_WINDOW_SHORT_COLUMNS],
         ),
-        "layer2_exp3": _l2_profile(
-            name="layer2_exp3",
-            description="Fuzzy Layer2 experiment 3: Exp1 plus 8h medium-window features.",
-            default_csv=fuzzy_root / "dataset" / "flb_l2_exp3.csv",
+        "single_window_exp3": _l2_profile(
+            name="single_window_exp3",
+            description="Single-window experiment 3: Exp1 plus 8h medium-window features.",
+            default_csv=benchmark_dataset_root / "dataset" / "single_window_exp3.csv",
             extra_columns=[*L2_DELTA_COLUMNS, *L2_WINDOW_MEDIUM_COLUMNS],
         ),
-        "layer2_exp4": _l2_profile(
-            name="layer2_exp4",
-            description="Fuzzy Layer2 experiment 4: Exp1 plus 24h long-window summaries.",
-            default_csv=fuzzy_root / "dataset" / "flb_l2_exp4.csv",
+        "single_window_exp4": _l2_profile(
+            name="single_window_exp4",
+            description="Single-window experiment 4: Exp1 plus 24h long-window summaries.",
+            default_csv=benchmark_dataset_root / "dataset" / "single_window_exp4.csv",
             extra_columns=[*L2_DELTA_COLUMNS, *L2_WINDOW_LONG_COLUMNS],
         ),
-        "layer2_exp5": _l2_profile(
-            name="layer2_exp5",
-            description="Fuzzy Layer2 experiment 5: Exp1 plus air-humidity saturation persistence features.",
-            default_csv=fuzzy_root / "dataset" / "flb_l2_exp5.csv",
+        "single_window_exp5": _l2_profile(
+            name="single_window_exp5",
+            description="Single-window experiment 5: Exp1 plus air-humidity saturation persistence features.",
+            default_csv=benchmark_dataset_root / "dataset" / "single_window_exp5.csv",
             extra_columns=[*L2_DELTA_COLUMNS, *L2_SATURATION_COLUMNS],
         ),
-        "layer2_exp6": _l2_profile(
-            name="layer2_exp6",
-            description="Fuzzy Layer2 experiment 6: full Layer2 ablation set.",
-            default_csv=fuzzy_root / "dataset" / "flb_l2_exp6.csv",
+        "single_window_exp6": _l2_profile(
+            name="single_window_exp6",
+            description="Single-window experiment 6: full feature set.",
+            default_csv=benchmark_dataset_root / "dataset" / "single_window_exp6.csv",
             extra_columns=[
                 *L2_DELTA_COLUMNS,
                 *L2_WINDOW_SHORT_COLUMNS,
@@ -227,47 +227,47 @@ def build_source_registry(root_dir: Path) -> dict[str, BenchmarkSourceProfile]:
                 *L2_SATURATION_COLUMNS,
             ],
         ),
-        "layer3_combo1": _l3_combo_profile(
-            name="layer3_combo1",
-            description="Fuzzy Layer3 combo 1: base columns plus 3h and 8h windows.",
-            default_csv=fuzzy_root / "dataset" / "flb_l3_combo1.csv",
+        "multi_window_combo1": _l3_combo_profile(
+            name="multi_window_combo1",
+            description="Multi-window combo 1: base columns plus 3h and 8h windows.",
+            default_csv=benchmark_dataset_root / "dataset" / "multi_window_combo1.csv",
             extra_columns=[*L2_WINDOW_SHORT_COLUMNS, *L2_WINDOW_MEDIUM_COLUMNS],
         ),
-        "layer3_combo2": _l3_combo_profile(
-            name="layer3_combo2",
-            description="Fuzzy Layer3 combo 2: combo1 plus delta features.",
-            default_csv=fuzzy_root / "dataset" / "flb_l3_combo2.csv",
+        "multi_window_combo2": _l3_combo_profile(
+            name="multi_window_combo2",
+            description="Multi-window combo 2: combo1 plus delta features.",
+            default_csv=benchmark_dataset_root / "dataset" / "multi_window_combo2.csv",
             extra_columns=[*L2_DELTA_COLUMNS, *L2_WINDOW_SHORT_COLUMNS, *L2_WINDOW_MEDIUM_COLUMNS],
         ),
-        "layer3_combo3": _l3_combo_profile(
-            name="layer3_combo3",
-            description="Fuzzy Layer3 combo 3: base columns plus 3h, 8h, and 24h windows.",
-            default_csv=fuzzy_root / "dataset" / "flb_l3_combo3.csv",
+        "multi_window_combo3": _l3_combo_profile(
+            name="multi_window_combo3",
+            description="Multi-window combo 3: base columns plus 3h, 8h, and 24h windows.",
+            default_csv=benchmark_dataset_root / "dataset" / "multi_window_combo3.csv",
             extra_columns=[*L2_WINDOW_SHORT_COLUMNS, *L2_WINDOW_MEDIUM_COLUMNS, *L2_WINDOW_LONG_COLUMNS],
         ),
-        "layer3_combo4": _l3_combo_profile(
-            name="layer3_combo4",
-            description="Fuzzy Layer3 combo 4: combo3 plus delta features.",
-            default_csv=fuzzy_root / "dataset" / "flb_l3_combo4.csv",
+        "multi_window_combo4": _l3_combo_profile(
+            name="multi_window_combo4",
+            description="Multi-window combo 4: combo3 plus delta features.",
+            default_csv=benchmark_dataset_root / "dataset" / "multi_window_combo4.csv",
             extra_columns=[*L2_DELTA_COLUMNS, *L2_WINDOW_SHORT_COLUMNS, *L2_WINDOW_MEDIUM_COLUMNS, *L2_WINDOW_LONG_COLUMNS],
         ),
         "layer3": BenchmarkSourceProfile(
             name="layer3",
-            description="Reserved for future fuzzy Layer3 benchmark exports.",
+            description="Reserved for future benchmark exports.",
             default_csv=None,
             required_columns=[],
             default_feature_columns=[],
         ),
         "layer4": BenchmarkSourceProfile(
             name="layer4",
-            description="Reserved for future fuzzy Layer4 benchmark exports.",
+            description="Reserved for future Layer4 benchmark exports.",
             default_csv=None,
             required_columns=[],
             default_feature_columns=[],
         ),
         "layer5": BenchmarkSourceProfile(
             name="layer5",
-            description="Reserved for future fuzzy Layer5 benchmark exports.",
+            description="Reserved for future Layer5 benchmark exports.",
             default_csv=None,
             required_columns=[],
             default_feature_columns=[],
@@ -299,7 +299,7 @@ def resolve_source_profile(
 
     if profile.default_csv is None:
         raise FileNotFoundError(
-            f"Source kind '{source_kind}' is reserved for future fuzzy outputs. "
+            f"Source kind '{source_kind}' is reserved for future benchmark outputs. "
             "Pass --input-csv with the generated CSV when it exists."
         )
 
