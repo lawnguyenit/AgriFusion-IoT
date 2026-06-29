@@ -1,13 +1,13 @@
 import argparse
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 
 if __package__:
-    from .Core import Layer25FusionPipeline, PreprocessingPipeline
+    from .Core import SuperTableFusionPipeline, PreprocessingPipeline
     from .Config.runtime import BACKEND_SETTINGS, BackendSettings
 else:
-    from Core import Layer25FusionPipeline, PreprocessingPipeline
+    from Core import SuperTableFusionPipeline, PreprocessingPipeline
     from Config.runtime import BACKEND_SETTINGS, BackendSettings
 
 
@@ -18,24 +18,20 @@ LAYER_ALIASES = {
     "1": "layer1",
     "l1": "layer1",
     "layer1": "layer1",
-    "2.5": "layer25",
-    "25": "layer25",
-    "l25": "layer25",
-    "layer25": "layer25",
-    "layer2.5": "layer25",
+    "supertable": "super_table",
 }
-LAYER_ORDER = {"layer0": 0, "layer1": 1, "layer25": 2}
+LAYER_ORDER = {"layer0": 0, "layer1": 1, "super_table": 2}
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Run AgriFusion data layers independently or as a Layer0 -> Layer1 -> Layer2.5 pipeline."
+        description="Run AgriFusion data layers independently or as a Layer0 -> Layer1 -> SuperTable pipeline."
     )
     parser.add_argument(
         "--target-layer",
         "--to-layer",
         dest="target_layer",
-        help="Run from Layer0 through this target layer: layer0, layer1, or layer2.5.",
+        help="Run from Layer0 through this target layer: layer0, layer1, or super-table.",
     )
     parser.add_argument(
         "--only-layer0",
@@ -48,11 +44,10 @@ def parse_args() -> argparse.Namespace:
         help="Run only Layer1 preprocessing from local Layer0 artifacts.",
     )
     parser.add_argument(
-        "--only-layer25",
-        "--only-layer2.5",
-        dest="only_layer25",
+        "--only-super-table",
+        dest="only_super_table",
         action="store_true",
-        help="Run only Layer2.5 fusion from local Layer1 artifacts.",
+        help="Run only SuperTable fusion from local Layer1 artifacts.",
     )
     parser.add_argument(
         "--latest-only",
@@ -154,9 +149,9 @@ def parse_args() -> argparse.Namespace:
         help="Deprecated alias for stopping after Layer0 ingestion.",
     )
     parser.add_argument(
-        "--skip-layer25",
+        "--skip-super-table",
         action="store_true",
-        help="Deprecated alias for stopping before Layer2.5 fusion.",
+        help="Stop after Layer1 and skip SuperTable fusion.",
     )
     parser.add_argument(
         "--publish-result",
@@ -170,6 +165,18 @@ def parse_args() -> argparse.Namespace:
         help="Result publish mode: snapshot bootstraps all history, append only pushes records newer than the last publish state.",
     )
     parser.add_argument(
+        "--result-payload-scope",
+        choices=("full", "diagnosis-only"),
+        default="full",
+        help="Result payload scope: full publishes history + latest + analysis, diagnosis-only publishes the current latest/analysis payload without history records.",
+    )
+    parser.add_argument(
+        "--result-runtime-experiment",
+        choices=("auto", "v0", "v1", "v2"),
+        default="auto",
+        help="Runtime tabular experiment target for result diagnosis. Auto picks the strongest approved four-class artifact among v0/v1/v2 by validation macro-F1, then falls back to binary if four-class is unavailable.",
+    )
+    parser.add_argument(
         "--result-dry-run",
         action="store_true",
         help="Build the result payload and local manifest without writing to Firebase RTDB.",
@@ -177,7 +184,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--only-result",
         action="store_true",
-        help="Skip Layer0/Layer1/Layer2.5 and publish result from existing local artifacts only.",
+        help="Skip Layer0/Layer1/SuperTable and publish result from existing local artifacts only.",
     )
     parser.add_argument(
         "--inject-telemetry-template",
@@ -198,9 +205,15 @@ def parse_args() -> argparse.Namespace:
         help="Date key used for injected mock telemetry in YYYY-MM-DD. Defaults to 2026-05-20 for easy cleanup.",
     )
     parser.add_argument(
+        "--inject-sample-datetime",
+        type=str,
+        default=None,
+        help="Exact local sample datetime for single-record template injection in ISO format, for example 2026-05-20T13:45. Overrides inject-date-key for that single injection only.",
+    )
+    parser.add_argument(
         "--server-cycle-once",
         action="store_true",
-        help="Run one full server lifecycle: optional telemetry template injection, latest-only export, Layer1, optional Layer2.5, FT result publish.",
+        help="Run one full server lifecycle: optional telemetry template injection, latest-only export, Layer1, optional SuperTable, FT result publish.",
     )
     parser.add_argument(
         "--demo-bootstrap-day",
@@ -213,9 +226,15 @@ def parse_args() -> argparse.Namespace:
         help="Inject a post-12h demo episode for the selected template, sync that ts range from Firebase, run Layer1, and publish FT result.",
     )
     parser.add_argument(
-        "--server-cycle-skip-layer25",
+        "--server-cycle-skip-super-table",
         action="store_true",
-        help="When --server-cycle-once is used, skip Layer2.5 fusion and only refresh Layer0/Layer1/result.",
+        help="When --server-cycle-once is used, skip SuperTable fusion and only refresh Layer0/Layer1/result.",
+    )
+    parser.add_argument(
+        "--prune-output-after-local-date",
+        type=str,
+        default=None,
+        help="Prune local Layer1 and benchmark dataset outputs newer than this local date in YYYY-MM-DD. This maintenance command does not touch Layer0 raw sources.",
     )
 
     args = parser.parse_args()
@@ -224,9 +243,9 @@ def parse_args() -> argparse.Namespace:
 
 
 def validate_args(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
-    only_layers = [args.only_layer0, args.only_layer1, args.only_layer25]
+    only_layers = [args.only_layer0, args.only_layer1, args.only_super_table]
     if sum(1 for enabled in only_layers if enabled) > 1:
-        parser.error("Use only one of --only-layer0, --only-layer1, or --only-layer2.5.")
+        parser.error("Use only one of --only-layer0, --only-layer1, or --only-super-table.")
 
     if args.target_layer is not None:
         try:
@@ -245,6 +264,46 @@ def validate_args(args: argparse.Namespace, parser: argparse.ArgumentParser) -> 
         parser.error("--latest-only cannot be combined with date-range options.")
     if args.only_result and not args.publish_result:
         parser.error("--only-result requires --publish-result.")
+
+    if args.prune_output_after_local_date is not None:
+        try:
+            date.fromisoformat(str(args.prune_output_after_local_date))
+        except ValueError:
+            parser.error("--prune-output-after-local-date must be in YYYY-MM-DD format.")
+        forbidden = [
+            args.target_layer is not None,
+            args.only_layer0,
+            args.only_layer1,
+            args.only_super_table,
+            args.latest_only,
+            args.start_date is not None,
+            args.end_date is not None,
+            args.source is not None,
+            args.input_json is not None,
+            args.node_id is not None,
+            args.node_slug is not None,
+            args.npk_sensor_id is not None,
+            args.npk_sensor_type is not None,
+            args.sht30_sensor_id is not None,
+            args.sht30_sensor_type is not None,
+            args.full_history,
+            args.sync_meteo,
+            args.meteo_start_date is not None,
+            args.meteo_end_date is not None,
+            args.include_meteo_archive_layer1,
+            args.layer2_only,
+            args.skip_layer2,
+            args.skip_super_table,
+            args.publish_result,
+            args.only_result,
+            args.inject_telemetry_template is not None,
+            args.server_cycle_once,
+            args.demo_bootstrap_day,
+            args.server_cycle_demo,
+            args.server_cycle_skip_super_table,
+        ]
+        if any(forbidden):
+            parser.error("--prune-output-after-local-date must be used as a standalone maintenance command.")
     if args.result_dry_run and not args.publish_result:
         parser.error("--result-dry-run requires --publish-result.")
     if args.server_cycle_once and args.only_result:
@@ -257,16 +316,36 @@ def validate_args(args: argparse.Namespace, parser: argparse.ArgumentParser) -> 
         parser.error("--server-cycle-demo cannot be combined with --server-cycle-once.")
     if args.server_cycle_demo and args.inject_telemetry_template is None:
         parser.error("--server-cycle-demo requires --inject-telemetry-template.")
+    if args.inject_sample_datetime is not None and args.inject_telemetry_template is None:
+        parser.error("--inject-sample-datetime requires --inject-telemetry-template.")
+    if args.inject_sample_datetime is not None and args.demo_bootstrap_day:
+        parser.error("--inject-sample-datetime cannot be combined with --demo-bootstrap-day.")
+    if args.inject_sample_datetime is not None and args.server_cycle_demo:
+        parser.error("--inject-sample-datetime cannot be combined with --server-cycle-demo.")
+    if args.inject_sample_datetime is not None and args.server_cycle_once:
+        parser.error("--inject-sample-datetime cannot be combined with --server-cycle-once.")
     try:
         date.fromisoformat(args.inject_date_key)
     except ValueError:
         parser.error(f"--inject-date-key must use YYYY-MM-DD, got: {args.inject_date_key}")
+    if args.inject_sample_datetime is not None:
+        normalized_sample_datetime = str(args.inject_sample_datetime).strip()
+        if "T" not in normalized_sample_datetime and " " not in normalized_sample_datetime:
+            parser.error(
+                "--inject-sample-datetime must include both date and time, for example 2026-05-20T13:45."
+            )
+        try:
+            datetime.fromisoformat(normalized_sample_datetime.replace("Z", "+00:00"))
+        except ValueError:
+            parser.error(
+                "--inject-sample-datetime must use ISO local datetime, for example 2026-05-20T13:45."
+            )
 
 
 def normalize_layer_name(value: str) -> str:
     normalized = value.strip().lower().replace("_", "").replace("-", "")
     if normalized not in LAYER_ALIASES:
-        raise ValueError(f"Unknown layer '{value}'. Use layer0, layer1, or layer2.5.")
+        raise ValueError(f"Unknown layer '{value}'. Use layer0, layer1, or super-table.")
     return LAYER_ALIASES[normalized]
 
 
@@ -277,7 +356,7 @@ def resolve_layer_plan(args: argparse.Namespace) -> tuple[bool, bool, bool]:
         return True, False, False
     if args.only_layer1:
         return False, True, False
-    if args.only_layer25:
+    if args.only_super_table:
         return False, False, True
 
     if args.target_layer is not None:
@@ -285,13 +364,13 @@ def resolve_layer_plan(args: argparse.Namespace) -> tuple[bool, bool, bool]:
         return (
             target_order >= LAYER_ORDER["layer0"],
             target_order >= LAYER_ORDER["layer1"],
-            target_order >= LAYER_ORDER["layer25"],
+            target_order >= LAYER_ORDER["super_table"],
         )
 
     run_layer0 = not args.layer2_only
     run_layer1 = not args.skip_layer2
-    run_layer25 = run_layer1 and not args.skip_layer25
-    return run_layer0, run_layer1, run_layer25
+    run_super_table = run_layer1 and not args.skip_super_table
+    return run_layer0, run_layer1, run_super_table
 
 
 def build_runtime_settings(args: argparse.Namespace) -> BackendSettings:
@@ -551,17 +630,17 @@ def run_layer1(args: argparse.Namespace, settings: BackendSettings) -> None:
         print(f"  {sensor_key}: {count}")
 
 
-def run_layer25() -> None:
-    layer25_result = Layer25FusionPipeline().run()
-    print("--- Layer2.5 fusion hoan tat ---")
-    print(f"Layer2.5 status: {layer25_result.status}")
-    print(f"Layer2.5 source snapshots: {layer25_result.source_snapshot_count}")
-    print(f"Layer2.5 fused rows: {layer25_result.fused_row_count}")
-    print(f"Layer2.5 output root: {layer25_result.output_root}")
-    print(f"Layer2.5 manifest: {layer25_result.manifest_path}")
-    print(f"Layer2.5 latest: {layer25_result.latest_path}")
-    print(f"Layer2.5 JSONL: {layer25_result.jsonl_path}")
-    print(f"Layer2.5 CSV: {layer25_result.csv_path}")
+def run_super_table() -> None:
+    super_table_result = SuperTableFusionPipeline().run()
+    print("--- SuperTable fusion hoan tat ---")
+    print(f"SuperTable status: {super_table_result.status}")
+    print(f"SuperTable source snapshots: {super_table_result.source_snapshot_count}")
+    print(f"SuperTable fused rows: {super_table_result.fused_row_count}")
+    print(f"SuperTable output root: {super_table_result.output_root}")
+    print(f"SuperTable manifest: {super_table_result.manifest_path}")
+    print(f"SuperTable latest: {super_table_result.latest_path}")
+    print(f"SuperTable JSONL: {super_table_result.jsonl_path}")
+    print(f"SuperTable CSV: {super_table_result.csv_path}")
 
 
 def run_result_publish(args: argparse.Namespace, settings: BackendSettings) -> None:
@@ -578,17 +657,25 @@ def run_result_publish(args: argparse.Namespace, settings: BackendSettings) -> N
             from Services.clients import FirebaseRTDBClient
         firebase_service = FirebaseRTDBClient()
     publisher = ResultPublisherPipeline(settings=settings, firebase_service=firebase_service)
-    publish_result = publisher.run(mode=args.result_mode, dry_run=args.result_dry_run)
+    publish_result = publisher.run(
+        mode=args.result_mode,
+        dry_run=args.result_dry_run,
+        payload_scope=args.result_payload_scope,
+        runtime_experiment=args.result_runtime_experiment,
+    )
 
     print("--- Result publisher hoan tat ---")
     print(f"Result status: {publish_result.status}")
     print(f"Requested mode: {publish_result.requested_mode}")
     print(f"Effective mode: {publish_result.effective_mode}")
     print(f"Dry run: {publish_result.dry_run}")
+    print(f"Payload scope: {publish_result.payload_scope}")
     print(f"Result path: {publish_result.result_path}")
     print(f"Last published ts: {publish_result.last_published_ts}")
     print(f"Diagnosis label: {publish_result.diagnosis_label}")
     print(f"Diagnosis abnormal probability: {publish_result.diagnosis_probability}")
+    print(f"Runtime model family: {publish_result.runtime_model_family}")
+    print(f"Runtime experiment: {publish_result.runtime_experiment}")
     print(f"History counts: {publish_result.history_counts}")
     print(f"History last ts: {publish_result.history_last_ts}")
     print(f"Result state path: {publish_result.state_path}")
@@ -610,6 +697,7 @@ def run_telemetry_template_injection(args: argparse.Namespace, settings: Backend
         template_id=int(args.inject_telemetry_template),
         packet_gap_minutes=int(args.inject_packet_gap_minutes),
         inject_date_key=str(args.inject_date_key),
+        inject_sample_datetime=args.inject_sample_datetime,
     )
     print("--- Da inject telemetry template vao Firebase ---")
     print(f"Template id: {inject_result.template_id}")
@@ -634,7 +722,7 @@ def run_server_cycle_once(args: argparse.Namespace, settings: BackendSettings) -
         template_id=args.inject_telemetry_template,
         packet_gap_minutes=int(args.inject_packet_gap_minutes),
         inject_date_key=str(args.inject_date_key),
-        include_layer25=not args.server_cycle_skip_layer25,
+        include_super_table=not args.server_cycle_skip_super_table,
         result_mode="append",
     )
     print("--- Server cycle hoan tat ---")
@@ -643,7 +731,7 @@ def run_server_cycle_once(args: argparse.Namespace, settings: BackendSettings) -
     print(f"Telemetry path: {cycle_result.telemetry_path}")
     print(f"Export status: {cycle_result.export_status}")
     print(f"Layer1 status: {cycle_result.layer1_status}")
-    print(f"Layer2.5 status: {cycle_result.layer25_status}")
+    print(f"SuperTable status: {cycle_result.super_table_status}")
     print(f"Result status: {cycle_result.result_status}")
     print(f"Result label: {cycle_result.result_label}")
     print(f"Result path: {cycle_result.result_path}")
@@ -661,7 +749,7 @@ def run_demo_bootstrap_day(args: argparse.Namespace, settings: BackendSettings) 
     cycle = TelemetryServerCyclePipeline(settings=settings, firebase_service=firebase_service)
     result = cycle.bootstrap_demo_day(
         inject_date_key=str(args.inject_date_key),
-        include_layer25=not args.server_cycle_skip_layer25,
+        include_super_table=not args.server_cycle_skip_super_table,
     )
     print("--- Demo bootstrap 20/5 hoan tat ---")
     print(f"Bootstrap status: {result.status}")
@@ -673,7 +761,7 @@ def run_demo_bootstrap_day(args: argparse.Namespace, settings: BackendSettings) 
     print(f"Range end ts: {result.range_end_ts}")
     print(f"Export status: {result.export_status}")
     print(f"Layer1 status: {result.layer1_status}")
-    print(f"Layer2.5 status: {result.layer25_status}")
+    print(f"SuperTable status: {result.super_table_status}")
 
 
 def run_server_cycle_demo(args: argparse.Namespace, settings: BackendSettings) -> None:
@@ -690,7 +778,7 @@ def run_server_cycle_demo(args: argparse.Namespace, settings: BackendSettings) -
         template_id=int(args.inject_telemetry_template),
         packet_gap_minutes=int(args.inject_packet_gap_minutes),
         inject_date_key=str(args.inject_date_key),
-        include_layer25=not args.server_cycle_skip_layer25,
+        include_super_table=not args.server_cycle_skip_super_table,
         result_mode="append",
     )
     print("--- Server demo cycle hoan tat ---")
@@ -702,10 +790,32 @@ def run_server_cycle_demo(args: argparse.Namespace, settings: BackendSettings) -
     print(f"Range end ts: {result.range_end_ts}")
     print(f"Export status: {result.export_status}")
     print(f"Layer1 status: {result.layer1_status}")
-    print(f"Layer2.5 status: {result.layer25_status}")
+    print(f"SuperTable status: {result.super_table_status}")
     print(f"Result status: {result.result_status}")
     print(f"Result label: {result.result_label}")
     print(f"Result path: {result.result_path}")
+
+
+def run_output_cutoff_maintenance(args: argparse.Namespace, settings: BackendSettings) -> None:
+    if __package__:
+        from .Services.output_cutoff_maintenance import prune_outputs_after_local_date
+    else:
+        from Services.output_cutoff_maintenance import prune_outputs_after_local_date
+
+    result = prune_outputs_after_local_date(
+        cutoff_local_date=str(args.prune_output_after_local_date),
+        timezone_name=str(settings.timezone),
+    )
+    print("--- Output cutoff maintenance hoan tat ---")
+    print(f"Cutoff local date: {result.cutoff_local_date}")
+    print(f"Cutoff local end: {result.cutoff_local_iso}")
+    print(f"Cutoff UTC ts: {result.cutoff_ts_utc}")
+    print(f"Layer1 row counts: {result.layer1_row_counts}")
+    print(f"Layer1 removed counts: {result.layer1_removed_counts}")
+    print(f"Benchmark row counts: {result.benchmark_row_counts}")
+    print(f"Benchmark removed counts: {result.benchmark_removed_counts}")
+    print(f"four_class counts: {result.four_class_counts}")
+    print(f"Updated files: {len(result.updated_files)}")
 
 
 def main() -> None:
@@ -715,6 +825,10 @@ def main() -> None:
         print("--- Tu dong bat --sync-meteo vi co meteo start/end date ---")
 
     settings = build_runtime_settings(args)
+
+    if args.prune_output_after_local_date is not None:
+        run_output_cutoff_maintenance(args=args, settings=settings)
+        return
 
     if args.demo_bootstrap_day:
         run_demo_bootstrap_day(args=args, settings=settings)
@@ -732,7 +846,7 @@ def main() -> None:
         run_telemetry_template_injection(args=args, settings=settings)
         return
 
-    run_layer0_flag, run_layer1_flag, run_layer25_flag = resolve_layer_plan(args)
+    run_layer0_flag, run_layer1_flag, run_super_table_flag = resolve_layer_plan(args)
 
     if run_layer0_flag:
         if not run_layer0(args=args, settings=settings):
@@ -745,10 +859,10 @@ def main() -> None:
     else:
         print("--- Bo qua Layer1 preprocessing ---")
 
-    if run_layer25_flag:
-        run_layer25()
+    if run_super_table_flag:
+        run_super_table()
     else:
-        print("--- Bo qua Layer2.5 fusion ---")
+        print("--- Bo qua SuperTable fusion ---")
 
     if args.publish_result:
         run_result_publish(args=args, settings=settings)

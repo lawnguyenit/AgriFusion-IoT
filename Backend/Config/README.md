@@ -1,50 +1,85 @@
 # Backend Config
 
-## Mục đích
+## 1. Mục đích
 
-`Backend/Config` là nguồn chuẩn duy nhất cho:
+`Backend/Config` là lớp cấu hình dùng chung cho toàn bộ backend. Đây là nơi gom:
 
-- env loader
-- runtime settings
-- path registry
-- helper coercion/time
-- JSON/JSONL storage
-- CSV helper dùng chung
+- đọc biến môi trường
+- chuẩn hóa path
+- runtime setting
+- helper thời gian
+- helper JSON, JSONL, CSV
 
-## Input
+Mục tiêu của module này là làm cho mọi bước trong pipeline tái lập được và không phải hard-code đường dẫn trong từng service.
 
-- `Backend/Services/.env`
-- đường dẫn repo/backend hiện tại
-- payload JSON/JSONL/CSV do các module khác đưa vào
-
-## Output
-
-- object settings/path dùng chung cho `Core`, `Services`, `Benchmark`
-- helper IO và coercion tái sử dụng
-
-## Thành phần chính
+## 2. Kiến trúc xử lý
 
 ```text
 Config/
-|-- env.py
-|-- runtime.py
-|-- paths.py
-|-- common.py
-|-- storage.py
+|-- env.py        -> đọc .env và ép kiểu biến môi trường
+|-- paths.py      -> registry các path chuẩn của backend
+|-- runtime.py    -> BackendSettings và override từ CLI
+|-- common.py     -> helper thời gian, ép kiểu, thống kê nhỏ
+|-- storage.py    -> đọc/ghi JSON, JSONL, gzip, hash
 `-- IO/
-    `-- io_csv.py
+    `-- io_csv.py -> helper đọc/ghi CSV
 ```
 
-## Command chạy nếu có
+## 3. Input
 
-Không có command chạy riêng. Các module này được import bởi `Backend/main.py` và các pipeline backend khác.
+- `Backend/Services/.env`
+- vị trí thật của repository trên máy
+- dữ liệu JSON, JSONL, CSV do các module khác truyền vào
 
-## Giả định xử lý
+## 4. Output
 
-- `runtime.py` là nguồn chuẩn cho runtime settings.
+- object `BackendSettings`
+- object `BackendPaths`
+- helper IO ổn định cho `Services`, `Core`, `Benchmark`
+
+## 5. Ví dụ kết quả
+
+### 5.1. Ví dụ `BackendSettings`
+
+```python
+settings.source_type == "firebase"
+settings.node_id == "Node1"
+settings.layer1_root == Path(".../Backend/Output_data/Layer1")
+```
+
+### 5.2. Ví dụ path được chuẩn hóa
+
+```text
+Backend/Output_data/Layer0
+Backend/Output_data/Layer1
+Backend/Output_data/SuperTable
+Backend/Output_data/Result_publish
+```
+
+## 6. Cách tái lập
+
+- Tạo file `Backend/Services/.env`
+- Điền tối thiểu:
+  - `FIREBASE_KEY_PATH`
+  - `DATABASE_URL`
+  - `EXPORT_SOURCE`
+  - `EXPORT_NODE_ID`
+- Chạy các command qua `Backend/main.py`
+
+## 7. Thư viện cần cài
+
+- `python-dotenv`
+- `pandas`
+
+Ngoài ra module này chỉ dùng thư viện chuẩn của Python cho phần còn lại.
+
+## 8. Giả định xử lý
+
+- `runtime.py` là nguồn chuẩn cho toàn bộ setting runtime.
 - `paths.py` là nguồn chuẩn cho path nội bộ backend.
-- `storage.py` là nguồn chuẩn cho JSON/JSONL IO.
+- `storage.py` là helper chuẩn cho JSON/JSONL.
 
-## Rủi ro / giới hạn hiện tại
+## 9. Rủi ro và giới hạn
 
-- `IO/io_csv.py` vẫn còn một số comment/naming cũ và có thể tiếp tục được làm gọn ở đợt kỹ thuật sau nếu cần.
+- Nếu `.env` thiếu hoặc sai, lỗi sẽ xuất hiện từ rất sớm ở service client hoặc Layer0.
+- Thay đổi path chuẩn trong `Config` có thể ảnh hưởng dây chuyền đến `Core`, `Services`, `Benchmark`.

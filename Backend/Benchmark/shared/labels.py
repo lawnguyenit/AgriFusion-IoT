@@ -93,19 +93,19 @@ def get_label_scheme(name: str) -> LabelScheme:
         raise ValueError(f"Unsupported label scheme: {name}. Available: {available}") from exc
 
 
-def default_context_build_root(context_classifier_root: Path, label_scheme_name: str, variant: str = "augmented") -> Path:
+def default_context_build_root(context_benchmark_root: Path, label_scheme_name: str, variant: str = "augmented") -> Path:
     scheme = get_label_scheme(label_scheme_name)
-    return (context_classifier_root / "artifacts" / "builds" / scheme.build_root_name / variant).resolve()
+    return (context_benchmark_root / "artifacts" / "builds" / scheme.build_root_name / variant).resolve()
 
 
-def default_context_training_root(context_classifier_root: Path, label_scheme_name: str) -> Path:
+def default_context_training_root(context_benchmark_root: Path, label_scheme_name: str) -> Path:
     scheme = get_label_scheme(label_scheme_name)
-    return (context_classifier_root / "artifacts" / "training" / scheme.build_root_name).resolve()
+    return (context_benchmark_root / "artifacts" / "training" / scheme.build_root_name).resolve()
 
 
-def default_context_report_root(context_classifier_root: Path, label_scheme_name: str) -> Path:
+def default_context_report_root(context_benchmark_root: Path, label_scheme_name: str) -> Path:
     scheme = get_label_scheme(label_scheme_name)
-    return (context_classifier_root / "artifacts" / "reports" / scheme.build_root_name).resolve()
+    return (context_benchmark_root / "artifacts" / "reports" / scheme.build_root_name).resolve()
 
 
 def normalize_context_label_name(label: str) -> str:

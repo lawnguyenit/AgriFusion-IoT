@@ -1,49 +1,96 @@
 # Backend Core
 
-## Mục đích
+## 1. Mục đích
 
-`Backend/Core` chỉ chứa logic xử lý dữ liệu nội bộ sau khi Layer0 raw artifacts đã có sẵn trên máy.
+`Backend/Core` chứa phần xử lý dữ liệu nội bộ sau khi raw artifact đã được kéo về máy. Đây là nơi diễn ra logic chuẩn hóa dữ liệu và hợp nhất dữ liệu, tách biệt hoàn toàn với phần giao tiếp Firebase/API.
 
-Core không còn là nơi giữ runtime settings, env loader hay service client. Những phần đó đã được gom về `Backend/Config` và `Backend/Services`.
-
-## Input
-
-- `Backend/Output_data/Layer0/**`
-- `Backend/Output_data/Layer1/**` cho các bước fusion/canonical về sau
-
-## Output
-
-- `Backend/Output_data/Layer1/**`
-- `Backend/Output_data/Layer2.5/**`
-- dataset trung gian cho benchmark/canonical
-
-## Cấu trúc
+## 2. Kiến trúc xử lý
 
 ```text
 Core/
 |-- layer1/
-|-- layer2/
+|   +-- pipelines/
+|   +-- processors/
+|   `-- signals/
 |-- fusion/
+|-- layer2/
 |-- canonical/
 |-- contracts/
-`-- utils/              # compatibility wrapper sang Backend/Config
+`-- utils/
 ```
 
-## Nguyên tắc
+Vai trò từng nhánh:
 
-- `layer1/`: chuẩn hoá raw Layer0 thành snapshot theo stream.
-- `layer2/`: feature builder tái sử dụng cho benchmark/runtime.
-- `fusion/`: hợp nhất Layer1 thành super table Layer2.5.
-- `canonical/`: đổi Layer2.5 sang format bảng/matrix cho ML.
-- `utils/` không giữ implementation gốc nữa; implementation chuẩn nằm ở `Backend/Config`.
+- `layer1/`: đọc raw Layer0 và tạo snapshot theo stream.
+- `fusion/`: hợp nhất snapshot thành `SuperTable`.
+- `layer2/`: helper sinh feature time-window cho benchmark và reuse.
+- `canonical/`: chuyển `SuperTable` sang dạng bảng chuẩn cho mô hình downstream.
 
-## Giả định xử lý
+## 3. Vị trí trong luồng
 
-- Trục thời gian chính vẫn là `ts_server`.
-- Schema output Layer1/Layer2.5 giữ ổn định để không làm gãy benchmark hiện có.
-- `Layer1Result` là tên chuẩn cho kết quả preprocessing Layer1.
+```text
+Layer0 raw local
+-> Core/layer1
+-> Backend/Output_data/Layer1
+-> Core/fusion
+-> Backend/Output_data/SuperTable
+```
 
-## Rủi ro / giới hạn hiện tại
+## 4. Input
 
-- Một số tài liệu benchmark cũ vẫn có thể gọi Layer1 output bằng naming legacy.
-- Output folder chưa rename vật lý để tránh migration dữ liệu lớn trong cùng đợt refactor này.
+- `Backend/Output_data/Layer0/**`
+- `Backend/Output_data/Layer1/**` cho các bước fusion/canonical về sau
+
+## 5. Output
+
+- `Backend/Output_data/Layer1/**`
+- `Backend/Output_data/SuperTable/**`
+- dữ liệu trung gian cho benchmark/canonical
+
+## 6. Ví dụ kết quả
+
+### 6.1. Snapshot theo stream
+
+```json
+{
+  "sensor_id": "npk_7in1_1",
+  "timestamps": {
+    "ts_server": 1778387046
+  },
+  "perception": {
+    "n_ppm": 43.0,
+    "soil_humidity_pct": 55.8
+  }
+}
+```
+
+### 6.2. Hàng trong SuperTable
+
+```json
+{
+  "ts_server": 1778387046,
+  "sht30__sht30_1__perception__temp_air_c": 35.09,
+  "npk__npk_7in1_1__perception__n_ppm": 43.0
+}
+```
+
+## 7. Điểm cần đọc kỹ để tránh hiểu sai
+
+- Tên pipeline hiện tại là `Layer1`, nhưng snapshot từng stream vẫn ghi `layer = "layer2"` trong payload do legacy contract.
+- README giải thích lại để audit hiểu đúng, nhưng đợt này không đổi schema vì sẽ ảnh hưởng benchmark và runtime đang có.
+
+## 8. Thư viện cần cài
+
+- `numpy`
+- `pandas`
+
+## 9. Giả định xử lý
+
+- `ts_server` là trục thời gian chuẩn.
+- `Core` không tự đọc `.env` và không tự kết nối dịch vụ ngoài.
+- Mọi path và settings đều đi qua `Backend/Config`.
+
+## 10. Rủi ro và giới hạn
+
+- Một số tên class/naming vẫn mang dấu vết lịch sử, nhất là vùng `layer1/pipelines`.
+- Đổi contract output ở đây sẽ kéo theo thay đổi ở `Services/result_publisher`, `Benchmark` và `Frontend`.

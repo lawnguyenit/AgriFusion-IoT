@@ -1,15 +1,28 @@
 # Result Publisher
 
-## Purpose
+## Muc dich
 
-This module reads local Layer1 artifacts, rebuilds runtime features, and publishes the dashboard-ready `result` payload back to Firebase RTDB.
+`result_publisher` la module noi `Layer1` voi nhanh `result/*` tren Firebase RTDB de frontend co the doc duoc:
 
-Runtime settings and shared IO helpers are now resolved from the centralized `Backend/Config` layer rather than being duplicated inside Services.
+- du lieu latest theo tung nhom cam bien
+- lich su de ve chart
+- ket qua runtime classification
+- forecast / anomaly / recommendation phuc vu dashboard
 
-The current runtime preference is:
+Day la buoc cuoi cua backend truoc khi web hien thi ket qua.
 
-1. `FT-Transformer option2_4class` from `Backend/Benchmark/context_classifier`
-2. fallback to the older runtime-compatible `xgboost` artifact if FT is unavailable
+## Kien truc xu ly
+
+```text
+Layer1 local artifact
+-> load latest.json + history.jsonl theo tung group
+-> dung feature runtime tu lich su chung timestamp
+-> tim runtime model phu hop
+-> predict diagnosis
+-> build forecast / rule signals / anomalies / recommendations
+-> ghi local debug artifact
+-> publish len Firebase result/*
+```
 
 ## Input
 
@@ -17,13 +30,15 @@ The current runtime preference is:
 - `Backend/Output_data/Layer1/sht30/latest.json`
 - `Backend/Output_data/Layer1/npk/history.jsonl`
 - `Backend/Output_data/Layer1/npk/latest.json`
-- `Backend/Benchmark/context_classifier/outputs_option2_4class/training/**`
-- fallback runtime artifacts from `Backend/Benchmark/direct_benchmark/outputs/**`
+- `Backend/Output_data/Layer1/meteo/history.jsonl` neu co
+- `Backend/Output_data/Layer1/meteo/latest.json` neu co
+- artifact model trong `Backend/Benchmark/tabular_benchmark/artifacts/four_class/training/**`
+- fallback artifact trong `Backend/Benchmark/tabular_benchmark/artifacts/binary/training/**`
 - `Backend/Services/.env`
 
 ## Output
 
-Firebase RTDB:
+### Firebase RTDB
 
 - `result/meta`
 - `result/pipeline`
@@ -31,54 +46,104 @@ Firebase RTDB:
 - `result/history/{air,soil,npk,weather}`
 - `result/analysis`
 
-Local debug artifacts:
+### Local debug artifact
 
 - `Backend/Output_data/Result_publish/latest_result_payload.json`
 - `Backend/Output_data/Result_publish/latest_publish_manifest.json`
 - `Backend/Output_data/Result_publish/result_sync_state.json`
+- `Backend/Output_data/Result_publish/report_charts/chart_manifest.json`
+- `Backend/Output_data/Result_publish/report_charts/*.svg`
+- `Backend/Output_data/Result_publish/report_charts/*.png`
 
-## Runtime diagnosis behavior
+## Command chay
 
-- Publishes the predicted 4-class label directly when FT runtime is active:
+### Snapshot full
+
+```powershell
+python -m Backend.main --only-result --publish-result --result-mode snapshot --result-payload-scope full
+```
+
+### Append an toan
+
+```powershell
+python -m Backend.main --only-result --publish-result --result-mode append --result-payload-scope full
+```
+
+### Chi publish latest + analysis
+
+```powershell
+python -m Backend.main --only-result --publish-result --result-mode append --result-payload-scope diagnosis-only
+```
+
+### Chon runtime experiment
+
+```powershell
+python -m Backend.main --only-result --publish-result --result-mode append --result-runtime-experiment auto
+python -m Backend.main --only-result --publish-result --result-mode append --result-runtime-experiment v0
+python -m Backend.main --only-result --publish-result --result-mode append --result-runtime-experiment v1
+python -m Backend.main --only-result --publish-result --result-mode append --result-runtime-experiment v2
+```
+
+### Dry-run
+
+```powershell
+python -m Backend.main --only-result --publish-result --result-mode append --result-dry-run
+```
+
+## Vi du ket qua
+
+### `result/meta`
+
+```json
+{
+  "source": "server",
+  "payloadScope": "full",
+  "lastPublishedTs": 1778387046
+}
+```
+
+### `result/latest`
+
+```json
+{
+  "air": {
+    "ts": 1778387046,
+    "temperature_c": 35.09,
+    "humidity_pct": 69.09
+  },
+  "soil": {
+    "ts": 1778387046,
+    "humidity_pct": 55.8
+  }
+}
+```
+
+## Gia dinh xu ly
+
+- `Layer1` artifact local da ton tai va con su dung duoc.
+- Frontend doc truc tiep contract `result/*`.
+- Runtime model hien tai uu tien lane `four_class` de tra truc tiep:
   - `normal_context`
   - `packet_loss_outage`
   - `water_deficit`
   - `rain_or_fertigation_context`
-- Publishes `labelId` so frontend can map the diagnosis to localized Vietnamese UI text without depending on backend display strings
-- Publishes `abnormalProbability = 1 - P(normal_context)`
-- Rebuilds packet-loss runtime features from timestamp gaps so the runtime path remains consistent with training assumptions
-- Loads trusted local FT checkpoints with `weights_only=True` and suppresses `scikit-learn` cross-version warning noise for persisted scaler/imputer artifacts so the runtime log stays clean
-- Runtime feature reconstruction now resolves against the current `context_classifier` tabular ladder (`v0/v1/v2/v3`) by matching the saved `feature_schema.json`, so newer FT artifacts no longer depend on the removed legacy builder names (`base/window/combo`)
+- Neu local artifact `four_class` khong san sang, publisher moi fallback ve lane `binary`.
+- `weather` la nhanh opportunistic; neu khong co `Layer1/meteo`, cac nhanh con lai van publish duoc.
 
-## Commands
+## Thu vien can cai
 
-Snapshot publish from local artifacts:
+- `numpy`
+- `pandas`
+- `scikit-learn`
+- `joblib`
+- `matplotlib`
+- `xgboost`
+- `firebase-admin`
 
-```powershell
-python Backend\main.py --only-result --publish-result --result-mode snapshot
-```
+## Rui ro va gioi han
 
-Append only new local records:
-
-```powershell
-python Backend\main.py --only-result --publish-result --result-mode append
-```
-
-Dry-run local payload generation:
-
-```powershell
-python Backend\main.py --only-result --publish-result --result-mode snapshot --result-dry-run
-```
-
-## Assumptions
-
-- Layer1 artifacts already exist and are current.
-- The best FT runtime artifact is taken from the strongest `option2_4class` training run currently discoverable.
-- Frontend consumes the `result/analysis/diagnosis` payload directly.
-- When FT artifacts come from the current tabular ladder, runtime feature generation is selected by saved feature names rather than hard-coded experiment aliases.
-
-## Risks / current limits
-
-- If FT runtime artifacts are missing or incompatible, the module falls back to XGBoost.
-- Runtime packet-loss detection is driven by timestamp-gap features; if online timestamps are malformed, diagnosis quality drops.
-- Forecast output remains heuristic and is separate from the FT diagnosis model.
+- Runtime hien tai uu tien `four_class`, nhung moi runtime loader `xgboost` duoc dung trong pha publish online.
+- Forecast hien tai la heuristic tu slope/range, khong phai mo hinh du bao rieng.
+- Neu artifact model cu tham chieu duong dan legacy, publisher phai remap path truoc khi load.
+- Tu ban sua nay, `result-mode append` khong con tu dong roi xuong `snapshot` khi mat `result_sync_state.json`.
+  Khi state local bi mat, publisher se append theo tung node con de tranh xoa `result/history` dang ton tai tren Firebase.

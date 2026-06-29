@@ -1,0 +1,1015 @@
+{
+  "stages": [
+    {
+      "id": "ingestion",
+      "title": "1. Data Ingestion / Firebase -> Layer0",
+      "role": "Keo du lieu telemetry tho tu Firebase ve local Layer0.",
+      "inputs": [
+        "Firebase RTDB telemetry",
+        "Backend/main.py"
+      ],
+      "outputs": [
+        "Backend/Output_data/Layer0/Firebase_data/history",
+        "Backend/Output_data/Layer0/Firebase_data/new_raw/latest.json"
+      ],
+      "warning": "",
+      "status_note": "Tap trung vao raw telemetry va lich su dong bo."
+    },
+    {
+      "id": "layer1",
+      "title": "2. Telemetry Normalization / Layer0 -> Layer1",
+      "role": "Chuan hoa raw telemetry thanh snapshot sensor va memory windows.",
+      "inputs": [
+        "Layer0 raw artifacts"
+      ],
+      "outputs": [
+        "Backend/Output_data/Layer1/sht30",
+        "Backend/Output_data/Layer1/npk",
+        "Backend/Output_data/Layer1/meteo"
+      ],
+      "warning": "",
+      "status_note": "Day la buoc tien xu ly, khong phai benchmark model."
+    },
+    {
+      "id": "aligned_table",
+      "title": "3. Aligned Benchmark Table",
+      "role": "Can chinh Layer1 theo thoi gian de tao bang benchmark nen chua gan nhan.",
+      "inputs": [
+        "Layer1 histories"
+      ],
+      "outputs": [
+        "Backend/Benchmark/benchmark_dataset/dataset/benchmark_input_aligned.csv"
+      ],
+      "warning": "",
+      "status_note": "Bang nay la benchmark nen, chua co weak label."
+    },
+    {
+      "id": "weak_labeling",
+      "title": "4. Weak Labeling & Label Audit",
+      "role": "Gan nhan yeu tu rule telemetry va metadata van hanh.",
+      "inputs": [
+        "benchmark_input_aligned.csv",
+        "Layer0 Firebase metadata"
+      ],
+      "outputs": [
+        "Backend/Benchmark/benchmark_dataset/dataset/benchmark_input_labeled.csv",
+        "Backend/Benchmark/benchmark_dataset/dataset/benchmark_labeling_report.json"
+      ],
+      "warning": "Labels are weak/heuristic labels generated from telemetry rules and operational context. They are not independent agronomic ground truth.",
+      "status_note": "Khong duoc dien giai nhan nay nhu ground truth nong hoc doc lap."
+    },
+    {
+      "id": "feature_engineering",
+      "title": "5. Feature Engineering / v0, v1, v2",
+      "role": "Tao cac benchmark feature set theo muc tieu ablation va temporal window.",
+      "inputs": [
+        "benchmark_input_aligned.csv",
+        "benchmark_input_labeled.csv"
+      ],
+      "outputs": [
+        "v0: benchmark_input_aligned.csv",
+        "v1: benchmark_input_aligned.csv subset",
+        "v2: single_window_exp2.csv"
+      ],
+      "warning": "v2 co the hoc lai mot phan logic rule neu rule gan nhan cung dua vao bien dong telemetry.",
+      "status_note": "UI map v0/v1/v2 theo raw_tabular_source_registry dang active trong repo."
+    },
+    {
+      "id": "temporal_split",
+      "title": "6. Temporal Split / Train-Validation-Test",
+      "role": "Chuan bi dataset theo thoi gian va kiem tra coverage lop hiem.",
+      "inputs": [
+        "benchmark_input_labeled.csv",
+        "feature exports"
+      ],
+      "outputs": [
+        "Backend/Benchmark/tabular_benchmark/artifacts/<lane>/datasets/<run_id>"
+      ],
+      "warning": "",
+      "status_note": "Split active dung temporal split, khong shuffle."
+    },
+    {
+      "id": "benchmarking",
+      "title": "7. Model Benchmarking",
+      "role": "Train telemetry classification benchmark for research comparison and model evaluation.",
+      "inputs": [
+        "Prepared tabular benchmark runs"
+      ],
+      "outputs": [
+        "Backend/Benchmark/tabular_benchmark/artifacts/<lane>/training/<run_id>"
+      ],
+      "warning": "Model nay chi benchmark kha nang khai thac telemetry theo nhan yeu, khong phai he thong ra quyet dinh canh tac.",
+      "status_note": "Dung ngon ngu benchmark result / telemetry classification / model evaluation."
+    },
+    {
+      "id": "report_publish",
+      "title": "8. Report & Dashboard Publish",
+      "role": "Tong hop metrics, chart va day ket qua len dashboard web.",
+      "inputs": [
+        "Training outputs",
+        "Layer1 result artifacts"
+      ],
+      "outputs": [
+        "Backend/Benchmark/tabular_benchmark/artifacts/<lane>/reports/<run_id>",
+        "Firebase result branch"
+      ],
+      "warning": "",
+      "status_note": "Repo hien tai sinh report markdown + PNG; khong tuyen bo co HTML/PDF neu artifact do chua ton tai."
+    },
+    {
+      "id": "defense_backup",
+      "title": "9. Audit & Defense",
+      "role": "Tong hop cac checklist va artifact de bao ve khoa luan.",
+      "inputs": [
+        "Feature schemas",
+        "Weak-label outputs",
+        "Split reports",
+        "Training reports"
+      ],
+      "outputs": [
+        "Defense audit text summary",
+        "Latest schema / checklist snapshots"
+      ],
+      "warning": "Can nhan manh proxy leakage gian tiep van co the ton tai du da loai bo label columns truc tiep.",
+      "status_note": "Panel nay phuc vu hoi dong hoi ve leakage, labels, split va limitation."
+    }
+  ],
+  "actions": [
+    {
+      "id": "sync_latest_layer0",
+      "stage_id": "ingestion",
+      "title": "Pull latest from Firebase",
+      "description": "Dong bo ban ghi moi nhat tu Firebase ve Layer0 local.",
+      "command_preview": "python Backend/main.py --only-layer0 --latest-only",
+      "danger_level": "medium",
+      "allow_dry_run": true,
+      "allow_overwrite": false,
+      "expected_outputs": [
+        "Backend/Output_data/Layer0/Firebase_data/new_raw/latest.json",
+        "Backend/Output_data/Layer0/Firebase_data/new_raw/latest_meta.json"
+      ]
+    },
+    {
+      "id": "sync_full_layer0",
+      "stage_id": "ingestion",
+      "title": "Pull full history",
+      "description": "Dong bo toan bo history Firebase ve Layer0 local.",
+      "command_preview": "python Backend/main.py --only-layer0 --full-history",
+      "danger_level": "high",
+      "allow_dry_run": true,
+      "allow_overwrite": false,
+      "expected_outputs": [
+        "Backend/Output_data/Layer0/Firebase_data/history"
+      ]
+    },
+    {
+      "id": "sync_day_layer0",
+      "stage_id": "ingestion",
+      "title": "Pull one day",
+      "description": "Dong bo Layer0 cho mot ngay cu the bang start/end date giong nhau.",
+      "command_preview": "python Backend/main.py --only-layer0 --full-history --start-date <single_date> --end-date <single_date>",
+      "danger_level": "medium",
+      "allow_dry_run": true,
+      "allow_overwrite": false,
+      "expected_outputs": [
+        "Backend/Output_data/Layer0/Firebase_data/history"
+      ]
+    },
+    {
+      "id": "sync_range_layer0",
+      "stage_id": "ingestion",
+      "title": "Pull date range",
+      "description": "Dong bo Layer0 theo khoang ngay chi dinh.",
+      "command_preview": "python Backend/main.py --only-layer0 --full-history --start-date <from_date> --end-date <to_date>",
+      "danger_level": "high",
+      "allow_dry_run": true,
+      "allow_overwrite": false,
+      "expected_outputs": [
+        "Backend/Output_data/Layer0/Firebase_data/history"
+      ]
+    },
+    {
+      "id": "check_raw_record_count",
+      "stage_id": "ingestion",
+      "title": "Check raw record count",
+      "description": "Dem nhanh so file raw va khoang ngay trong Layer0.",
+      "command_preview": "python -m Backend.DemoUI.pipeline_audits raw-count",
+      "danger_level": "low",
+      "allow_dry_run": false,
+      "allow_overwrite": false,
+      "expected_outputs": []
+    },
+    {
+      "id": "open_layer0_folder",
+      "stage_id": "ingestion",
+      "title": "Open Layer0 folder",
+      "description": "Mo folder output Layer0 trong Windows Explorer.",
+      "command_preview": "explorer Backend/Output_data/Layer0",
+      "danger_level": "low",
+      "allow_dry_run": false,
+      "allow_overwrite": false,
+      "expected_outputs": []
+    },
+
+    {
+      "id": "build_layer1",
+      "stage_id": "layer1",
+      "title": "Build Layer1",
+      "description": "Chay pipeline Layer1 tu Layer0 local.",
+      "command_preview": "python Backend/main.py --only-layer1",
+      "danger_level": "medium",
+      "allow_dry_run": true,
+      "allow_overwrite": false,
+      "expected_outputs": [
+        "Backend/Output_data/Layer1/manifest.json"
+      ]
+    },
+    {
+      "id": "validate_layer1",
+      "stage_id": "layer1",
+      "title": "Validate Layer1",
+      "description": "Kiem tra manifest, history count va output co san cua Layer1.",
+      "command_preview": "python -m Backend.DemoUI.pipeline_audits validate-layer1",
+      "danger_level": "low",
+      "allow_dry_run": false,
+      "allow_overwrite": false,
+      "expected_outputs": []
+    },
+    {
+      "id": "sensor_quality_summary",
+      "stage_id": "layer1",
+      "title": "Sensor quality summary",
+      "description": "Tong hop nhanh snapshot count, filtered count va valid ratio.",
+      "command_preview": "python -m Backend.DemoUI.pipeline_audits sensor-quality",
+      "danger_level": "low",
+      "allow_dry_run": false,
+      "allow_overwrite": false,
+      "expected_outputs": []
+    },
+    {
+      "id": "open_layer1_folder",
+      "stage_id": "layer1",
+      "title": "Open Layer1 folder",
+      "description": "Mo folder output Layer1.",
+      "command_preview": "explorer Backend/Output_data/Layer1",
+      "danger_level": "low",
+      "allow_dry_run": false,
+      "allow_overwrite": false,
+      "expected_outputs": []
+    },
+
+    {
+      "id": "build_aligned_benchmark_table",
+      "stage_id": "aligned_table",
+      "title": "Build aligned benchmark table",
+      "description": "Chi rebuild benchmark_input_aligned.csv.",
+      "command_preview": "python Backend/Benchmark/benchmark_dataset/main.py --skip-real-labeling --skip-single-window-features --skip-multi-window-features",
+      "danger_level": "medium",
+      "allow_dry_run": true,
+      "allow_overwrite": false,
+      "expected_outputs": [
+        "Backend/Benchmark/benchmark_dataset/dataset/benchmark_input_aligned.csv"
+      ]
+    },
+    {
+      "id": "check_telemetry_gaps",
+      "stage_id": "aligned_table",
+      "title": "Check telemetry gaps",
+      "description": "Tinh gap > 15m, 30m, 60m tren aligned table.",
+      "command_preview": "python -m Backend.DemoUI.pipeline_audits telemetry-gaps",
+      "danger_level": "low",
+      "allow_dry_run": false,
+      "allow_overwrite": false,
+      "expected_outputs": []
+    },
+    {
+      "id": "preview_aligned_data",
+      "stage_id": "aligned_table",
+      "title": "Preview aligned data",
+      "description": "In mau mot vai dong dau/cuoi cua aligned CSV.",
+      "command_preview": "python -m Backend.DemoUI.pipeline_audits preview-aligned",
+      "danger_level": "low",
+      "allow_dry_run": false,
+      "allow_overwrite": false,
+      "expected_outputs": []
+    },
+    {
+      "id": "export_alignment_summary",
+      "stage_id": "aligned_table",
+      "title": "Export alignment summary",
+      "description": "Tong hop alignment summary de phuc vu review.",
+      "command_preview": "python -m Backend.DemoUI.pipeline_audits alignment-summary",
+      "danger_level": "low",
+      "allow_dry_run": false,
+      "allow_overwrite": false,
+      "expected_outputs": []
+    },
+
+    {
+      "id": "run_weak_labeling",
+      "stage_id": "weak_labeling",
+      "title": "Run weak labeling",
+      "description": "Chi rebuild benchmark_input_labeled.csv tu aligned data va metadata.",
+      "command_preview": "python Backend/Benchmark/benchmark_dataset/main.py --skip-alignment --skip-single-window-features --skip-multi-window-features",
+      "danger_level": "medium",
+      "allow_dry_run": true,
+      "allow_overwrite": false,
+      "expected_outputs": [
+        "Backend/Benchmark/benchmark_dataset/dataset/benchmark_input_labeled.csv",
+        "Backend/Benchmark/benchmark_dataset/dataset/benchmark_labeling_report.json"
+      ]
+    },
+    {
+      "id": "show_big_label_distribution",
+      "stage_id": "weak_labeling",
+      "title": "Show big_label distribution",
+      "description": "Thong ke phan bo big_label va cac lane nhan.",
+      "command_preview": "python -m Backend.DemoUI.pipeline_audits label-distribution",
+      "danger_level": "low",
+      "allow_dry_run": false,
+      "allow_overwrite": false,
+      "expected_outputs": []
+    },
+    {
+      "id": "show_label_mapping",
+      "stage_id": "weak_labeling",
+      "title": "Show label mapping",
+      "description": "In anh xa event_primary -> big_label -> binary/tri_class/four_class.",
+      "command_preview": "python -m Backend.DemoUI.pipeline_audits label-mapping",
+      "danger_level": "low",
+      "allow_dry_run": false,
+      "allow_overwrite": false,
+      "expected_outputs": []
+    },
+    {
+      "id": "export_label_audit_report",
+      "stage_id": "weak_labeling",
+      "title": "Export label audit report",
+      "description": "In duong dan va tom tat labeling report.",
+      "command_preview": "python -m Backend.DemoUI.pipeline_audits label-audit-report",
+      "danger_level": "low",
+      "allow_dry_run": false,
+      "allow_overwrite": false,
+      "expected_outputs": []
+    },
+    {
+      "id": "preview_labeled_rows",
+      "stage_id": "weak_labeling",
+      "title": "Preview labeled rows",
+      "description": "In mau mot vai dong da gan nhan.",
+      "command_preview": "python -m Backend.DemoUI.pipeline_audits preview-labeled",
+      "danger_level": "low",
+      "allow_dry_run": false,
+      "allow_overwrite": false,
+      "expected_outputs": []
+    },
+
+    {
+      "id": "build_v0_features",
+      "stage_id": "feature_engineering",
+      "title": "Build v0 features",
+      "description": "Map v0 = benchmark_input_aligned.csv full raw chemistry baseline.",
+      "command_preview": "python -m Backend.DemoUI.pipeline_audits feature-summary --version v0",
+      "danger_level": "low",
+      "allow_dry_run": false,
+      "allow_overwrite": false,
+      "expected_outputs": [
+        "Backend/Benchmark/benchmark_dataset/dataset/benchmark_input_aligned.csv"
+      ]
+    },
+    {
+      "id": "build_v1_features",
+      "stage_id": "feature_engineering",
+      "title": "Build v1 features",
+      "description": "Map v1 = benchmark_input_aligned.csv subset moi truong + EC.",
+      "command_preview": "python -m Backend.DemoUI.pipeline_audits feature-summary --version v1",
+      "danger_level": "low",
+      "allow_dry_run": false,
+      "allow_overwrite": false,
+      "expected_outputs": [
+        "Backend/Benchmark/benchmark_dataset/dataset/benchmark_input_aligned.csv"
+      ]
+    },
+    {
+      "id": "build_v2_window_features",
+      "stage_id": "feature_engineering",
+      "title": "Build v2 window features",
+      "description": "Sinh single_window_exp2.csv de phuc vu v2 active.",
+      "command_preview": "python Backend/Benchmark/benchmark_dataset/single_window_features/main.py --experiment exp2",
+      "danger_level": "medium",
+      "allow_dry_run": true,
+      "allow_overwrite": false,
+      "expected_outputs": [
+        "Backend/Benchmark/benchmark_dataset/dataset/single_window_exp2.csv"
+      ]
+    },
+    {
+      "id": "build_all_feature_sets",
+      "stage_id": "feature_engineering",
+      "title": "Build all feature sets",
+      "description": "Chay full dataset pipeline de rebuild all single/multi-window exports.",
+      "command_preview": "python Backend/Benchmark/benchmark_dataset/main.py",
+      "danger_level": "high",
+      "allow_dry_run": true,
+      "allow_overwrite": false,
+      "expected_outputs": [
+        "Backend/Benchmark/benchmark_dataset/dataset/single_window_feature_build_report.json",
+        "Backend/Benchmark/benchmark_dataset/dataset/multi_window_feature_build_report.json"
+      ]
+    },
+    {
+      "id": "compare_feature_sets",
+      "stage_id": "feature_engineering",
+      "title": "Compare feature sets",
+      "description": "So sanh so cot va artifact cua v0/v1/v2 dang active.",
+      "command_preview": "python -m Backend.DemoUI.pipeline_audits feature-compare",
+      "danger_level": "low",
+      "allow_dry_run": false,
+      "allow_overwrite": false,
+      "expected_outputs": []
+    },
+    {
+      "id": "check_nan_missing_features",
+      "stage_id": "feature_engineering",
+      "title": "Check NaN / missing features",
+      "description": "Thong ke NaN va row bi anh huong boi window features.",
+      "command_preview": "python -m Backend.DemoUI.pipeline_audits feature-nan-check",
+      "danger_level": "low",
+      "allow_dry_run": false,
+      "allow_overwrite": false,
+      "expected_outputs": []
+    },
+
+    {
+      "id": "prepare_binary_datasets",
+      "stage_id": "temporal_split",
+      "title": "Prepare binary datasets",
+      "description": "Build tabular benchmark datasets cho lane binary.",
+      "command_preview": "python Backend/Benchmark/tabular_benchmark/prepare.py --label-mode binary",
+      "danger_level": "medium",
+      "allow_dry_run": true,
+      "allow_overwrite": false,
+      "expected_outputs": [
+        "Backend/Benchmark/tabular_benchmark/artifacts/binary/datasets"
+      ]
+    },
+    {
+      "id": "prepare_tri_class_datasets",
+      "stage_id": "temporal_split",
+      "title": "Prepare tri_class datasets",
+      "description": "Build tabular benchmark datasets cho lane tri_class.",
+      "command_preview": "python Backend/Benchmark/tabular_benchmark/prepare.py --label-mode tri_class",
+      "danger_level": "medium",
+      "allow_dry_run": true,
+      "allow_overwrite": false,
+      "expected_outputs": [
+        "Backend/Benchmark/tabular_benchmark/artifacts/tri_class/datasets"
+      ]
+    },
+    {
+      "id": "prepare_four_class_datasets",
+      "stage_id": "temporal_split",
+      "title": "Prepare four_class datasets",
+      "description": "Build tabular benchmark datasets cho lane four_class.",
+      "command_preview": "python Backend/Benchmark/tabular_benchmark/prepare.py --label-mode four_class",
+      "danger_level": "medium",
+      "allow_dry_run": true,
+      "allow_overwrite": false,
+      "expected_outputs": [
+        "Backend/Benchmark/tabular_benchmark/artifacts/four_class/datasets"
+      ]
+    },
+    {
+      "id": "prepare_all_benchmark_configs",
+      "stage_id": "temporal_split",
+      "title": "Prepare all benchmark configs",
+      "description": "Lan luot build 3 lane binary, tri_class, four_class.",
+      "command_preview": "python -m Backend.DemoUI.pipeline_audits prepare-all-lanes --dry-run supported",
+      "danger_level": "high",
+      "allow_dry_run": true,
+      "allow_overwrite": false,
+      "expected_outputs": [
+        "Backend/Benchmark/tabular_benchmark/artifacts"
+      ]
+    },
+    {
+      "id": "show_split_summary",
+      "stage_id": "temporal_split",
+      "title": "Show split summary",
+      "description": "Doc split_label_summary tu latest build run.",
+      "command_preview": "python -m Backend.DemoUI.pipeline_audits split-summary",
+      "danger_level": "low",
+      "allow_dry_run": false,
+      "allow_overwrite": false,
+      "expected_outputs": []
+    },
+    {
+      "id": "check_rare_class_coverage",
+      "stage_id": "temporal_split",
+      "title": "Check rare-class coverage",
+      "description": "Canh bao neu class hiem vang o validation/test.",
+      "command_preview": "python -m Backend.DemoUI.pipeline_audits rare-class-coverage",
+      "danger_level": "low",
+      "allow_dry_run": false,
+      "allow_overwrite": false,
+      "expected_outputs": []
+    },
+    {
+      "id": "check_purge_gap",
+      "stage_id": "temporal_split",
+      "title": "Check purge gap",
+      "description": "Thong ke excluded_gap tu latest build run.",
+      "command_preview": "python -m Backend.DemoUI.pipeline_audits purge-gap",
+      "danger_level": "low",
+      "allow_dry_run": false,
+      "allow_overwrite": false,
+      "expected_outputs": []
+    },
+
+    {
+      "id": "train_selected_config",
+      "stage_id": "benchmarking",
+      "title": "Train selected config",
+      "description": "Train lane va model duoc chon trong tuy chon nang cao.",
+      "command_preview": "python Backend/Benchmark/tabular_benchmark/train.py --label-mode binary --model-names xgboost",
+      "danger_level": "high",
+      "allow_dry_run": true,
+      "allow_overwrite": false,
+      "expected_outputs": [
+        "Backend/Benchmark/tabular_benchmark/artifacts"
+      ]
+    },
+    {
+      "id": "train_all_benchmark_configs",
+      "stage_id": "benchmarking",
+      "title": "Train all benchmark configs",
+      "description": "Train full model suite tren lane dang chon.",
+      "command_preview": "python Backend/Benchmark/tabular_benchmark/train.py --label-mode binary",
+      "danger_level": "high",
+      "allow_dry_run": true,
+      "allow_overwrite": false,
+      "expected_outputs": [
+        "Backend/Benchmark/tabular_benchmark/artifacts"
+      ]
+    },
+    {
+      "id": "train_xgboost_only",
+      "stage_id": "benchmarking",
+      "title": "Train XGBoost only",
+      "description": "Train nhanh benchmark chi voi xgboost.",
+      "command_preview": "python Backend/Benchmark/tabular_benchmark/train.py --label-mode binary --model-names xgboost",
+      "danger_level": "high",
+      "allow_dry_run": true,
+      "allow_overwrite": false,
+      "expected_outputs": [
+        "Backend/Benchmark/tabular_benchmark/artifacts"
+      ]
+    },
+    {
+      "id": "open_training_log",
+      "stage_id": "benchmarking",
+      "title": "Open training log",
+      "description": "Mo latest training folder cho lane dang chon.",
+      "command_preview": "explorer latest training run",
+      "danger_level": "low",
+      "allow_dry_run": false,
+      "allow_overwrite": false,
+      "expected_outputs": []
+    },
+
+    {
+      "id": "aggregate_metrics",
+      "stage_id": "report_publish",
+      "title": "Aggregate metrics",
+      "description": "Sinh report markdown va metric summary tu latest training run.",
+      "command_preview": "python Backend/Benchmark/tabular_benchmark/report.py --label-mode binary",
+      "danger_level": "medium",
+      "allow_dry_run": true,
+      "allow_overwrite": false,
+      "expected_outputs": [
+        "Backend/Benchmark/tabular_benchmark/artifacts"
+      ]
+    },
+    {
+      "id": "generate_macro_f1_charts",
+      "stage_id": "report_publish",
+      "title": "Generate Macro-F1 charts",
+      "description": "Dung report pipeline hien co de sinh chart focus v0/v1/v2.",
+      "command_preview": "python Backend/Benchmark/tabular_benchmark/report.py --label-mode binary",
+      "danger_level": "medium",
+      "allow_dry_run": true,
+      "allow_overwrite": false,
+      "expected_outputs": []
+    },
+    {
+      "id": "generate_confusion_matrices",
+      "stage_id": "report_publish",
+      "title": "Generate confusion matrices",
+      "description": "Dung report pipeline hien co de sinh confusion matrix PNG.",
+      "command_preview": "python Backend/Benchmark/tabular_benchmark/report.py --label-mode binary",
+      "danger_level": "medium",
+      "allow_dry_run": true,
+      "allow_overwrite": false,
+      "expected_outputs": []
+    },
+    {
+      "id": "generate_model_evaluation_report",
+      "stage_id": "report_publish",
+      "title": "Generate model evaluation report",
+      "description": "Repo hien tai sinh markdown + PNG, khong tuyen bo HTML/PDF neu chua ton tai.",
+      "command_preview": "python Backend/Benchmark/tabular_benchmark/report.py --label-mode binary",
+      "danger_level": "medium",
+      "allow_dry_run": true,
+      "allow_overwrite": false,
+      "expected_outputs": []
+    },
+    {
+      "id": "publish_report_to_web",
+      "stage_id": "report_publish",
+      "title": "Publish report to web",
+      "description": "Publish result branch cho frontend dashboard.",
+      "command_preview": "python Backend/main.py --only-result --publish-result --result-mode snapshot --result-payload-scope full --result-runtime-experiment auto",
+      "danger_level": "high",
+      "allow_dry_run": true,
+      "allow_overwrite": false,
+      "expected_outputs": []
+    },
+    {
+      "id": "open_report_folder",
+      "stage_id": "report_publish",
+      "title": "Open report folder",
+      "description": "Mo latest report folder cho lane dang chon.",
+      "command_preview": "explorer latest report run",
+      "danger_level": "low",
+      "allow_dry_run": false,
+      "allow_overwrite": false,
+      "expected_outputs": []
+    },
+    {
+      "id": "open_web_dashboard",
+      "stage_id": "report_publish",
+      "title": "Open web dashboard",
+      "description": "Mo frontend dashboard local.",
+      "command_preview": "explorer Frontend/public/index.html",
+      "danger_level": "low",
+      "allow_dry_run": false,
+      "allow_overwrite": false,
+      "expected_outputs": []
+    },
+
+    {
+      "id": "export_audit_report",
+      "stage_id": "defense_backup",
+      "title": "Export audit report",
+      "description": "Tong hop leakage checklist, labels, split va limitations.",
+      "command_preview": "python -m Backend.DemoUI.pipeline_audits export-defense-audit",
+      "danger_level": "low",
+      "allow_dry_run": false,
+      "allow_overwrite": false,
+      "expected_outputs": []
+    },
+    {
+      "id": "show_training_feature_columns",
+      "stage_id": "defense_backup",
+      "title": "Show training feature columns",
+      "description": "In feature columns active tu latest build run.",
+      "command_preview": "python -m Backend.DemoUI.pipeline_audits training-feature-columns",
+      "danger_level": "low",
+      "allow_dry_run": false,
+      "allow_overwrite": false,
+      "expected_outputs": []
+    },
+    {
+      "id": "show_excluded_label_columns",
+      "stage_id": "defense_backup",
+      "title": "Show excluded label columns",
+      "description": "In danh sach label/event columns khong duoc dua vao feature.",
+      "command_preview": "python -m Backend.DemoUI.pipeline_audits excluded-label-columns",
+      "danger_level": "low",
+      "allow_dry_run": false,
+      "allow_overwrite": false,
+      "expected_outputs": []
+    },
+    {
+      "id": "show_leakage_checklist",
+      "stage_id": "defense_backup",
+      "title": "Show leakage checklist",
+      "description": "Checklist tra loi khi hoi dong hoi ve leakage.",
+      "command_preview": "python -m Backend.DemoUI.pipeline_audits leakage-checklist",
+      "danger_level": "low",
+      "allow_dry_run": false,
+      "allow_overwrite": false,
+      "expected_outputs": []
+    },
+    {
+      "id": "show_limitations_summary",
+      "stage_id": "defense_backup",
+      "title": "Show limitations summary",
+      "description": "Tong hop limitation hien tai cua weak labels, split va benchmark.",
+      "command_preview": "python -m Backend.DemoUI.pipeline_audits limitations-summary",
+      "danger_level": "low",
+      "allow_dry_run": false,
+      "allow_overwrite": false,
+      "expected_outputs": []
+    },
+    {
+      "id": "bootstrap_day",
+      "stage_id": "ingestion",
+      "title": "Inject demo data",
+      "description": "Bootstrap 00:00 -> 12:00 cho ngay demo da chon.",
+      "command_preview": "python Backend/main.py --demo-bootstrap-day --inject-date-key <date_key>",
+      "danger_level": "medium",
+      "allow_dry_run": true,
+      "allow_overwrite": false,
+      "expected_outputs": []
+    },
+    {
+      "id": "inject_template",
+      "stage_id": "ingestion",
+      "title": "Inject template",
+      "description": "Push mot telemetry template vao Firebase cho ngay demo da chon.",
+      "command_preview": "python Backend/main.py --inject-telemetry-template <template_id> --inject-date-key <date_key> --inject-packet-gap-minutes <packet_gap_minutes>",
+      "danger_level": "medium",
+      "allow_dry_run": true,
+      "allow_overwrite": false,
+      "expected_outputs": []
+    },
+    {
+      "id": "server_cycle_demo",
+      "stage_id": "report_publish",
+      "title": "Run demo cycle",
+      "description": "Inject template, sync latest, build Layer1 va publish ket qua demo.",
+      "command_preview": "python Backend/main.py --server-cycle-demo --inject-telemetry-template <template_id> --inject-date-key <date_key> --inject-packet-gap-minutes <packet_gap_minutes>",
+      "danger_level": "high",
+      "allow_dry_run": true,
+      "allow_overwrite": false,
+      "expected_outputs": []
+    },
+    {
+      "id": "reset_demo",
+      "stage_id": "defense_backup",
+      "title": "Reset demo",
+      "description": "Prune local Layer1 va benchmark outputs moi hon ngay demo da chon.",
+      "command_preview": "python Backend/main.py --prune-output-after-local-date <date_key>",
+      "danger_level": "high",
+      "allow_dry_run": true,
+      "allow_overwrite": false,
+      "expected_outputs": []
+    }
+  ],
+  "quick_ui": {
+    "stages": [
+      {
+        "id": "quick_pull",
+        "number": 1,
+        "title": "Keo du lieu",
+        "description": "Dong bo Layer0 tu Firebase theo latest, full, mot ngay hoac khoang ngay.",
+        "fields": [
+          "single_date",
+          "from_date",
+          "to_date"
+        ],
+        "action_ids": [
+          "sync_latest_layer0",
+          "sync_full_layer0",
+          "sync_day_layer0",
+          "sync_range_layer0"
+        ]
+      },
+      {
+        "id": "quick_layer",
+        "number": 2,
+        "title": "Tao Layer",
+        "description": "Xu ly Layer1 va kiem tra nhanh snapshot, manifest va output.",
+        "fields": [],
+        "action_ids": [
+          "build_layer1",
+          "validate_layer1",
+          "sensor_quality_summary",
+          "open_layer1_folder"
+        ]
+      },
+      {
+        "id": "quick_train_data",
+        "number": 3,
+        "title": "Tao du lieu train",
+        "description": "Build bang aligned, weak labels, feature sets va cac bo split benchmark.",
+        "fields": [
+          "dry_run"
+        ],
+        "action_ids": [
+          "build_aligned_benchmark_table",
+          "run_weak_labeling",
+          "build_v0_features",
+          "build_v1_features",
+          "build_v2_window_features",
+          "prepare_binary_datasets",
+          "prepare_tri_class_datasets",
+          "prepare_four_class_datasets",
+          "prepare_all_benchmark_configs"
+        ]
+      },
+      {
+        "id": "quick_train_model",
+        "number": 4,
+        "title": "Train mo hinh",
+        "description": "Chon feature version, label branch, model roi train theo cau hinh da chon.",
+        "fields": [
+          "feature_version",
+          "label_mode",
+          "model_target",
+          "experiments",
+          "dry_run",
+          "smoke_test"
+        ],
+        "action_ids": [
+          "train_selected_config",
+          "train_xgboost_only",
+          "train_all_benchmark_configs",
+          "open_training_log"
+        ]
+      },
+      {
+        "id": "quick_publish",
+        "number": 5,
+        "title": "Dua len web",
+        "description": "Sinh report, chart, confusion matrix va publish ket qua len dashboard.",
+        "fields": [
+          "label_mode",
+          "result_runtime_experiment",
+          "dry_run"
+        ],
+        "action_ids": [
+          "aggregate_metrics",
+          "generate_macro_f1_charts",
+          "generate_confusion_matrices",
+          "publish_report_to_web",
+          "open_report_folder",
+          "open_web_dashboard"
+        ]
+      },
+      {
+        "id": "quick_demo",
+        "number": 6,
+        "title": "Demo nhanh",
+        "description": "Inject demo data, chay demo cycle, reset local output va publish nhanh.",
+        "fields": [
+          "template_id",
+          "date_key",
+          "packet_gap_minutes",
+          "result_runtime_experiment",
+          "dry_run",
+          "skip_super_table"
+        ],
+        "action_ids": [
+          "bootstrap_day",
+          "inject_template",
+          "server_cycle_demo",
+          "reset_demo",
+          "publish_report_to_web"
+        ]
+      }
+    ],
+    "fields": {
+      "single_date": {
+        "label": "Ngay keo",
+        "type": "date",
+        "default": "2026-05-20",
+        "help": "Dung cho lenh keo theo ngay."
+      },
+      "from_date": {
+        "label": "From date",
+        "type": "date",
+        "default": "",
+        "help": "Dung cho lenh keo theo khoang ngay."
+      },
+      "to_date": {
+        "label": "To date",
+        "type": "date",
+        "default": "",
+        "help": "Dung cho lenh keo theo khoang ngay."
+      },
+      "feature_version": {
+        "label": "Feature version",
+        "type": "select",
+        "default": "v2",
+        "options": [
+          {
+            "value": "v0",
+            "label": "v0"
+          },
+          {
+            "value": "v1",
+            "label": "v1"
+          },
+          {
+            "value": "v2",
+            "label": "v2"
+          },
+          {
+            "value": "all",
+            "label": "all"
+          }
+        ]
+      },
+      "label_mode": {
+        "label": "Label branch",
+        "type": "select",
+        "default": "binary",
+        "options": [
+          {
+            "value": "binary",
+            "label": "binary"
+          },
+          {
+            "value": "tri_class",
+            "label": "tri_class"
+          },
+          {
+            "value": "four_class",
+            "label": "four_class"
+          }
+        ]
+      },
+      "model_target": {
+        "label": "Model",
+        "type": "select",
+        "default": "xgboost",
+        "options": [
+          {
+            "value": "xgboost",
+            "label": "XGBoost"
+          },
+          {
+            "value": "tabnet_classifier",
+            "label": "TabNet Classifier"
+          },
+          {
+            "value": "ft_transformer_classifier",
+            "label": "FT-Transformer Classifier"
+          },
+          {
+            "value": "all",
+            "label": "All benchmark models"
+          }
+        ]
+      },
+      "experiments": {
+        "label": "Experiments override",
+        "type": "text",
+        "default": "",
+        "placeholder": "v2 or v0,v1,v2",
+        "help": "Bo trong de dung feature version da chon."
+      },
+      "result_runtime_experiment": {
+        "label": "Runtime experiment",
+        "type": "select",
+        "default": "auto",
+        "options": [
+          {
+            "value": "auto",
+            "label": "auto"
+          },
+          {
+            "value": "v0",
+            "label": "v0"
+          },
+          {
+            "value": "v1",
+            "label": "v1"
+          }
+        ]
+      },
+      "template_id": {
+        "label": "Template id",
+        "type": "text",
+        "default": "2"
+      },
+      "date_key": {
+        "label": "Date key",
+        "type": "date",
+        "default": "2026-05-20"
+      },
+      "packet_gap_minutes": {
+        "label": "Packet gap minutes",
+        "type": "number",
+        "default": "64"
+      },
+      "dry_run": {
+        "label": "Dry run",
+        "type": "checkbox",
+        "default": true
+      },
+      "smoke_test": {
+        "label": "Smoke test",
+        "type": "checkbox",
+        "default": false
+      },
+      "skip_super_table": {
+        "label": "Skip super table",
+        "type": "checkbox",
+        "default": true
+      }
+    }
+  }
+}

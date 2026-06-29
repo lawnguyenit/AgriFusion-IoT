@@ -12,11 +12,11 @@ ROOT_DIR = Path(__file__).resolve().parents[4]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from Backend.Benchmark.common.paths import DIRECT_BENCHMARK_ROOT, PRETRAIN_SUPERVISED_ROOT
+from Backend.Benchmark.common.paths import TABULAR_BENCHMARK_ROOT, PRETRAIN_SUPERVISED_ROOT
 
 REPORTS_ROOT = Path(__file__).resolve().parent
 PRETRAIN_ROOT = PRETRAIN_SUPERVISED_ROOT
-DIRECT_ROOT = DIRECT_BENCHMARK_ROOT
+DIRECT_ROOT = TABULAR_BENCHMARK_ROOT
 CHAPTER5_ROOT = PRETRAIN_SUPERVISED_ROOT / "chapter5_evidence"
 OUTPUT_ROOT = CHAPTER5_ROOT / f"{date.today().isoformat()}-appendices-hi"
 
@@ -112,7 +112,7 @@ def build_model_config_rows() -> list[dict[str, Any]]:
         },
         {
             "model": "TabNet classifier",
-            "scope": "direct benchmark only",
+            "scope": "tabular benchmark only",
             "main_parameters": (
                 "n_d=16, n_a=16, n_steps=4, gamma=1.3, "
                 "batch_size=64, virtual_batch_size=32, lr=0.001, "
@@ -499,7 +499,7 @@ def render_appendix_i(
 
 Phu luc nay tap hop ket qua day du cua batch final theo protocol da khoa o Phu luc H.
 
-## I.1. Full result direct benchmark
+## I.1. Full result tabular benchmark
 
 Toan bo ket qua direct duoc xuat trong `I_direct_full_results.csv` ({direct_count} dong ket qua model).
 

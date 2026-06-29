@@ -1,10 +1,26 @@
+# Core external services
 firebase-admin
 python-dotenv
 openmeteo-requests
-requests-cache 
-retry-requests 
-numpy 
+requests-cache
+retry-requests
+
+# Data processing
+numpy
 pandas
 scikit-learn
+joblib
+
+# Reporting / chart export
+matplotlib
+
+# Model families currently referenced by the repo
+xgboost
 pytorch-tabnet
+
+# Typing / developer support
 pandas-stubs
+
+# Note:
+# torch is used by several benchmark branches and should be installed
+# separately from the official PyTorch channel to match CPU/CUDA.

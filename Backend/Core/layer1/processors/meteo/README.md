@@ -1,25 +1,89 @@
-# Meteo processor
+# Bộ xử lý Meteo
 
-Package nay chua logic Layer 2 cho snapshot thoi tiet.
+## 1. Mục đích
 
-Nguon Open-Meteo/API fetch khong nam o day nua. Phan lay du lieu Layer 1 thuoc
-`Backend/Services/layer0_ingestion/sources/open_meteo.py`.
+Module này chuẩn hóa dữ liệu thời tiết từ Open-Meteo thành stream `meteo` trong `Layer1`.
 
-## Cau truc
+Nó không fetch API trực tiếp. Việc lấy dữ liệu thuộc `Backend/Services/layer0_ingestion/sources/open_meteo.py`.
 
-| File | Vai tro |
-| --- | --- |
-| `processor.py` | Chuan hoa payload meteo Layer 1 thanh snapshot Layer 2. |
-| `__init__.py` | Export `MeteoProcessor`. |
+## 2. Kiến trúc xử lý
 
-## Output chinh
+```text
+raw meteo từ Layer0
+-> MeteoProcessor
+-> perception
+-> memory.windows
+-> fuzzy_signals
+-> external_weather
+```
 
-- `perception`: nhiet do, do am, mua, diem suong, may, nhiet do dat nong, ET0 va ma thoi tiet.
-- `memory.windows`: thong ke rolling theo `1h`, `3h`, `6h`, `24h`, `72h`.
-- `fuzzy_signals` va `external_weather`: feature phan tich bo sung cho meteo.
-- `sensor_id` cua meteo duoc chuan hoa thanh mot target chung, nen ERA5 va IFS cung mot stream logic.
+## 3. Input
 
-## Nguyen tac
+- `packet.meteo_data`
+- metadata nguồn từ `SourceRecord`
+- history meteo cùng stream
+- peer history `sht30` cho phần `external_weather`
 
-Layer 2 khong sinh `health`, `confidence`, `handoff`, `ready` hoac canh bao nong hoc cuoi cung.
-Nhung ket luan do phai thuoc tang phan tich co nguong va co so hieu chuan rieng.
+## 4. Output
+
+- stream output: `Backend/Output_data/Layer1/meteo/*`
+- perception chính:
+  - `temp_air_c`
+  - `humidity_air_pct`
+  - `rain_mm`
+  - `precipitation_mm`
+  - `dew_point_c`
+  - `cloud_cover_pct`
+  - `soil_temp_0_7cm_c`
+  - `et0_mm`
+
+## 5. Kiến trúc dữ liệu đặc thù
+
+- ERA5 archive và IFS forecast cùng được nhập vào một stream logic `meteo`.
+- `external_weather` được tính thêm để phản ánh:
+  - nền ẩm
+  - mưa
+  - drying demand
+  - quan hệ macro-micro với SHT30
+
+## 6. Ví dụ kết quả
+
+```json
+{
+  "processor_name": "meteo_preprocessor",
+  "sensor_id": "meteo",
+  "provider": "open-meteo-ifs",
+  "perception": {
+    "temp_air_c": 28.2305,
+    "humidity_air_pct": 80.0,
+    "rain_mm": 0.0,
+    "cloud_cover_pct": 99.0,
+    "et0_mm": 0.0359
+  }
+}
+```
+
+## 7. Cách tái lập
+
+```powershell
+python Backend\main.py --only-layer0 --source firebase --node-id Node1 --sync-meteo --meteo-mode all
+python Backend\main.py --only-layer1
+```
+
+## 8. Thư viện cần cài
+
+- `openmeteo-requests`
+- `requests-cache`
+- `retry-requests`
+
+Phần processor dùng lại môi trường chung `Backend/requirements.txt`.
+
+## 9. Giả định xử lý
+
+- nhiệt độ, độ ẩm và mưa là các trường lõi bắt buộc để nhận record meteo
+- `sensor_id` của meteo được chuẩn hóa về một target chung
+
+## 10. Rủi ro và giới hạn
+
+- meteo forecast ở runtime vẫn là dữ liệu ngoại sinh, không phải đo tại vườn
+- `external_weather` là lớp diễn giải bổ sung, không phải ground truth

@@ -7,7 +7,7 @@ from dataclasses import dataclass
 class BenchmarkVersionSpec:
     name: str
     model_family: str
-    expected_fuzzy_layer: str
+    expected_feature_stage: str
     compatibility_source_kind: str
     schema_policy: str
     notes: str
@@ -18,7 +18,7 @@ def build_version_catalog() -> dict[str, BenchmarkVersionSpec]:
         "v0": BenchmarkVersionSpec(
             name="v0",
             model_family="embedding_supervised",
-            expected_fuzzy_layer="layer0",
+            expected_feature_stage="layer0",
             compatibility_source_kind="layer0_ph_npk",
             schema_policy="layer0_npk_ph_ablation_schema",
             notes=(
@@ -29,7 +29,7 @@ def build_version_catalog() -> dict[str, BenchmarkVersionSpec]:
         "v1": BenchmarkVersionSpec(
             name="v1",
             model_family="embedding_supervised",
-            expected_fuzzy_layer="layer1",
+            expected_feature_stage="layer1",
             compatibility_source_kind="layer1",
             schema_policy="embedding_ready_row_wise_schema",
             notes=(
@@ -40,34 +40,34 @@ def build_version_catalog() -> dict[str, BenchmarkVersionSpec]:
         "v2": BenchmarkVersionSpec(
             name="v2",
             model_family="embedding_supervised",
-            expected_fuzzy_layer="layer2",
-            compatibility_source_kind="layer2_exp2",
-            schema_policy="layer2_single_window_ablation_schema",
+            expected_feature_stage="single_window_features",
+            compatibility_source_kind="single_window_exp2",
+            schema_policy="single_window_ablation_schema",
             notes=(
-                "Layer2 single-window ablation suite. Pretrain should point to one of the Layer2 "
-                "exports layer2_exp1..layer2_exp5, with layer2_exp2 as the default short-window run."
+                "Single-window feature suite. Pretrain should point to one of the single-window "
+                "exports single_window_exp1..single_window_exp5, with single_window_exp2 as the default short-window run."
             ),
         ),
         "v3": BenchmarkVersionSpec(
             name="v3",
             model_family="embedding_supervised",
-            expected_fuzzy_layer="layer3_combo",
-            compatibility_source_kind="layer3_combo2",
-            schema_policy="layer3_multi_window_combo_schema",
+            expected_feature_stage="multi_window_features",
+            compatibility_source_kind="multi_window_combo2",
+            schema_policy="multi_window_combo_schema",
             notes=(
-                "Layer3 multi-window combo benchmark built on top of Layer2 features. "
-                "The default source_kind is layer3_combo2."
+                "Multi-window combo benchmark built on top of the single-window feature family. "
+                "The default source_kind is multi_window_combo2."
             ),
         ),
         "v4": BenchmarkVersionSpec(
             name="v4",
             model_family="embedding_supervised",
-            expected_fuzzy_layer="layer2",
-            compatibility_source_kind="layer2_exp6",
-            schema_policy="layer2_full_set_schema",
+            expected_feature_stage="single_window_features",
+            compatibility_source_kind="single_window_exp6",
+            schema_policy="single_window_full_set_schema",
             notes=(
-                "Layer2 full-set benchmark. Pretrain and downstream v4 consume the full Layer2 "
-                "ablation export layer2_exp6."
+                "Full single-window feature benchmark. Pretrain and downstream v4 consume the full single-window "
+                "feature export single_window_exp6."
             ),
         ),
     }

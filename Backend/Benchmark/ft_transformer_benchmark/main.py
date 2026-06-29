@@ -16,8 +16,8 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Train FT-Transformer downstream models on raw benchmark features without embedding pretraining."
     )
-    parser.add_argument("--aligned-csv", type=Path, default=None, help="Path to flb_input_aligned.csv.")
-    parser.add_argument("--event-csv", type=Path, default=None, help="Path to flb_input_with_events.csv.")
+    parser.add_argument("--aligned-csv", type=Path, default=None, help="Path to benchmark_input_aligned.csv.")
+    parser.add_argument("--event-csv", type=Path, default=None, help="Path to benchmark_input_labeled.csv.")
     parser.add_argument(
         "--experiments",
         nargs="+",

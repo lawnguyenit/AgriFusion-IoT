@@ -6,9 +6,9 @@
 
 Module nay:
 - doc seed tu `Backend/Output_data/Layer1`
-- align seed theo cung logic voi benchmark fuzzy layer1
+- align seed theo cung logic voi benchmark alignment stage
 - sinh record moi theo timeline co `normal_context` xen ke giua cac `event episode`
-- xuat ra CSV rieng co schema giong `flb_input_aligned.csv`
+- xuat ra CSV rieng co schema giong `benchmark_input_aligned.csv`
 
 Module nay khong append vao dataset that dang co.
 
@@ -21,30 +21,30 @@ Seed duoc lay tu `history.jsonl` va `latest.json` cua:
 - `npk`
 
 Sau do module tai su dung logic benchmark trong:
-- `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\layer1\alignment.py`
+- `D:\AgriFusion-IoT\Backend\Benchmark\benchmark_dataset\alignment\alignment.py`
 
 ## Output
 
 Moi lan chay sinh mot thu muc moi:
 
-- `D:\AgriFusion-IoT\Backend\Simulator\outputs\<run_id>\synthetic_flb_input.csv`
-- `D:\AgriFusion-IoT\Backend\Simulator\outputs\<run_id>\synthetic_flb_input_labeled.csv`
-- `D:\AgriFusion-IoT\Backend\Simulator\outputs\<run_id>\synthetic_flb_gap_aware.csv`
+- `D:\AgriFusion-IoT\Backend\Simulator\outputs\<run_id>\synthetic_benchmark_input.csv`
+- `D:\AgriFusion-IoT\Backend\Simulator\outputs\<run_id>\synthetic_benchmark_input_labeled.csv`
+- `D:\AgriFusion-IoT\Backend\Simulator\outputs\<run_id>\synthetic_benchmark_gap_aware.csv`
 - `D:\AgriFusion-IoT\Backend\Simulator\outputs\<run_id>\label_summary.json`
 - `D:\AgriFusion-IoT\Backend\Simulator\outputs\<run_id>\augmentation_taxonomy.json`
 - `D:\AgriFusion-IoT\Backend\Simulator\outputs\<run_id>\generation_manifest.json`
 
 Trong do:
-- `synthetic_flb_input.csv`: giu schema giong `flb_input_aligned.csv`
-- `synthetic_flb_input_labeled.csv`: them nhan scenario va metadata synthetic
-- `synthetic_flb_gap_aware.csv`: giu du ca timestamp du kien, ke ca cac moc outage cua `packet_loss`
+- `synthetic_benchmark_input.csv`: giu schema giong `benchmark_input_aligned.csv`
+- `synthetic_benchmark_input_labeled.csv`: them nhan scenario va metadata synthetic
+- `synthetic_benchmark_gap_aware.csv`: giu du ca timestamp du kien, ke ca cac moc outage cua `packet_loss`
 - `label_summary.json`: thong ke so record moi nhan
 - `augmentation_taxonomy.json`: thong ke du lieu synthetic dang duoc sinh theo nhom `rule_based_simulation`, `missing_value_simulation`, `gaussian_noise_augmentation` hay `seed_replay_baseline`
 - `generation_manifest.json`: mo ta run, seed va output files
 
 ## Schema CSV
 
-File `synthetic_flb_input.csv` giu dung 10 cot:
+File `synthetic_benchmark_input.csv` giu dung 10 cot:
 
 - `timestamp`
 - `soil_temp`
@@ -191,7 +191,7 @@ python -m Backend.Simulator.main --use-real-train-target --label-scheme option2_
 - `packet_loss` duoc mo ta dung hon o file gap-aware; benchmark CSV se tu nhien bi thieu timestamp trong outage.
 - Chua sinh weather/meteo.
 - Cac scenario hien la rule-based, chua dung mo hinh tao sinh hoc sau.
-- Neu bat auto-target, kich thuoc `real train` se duoc suy ra tu `flb_input_with_events.csv` va split config; neu benchmark doi ratio hoac label scheme thi nen truyen lai tham so tuong ung.
+- Neu bat auto-target, kich thuoc `real train` se duoc suy ra tu `benchmark_input_labeled.csv` va split config; neu benchmark doi ratio hoac label scheme thi nen truyen lai tham so tuong ung.
 - File benchmark CSV va file labeled duoc tach rieng de tranh lam ban dataset that, nhung khi train can chon dung file dau vao.
 - Ban dau chua cho overlap nhieu event; moi timestamp chi co toi da 1 primary context.
 - Tong so normal hien duoc khong che bang `--normal-count` trong manual mode, va duoc suy ra theo weight trong auto-target mode.

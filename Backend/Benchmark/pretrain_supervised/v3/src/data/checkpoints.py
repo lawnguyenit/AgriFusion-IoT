@@ -6,10 +6,10 @@ from Backend.Benchmark.pretrain_supervised.v3.src.data.contracts import Experime
 
 
 EXPERIMENT_TO_SOURCE_KIND = {
-    "combo1": "layer3_combo1",
-    "combo2": "layer3_combo2",
-    "combo3": "layer3_combo3",
-    "combo4": "layer3_combo4",
+    "combo1": "multi_window_combo1",
+    "combo2": "multi_window_combo2",
+    "combo3": "multi_window_combo3",
+    "combo4": "multi_window_combo4",
 }
 
 

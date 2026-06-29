@@ -2,32 +2,32 @@
 
 ## Purpose
 
-- Create self-supervised embeddings from benchmark CSVs produced by fuzzy layers.
+- Create self-supervised embeddings from benchmark CSVs produced by the active feature stages.
 - Learn representations with masked feature reconstruction before downstream supervised training.
 
 ## Input
 
 - `v1 / layer1`
-  - `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_input_aligned.csv`
+  - `D:\AgriFusion-IoT\Backend\Benchmark\benchmark_dataset\dataset\benchmark_input_aligned.csv`
 - `v0 / layer0`
-  - `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_input_aligned.csv`
+  - `D:\AgriFusion-IoT\Backend\Benchmark\benchmark_dataset\dataset\benchmark_input_aligned.csv`
   - `layer0_ph`
   - `layer0_npk`
   - `layer0_ph_npk`
 - `v2 / layer2`
-  - `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_l2_exp1.csv`
-  - `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_l2_exp2.csv`
-  - `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_l2_exp3.csv`
-  - `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_l2_exp4.csv`
-  - `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_l2_exp5.csv`
-  - `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_l2_exp6.csv`
-- `v3 / layer3_combo`
-  - `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_l3_combo1.csv`
-  - `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_l3_combo2.csv`
-  - `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_l3_combo3.csv`
-  - `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_l3_combo4.csv`
+  - `D:\AgriFusion-IoT\Backend\Benchmark\benchmark_dataset\dataset\single_window_exp1.csv`
+  - `D:\AgriFusion-IoT\Backend\Benchmark\benchmark_dataset\dataset\single_window_exp2.csv`
+  - `D:\AgriFusion-IoT\Backend\Benchmark\benchmark_dataset\dataset\single_window_exp3.csv`
+  - `D:\AgriFusion-IoT\Backend\Benchmark\benchmark_dataset\dataset\single_window_exp4.csv`
+  - `D:\AgriFusion-IoT\Backend\Benchmark\benchmark_dataset\dataset\single_window_exp5.csv`
+  - `D:\AgriFusion-IoT\Backend\Benchmark\benchmark_dataset\dataset\single_window_exp6.csv`
+- `v3 / multi_window_combo`
+  - `D:\AgriFusion-IoT\Backend\Benchmark\benchmark_dataset\dataset\multi_window_combo1.csv`
+  - `D:\AgriFusion-IoT\Backend\Benchmark\benchmark_dataset\dataset\multi_window_combo2.csv`
+  - `D:\AgriFusion-IoT\Backend\Benchmark\benchmark_dataset\dataset\multi_window_combo3.csv`
+  - `D:\AgriFusion-IoT\Backend\Benchmark\benchmark_dataset\dataset\multi_window_combo4.csv`
 - `v4`
-  - full-set benchmark that consumes `layer2_exp6`
+  - full-set benchmark that consumes `single_window_exp6`
 
 ## Output
 
@@ -69,28 +69,28 @@ python D:\AgriFusion-IoT\Backend\Benchmark\pretrain_supervised\pretrain\main.py 
 python D:\AgriFusion-IoT\Backend\Benchmark\pretrain_supervised\pretrain\main.py --benchmark-version v0 --source-kind layer0_ph_npk
 ```
 
-Train the full Layer 2 ablation schema:
+Train the full single-window feature schema:
 
 ```powershell
 python D:\AgriFusion-IoT\Backend\Benchmark\pretrain_supervised\pretrain\main.py --benchmark-version v4
 ```
 
-Train a specific Layer 2 ablation:
+Train a specific single-window feature export:
 
 ```powershell
-python D:\AgriFusion-IoT\Backend\Benchmark\pretrain_supervised\pretrain\main.py --benchmark-version v2 --source-kind layer2_exp3
+python D:\AgriFusion-IoT\Backend\Benchmark\pretrain_supervised\pretrain\main.py --benchmark-version v2 --source-kind single_window_exp3
 ```
 
-Train a Layer 3 combo benchmark:
+Train a multi-window combo benchmark:
 
 ```powershell
-python D:\AgriFusion-IoT\Backend\Benchmark\pretrain_supervised\pretrain\main.py --benchmark-version v3 --source-kind layer3_combo2
+python D:\AgriFusion-IoT\Backend\Benchmark\pretrain_supervised\pretrain\main.py --benchmark-version v3 --source-kind multi_window_combo2
 ```
 
 Train with stricter early stopping:
 
 ```powershell
-python D:\AgriFusion-IoT\Backend\Benchmark\pretrain_supervised\pretrain\main.py --benchmark-version v2 --source-kind layer2_exp4 --max-epochs 120 --patience 12 --early-stopping-min-delta 0.001
+python D:\AgriFusion-IoT\Backend\Benchmark\pretrain_supervised\pretrain\main.py --benchmark-version v2 --source-kind single_window_exp4 --max-epochs 120 --patience 12 --early-stopping-min-delta 0.001
 ```
 
 Export embeddings:
@@ -114,8 +114,8 @@ python D:\AgriFusion-IoT\Backend\Benchmark\pretrain_supervised\pretrain\infer.py
 ## Current Limits
 
 - `v0` is the nutrient/pH ablation contract before the Layer1 baseline
-- `v3` is the Layer 3 combo contract for multi-window mixtures
-- `v4` is the full-set benchmark contract for `layer2_exp6`
+- `v3` is the multi-window combo contract for multi-window mixtures
+- `v4` is the full-set benchmark contract for `single_window_exp6`
 - `chronological_with_lookback_gap` is fairer than the old split, but it still does not implement day-block or episode-aware evaluation
 - compatibility alias paths from older commands may still exist elsewhere in the repo, but this folder is the canonical pretrain path
-- Layer2 now has six ablation exports, and `layer2_exp6` is the full-set schema used by `v4`
+- Single-window features now have six exports, and `single_window_exp6` is the full-set schema used by `v4`

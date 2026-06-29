@@ -1,3 +1,3 @@
-from .layer25 import Layer25FusionPipeline, Layer25Result
+from .super_table_fusion import SuperTableFusionPipeline, SuperTableFusionResult
 
-__all__ = ["Layer25FusionPipeline", "Layer25Result"]
+__all__ = ["SuperTableFusionPipeline", "SuperTableFusionResult"]

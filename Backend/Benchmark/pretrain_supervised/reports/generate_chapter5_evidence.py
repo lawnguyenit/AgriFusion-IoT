@@ -19,8 +19,8 @@ ROOT_DIR = Path(__file__).resolve().parents[4]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from Backend.Benchmark.common.paths import DIRECT_BENCHMARK_ROOT, PRETRAIN_SUPERVISED_ROOT
-from Backend.Benchmark.direct_benchmark.src.model.tabnet_classifier import (
+from Backend.Benchmark.common.paths import TABULAR_BENCHMARK_ROOT, PRETRAIN_SUPERVISED_ROOT
+from Backend.Benchmark.tabular_benchmark.src.model.tabnet_classifier import (
     DirectTabNetClassifier,
     DirectTabNetClassifierConfig,
 )
@@ -28,7 +28,7 @@ from Backend.Benchmark.pretrain_supervised.v1.src.model.metrics import summarize
 from Backend.Benchmark.pretrain_supervised.v1.src.model.probe import EmbeddingProbe
 
 PRETRAIN_ROOT = PRETRAIN_SUPERVISED_ROOT
-DIRECT_ROOT = DIRECT_BENCHMARK_ROOT
+DIRECT_ROOT = TABULAR_BENCHMARK_ROOT
 OUTPUT_ROOT = PRETRAIN_SUPERVISED_ROOT / "chapter5_evidence"
 
 
@@ -55,7 +55,7 @@ def parse_args() -> argparse.Namespace:
         "--direct-run-dir",
         type=Path,
         default=None,
-        help="Optional direct benchmark run directory. Defaults to the latest under direct_benchmark/outputs.",
+        help="Optional tabular benchmark run directory. Defaults to the latest under tabular_benchmark/outputs.",
     )
     parser.add_argument(
         "--direct-experiment",
@@ -653,7 +653,7 @@ def build_results_markdown(
         "## Recommended wording",
         "",
         (
-            f"Trong nhanh direct benchmark, mo hinh cho test macro-F1 cao nhat o run dang bao cao la "
+            f"Trong nhanh tabular benchmark, mo hinh cho test macro-F1 cao nhat o run dang bao cao la "
             f"`{direct_main_row['model_name']}` voi macro-F1 = {direct_main_row['test_macro_f1']:.4f}, "
             f"balanced accuracy = {direct_main_row['test_balanced_accuracy']:.4f}. "
             f"Voi lop abnormal, precision = {direct_main_row['abnormal_precision']:.4f}, "

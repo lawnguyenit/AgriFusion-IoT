@@ -15,11 +15,11 @@ if str(REPORTS_DIR) not in sys.path:
     sys.path.insert(0, str(REPORTS_DIR))
 
 import generate_chapter5_evidence as chapter5
-from Backend.Benchmark.common.paths import DIRECT_BENCHMARK_ROOT, PRETRAIN_SUPERVISED_ROOT
+from Backend.Benchmark.common.paths import TABULAR_BENCHMARK_ROOT, PRETRAIN_SUPERVISED_ROOT
 
 ROOT_DIR = Path(__file__).resolve().parents[4]
 PRETRAIN_ROOT = PRETRAIN_SUPERVISED_ROOT
-DIRECT_ROOT = DIRECT_BENCHMARK_ROOT
+DIRECT_ROOT = TABULAR_BENCHMARK_ROOT
 OUTPUT_ROOT = PRETRAIN_SUPERVISED_ROOT / "chapter5_evidence"
 
 
@@ -38,7 +38,7 @@ def parse_args() -> argparse.Namespace:
         "--direct-run-dir",
         type=Path,
         default=None,
-        help="Optional direct benchmark run directory. Defaults to latest run under direct_benchmark/outputs.",
+        help="Optional tabular benchmark run directory. Defaults to latest run under tabular_benchmark/outputs.",
     )
     parser.add_argument(
         "--output-dir",

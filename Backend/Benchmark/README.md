@@ -1,95 +1,74 @@
 # Benchmark Workspace
 
-## Mục đích
+## Purpose
 
-`Backend/Benchmark` là workspace nghiên cứu cho pipeline benchmark tái lập, độc lập với `Backend/Core` và `Backend/Services`.
+`Backend/Benchmark` is the reproducible benchmark workspace, kept separate from `Backend/Core` and `Backend/Services`.
 
-Kiến trúc active hiện tại:
+The active architecture is:
 
-- `fuzzy_logic_basic/`
-- `direct_benchmark/`
+- `benchmark_dataset/`
+- `tabular_benchmark/`
 - `reporting/`
 
-## Active Architecture
+## Active Families
 
-### `fuzzy_logic_basic/`
+### `benchmark_dataset/`
 
-- sinh dữ liệu benchmark gốc
-- giữ `flb_input_aligned.csv`
-- giữ `flb_input_with_events.csv`
-- sinh các export engineered Layer2 / Layer3
+- builds the benchmark base tables
+- owns `benchmark_input_aligned.csv`
+- owns `benchmark_input_labeled.csv`
+- exports single-window and multi-window feature datasets
 
-### `direct_benchmark/`
+### `tabular_benchmark/`
 
-Đây là family train active duy nhất cho `real-only`.
-
-Nó chứa 3 lane nhãn song song:
-
-- `binary`
-- `tri_class`
-- `four_class`
-
-và luôn dùng cùng 3 model:
-
-- `xgboost`
-- `tabnet_classifier`
-- `ft_transformer_classifier`
+- active real-only training family
+- supports `binary`, `tri_class`, and `four_class`
+- always trains the same 3-model suite:
+  - `xgboost`
+  - `tabnet_classifier`
+  - `ft_transformer_classifier`
 
 ### `reporting/`
 
-- namespace tổng hợp report/chart từ các artifact active
+- shared report/chart aggregation namespace for active benchmark artifacts
 
-## Legacy
+## Retained / Historical Families
 
-Các tree sau không còn là active family:
+These trees are not the main active train lane, but they are still kept for specific purposes:
 
-- `context_classifier/`
+- `context_benchmark/`
+  - retained because runtime FT diagnosis and some simulator sizing helpers still read its artifacts
 - `pretrain_supervised/`
+  - retained for embedding-oriented experiments and historical comparisons
 - `tabpfn_benchmark/`
-- `ft_transformer_benchmark/` với vai trò benchmark family riêng
+  - retained as an auxiliary benchmark family
+- `ft_transformer_benchmark/`
+  - retained as a standalone historical family outside the unified `tabular_benchmark` train lane
 
-Code và output cũ vẫn được giữ để historical comparison.
-
-## Label Ladder
-
-Registry nhãn active dùng chung:
-
-- `binary`
-  - `normal`
-  - `abnormal`
-- `tri_class`
-  - `normal`
-  - `system_context`
-  - `field_context`
-- `four_class`
-  - `normal_context`
-  - `packet_loss_outage`
-  - `water_deficit`
-  - `rain_or_fertigation_context`
-
-## Output Layout
-
-Artifact active của `direct_benchmark` được chuẩn hóa theo:
-
-- `direct_benchmark/artifacts/binary/datasets/...`
-- `direct_benchmark/artifacts/binary/training/...`
-- `direct_benchmark/artifacts/binary/reports/...`
-- `direct_benchmark/artifacts/tri_class/...`
-- `direct_benchmark/artifacts/four_class/...`
+Historical outputs are kept on disk. Active rebuilds should prefer `benchmark_dataset/` and `tabular_benchmark/` unless a runtime or research consumer explicitly needs one of the retained families.
 
 ## Data Flow
 
-1. `fuzzy_logic_basic`
-   - build dữ liệu benchmark và `big_label`
-2. `direct_benchmark/prepare.py`
-   - build dataset `real-only` cho một lane nhãn
-   - mặc định dùng `coverage_aware_temporal` để giữ coverage cho lớp hiếm ở validation/test nếu dữ liệu cho phép
-3. `direct_benchmark/train.py`
-   - train 3 model trên build run đó
-4. `direct_benchmark/report.py`
-   - sinh metric summary và chart
+1. `benchmark_dataset`
+   - rebuilds the benchmark tables and `big_label`
+2. `tabular_benchmark/prepare.py`
+   - builds a real-only dataset for one label lane
+3. `tabular_benchmark/train.py`
+   - trains the unified 3-model suite
+4. `tabular_benchmark/report.py`
+   - generates metric summaries and charts
 
-## Rủi ro / giới hạn
+## Output Layout
 
-- `tri_class` và `four_class` real-only hiện rất lệch lớp
-- output historical theo layout cũ vẫn còn trên đĩa và một số tooling cũ vẫn cần fallback để đọc chúng
+Active `tabular_benchmark` artifacts are standardized under:
+
+- `tabular_benchmark/artifacts/binary/datasets/...`
+- `tabular_benchmark/artifacts/binary/training/...`
+- `tabular_benchmark/artifacts/binary/reports/...`
+- `tabular_benchmark/artifacts/tri_class/...`
+- `tabular_benchmark/artifacts/four_class/...`
+
+## Risks / Limits
+
+- `tri_class` and `four_class` remain highly imbalanced on real-only data
+- historical outputs still exist on disk, and some older tooling may still need fallback handling for them

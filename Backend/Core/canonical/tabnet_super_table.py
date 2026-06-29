@@ -68,7 +68,7 @@ class TabNetSuperTableBuilder:
         max_categorical_cardinality: int = 32,
     ):
         self.input_path = input_path or (
-            BACKEND_SETTINGS.layer25_root / "super_table" / "super_table.csv"
+            BACKEND_SETTINGS.super_table_root / "super_table.csv"
         )
         self.output_dir = output_dir or (BACKEND_SETTINGS.output_data_root / "TabNet")
         self.label_column = label_column
@@ -266,7 +266,7 @@ class TabNetSuperTableBuilder:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Convert Layer2.5 super_table/super_table.csv into a TabNet-friendly matrix."
+        description="Convert SuperTable super_table.csv into a TabNet-friendly matrix."
     )
     parser.add_argument("--input-csv", type=Path, default=None)
     parser.add_argument("--output-dir", type=Path, default=None)

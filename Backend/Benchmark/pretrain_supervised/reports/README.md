@@ -27,7 +27,7 @@ The scripts here do not train models. They only read completed benchmark outputs
 
 - pretrain run folders under `Backend/Benchmark/pretrain_supervised/pretrain/outputs`
 - downstream run folders under `Backend/Benchmark/pretrain_supervised/v0..v4/outputs`
-- direct benchmark run folders when report generation is pointed at them
+- tabular benchmark run folders when report generation is pointed at them
 
 ## Output
 
@@ -64,4 +64,4 @@ python D:\AgriFusion-IoT\Backend\Benchmark\pretrain_supervised\reports\generate_
 - If output folders are not present, the scripts will raise a not-found error rather than retrain anything.
 - `generate_chapter5_evidence.py` is designed for thesis-ready reporting and intentionally separates validation-selected models from exploratory best-on-test rows.
 - PR curves require score-like outputs (`predict_proba`, `decision_function`, or neural logits). If a saved model cannot provide scores, the evidence pack will still export confusion/class-wise tables but skip PR data for that model.
-- `generate_appendices_hi.py` assumes the final standardized-split runs already exist under the latest dated run buckets for `direct_benchmark` and `pretrain_supervised/v0..v4`, and it also expects the latest subgroup/chapter5 evidence packs to be present.
+- `generate_appendices_hi.py` assumes the final standardized-split runs already exist under the latest dated run buckets for `tabular_benchmark` and `pretrain_supervised/v0..v4`, and it also expects the latest subgroup/chapter5 evidence packs to be present.

@@ -6,11 +6,11 @@ from Backend.Benchmark.pretrain_supervised.v2.src.data.contracts import Experime
 
 
 EXPERIMENT_TO_SOURCE_KIND = {
-    "exp1": "layer2_exp1",
-    "exp2": "layer2_exp2",
-    "exp3": "layer2_exp3",
-    "exp4": "layer2_exp4",
-    "exp5": "layer2_exp5",
+    "exp1": "single_window_exp1",
+    "exp2": "single_window_exp2",
+    "exp3": "single_window_exp3",
+    "exp4": "single_window_exp4",
+    "exp5": "single_window_exp5",
 }
 
 

@@ -1,4 +1,4 @@
-from Backend.Benchmark.context_classifier.src.reports.report_pipeline import (
+from Backend.Benchmark.context_benchmark.src.reports.report_pipeline import (
     TrainingRunSpec,
     run_report_pipeline,
 )

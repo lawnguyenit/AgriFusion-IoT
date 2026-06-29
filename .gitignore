@@ -6,7 +6,6 @@ Secrets/
 .DS_Store
 Thumbs.db
 AGENTS.MD
-Docs
 
 # Python caches and environments
 __pycache__/
@@ -17,15 +16,23 @@ __pycache__/
 venv/
 .env
 .env.*
+!.env.example
+*.egg-info/
+*.sqlite
+*.sqlite3
+*.sqlite-journal
+*.db
+*.db-journal
+*.rar
+*.7z
 
 # Backend
 Backend/.vscode/
 Backend/Firebase_data/
+Backend/DemoUI/last_runs.json
 
 # Docs
-Docs/Dataset_Durian/
-Docs/Papers/
-Docs/IoT_data
+Docs
 
 #output data 
 Backend/Output_data/
@@ -55,6 +62,10 @@ Backend/Benchmark/**/data_profile_report/
 Backend/Benchmark/**/report_pack/
 Backend/Benchmark/**/report_pack_lite/
 Backend/Benchmark/**/chapter5_evidence/
+Backend/Benchmark/**/artifacts/
+Backend/Benchmark/**/artifacts/**
+Backend/Benchmark/**/dataset/
+Backend/Benchmark/**/dataset/**
 Backend/Benchmark/*/dataset/*.csv
 Backend/Benchmark/*/dataset/*.json
 Backend/Benchmark/*/dataset/*.pkl
@@ -80,7 +91,14 @@ Backend/Benchmark/**/dataset/*.xlsx
 Backend/Benchmark/**/dataset/*.xls
 Backend/Benchmark/**/dataset/*.tsv
 Backend/Benchmark/**/dataset/*.zip
-Backend/Benchmark/**/models/
 Backend/Benchmark/**/*.pt
 Backend/Benchmark/**/*.pkl
 Backend/Benchmark/**/*.joblib
+Backend/Benchmark/**/*.tmp.pyc
+
+# Frontend local runtime config
+Frontend/public/config.local.json
+
+# IoT node local secrets
+IoT_Node/.pio/
+IoT_Node/lib/Config/src/Config.private.h

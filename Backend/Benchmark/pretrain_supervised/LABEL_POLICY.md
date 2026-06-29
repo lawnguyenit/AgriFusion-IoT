@@ -10,10 +10,10 @@ It is intentionally separate from model code because label semantics are a bench
 
 Current downstream label merge uses:
 
-- `D:\AgriFusion-IoT\Backend\Benchmark\fuzzy_logic_basic\dataset\flb_input_with_events.csv`
+- `D:\AgriFusion-IoT\Backend\Benchmark\benchmark_dataset\dataset\benchmark_input_labeled.csv`
 
 This CSV is an upstream labeled artifact consumed by benchmark modules.
-It is rebuilt by the real-event-labeling stage inside `Backend/Benchmark/fuzzy_logic_basic/`.
+It is rebuilt by the real-event-labeling stage inside `Backend/Benchmark/benchmark_dataset/`.
 
 The current merge is performed by:
 
@@ -100,7 +100,7 @@ not:
 
 These are still open:
 
-1. The current benchmark tree still depends on heuristic real-event labeling from Layer0 metadata to rebuild `flb_input_with_events.csv`.
+1. The current benchmark tree still depends on heuristic real-event labeling from Layer0 metadata to rebuild `benchmark_input_labeled.csv`.
 2. The current benchmark merges all non-`none` events into a single abnormal bucket.
 3. Unknown abnormal states that were never annotated are still effectively treated as normal during supervised training.
 

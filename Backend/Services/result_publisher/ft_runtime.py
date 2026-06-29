@@ -13,31 +13,31 @@ import torch
 from sklearn.exceptions import InconsistentVersionWarning
 
 try:
-    from Benchmark.context_classifier.src.data.tabular_builder import (
+    from Benchmark.context_benchmark.src.data.tabular_builder import (
         build_v0_tabular,
         build_v1_tabular,
         build_v2_tabular,
         build_v3_tabular,
     )
-    from Benchmark.ft_transformer_benchmark.src.model.ft_transformer_classifier import (
+    from Benchmark.models.ft_transformer_classifier import (
         FTTransformerClassifier,
         FTTransformerClassifierConfig,
     )
-    from Benchmark.fuzzy_logic_basic.layer1.alignment import align_layer1_records
-    from Benchmark.fuzzy_logic_basic.layer1.config import AlignmentConfig
+    from Benchmark.benchmark_dataset.alignment.alignment import align_layer1_records
+    from Benchmark.benchmark_dataset.alignment.config import AlignmentConfig
 except ModuleNotFoundError:
-    from Backend.Benchmark.context_classifier.src.data.tabular_builder import (
+    from Backend.Benchmark.context_benchmark.src.data.tabular_builder import (
         build_v0_tabular,
         build_v1_tabular,
         build_v2_tabular,
         build_v3_tabular,
     )
-    from Backend.Benchmark.ft_transformer_benchmark.src.model.ft_transformer_classifier import (
+    from Backend.Benchmark.models.ft_transformer_classifier import (
         FTTransformerClassifier,
         FTTransformerClassifierConfig,
     )
-    from Backend.Benchmark.fuzzy_logic_basic.layer1.alignment import align_layer1_records
-    from Backend.Benchmark.fuzzy_logic_basic.layer1.config import AlignmentConfig
+    from Backend.Benchmark.benchmark_dataset.alignment.alignment import align_layer1_records
+    from Backend.Benchmark.benchmark_dataset.alignment.config import AlignmentConfig
 
 try:
     from Config.runtime import BackendSettings
@@ -87,83 +87,88 @@ def display_label_for_context(label: str) -> str:
 
 
 def discover_best_ft_context_artifact(benchmark_root: Path) -> ContextFTModelArtifact | None:
-    training_root = benchmark_root / "context_classifier" / "outputs_option2_4class" / "training"
-    if not training_root.exists():
-        return None
+    candidate_roots = [
+        benchmark_root / "context_benchmark" / "artifacts" / "training" / "four_class",
+        benchmark_root / "context_benchmark" / "outputs_option2_4class" / "training",
+    ]
 
     best_candidate: ContextFTModelArtifact | None = None
-    for aggregate_metrics_path in training_root.rglob("aggregate_model_metrics.csv"):
-        training_dir = aggregate_metrics_path.parent
-        training_report_path = training_dir / "training_report.json"
-        if not training_report_path.exists():
+    for training_root in candidate_roots:
+        if not training_root.exists():
             continue
-        report_payload = _load_json(training_report_path)
-        if str(report_payload.get("label_scheme", "")) != "option2_4class":
-            continue
-
-        build_manifest = report_payload.get("build_manifest", {})
-        window_sizes = tuple(int(value) for value in build_manifest.get("window_sizes", [3, 8]))
-        metrics_frame = pd.read_csv(aggregate_metrics_path)
-        filtered = metrics_frame.loc[
-            metrics_frame["model_name"].astype(str) == "ft_transformer_classifier"
-        ].copy()
-        if filtered.empty:
-            continue
-
-        for metric_row in filtered.to_dict(orient="records"):
-            experiment_name = str(metric_row["experiment_name"])
-            experiment_dir = training_dir / "experiments" / experiment_name
-            feature_schema_path = experiment_dir / "feature_schema.json"
-            scaler_path = experiment_dir / "scaler.pkl"
-            imputer_path = experiment_dir / "imputer.pkl"
-            artifact_path = Path(str(metric_row["artifact_path"]))
-            if not (
-                artifact_path.exists()
-                and feature_schema_path.exists()
-                and scaler_path.exists()
-                and imputer_path.exists()
-            ):
+        for aggregate_metrics_path in training_root.rglob("aggregate_model_metrics.csv"):
+            training_dir = aggregate_metrics_path.parent
+            training_report_path = training_dir / "training_report.json"
+            if not training_report_path.exists():
+                continue
+            report_payload = _load_json(training_report_path)
+            label_scheme = str(report_payload.get("label_scheme", ""))
+            if label_scheme not in {"four_class", "option2_4class"}:
                 continue
 
-            feature_schema = _load_json(feature_schema_path)
-            class_names = tuple(
-                str(name)
-                for name in (
-                    feature_schema.get("class_names")
-                    or build_manifest.get("class_names")
-                    or []
+            build_manifest = report_payload.get("build_manifest", {})
+            window_sizes = tuple(int(value) for value in build_manifest.get("window_sizes", [3, 8]))
+            metrics_frame = pd.read_csv(aggregate_metrics_path)
+            filtered = metrics_frame.loc[
+                metrics_frame["model_name"].astype(str) == "ft_transformer_classifier"
+            ].copy()
+            if filtered.empty:
+                continue
+
+            for metric_row in filtered.to_dict(orient="records"):
+                experiment_name = str(metric_row["experiment_name"])
+                experiment_dir = training_dir / "experiments" / experiment_name
+                feature_schema_path = experiment_dir / "feature_schema.json"
+                scaler_path = experiment_dir / "scaler.pkl"
+                imputer_path = experiment_dir / "imputer.pkl"
+                artifact_path = Path(str(metric_row["artifact_path"]))
+                if not (
+                    artifact_path.exists()
+                    and feature_schema_path.exists()
+                    and scaler_path.exists()
+                    and imputer_path.exists()
+                ):
+                    continue
+
+                feature_schema = _load_json(feature_schema_path)
+                class_names = tuple(
+                    str(name)
+                    for name in (
+                        feature_schema.get("class_names")
+                        or build_manifest.get("class_names")
+                        or []
+                    )
                 )
-            )
-            feature_names = tuple(str(name) for name in feature_schema.get("feature_names", []))
-            candidate = ContextFTModelArtifact(
-                aggregate_metrics_path=aggregate_metrics_path,
-                training_report_path=training_report_path,
-                experiment_dir=experiment_dir,
-                experiment_name=experiment_name,
-                artifact_path=artifact_path,
-                feature_schema_path=feature_schema_path,
-                scaler_path=scaler_path,
-                imputer_path=imputer_path,
-                label_scheme="option2_4class",
-                class_names=class_names,
-                feature_names=feature_names,
-                validation_macro_f1=float(metric_row["validation_macro_f1"]),
-                test_macro_f1=float(metric_row["test_macro_f1"]),
-                window_sizes=window_sizes,
-            )
-            if best_candidate is None:
-                best_candidate = candidate
-                continue
-            if (
-                candidate.test_macro_f1,
-                candidate.validation_macro_f1,
-                _experiment_priority(candidate.experiment_name),
-            ) > (
-                best_candidate.test_macro_f1,
-                best_candidate.validation_macro_f1,
-                _experiment_priority(best_candidate.experiment_name),
-            ):
-                best_candidate = candidate
+                feature_names = tuple(str(name) for name in feature_schema.get("feature_names", []))
+                candidate = ContextFTModelArtifact(
+                    aggregate_metrics_path=aggregate_metrics_path,
+                    training_report_path=training_report_path,
+                    experiment_dir=experiment_dir,
+                    experiment_name=experiment_name,
+                    artifact_path=artifact_path,
+                    feature_schema_path=feature_schema_path,
+                    scaler_path=scaler_path,
+                    imputer_path=imputer_path,
+                    label_scheme="four_class",
+                    class_names=class_names,
+                    feature_names=feature_names,
+                    validation_macro_f1=float(metric_row["validation_macro_f1"]),
+                    test_macro_f1=float(metric_row["test_macro_f1"]),
+                    window_sizes=window_sizes,
+                )
+                if best_candidate is None:
+                    best_candidate = candidate
+                    continue
+                if (
+                    candidate.test_macro_f1,
+                    candidate.validation_macro_f1,
+                    _experiment_priority(candidate.experiment_name),
+                ) > (
+                    best_candidate.test_macro_f1,
+                    best_candidate.validation_macro_f1,
+                    _experiment_priority(best_candidate.experiment_name),
+                ):
+                    best_candidate = candidate
     return best_candidate
 
 

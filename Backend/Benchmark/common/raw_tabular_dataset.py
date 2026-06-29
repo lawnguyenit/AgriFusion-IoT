@@ -6,6 +6,7 @@ from typing import Protocol
 
 import pandas as pd
 
+from Backend.Benchmark.common.artifact_paths import resolve_dataset_artifact
 from Backend.Benchmark.shared.labels import build_label_frame, merge_event_labels
 from Backend.Benchmark.shared.split_policy import build_split_manifest, build_split_plan
 
@@ -45,7 +46,7 @@ def build_raw_tabular_source_registry() -> dict[str, RawTabularSourceSpec]:
     return {
         "v0": RawTabularSourceSpec(
             source_kind="v0",
-            source_csv_names=("flb_input_aligned.csv",),
+            source_csv_names=("benchmark_input_aligned.csv",),
             feature_columns=(
                 "soil_temp",
                 "soil_humidity",
@@ -61,7 +62,7 @@ def build_raw_tabular_source_registry() -> dict[str, RawTabularSourceSpec]:
         ),
         "v1": RawTabularSourceSpec(
             source_kind="v1",
-            source_csv_names=("flb_input_aligned.csv",),
+            source_csv_names=("benchmark_input_aligned.csv",),
             feature_columns=(
                 "soil_temp",
                 "soil_humidity",
@@ -73,7 +74,7 @@ def build_raw_tabular_source_registry() -> dict[str, RawTabularSourceSpec]:
         ),
         "v2": RawTabularSourceSpec(
             source_kind="v2",
-            source_csv_names=("flb_l2_exp2.csv",),
+            source_csv_names=("single_window_exp2.csv",),
             feature_columns=(
                 "soil_temp",
                 "soil_humidity",
@@ -97,7 +98,7 @@ def build_raw_tabular_source_registry() -> dict[str, RawTabularSourceSpec]:
         ),
         "v3": RawTabularSourceSpec(
             source_kind="v3",
-            source_csv_names=("flb_l3_combo2.csv",),
+            source_csv_names=("multi_window_combo2.csv",),
             feature_columns=(
                 "soil_temp",
                 "soil_humidity",
@@ -129,7 +130,7 @@ def build_raw_tabular_source_registry() -> dict[str, RawTabularSourceSpec]:
         ),
         "v4": RawTabularSourceSpec(
             source_kind="v4",
-            source_csv_names=("flb_l2_exp6.csv",),
+            source_csv_names=("single_window_exp6.csv",),
             feature_columns=(
                 "soil_temp",
                 "soil_humidity",
@@ -168,11 +169,11 @@ def build_raw_tabular_source_registry() -> dict[str, RawTabularSourceSpec]:
                 "air_humidity_saturation_ratio_3h",
                 "air_humidity_saturation_ratio_8h",
             ),
-            description="Layer2 full-set raw tabular arm.",
+            description="Full single-window raw tabular arm.",
         ),
         "v5": RawTabularSourceSpec(
             source_kind="v5",
-            source_csv_names=("flb_input_aligned.csv", "flb_l2_exp6.csv"),
+            source_csv_names=("benchmark_input_aligned.csv", "single_window_exp6.csv"),
             feature_columns=(
                 "soil_temp",
                 "soil_humidity",
@@ -215,13 +216,13 @@ def build_raw_tabular_source_registry() -> dict[str, RawTabularSourceSpec]:
                 "air_humidity_saturation_ratio_3h",
                 "air_humidity_saturation_ratio_8h",
             ),
-            description="Union raw tabular arm: Layer1 raw plus the full Layer2 engineered feature set.",
+            description="Union raw tabular arm: Layer1 raw plus the full single-window engineered feature set.",
         ),
     }
 
 
 def resolve_raw_tabular_source_paths(dataset_root: Path, registry_item: RawTabularSourceSpec) -> tuple[Path, ...]:
-    return tuple((dataset_root / name).resolve() for name in registry_item.source_csv_names)
+    return tuple(resolve_dataset_artifact(dataset_root, name) for name in registry_item.source_csv_names)
 
 
 def _load_source_dataframe(source_csv: Path) -> pd.DataFrame:
