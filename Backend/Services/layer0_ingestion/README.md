@@ -1,25 +1,26 @@
 # Layer0 Ingestion
 
-## 1. Mục đích
+## 1. Purpose
 
-`Backend/Services/layer0_ingestion` là package chuẩn để đưa dữ liệu nguồn về local dưới dạng raw artifact có thể audit và tái lập được.
+`Backend/Services/layer0_ingestion` is the standard package for bringing
+source telemetry into local raw artifacts that can be audited and
+replayed.
 
-Nó không làm tiền xử lý theo nghĩa phân tích sensor. Nó chỉ:
+It does not perform analytical preprocessing. Its job is to:
 
-- xác định record mới hay trùng
-- kéo payload mới nhất
-- ghi lịch sử raw về đĩa
-- ghi metadata và trạng thái đồng bộ
+- determine whether source data is new or duplicated
+- fetch the latest payload
+- persist raw history to disk
+- persist metadata and sync state
 
-## 2. Kiến trúc xử lý
+## 2. Active Structure
 
 ```text
 layer0_ingestion/
 |-- pipeline.py
 |-- sources/
 |   |-- firebase.py
-|   |-- json_export.py
-|   `-- open_meteo.py
+|   `-- json_export.py
 |-- stores/
 |   |-- artifact_store.py
 |   |-- telemetry_store.py
@@ -32,26 +33,25 @@ layer0_ingestion/
 `-- docs/
 ```
 
-Luồng xử lý chuẩn:
+Standard flow:
 
 ```text
 fetch latest meta
 -> parse snapshot
--> compare with sync_state cũ
--> quyết định fetch current hay bỏ qua
--> ghi latest/raw/history/audit
--> cập nhật sync_state
+-> compare with previous sync_state
+-> decide whether current payload should be fetched
+-> write latest/raw/history/audit artifacts
+-> update sync_state
 ```
 
-## 3. Input
+## 3. Inputs
 
 - Firebase RTDB
-- file JSON export
-- Open-Meteo API
+- JSON export file
 - `Backend/Services/.env`
-- tham số CLI từ `Backend/main.py`
+- CLI parameters from `Backend/main.py`
 
-## 4. Output
+## 4. Outputs
 
 - `Backend/Output_data/Layer0/Firebase_data/new_raw/latest.json`
 - `Backend/Output_data/Layer0/Firebase_data/new_raw/latest_meta.json`
@@ -59,75 +59,29 @@ fetch latest meta
 - `Backend/Output_data/Layer0/Firebase_data/new_raw/source_snapshot.json`
 - `Backend/Output_data/Layer0/Firebase_data/new_raw/sync_state.json`
 - `Backend/Output_data/Layer0/Firebase_data/history/**`
-- `Backend/Output_data/Layer0/OpenMeteo_Data/**`
 
-## 5. Ví dụ kết quả
+## 5. Reproducibility
 
-### 5.1. Ví dụ `sync_state.json`
-
-```json
-{
-  "status": "new_data",
-  "latest_event_key": "1778386998",
-  "latest_date_key": "2026-05-10"
-}
-```
-
-### 5.2. Ví dụ file lịch sử raw
-
-```json
-{
-  "date_key": "2026-05-10",
-  "event_key": "1778386998",
-  "path": "Node1/telemetry/2026-05-10/1778386998",
-  "record": {
-    "packet": {},
-    "sensors": {}
-  }
-}
-```
-
-## 6. Cách tái lập
-
-### 6.1. Kéo latest từ Firebase
+Fetch latest from Firebase:
 
 ```powershell
 python Backend\main.py --only-layer0 --source firebase --node-id Node1
 ```
 
-### 6.2. Kéo full history từ Firebase
+Fetch full history from Firebase:
 
 ```powershell
 python Backend\main.py --only-layer0 --source firebase --node-id Node1 --full-history
 ```
 
-### 6.3. Dùng file JSON export
+Use a JSON export file:
 
 ```powershell
 python Backend\main.py --only-layer0 --source json-export --input-json C:\path\export.json --node-id Node1 --full-history
 ```
 
-### 6.4. Sync thêm meteo
+## 6. Notes
 
-```powershell
-python Backend\main.py --only-layer0 --source firebase --node-id Node1 --sync-meteo --meteo-mode all
-```
-
-## 7. Thư viện cần cài
-
-- `firebase-admin`
-- `python-dotenv`
-- `openmeteo-requests`
-- `requests-cache`
-- `retry-requests`
-
-## 8. Giả định xử lý
-
-- `Layer0IngestionPipeline` là entrypoint chuẩn.
-- `latest/meta` là nguồn chính để quyết định có dữ liệu mới hay không.
-- raw history phải giữ nguyên để audit; không tự ý sửa dữ liệu nguồn ở bước này.
-
-## 9. Rủi ro và giới hạn
-
-- Source Firebase vẫn phải hỗ trợ cả root dữ liệu chuẩn hiện tại và một số path legacy để không làm gãy hệ đang có.
-- Nếu metadata mới nhưng `latest/current` bị thiếu, pipeline sẽ trả về trạng thái lỗi và không giả lập dữ liệu thay thế.
+- `Layer0IngestionPipeline` is the standard entry point.
+- `latest/meta` is the primary source for deciding whether data is new.
+- Raw history is immutable evidence and must stay auditable.

@@ -112,7 +112,11 @@ class FirebaseSourceAdapter(NormalizedSnapshotMixin):
         )
 
     def _looks_like_normalized_snapshot(self, payload: Any) -> bool:
+        if not isinstance(payload, dict):
+            return False
+        if not all(isinstance(payload.get(section), dict) for section in ("info", "telemetry")):
+            return False
         return (
-            isinstance(payload, dict)
-            and all(isinstance(payload.get(section), dict) for section in ("info", "live", "status_events", "telemetry"))
+            all(isinstance(payload.get(section), dict) for section in ("live", "status_events"))
+            or isinstance(payload.get("latest"), dict)
         )
