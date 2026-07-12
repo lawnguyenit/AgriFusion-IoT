@@ -10,8 +10,10 @@
 struct NodeRuntimeConfig {
     const char *nodeRootPath = "/Node1";
     const char *nodeInfoPath = "/Node1/info";
-    const char *nodeLivePath = "/Node1/live";
-    const char *nodeStatusEventsPath = "/Node1/status_events";
+    const char *nodeLatestPath = "/Node1/latest";
+    const char *nodeDebugRootPath = "/debug/Node1";
+    const char *nodeDebugStatusPath = "/debug/Node1/status";
+    const char *nodeDebugTelemetryPath = "/debug/Node1/telemetry";
 
     const char *nodeId = "Node1";
     const char *deviceUid = "esp32s3_node1";
@@ -21,7 +23,6 @@ struct NodeRuntimeConfig {
 
     uint32_t telemetryRetentionDays = 30;
     uint32_t wakeIntervalSec = 60;
-    uint32_t nodeInfoPushIntervalMs = 300000;
     uint32_t probeIntervalMs = 30000;
 };
 
@@ -30,12 +31,6 @@ public:
     explicit NodeRuntimePublisher(const NodeRuntimeConfig &cfg);
 
     void publishSystemStatus(FirebaseData &fbdo, const char *state, const char *detail, uint64_t utcMs);
-
-    void publishNodeInfoIfDue(FirebaseData &fbdo,
-                              const DeviceContext &deviceContext,
-                              const String &fwVersion,
-                              bool force,
-                              uint64_t utcMs);
 
     void publishTelemetryDebug(FirebaseData &fbdo,
                                bool ok,
@@ -54,19 +49,16 @@ public:
 
     void probeTelemetryPathIfNeeded(FirebaseData &fbdo, uint64_t utcMs);
 
-    void publishNodeLive(FirebaseData &fbdo,
-                         const char *payload,
-                         const String &telemetryRefId,
-                         const RawTelemetryRecordContext &ctx,
-                         bool sensorError,
-                         uint64_t utcMs);
+    bool publishLatestIfNewer(FirebaseData &fbdo,
+                              FirebaseJson &record,
+                              bool *updatedLatest,
+                              String *error = nullptr);
 
 private:
     NodeRuntimeConfig _cfg;
     FirebaseJson _statusJson;
     String _lastState;
     uint32_t _statusEventSeq = 0;
-    uint32_t _lastInfoPushMs = 0;
     uint32_t _lastProbeMs = 0;
     bool _probeOk = false;
     uint32_t _telemetryOkCount = 0;

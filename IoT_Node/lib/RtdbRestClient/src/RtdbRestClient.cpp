@@ -77,6 +77,33 @@ bool RtdbRestClient::probe(RtdbRestResponse &response) {
     return ok;
 }
 
+bool RtdbRestClient::getRawJson(const String &path, RtdbRestResponse &response) {
+    response = RtdbRestResponse{};
+    if (!configured()) {
+        response.stage = "rtdb_not_configured";
+        response.detail = "missing_database_url_or_legacy_token";
+        return false;
+    }
+
+    SimHttpRequest req;
+    req.method = SimHttpMethod::Get;
+    req.url = buildUrl(path);
+    req.readHeader = true;
+    req.readBody = true;
+
+    SimHttpResponse http;
+    bool ok = _http.perform(req, http);
+    response.transportOk = http.transportOk;
+    response.responseReceived = http.responseReceived;
+    response.ok = ok;
+    response.statusCode = http.statusCode;
+    response.stage = ok ? "rtdb_get_ok" : classifyHttpFailureStage(http);
+    response.detail = http.stage + " | " + http.detail;
+    response.body = http.body;
+    response.header = http.header;
+    return ok;
+}
+
 bool RtdbRestClient::performJsonWrite(SimHttpMethod method,
                                       const String &path,
                                       const String &jsonBody,

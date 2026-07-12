@@ -112,7 +112,6 @@ private:
     void maintainTimeSync();
     static uint64_t utcEpochMsIfSynced();
 
-    void publishNodeInfoIfDue(bool force = false);
     void publishSystemStatusCached(const char *state, const char *detail, bool force = false);
     void logConnectivityTransitions(bool hasInternet, bool firebaseReady);
     void maybeLogRuntimeDiagnostics(bool hasInternet, bool firebaseReady);
