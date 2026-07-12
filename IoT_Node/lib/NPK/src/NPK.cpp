@@ -115,8 +115,8 @@ String MyNPK::makeJsonFromData(const NPK_Data &data,
     bool thermalPlausible = (data.temp >= -10.0f && data.temp <= 85.0f);
     bool npkValuesValid = data.readOk && nutrientSignal && chemistryPlausible && thermalPlausible;
 
-    doc["sensor_type"] = "npk7in1";
-    doc["sensor_id"] = "npk_7in1_1";
+    doc["sensor_type"] = APP_SENSOR_TYPE_SOIL_7IN1;
+    doc["sensor_id"] = APP_SENSOR_ID_SOIL_7IN1;
 
     doc["read_ok"] = data.readOk;
     doc["error_code"] = errorCodeToString(data.errorCodeRaw);

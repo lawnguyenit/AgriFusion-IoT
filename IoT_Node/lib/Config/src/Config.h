@@ -48,6 +48,16 @@
 #define APP_NODE_TIMEZONE              "Asia/Ho_Chi_Minh"   // timezone dang text de luu metadata
 #define APP_NODE_TZ_CONFIG             "ICT-7"              // chuoi cau hinh timezone cho NTP
 #define APP_TELEMETRY_RETENTION_DAYS   30                   // so ngay metadata/telemetry duoc danh dau luu tru
+#define APP_BOARD_MODEL                "ESP32-S3"           // model board hien tai
+#define APP_SIM_MODULE_MODEL           "A7682S"             // model module SIM hien tai
+#define APP_CONFIG_VERSION             "cfg_v2"             // version config runtime duoc build cung firmware
+#define APP_CALIBRATION_VERSION        "calib_v1"           // version calibration/runtime note hien tai
+
+// Canonical sensor registry ids/types used in schema v2.
+#define APP_SENSOR_ID_SHT30            "air_sht30_01"
+#define APP_SENSOR_ID_SOIL_7IN1        "soil_7in1_01"
+#define APP_SENSOR_TYPE_SHT30          "air_temp_humidity"
+#define APP_SENSOR_TYPE_SOIL_7IN1      "soil_multi_sensor"
 
 // ================= [FIREBASE / RTDB] =================
 // APP_FIREBASE_SIM_TRANSPORT_ENABLED:
@@ -58,11 +68,13 @@
 // Cac path duoi day la schema cloud hien tai.
 // Neu doi ten node/path tren RTDB thi sua tai day thay vi sua trong code runtime.
 #define APP_RTDB_PATH_NODE_ROOT        "/Node1"             // root du lieu cua node tren RTDB
-#define APP_RTDB_PATH_NODE_INFO        "/Node1/info"        // metadata thong tin node
-#define APP_RTDB_PATH_NODE_LIVE        "/Node1/live"        // du lieu song / telemetry moi nhat
-#define APP_RTDB_PATH_NODE_STATUS      "/Node1/status_events" // log trang thai he thong
+#define APP_RTDB_PATH_NODE_INFO        "/Node1/info"        // metadata tinh do admin ghi tay
+#define APP_RTDB_PATH_NODE_LATEST      "/Node1/latest"      // snapshot moi nhat theo schema canonical v2
 #define APP_RTDB_PATH_NODE_TELEMETRY   "/Node1/telemetry"   // root telemetry thuc te cua node
-#define APP_RTDB_PATH_NODE_TELEMETRY_PROBE "/Node1/telemetry/_write_probe" // path probe quyen ghi telemetry
+#define APP_RTDB_PATH_NODE_TELEMETRY_PROBE "/debug/Node1/telemetry_probe" // path probe/debug khong chen vao canonical telemetry
+#define APP_RTDB_PATH_NODE_DEBUG_ROOT  "/debug/Node1"       // root debug/ops phu tro
+#define APP_RTDB_PATH_NODE_DEBUG_STATUS "/debug/Node1/status" // snapshot trang thai runtime de debug
+#define APP_RTDB_PATH_NODE_DEBUG_TELEMETRY "/debug/Node1/telemetry" // debug channel cho publish/replay
 #define APP_OFFLINE_RAW_FILE           "/offline_data.txt"  // file dem khi mat mang
 
 // ================= [EDGE METADATA] =================
@@ -72,9 +84,9 @@
 #define APP_EDGE_SYSTEM_ID_SHT         "edge_sht30"         // id he thong SHT30 trong payload
 
 // ================= [OTA] =================
-#define APP_RTDB_PATH_OTA_STATUS       "/ota/status"        // path ghi trang thai OTA hien tai
-#define APP_RTDB_PATH_OTA_HISTORY      "/ota/history"       // path luu lich su su kien OTA
-#define APP_RTDB_PATH_OTA_COMMAND      "/ota/command"       // path doc lenh OTA tu cloud
+#define APP_RTDB_PATH_OTA_STATUS       "/ops/Node1/ota_state" // path ghi trang thai OTA hien tai
+#define APP_RTDB_PATH_OTA_HISTORY      "/debug/Node1/ota_events" // path luu lich su su kien OTA
+#define APP_RTDB_PATH_OTA_COMMAND      "/control/Node1/ota_commands" // path doc lenh OTA tu cloud
 
 #define APP_OTA_POLL_INTERVAL_MS       60000UL              // chu ky kiem tra lenh OTA
 #define APP_OTA_CONFIRM_HEALTH_MS      60000UL              // thoi gian node phai chay on truoc khi confirm OTA
@@ -85,7 +97,6 @@
 // - APP_SENSOR_SAMPLE_INTERVAL_MS: bao lau do sensor 1 lan.
 // - APP_TELEMETRY_SEQUENCE_SLOTS_PER_DAY: so thu tu goi tin trong 1 ngay.
 //   Vi du: 24 = 1 gio/lan, 96 = 15 phut/lan, 288 = 5 phut/lan.
-// - APP_NODE_INFO_PUSH_INTERVAL_MS: bao lau cap nhat /info 1 lan.
 // - APP_OFFLINE_REPLAY_INTERVAL_MS: bao lau thu day lai du lieu dem khi da co mang.
 // - APP_TIME_SYNC_RETRY_MS: bao lau thu dong bo gio lai neu van chua co time hop le.
 // - APP_NETWORK_LOOP_DELAY_MS: nhip lap task mang; khong phai chu ky lay mau.
@@ -96,10 +107,9 @@
 #define APP_SENSOR_RETRY_WINDOW_MS         3000UL                 // moi co hoi retry sensor duoc cap cua so 3 giay
 #define APP_NETWORK_LOOP_DELAY_MS          250UL                  // nhip lap task mang/cloud de xu ly queue, reconnect, replay
 #define APP_OFFLINE_REPLAY_INTERVAL_MS     30000UL                // moi 30s thu day lai du lieu da dem trong flash
-#define APP_NODE_INFO_PUSH_INTERVAL_MS     300000UL               // moi 5 phut cap nhat metadata /info
 #define APP_TELEMETRY_PROBE_INTERVAL_MS    30000UL                // moi 30s (toi da) probe quyen ghi telemetry neu can
 #define APP_TIME_SYNC_RETRY_MS             60000UL                // moi 60s thu dong bo lai gio neu chua sync
-#define APP_STATUS_REFRESH_INTERVAL_MS     300000UL               // moi 5 phut refresh trang thai /live/health du khong doi
+#define APP_STATUS_REFRESH_INTERVAL_MS     300000UL               // moi 5 phut refresh debug status du khong doi
 #define APP_RUNTIME_DIAG_INTERVAL_MS       60000UL                // moi 60s in heartbeat tong quan len serial
 #define APP_FIREBASE_REBEGIN_INTERVAL_MS   15000UL                // toi thieu 15s giua 2 lan Firebase begin/re-begin
 #define APP_FIREBASE_NOT_READY_LOG_MS      15000UL                // moi 15s in log "Firebase chua ready" 1 lan

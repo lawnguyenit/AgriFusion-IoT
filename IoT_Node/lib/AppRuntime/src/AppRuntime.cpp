@@ -111,8 +111,10 @@ NodeRuntimeConfig AppRuntime::makeNodeRuntimeConfig() {
     NodeRuntimeConfig cfg;
     cfg.nodeRootPath = APP_RTDB_PATH_NODE_ROOT;
     cfg.nodeInfoPath = APP_RTDB_PATH_NODE_INFO;
-    cfg.nodeLivePath = APP_RTDB_PATH_NODE_LIVE;
-    cfg.nodeStatusEventsPath = APP_RTDB_PATH_NODE_STATUS;
+    cfg.nodeLatestPath = APP_RTDB_PATH_NODE_LATEST;
+    cfg.nodeDebugRootPath = APP_RTDB_PATH_NODE_DEBUG_ROOT;
+    cfg.nodeDebugStatusPath = APP_RTDB_PATH_NODE_DEBUG_STATUS;
+    cfg.nodeDebugTelemetryPath = APP_RTDB_PATH_NODE_DEBUG_TELEMETRY;
     cfg.nodeId = APP_NODE_ID;
     cfg.deviceUid = APP_NODE_DEVICE_UID;
     cfg.siteId = APP_NODE_SITE_ID;
@@ -120,7 +122,6 @@ NodeRuntimeConfig AppRuntime::makeNodeRuntimeConfig() {
     cfg.timezone = APP_NODE_TIMEZONE;
     cfg.telemetryRetentionDays = APP_TELEMETRY_RETENTION_DAYS;
     cfg.wakeIntervalSec = APP_SENSOR_SAMPLE_INTERVAL_MS / 1000U;
-    cfg.nodeInfoPushIntervalMs = APP_NODE_INFO_PUSH_INTERVAL_MS;
     cfg.probeIntervalMs = APP_TELEMETRY_PROBE_INTERVAL_MS;
     return cfg;
 }
@@ -199,7 +200,6 @@ void AppRuntime::runSleepCycle() {
 
     if (cloudReady) {
         publishSystemStatusCached("boot", "wake cycle network ready", true);
-        publishNodeInfoIfDue(true);
 
         if (_offlineReplayPending) {
             OfflineReplayResult replay = _firebasePipeline.replayOfflineIfAnyDetailed(_firebaseData,
@@ -396,8 +396,8 @@ bool AppRuntime::collectSingleSample(String &payloadOut, bool &sensorAlarmOut) {
             _sht30Service.tryInit(attempt == 1);
         }
 
-        shtJson = _sht30Service.buildJsonPayload("sht30_air",
-                                                 "sht30_1",
+        shtJson = _sht30Service.buildJsonPayload(APP_SENSOR_TYPE_SHT30,
+                                                 APP_SENSOR_ID_SHT30,
                                                  APP_EDGE_SYSTEM_SHT,
                                                  APP_EDGE_SYSTEM_ID_SHT,
                                                  "sht30",
@@ -589,14 +589,6 @@ uint64_t AppRuntime::utcEpochMsIfSynced() {
         return 0;
     }
     return static_cast<uint64_t>(now) * 1000ULL;
-}
-
-void AppRuntime::publishNodeInfoIfDue(bool force) {
-    _nodeRuntimePublisher.publishNodeInfoIfDue(_firebaseData,
-                                               _deviceContext,
-                                               currentFwVersion(),
-                                               force,
-                                               utcEpochMsIfSynced());
 }
 
 void AppRuntime::publishSystemStatusCached(const char *state, const char *detail, bool force) {
@@ -1074,12 +1066,10 @@ void AppRuntime::networkTaskLoop() {
         if (hasInternet && firebaseReady) {
             if (!_bootCloudSnapshotPublished) {
                 publishSystemStatusCached("boot", "network task started", true);
-                publishNodeInfoIfDue(true);
                 _bootCloudSnapshotPublished = true;
             }
             maintainTimeSync();
             _firebasePipeline.probeTelemetryPathIfNeeded(_firebaseData, utcEpochMsIfSynced());
-            publishNodeInfoIfDue(false);
             if (_firebasePipeline.usesNativeFirebase()) {
                 _otaReporter.flushPendingEvent(_firebaseOtaData, _otaStateStore, currentFwVersion(), currentFwPartition());
                 maybeConfirmOtaAfterHealthyWindow();

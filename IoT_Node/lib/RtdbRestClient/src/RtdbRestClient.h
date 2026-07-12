@@ -22,6 +22,7 @@ public:
 
     bool configured() const;
     bool probe(RtdbRestResponse &response);
+    bool getRawJson(const String &path, RtdbRestResponse &response);
     bool putRawJson(const String &path, const String &jsonBody, RtdbRestResponse &response, bool silent = true);
     bool patchRawJson(const String &path, const String &jsonBody, RtdbRestResponse &response, bool silent = true);
     bool deletePath(const String &path, RtdbRestResponse &response);
