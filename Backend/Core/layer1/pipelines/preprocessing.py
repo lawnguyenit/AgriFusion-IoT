@@ -1,76 +1,32 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
-from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, cast
+
+import pandas as pd
 
 try:
     from Config.runtime import BACKEND_SETTINGS
 except ModuleNotFoundError:
     from ....Config.runtime import BACKEND_SETTINGS
 
-from ..processors.meteo import MeteoProcessor
-from ..processors.npk import NPKProcessor
-from ..processors.sht30 import SHT30Processor
-from ...contracts import LAYER1_SCHEMA_VERSION
-from ...utils.common import iso_utc_now, resolve_window_ts, safe_int, trim_recent_ids
-from ...utils.storage import append_jsonl, read_json, read_jsonl, write_json
-
-
-HOUR_SECONDS = 3600
-PROGRESS_LOG_EVERY = 500
-
-
-@dataclass(frozen=True)
-class SourceRecord:
-    source_name: str
-    event_key: str
-    date_key: str
-    source_kind: str
-    source_path: str
-    payload: dict[str, Any]
-    ts_server: int | None
-    ts_device: int | None
-
-
-@dataclass(frozen=True)
-class SourceStore:
-    name: str
-    history_root: Path
-    latest_payload_path: Path
-    latest_meta_path: Path
-
-
-@dataclass(frozen=True)
-class Layer1Result:
-    status: str
-    processed_source_records: int
-    filtered_out_records: int
-    total_new_snapshots: int
-    output_root: Path
-    manifest_path: Path
-    sensor_counts: dict[str, int]
-
-
-@dataclass(frozen=True)
-class Layer2Target:
-    key: str
-    stream_name: str
-    sensor_id: str
-    history_path: Path
-    latest_path: Path
-    state_path: Path
-
-
-@dataclass
-class Layer2RunState:
-    sensor_histories: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
-    sensor_states: dict[str, dict[str, Any]] = field(default_factory=dict)
-    sensor_pending_rows: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
-    sensor_counts: dict[str, int] = field(default_factory=dict)
-    touched_targets: set[str] = field(default_factory=set)
-    processed_source_events: set[str] = field(default_factory=set)
-    filtered_out_records: int = 0
+from ...utils.common import iso_utc_now
+from ...utils.storage import write_json
+from ..contracts import (
+    Layer1BuildStats,
+    Layer1Result,
+    TemporalSettings,
+    active_field_names,
+)
+from ..loaders import FirebaseSourceLoader
+from ..processors.canonical_row import CanonicalRowBuilder
+from ..processors.temporal import apply_temporal_features
+from ..publishers import LegacyCompatibilityPublisher
+from ..reports import Layer1ReportWriter
+from ..validation import (
+    validate_canonical_invariants,
+    validate_unknown_catalog_fields,
+)
+from ..writers import CanonicalOutputWriter, DebugViewWriter
 
 
 class PreprocessingPipeline:
@@ -81,495 +37,188 @@ class PreprocessingPipeline:
         meteo_archive_base_dir: Path | None = None,
         include_meteo_archive: bool = False,
         output_root: Path | None = None,
+        *,
+        temporal_settings: TemporalSettings | None = None,
+        export_debug_views: bool = True,
+        overwrite: bool = True,
+        unknown_catalog_field_policy: str = "warn",
     ):
-        self.base_dir = base_dir or BACKEND_SETTINGS.base_dir
-        self.history_root = self.base_dir / "history"
-        self.latest_payload_path = self.base_dir / "new_raw" / "latest.json"
-        self.latest_meta_path = self.base_dir / "new_raw" / "latest_meta.json"
-        self.meteo_forecast_base_dir = meteo_forecast_base_dir or BACKEND_SETTINGS.meteo_forecast_root
-        self.meteo_archive_base_dir = meteo_archive_base_dir or BACKEND_SETTINGS.meteo_archive_root
-        self.output_root = output_root or BACKEND_SETTINGS.layer1_root
-        self.source_stores = [
-            SourceStore(
-                name="firebase",
-                history_root=self.history_root,
-                latest_payload_path=self.latest_payload_path,
-                latest_meta_path=self.latest_meta_path,
-            ),
-            SourceStore(
-                name="meteo_forecast",
-                history_root=self.meteo_forecast_base_dir / "history",
-                latest_payload_path=self.meteo_forecast_base_dir / "new_raw" / "latest.json",
-                latest_meta_path=self.meteo_forecast_base_dir / "new_raw" / "latest_meta.json",
-            ),
-        ]
-        if include_meteo_archive:
-            self.source_stores.append(
-                SourceStore(
-                    name="meteo_archive",
-                    history_root=self.meteo_archive_base_dir / "history",
-                    latest_payload_path=self.meteo_archive_base_dir / "new_raw" / "latest.json",
-                    latest_meta_path=self.meteo_archive_base_dir / "new_raw" / "latest_meta.json",
-                )
-            )
-        self.processors: list[Any] = [SHT30Processor(), NPKProcessor(), MeteoProcessor()]
+        self.base_dir = (base_dir or BACKEND_SETTINGS.base_dir).resolve()
+        self.output_root = (output_root or BACKEND_SETTINGS.layer1_root).resolve()
+        self.canonical_root = self.output_root / "canonical"
+        self.views_root = self.output_root / "views"
+        self.excluded_root = self.output_root / "excluded"
+        self.quality_root = self.output_root / "quality_reports"
+        self.temporal = temporal_settings or TemporalSettings()
+        self.export_debug_views = export_debug_views
+        self.overwrite = overwrite
+        self.unknown_catalog_field_policy = unknown_catalog_field_policy
+        self._meteo_forecast_base_dir = meteo_forecast_base_dir
+        self._meteo_archive_base_dir = meteo_archive_base_dir
+        self._include_meteo_archive = include_meteo_archive
+
+        self._source_loader = FirebaseSourceLoader(self.base_dir)
+        self._row_builder = CanonicalRowBuilder()
+        self._canonical_writer = CanonicalOutputWriter(self.output_root)
+        self._view_writer = DebugViewWriter(self.output_root)
+        self._report_writer = Layer1ReportWriter(self.output_root, self.views_root)
+        self._legacy_publisher = LegacyCompatibilityPublisher(self.output_root)
 
     def run(self) -> Layer1Result:
-        # 1. Tải tất cả bản ghi mới nhất và lịch sử và hợp nhất lại
-        source_records = self._load_source_records()
-        run_state = Layer2RunState()
-        print(f"--- Layer1 da nap {len(source_records)} source record tu local Layer0 ---")
+        source_records = self._source_loader.load()
+        stats = Layer1BuildStats(input_record_count=len(source_records))
+        canonical_rows: list[dict[str, object]] = []
+        excluded_rows: list[dict[str, object]] = []
 
-        # 2. Lặp qua từng bộ và xử lý chính 
-        for processor in self.processors:
-            print(
-                f"--- Layer1 dang chay {processor.processor_name} "
-                f"tren {len(source_records)} source record ---"
-            )
-            for index, source_record in enumerate(source_records, start=1):
-                self._log_processor_progress(
-                    processor=processor,
-                    current_index=index,
-                    total_records=len(source_records),
-                )
-                self._process_source_record(
-                    processor=processor,
-                    source_record=source_record,
-                    run_state=run_state,
-                )
-
-        # 3. Ghi lại tất cả trạng thái mục tiêu đã xử lí
-        total_new_snapshots = self._persist_targets(run_state)
-
-        # 4. Ghi manifest cuối cùng với tất cả thông tin meta về lần chạy này
-        manifest_path = self._write_manifest(
-            run_state=run_state,
-            total_new_snapshots=total_new_snapshots,
-        )
-
-        return Layer1Result(
-            status="ok",
-            processed_source_records=len(run_state.processed_source_events),
-            filtered_out_records=run_state.filtered_out_records,
-            total_new_snapshots=total_new_snapshots,
-            output_root=self.output_root,
-            manifest_path=manifest_path,
-            sensor_counts=run_state.sensor_counts,
-        )
-
-    def _process_source_record(
-        self,
-        processor: Any,
-        source_record: SourceRecord,
-        run_state: Layer2RunState,
-    ) -> None:
-        
-        """
-            processor là một bộ xử lí cụ thể (ví dụ: SHT30Processor).
-            source_record là một bản ghi nguồn duy nhất được trích xuất từ các nguồn dữ liệu (có thể là từ Firebase hoặc dữ liệu thời tiết).
-            run_state là trạng thái hiện tại của lần chạy, bao gồm lịch sử đã tải, trạng thái đã tải, các bản ghi đang chờ xử lý, và thống kê về số lượng
-
-            Luồng chính là build_snapshot
-            return của build_snapshot sẽ được đánh giá qua _snapshot_is_accepted để quyết định có nên lưu lại hay không, nếu không sẽ bị đánh dấu là đã lọc ra và cập nhật trạng thái tương ứng.
-        """
-        sensor_id = processor.extract_sensor_id(source_record)
-        if not sensor_id:
-            return
-
-        # Xây dựng mục tiêu tương ứng cho bộ xử lý và cảm biến này, 
-        # đảm bảo trạng thái đã được tải nếu chưa có, và lấy trạng thái đó ra để sử dụng.
-
-        target = self._build_target(
-            processor=processor,
-            sensor_id=sensor_id,
-            source_record=source_record,
-        )
-        self._ensure_target_loaded(processor=processor, target=target, run_state=run_state)
-        state = run_state.sensor_states[target.key]
-
-        if not self._should_process_record(state=state, source_record=source_record):
-            return
-
-        if not self._source_record_is_accepted(processor=processor, source_record=source_record):
-            self._mark_filtered_record(
-                state=state,
-                source_record=source_record,
-                target_key=target.key,
-                run_state=run_state,
-            )
-            return
-        
-        prior_history = run_state.sensor_histories[target.key] + run_state.sensor_pending_rows[target.key]
-        processing_window_hours = self._processor_history_window_hours(processor)
-        bounded_history = self._slice_history_rows(
-            rows=prior_history,
-            observed_ts=source_record.ts_server,
-            window_hours=processing_window_hours,
-        )
-        
-        #Luồng hoạt động chính
-        snapshot = processor.build_snapshot(
-            source_record=source_record,
-            history_records=bounded_history,
-            peer_histories=self._build_peer_histories(
-                run_state,
-                observed_ts=source_record.ts_server,
-                window_hours=processing_window_hours,
-            ),
-        )
-        if not self._snapshot_is_accepted(snapshot):
-            self._mark_filtered_record(
-                state=state,
-                source_record=source_record,
-                target_key=target.key,
-                run_state=run_state,
-            )
-            return
-
-        run_state.sensor_pending_rows[target.key].append(snapshot)
-        run_state.sensor_counts[target.key] += 1
-        run_state.processed_source_events.add(self._source_event_id(source_record))
-        run_state.touched_targets.add(target.key)
-        self._update_state_from_snapshot(state=state, snapshot=snapshot)
-
-    def _build_peer_histories(
-        self,
-        run_state: Layer2RunState,
-        observed_ts: int | None,
-        window_hours: int,
-    ) -> dict[str, list[dict[str, Any]]]:
-        return {
-            target_key: self._slice_history_rows(
-                rows=run_state.sensor_histories.get(target_key, [])
-                + run_state.sensor_pending_rows.get(target_key, []),
-                observed_ts=observed_ts,
-                window_hours=window_hours,
-            )
-            for target_key in set(run_state.sensor_histories) | set(run_state.sensor_pending_rows)
-        }
-
-    def _processor_history_window_hours(self, processor: Any) -> int:
-        raw_window_hours = getattr(processor, "window_hours", ())
-        hours = [int(value) for value in raw_window_hours if isinstance(value, int | float)]
-        if not hours:
-            return 0
-        return max(hours)
-
-    def _slice_history_rows(
-        self,
-        rows: list[dict[str, Any]],
-        observed_ts: int | None,
-        window_hours: int,
-    ) -> list[dict[str, Any]]:
-        if observed_ts is None or window_hours <= 0 or not rows:
-            return rows
-
-        window_start = observed_ts - (window_hours * HOUR_SECONDS)
-        previous_row: dict[str, Any] | None = None
-        selected_rows: list[dict[str, Any]] = []
-
-        for row in rows:
-            row_ts = resolve_window_ts(row)
-            if row_ts is None:
+        for source_record in source_records:
+            row = self._row_builder.build(source_record)
+            self._accumulate_source_stats(row, stats)
+            if bool(row["record.is_demo"]):
+                row["record.excluded_reason"] = "demo_or_synthetic_record"
+                excluded_rows.append(row)
+                stats.demo_record_count += 1
+                stats.excluded_record_count += 1
                 continue
-            if row_ts < window_start:
-                previous_row = row
-                continue
-            if row_ts <= observed_ts:
-                selected_rows.append(row)
+            canonical_rows.append(row)
 
-        if previous_row is not None:
-            return [previous_row, *selected_rows]
-        return selected_rows
+        stats.canonical_record_count = len(canonical_rows)
+        canonical_df = pd.DataFrame(canonical_rows)
+        if canonical_df.empty:
+            canonical_df = pd.DataFrame(columns=active_field_names())
+        canonical_df, duplicate_count = apply_temporal_features(canonical_df, self.temporal)
+        stats.duplicate_record_id_count = duplicate_count
+        excluded_df = pd.DataFrame(excluded_rows)
 
-    def _log_processor_progress(self, processor: Any, current_index: int, total_records: int) -> None:
-        if current_index == 1:
-            print(f"  [{processor.processor_name}] bat dau quet source record...")
-            return
-        if current_index % PROGRESS_LOG_EVERY == 0 or current_index == total_records:
-            print(
-                f"  [{processor.processor_name}] da quet "
-                f"{current_index}/{total_records} source record"
-            )
-
-    def _build_target(self, processor: Any, sensor_id: str, source_record: SourceRecord) -> Layer2Target:
-        resolver = getattr(processor, "resolve_stream_name", None)
-        stream_name = resolver(source_record) if callable(resolver) else processor.stream_name
-        target_dir = self.output_root / stream_name
-        key = stream_name
-
-        return Layer2Target(
-            key=key,
-            stream_name=stream_name,
-            sensor_id=sensor_id,
-            history_path=target_dir / "history.jsonl",
-            latest_path=target_dir / "latest.json",
-            state_path=target_dir / "state.json",
+        unknown_entries = validate_unknown_catalog_fields(
+            canonical_columns=canonical_df.columns,
+            stats=stats,
+            policy=self.unknown_catalog_field_policy,
         )
+        validate_canonical_invariants(canonical_df=canonical_df, stats=stats)
 
-    def _ensure_target_loaded(
-        self,
-        processor: Any,
-        target: Layer2Target,
-        run_state: Layer2RunState,
-    ) -> None:
-        if target.key not in run_state.sensor_histories:
-            run_state.sensor_histories[target.key] = read_jsonl(target.history_path)
-        if target.key not in run_state.sensor_states:
-            run_state.sensor_states[target.key] = read_json(
-                target.state_path,
-                default=self._build_state_from_history(
-                    processor=processor,
-                    sensor_id=target.sensor_id,
-                    history_rows=run_state.sensor_histories[target.key],
-                ),
-            )
-        if target.key not in run_state.sensor_pending_rows:
-            run_state.sensor_pending_rows[target.key] = []
-            run_state.sensor_counts[target.key] = 0
+        output_paths = self._write_outputs(
+            canonical_df=canonical_df,
+            excluded_df=excluded_df,
+            stats=stats,
+            unknown_entries=unknown_entries,
+        )
+        sensor_counts = self._build_sensor_counts(canonical_df)
 
-    def _mark_filtered_record(
-        self,
-        state: dict[str, Any],
-        source_record: SourceRecord,
-        target_key: str,
-        run_state: Layer2RunState,
-    ) -> None:
-        
-        """
-        hàm này được gọi khi một bản ghi nguồn không vượt qua được các tiêu chí chấp nhận, 
-        để cập nhật trạng thái mục tiêu tương ứng và thống kê số lượng bản ghi bị lọc ra.
-        """
-        self._update_state_from_source_record(state=state, source_record=source_record)
-        run_state.processed_source_events.add(self._source_event_id(source_record))
-        run_state.touched_targets.add(target_key)
-        run_state.filtered_out_records += 1
-
-    def _persist_targets(self, run_state: Layer2RunState) -> int:
-        
-        """Ghi lại tất cả trạng thái mục tiêu đã chạm và bất kỳ snapshot mới nào được xây dựng."""
-
-        total_new_snapshots = 0
-
-        for target_key in sorted(run_state.touched_targets):
-            target_dir = self.output_root / target_key
-
-            rows = run_state.sensor_pending_rows.get(target_key, [])
-
-            if rows:
-                total_new_snapshots += append_jsonl(target_dir / "history.jsonl", rows)
-                write_json(target_dir / "latest.json", rows[-1])
-
-            write_json(target_dir / "state.json", run_state.sensor_states[target_key])
-
-        return total_new_snapshots
-
-    def _write_manifest(self, run_state: Layer2RunState, total_new_snapshots: int) -> Path:
-        manifest_payload: dict[str, Any] = {
-            "schema_version": LAYER1_SCHEMA_VERSION,
-            "pipeline": "layer1_preprocessing",
+        manifest_payload = {
+            "schema_version": 2,
+            "pipeline": "layer1_canonical_preprocessing",
             "ran_at_utc": iso_utc_now(),
-            "source": {
-                source_store.name: {
-                    "history_root": str(source_store.history_root),
-                    "latest_payload_path": str(source_store.latest_payload_path),
-                    "latest_meta_path": str(source_store.latest_meta_path),
-                }
-                for source_store in self.source_stores
-            },
-            "processed_source_records": len(run_state.processed_source_events),
-            "filtered_out_records": run_state.filtered_out_records,
-            "total_new_snapshots": total_new_snapshots,
-            "targets": run_state.sensor_counts,
+            "processed_source_records": stats.input_record_count,
+            "filtered_out_records": stats.excluded_record_count,
+            "total_new_snapshots": stats.canonical_record_count,
+            "targets": sensor_counts,
+            "canonical_record_count": stats.canonical_record_count,
+            "demo_record_count": stats.demo_record_count,
+            "excluded_record_count": stats.excluded_record_count,
+            "output_paths": {key: str(value) for key, value in output_paths.items()},
+            "warnings": list(stats.warnings),
         }
         manifest_path = self.output_root / "manifest.json"
         write_json(manifest_path, manifest_payload)
-        return manifest_path
 
-    def _load_source_records(self) -> list[SourceRecord]:
-        """
-        Trả về danh sách được sắp xếp ở dạng SourceRecord, 
-        được tổng hợp từ cả payload mới nhất và lịch sử của tất cả các nguồn đã cấu hình.
-        """
-
-        records_by_event: dict[str, SourceRecord] = {}
-
-        for source_store in self.source_stores:
-            if source_store.history_root.exists():
-                for history_file in sorted(source_store.history_root.rglob("*.json")):
-                    raw_payload = read_json(history_file, default={})
-                    source_record = self._from_history_payload(
-                        payload=raw_payload,
-                        source_name=source_store.name,
-                    )
-                    if source_record is None:
-                        continue
-                    records_by_event[self._source_event_id(source_record)] = source_record
-
-            latest_payload = read_json(source_store.latest_payload_path, default=None)
-            latest_meta = read_json(source_store.latest_meta_path, default=None)
-            latest_record = self._from_latest_payload(
-                latest_payload=latest_payload,
-                latest_meta=latest_meta,
-                source_name=source_store.name,
-            )
-            if latest_record is not None:
-                records_by_event[self._source_event_id(latest_record)] = latest_record
-
-        return sorted(
-            records_by_event.values(),
-            key=lambda item: ((item.ts_server or 0), item.event_key),
+        return Layer1Result(
+            status="ok",
+            processed_source_records=stats.input_record_count,
+            filtered_out_records=stats.excluded_record_count,
+            total_new_snapshots=stats.canonical_record_count,
+            output_root=self.output_root,
+            manifest_path=manifest_path,
+            sensor_counts=sensor_counts,
+            canonical_record_count=stats.canonical_record_count,
+            excluded_record_count=stats.excluded_record_count,
+            demo_record_count=stats.demo_record_count,
+            canonical_history_path=output_paths["canonical_history_path"],
+            canonical_latest_path=output_paths["canonical_latest_path"],
         )
 
-    def _from_history_payload(
+    def _write_outputs(
         self,
-        payload: dict[str, Any] | None,
-        source_name: str,
-    ) -> SourceRecord | None:
-        if not isinstance(payload, dict):
-            return None
-        record = payload.get("record")
-        if not isinstance(record, dict):
-            return None
-        event_key = str(payload.get("event_key") or "")
-        date_key = str(payload.get("date_key") or "")
-        source_path = str(payload.get("path") or "")
-        if not event_key or not date_key:
-            return None
-        record_typed: dict[str, Any] = cast(dict[str, Any], record)
-        return SourceRecord(
-            source_name=source_name,
-            event_key=event_key,
-            date_key=date_key,
-            source_kind="history",
-            source_path=source_path,
-            payload=record_typed,
-            ts_server=safe_int(record_typed.get("ts_server")),
-            ts_device=safe_int(record_typed.get("ts_device")),
+        *,
+        canonical_df: pd.DataFrame,
+        excluded_df: pd.DataFrame,
+        stats: Layer1BuildStats,
+        unknown_entries: list[dict[str, object]],
+    ) -> dict[str, Path]:
+        self._canonical_writer.ensure_directories()
+        self._report_writer.ensure_directories()
+        if self.export_debug_views:
+            self._view_writer.ensure_directories()
+
+        canonical_history_path, canonical_format = self._canonical_writer.write_history(canonical_df)
+        canonical_latest_path = self._canonical_writer.write_latest_snapshot(canonical_df)
+        excluded_records_path = self._canonical_writer.write_excluded_records(excluded_df)
+        feature_catalog_path = self._report_writer.write_feature_catalog(
+            canonical_columns=canonical_df.columns,
+            unknown_entries=unknown_entries,
         )
-
-    def _from_latest_payload(
-        self,
-        latest_payload: dict[str, Any] | None,
-        latest_meta: dict[str, Any] | None,
-        source_name: str,
-    ) -> SourceRecord | None:
-        if not isinstance(latest_payload, dict) or not isinstance(latest_meta, dict):
-            return None
-
-        event_key = str(latest_meta.get("latest_event_key") or "")
-        date_key = str(latest_meta.get("latest_date_key") or "")
-        source_path = str(latest_meta.get("latest_path") or "")
-        if not event_key or not date_key:
-            return None
-
-        return SourceRecord(
-            source_name=source_name,
-            event_key=event_key,
-            date_key=date_key,
-            source_kind="latest",
-            source_path=source_path,
-            payload=latest_payload,
-            ts_server=safe_int(latest_payload.get("ts_server")),
-            ts_device=safe_int(latest_payload.get("ts_device")),
+        field_coverage_path, missingness_path = self._report_writer.write_missingness_reports(canonical_df)
+        field_variance_path = self._report_writer.write_variance_report(canonical_df)
+        duplicate_fields_path = self._report_writer.write_duplicate_fields_report(
+            unknown_entries=unknown_entries,
         )
+        processing_report_path = self._report_writer.write_processing_report(
+            canonical_df=canonical_df,
+            stats=stats,
+            canonical_history_path=canonical_history_path,
+            canonical_latest_path=canonical_latest_path,
+            excluded_records_path=excluded_records_path,
+            feature_catalog_path=feature_catalog_path,
+            field_coverage_path=field_coverage_path,
+            field_variance_path=field_variance_path,
+            duplicate_fields_path=duplicate_fields_path,
+            missingness_path=missingness_path,
+            canonical_format=canonical_format,
+            unknown_entries=unknown_entries,
+        )
+        if self.export_debug_views:
+            self._view_writer.write(canonical_df)
+        self._legacy_publisher.publish(canonical_df)
 
-    def _build_default_state(self, processor: Any, sensor_id: str) -> dict[str, Any]:
         return {
-            "schema_version": 1,
-            "processor_name": processor.processor_name,
-            "sensor_id": sensor_id,
-            "last_processed_server_ts": None,
-            "last_processed_event_key": None,
-            "processed_record_count": 0,
-            "recent_record_ids": [],
-            "last_updated_utc": None,
+            "canonical_history_path": canonical_history_path,
+            "canonical_latest_path": canonical_latest_path,
+            "excluded_records_path": excluded_records_path,
+            "feature_catalog_path": feature_catalog_path,
+            "field_coverage_path": field_coverage_path,
+            "field_variance_path": field_variance_path,
+            "duplicate_fields_path": duplicate_fields_path,
+            "missingness_path": missingness_path,
+            "processing_report_path": processing_report_path,
         }
 
-    def _build_state_from_history(
+    def _accumulate_source_stats(
         self,
-        processor: Any,
-        sensor_id: str,
-        history_rows: list[dict[str, Any]],
-    ) -> dict[str, Any]:
-        """
-        Xây dựng trạng thái mục tiêu ban đầu từ lịch sử đã có, để lần chạy này có thể tiếp tục từ trạng thái đó.
-        """
+        row: dict[str, object],
+        stats: Layer1BuildStats,
+    ) -> None:
+        if row.get("record.ts_sample") is None:
+            stats.timestamp_parse_error_count += 1
+        if row.get("sht.packet_present") is False:
+            stats.sht_packet_missing_count += 1
+        if row.get("npk.packet_present") is False:
+            stats.npk_packet_missing_count += 1
+        if row.get("sht.fault") is True:
+            stats.sht_fault_count += 1
+        if row.get("npk.fault") is True:
+            stats.npk_fault_count += 1
+        if row.get("delivery.is_buffered_replay") is True:
+            stats.buffered_replay_count += 1
+        if row.get("delivery.fallback_used") is True:
+            stats.fallback_count += 1
+        if row.get("device.reset_or_power_on") is True:
+            stats.reset_or_power_on_count += 1
 
-        state = self._build_default_state(processor=processor, sensor_id=sensor_id)
-        if not history_rows:
-            return state
-
-        last_row = history_rows[-1]
-        timestamps = last_row.get("timestamps", {})
-        source = last_row.get("source", {})
-        state["last_processed_server_ts"] = timestamps.get("ts_server")
-        state["last_processed_event_key"] = source.get("event_key")
-        state["processed_record_count"] = len(history_rows)
-        state["recent_record_ids"] = trim_recent_ids(
-            [
-                str(row.get("source", {}).get("event_key"))
-                for row in history_rows
-                if row.get("source", {}).get("event_key")
-            ]
-        )
-        state["last_updated_utc"] = iso_utc_now()
-        return state
-
-    def _should_process_record(self, state: dict[str, Any], source_record: SourceRecord) -> bool:
-        recent_ids = set(state.get("recent_record_ids") or [])
-        record_id = source_record.event_key
-        current_ts = source_record.ts_server or -1
-        last_ts = safe_int(state.get("last_processed_server_ts"))
-        last_event_key = str(state.get("last_processed_event_key") or "")
-
-        if record_id in recent_ids:
-            return False
-        if last_ts is None:
-            return True
-        if current_ts > last_ts:
-            return True
-        if current_ts == last_ts and source_record.event_key > last_event_key:
-            return True
-        return False
-
-    def _source_event_id(self, source_record: SourceRecord) -> str:
-        return f"{source_record.source_name}/{source_record.date_key}/{source_record.event_key}"
-
-    def _source_record_is_accepted(self, processor: Any, source_record: SourceRecord) -> bool:
-        predicate = cast(
-            Callable[[SourceRecord], bool] | None,
-            getattr(processor, "should_accept_source_record", None),
-        )
-        if predicate is None:
-            return True
-        return bool(predicate(source_record))
-
-    def _snapshot_is_accepted(self, snapshot: dict[str, Any]) -> bool:
-        timestamps = snapshot.get("timestamps", {})
-        perception = snapshot.get("perception", {})
-        if safe_int(timestamps.get("ts_server")) is None:
-            return False
-        if not isinstance(perception, dict) or not perception:
-            return False
-        return True
-
-    def _update_state_from_snapshot(self, state: dict[str, Any], snapshot: dict[str, Any]) -> None:
-        timestamps = snapshot.get("timestamps", {})
-        source = snapshot.get("source", {})
-        state["last_processed_server_ts"] = timestamps.get("ts_server")
-        state["last_processed_event_key"] = source.get("event_key")
-        state["processed_record_count"] = int(state.get("processed_record_count", 0)) + 1
-        recent_ids = list(state.get("recent_record_ids") or [])
-        recent_ids.append(str(source.get("event_key")))
-        state["recent_record_ids"] = trim_recent_ids(recent_ids)
-        state["last_updated_utc"] = iso_utc_now()
-
-    def _update_state_from_source_record(self, state: dict[str, Any], source_record: SourceRecord) -> None:
-        state["last_processed_server_ts"] = source_record.ts_server
-        state["last_processed_event_key"] = source_record.event_key
-        state["processed_record_count"] = int(state.get("processed_record_count", 0)) + 1
-        recent_ids = list(state.get("recent_record_ids") or [])
-        recent_ids.append(source_record.event_key)
-        state["recent_record_ids"] = trim_recent_ids(recent_ids)
-        state["last_updated_utc"] = iso_utc_now()
+    def _build_sensor_counts(self, canonical_df: pd.DataFrame) -> dict[str, int]:
+        if canonical_df.empty:
+            return {"canonical": 0, "sht30": 0, "npk": 0, "meteo": 0}
+        return {
+            "canonical": int(len(canonical_df)),
+            "sht30": int(canonical_df["sht.packet_present"].fillna(False).astype(bool).sum()),
+            "npk": int(canonical_df["npk.packet_present"].fillna(False).astype(bool).sum()),
+            "meteo": 0,
+        }

@@ -1,3 +1,3 @@
-from .processor import NPKProcessor
+from .canonical import extract_npk_fields
 
-__all__ = ["NPKProcessor"]
+__all__ = ["extract_npk_fields"]

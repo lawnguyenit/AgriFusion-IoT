@@ -1,3 +1,3 @@
-from .processor import SHT30Processor
+from .canonical import extract_sht30_fields
 
-__all__ = ["SHT30Processor"]
+__all__ = ["extract_sht30_fields"]
