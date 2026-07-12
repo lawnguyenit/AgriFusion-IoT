@@ -1,4 +1,4 @@
-"""Layer 1 canonical processing and runtime signal generation."""
+"""Layer 1 canonical telemetry processing."""
 
 from .pipelines import Layer1Result, PreprocessingPipeline
 

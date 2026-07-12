@@ -33,14 +33,10 @@ class PreprocessingPipeline:
     def __init__(
         self,
         base_dir: Path | None = None,
-        meteo_forecast_base_dir: Path | None = None,
-        meteo_archive_base_dir: Path | None = None,
-        include_meteo_archive: bool = False,
         output_root: Path | None = None,
         *,
         temporal_settings: TemporalSettings | None = None,
         export_debug_views: bool = True,
-        overwrite: bool = True,
         unknown_catalog_field_policy: str = "warn",
     ):
         self.base_dir = (base_dir or BACKEND_SETTINGS.base_dir).resolve()
@@ -51,11 +47,7 @@ class PreprocessingPipeline:
         self.quality_root = self.output_root / "quality_reports"
         self.temporal = temporal_settings or TemporalSettings()
         self.export_debug_views = export_debug_views
-        self.overwrite = overwrite
         self.unknown_catalog_field_policy = unknown_catalog_field_policy
-        self._meteo_forecast_base_dir = meteo_forecast_base_dir
-        self._meteo_archive_base_dir = meteo_archive_base_dir
-        self._include_meteo_archive = include_meteo_archive
 
         self._source_loader = FirebaseSourceLoader(self.base_dir)
         self._row_builder = CanonicalRowBuilder()
