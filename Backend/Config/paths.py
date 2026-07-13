@@ -3,13 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .env import BACKEND_DIR, SERVICES_DIR
+from .env import BACKEND_DIR
 
 
 @dataclass(frozen=True)
 class BackendPaths:
     backend_dir: Path = field(default_factory=lambda: BACKEND_DIR.resolve())
-    services_dir: Path = field(default_factory=lambda: SERVICES_DIR.resolve())
 
     @property
     def config_dir(self) -> Path:
@@ -34,14 +33,6 @@ class BackendPaths:
     @property
     def layer1_dir(self) -> Path:
         return self.output_data_dir / "Layer1"
-
-    @property
-    def super_table_dir(self) -> Path:
-        return self.output_data_dir / "SuperTable"
-
-    @property
-    def result_publish_dir(self) -> Path:
-        return self.output_data_dir / "Result_publish"
 
     @property
     def navigation_dir(self) -> Path:

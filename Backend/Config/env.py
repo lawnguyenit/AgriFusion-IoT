@@ -7,9 +7,8 @@ from dotenv import load_dotenv
 
 CONFIG_DIR = Path(__file__).resolve().parent
 BACKEND_DIR = CONFIG_DIR.parent
-SERVICES_DIR = BACKEND_DIR / "Services"
 
-load_dotenv(dotenv_path=SERVICES_DIR / ".env", override=False)
+load_dotenv(dotenv_path=BACKEND_DIR / ".env", override=False)
 
 
 def env_str(name: str, default: str | None = None) -> str | None:

@@ -5,7 +5,7 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from .env import SERVICES_DIR, coerce_optional_path, env_int, env_path, env_str
+from .env import coerce_optional_path, env_int, env_path, env_str
 from .paths import BACKEND_PATHS
 
 
@@ -16,7 +16,6 @@ def _slugify_node(value: str) -> str:
 
 @dataclass(frozen=True)
 class BackendSettings:
-    services_dir: Path = field(default_factory=lambda: SERVICES_DIR)
     backend_dir: Path = field(default_factory=lambda: BACKEND_PATHS.backend_dir)
     source_type: str = field(default_factory=lambda: env_str("EXPORT_SOURCE", "firebase") or "firebase")
     input_json_path: Path | None = field(default_factory=lambda: env_path("EXPORT_INPUT_JSON"))
@@ -35,16 +34,16 @@ class BackendSettings:
         default_factory=lambda: env_int("EXPORT_NO_CHANGE_RETRY_LIMIT", 1)
     )
     npk_sensor_id: str = field(
-        default_factory=lambda: env_str("EXPORT_NPK_SENSOR_ID", "npk_7in1_1") or "npk_7in1_1"
+        default_factory=lambda: env_str("EXPORT_NPK_SENSOR_ID", "soil_7in1_01") or "soil_7in1_01"
     )
     npk_sensor_type: str = field(
-        default_factory=lambda: env_str("EXPORT_NPK_SENSOR_TYPE", "npk7in1") or "npk7in1"
+        default_factory=lambda: env_str("EXPORT_NPK_SENSOR_TYPE", "soil_multi_sensor") or "soil_multi_sensor"
     )
     sht30_sensor_id: str = field(
-        default_factory=lambda: env_str("EXPORT_SHT30_SENSOR_ID", "sht30_1") or "sht30_1"
+        default_factory=lambda: env_str("EXPORT_SHT30_SENSOR_ID", "air_sht30_01") or "air_sht30_01"
     )
     sht30_sensor_type: str = field(
-        default_factory=lambda: env_str("EXPORT_SHT30_SENSOR_TYPE", "sht30_air") or "sht30_air"
+        default_factory=lambda: env_str("EXPORT_SHT30_SENSOR_TYPE", "air_temp_humidity") or "air_temp_humidity"
     )
 
     def __post_init__(self) -> None:
@@ -52,7 +51,6 @@ class BackendSettings:
         if normalized_source not in {"firebase", "json-export"}:
             raise ValueError(f"Unsupported export source '{self.source_type}'")
         object.__setattr__(self, "source_type", normalized_source)
-        object.__setattr__(self, "services_dir", Path(self.services_dir).resolve())
         object.__setattr__(self, "backend_dir", Path(self.backend_dir).resolve())
 
         if self.input_json_path is not None:
@@ -84,24 +82,8 @@ class BackendSettings:
         return self.output_data_root / "Layer1"
 
     @property
-    def super_table_root(self) -> Path:
-        return self.output_data_root / "SuperTable"
-
-    @property
     def firebase_layer0_root(self) -> Path:
         return self.layer0_root / "Firebase_data"
-
-    @property
-    def openmeteo_root(self) -> Path:
-        return self.layer0_root / "OpenMeteo_Data"
-
-    @property
-    def meteo_forecast_root(self) -> Path:
-        return self.openmeteo_root / "Meteo_forecast_ifs"
-
-    @property
-    def meteo_archive_root(self) -> Path:
-        return self.openmeteo_root / "Meteo_archive_era5"
 
     @property
     def latest_meta_path(self) -> str:
@@ -159,10 +141,6 @@ class BackendSettings:
     @property
     def history_root(self) -> Path:
         return self.firebase_history_root
-
-    @property
-    def meteo_data_root(self) -> Path:
-        return self.meteo_archive_root
 
 
 BACKEND_SETTINGS = BackendSettings()
