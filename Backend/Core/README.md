@@ -2,21 +2,22 @@
 
 ## Purpose
 
-`Backend/Core` owns canonical telemetry processing after raw artifacts have
-already been pulled into local storage by Layer0 services.
+`Backend/Core` owns the accepted backend stages from raw telemetry
+ingestion through canonical preprocessing, plus the reusable
+benchmark-facing Layer2 feature builders that still consume Core outputs.
 
 Core is responsible for:
 
+- fetching or loading telemetry sources for Layer0;
 - loading local telemetry sources;
 - preserving source provenance;
 - building canonical records;
 - deriving deterministic low-level features;
-- producing reusable downstream tables without assigning benchmark labels
-  or model outputs.
+- producing reusable temporal feature bundles without assigning benchmark
+  labels or model outputs.
 
 Core is not responsible for:
 
-- fetching Firebase or other external services directly;
 - training or evaluating models;
 - creating benchmark labels;
 - mutating raw Layer0 evidence in place.
@@ -25,38 +26,36 @@ Core is not responsible for:
 
 ```text
 Core/
+|-- infrastructure/ external adapters used by Core stages
+|-- layer0/      raw telemetry ingestion into Layer0 artifacts
 |-- layer1/      canonical telemetry preprocessing
-|-- fusion.py    SuperTable fusion from Layer1 compatibility histories
 |-- layer2/      reusable benchmark-facing time-series feature builders
-|-- canonical/   model-facing matrix builders
-|-- contracts/   shared Core schema/version markers
 `-- utils/       low-level helpers reused inside Core
 ```
 
 ## Data flow
 
 ```text
-Layer0 raw local
+Firebase RTDB / JSON export
+-> Core/layer0
+-> Backend/Output_data/Layer0
 -> Core/layer1
 -> Backend/Output_data/Layer1
--> Core/fusion.py
--> Backend/Output_data/SuperTable
--> Core/canonical or Backend/Benchmark consumers
+-> Core/layer2 or Backend/Benchmark consumers
 ```
 
 ## Notes
 
 - Layer1 now uses one canonical history table as its source of truth.
+- Layer0 and its Firebase adapter now live under `Backend/Core`, not a
+  separate `Services` package.
 - Sensor-specific `sht30/*`, `npk/*`, and `meteo/*` artifacts under
   `Output_data/Layer1` are compatibility outputs derived from canonical
   rows, not independent processing pipelines.
-- `fusion.py` replaced the older `Core/fusion/` package layout. References
-  to the old directory are stale.
 - `layer2/` is still active and used by benchmark dataset builders.
 
 ## Risks
 
-- Changing Core contracts can affect `Services`, `Benchmark`, and
-  `Frontend` consumers.
+- Changing Core outputs can affect `Benchmark` and `Frontend` consumers.
 - Deleting compatibility outputs before migrating consumers will break
   downstream pipelines.

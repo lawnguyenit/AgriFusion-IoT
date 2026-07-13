@@ -14,16 +14,48 @@ from ..contracts import SourceRecord
 
 
 class FirebaseSourceLoader:
-    def __init__(self, base_dir: Path):
+    def __init__(
+        self,
+        base_dir: Path,
+        *,
+        node_id: str = "Node1",
+        history_payload: dict[str, Any] | None = None,
+        latest_payload: dict[str, Any] | None = None,
+        latest_meta: dict[str, Any] | None = None,
+    ):
         self.base_dir = base_dir.resolve()
+        self.node_id = node_id
         self.history_root = self.base_dir / "history"
         self.latest_payload_path = self.base_dir / "new_raw" / "latest.json"
         self.latest_meta_path = self.base_dir / "new_raw" / "latest_meta.json"
+        self._history_payload = history_payload
+        self._latest_payload = latest_payload
+        self._latest_meta = latest_meta
+
+    @classmethod
+    def from_payloads(
+        cls,
+        *,
+        base_dir: Path,
+        node_id: str,
+        history_payload: dict[str, Any] | None,
+        latest_payload: dict[str, Any] | None,
+        latest_meta: dict[str, Any] | None,
+    ) -> "FirebaseSourceLoader":
+        return cls(
+            base_dir=base_dir,
+            node_id=node_id,
+            history_payload=history_payload,
+            latest_payload=latest_payload,
+            latest_meta=latest_meta,
+        )
 
     def load(self) -> list[SourceRecord]:
         records_by_id: dict[str, SourceRecord] = {}
 
-        if self.history_root.exists():
+        if isinstance(self._history_payload, dict):
+            self._load_history_payload(records_by_id)
+        elif self.history_root.exists():
             for history_file in sorted(self.history_root.rglob("*.json")):
                 payload = read_json(history_file, default={})
                 source_record = self._from_history_payload(payload)
@@ -31,8 +63,16 @@ class FirebaseSourceLoader:
                     continue
                 records_by_id[self._source_event_id(source_record)] = source_record
 
-        latest_payload = read_json(self.latest_payload_path, default=None)
-        latest_meta = read_json(self.latest_meta_path, default=None)
+        latest_payload = (
+            self._latest_payload
+            if self._latest_payload is not None
+            else read_json(self.latest_payload_path, default=None)
+        )
+        latest_meta = (
+            self._latest_meta
+            if self._latest_meta is not None
+            else read_json(self.latest_meta_path, default=None)
+        )
         latest_record = self._from_latest_payload(latest_payload, latest_meta)
         if latest_record is not None:
             records_by_id[self._source_event_id(latest_record)] = latest_record
@@ -44,6 +84,24 @@ class FirebaseSourceLoader:
                 item.event_key,
             ),
         )
+
+    def _load_history_payload(self, records_by_id: dict[str, SourceRecord]) -> None:
+        assert isinstance(self._history_payload, dict)
+        for date_key, day_payload in sorted(self._history_payload.items(), key=lambda item: str(item[0])):
+            if not isinstance(day_payload, dict):
+                continue
+            for event_key, record_payload in sorted(day_payload.items(), key=lambda item: str(item[0])):
+                if not isinstance(record_payload, dict):
+                    continue
+                source_record = SourceRecord(
+                    source_name="firebase",
+                    event_key=str(event_key),
+                    date_key=str(date_key),
+                    source_kind="history",
+                    source_path=f"{self.node_id}/telemetry/{date_key}/{event_key}",
+                    payload=record_payload,
+                )
+                records_by_id[self._source_event_id(source_record)] = source_record
 
     def _from_history_payload(self, payload: dict[str, Any] | None) -> SourceRecord | None:
         if not isinstance(payload, dict):

@@ -1,10 +1,11 @@
 # Layer0 Ingestion Pipeline Map
 
-## Mục đích
+## Purpose
 
-Pipeline này đồng bộ telemetry mới nhất từ source hiện tại như Firebase hoặc JSON export về local Layer0 artifacts.
+This pipeline synchronizes telemetry from the accepted Layer0 sources
+(Firebase RTDB or JSON export) into local raw artifacts.
 
-## Main flow
+## Main Flow
 
 ```text
 Source
@@ -18,34 +19,40 @@ Source
 -> Layer0IngestionResult
 ```
 
-## Thành phần chính
+## Main Components
 
 - `pipeline.py`
-  Vai trò: điều phối toàn bộ run và trả `Layer0IngestionResult`.
+  Role: orchestrates one ingestion run and returns
+  `Layer0IngestionResult`.
 - `sources/`
-  Vai trò: đọc source ngoài hoặc source offline.
+  Role: reads external or offline source payloads.
 - `sync/latest_sync.py`
-  Vai trò: parse latest meta, quyết định trạng thái sync, build sync state.
+  Role: parses latest metadata, decides sync status, and builds
+  sync-state payloads.
 - `stores/`
-  Vai trò: ghi latest payload/meta, history snapshot, source manifest.
+  Role: writes latest payload/meta, history snapshots, and source audit
+  artifacts.
 - `utils/`
-  Vai trò: helper kỹ thuật của package ingest.
+  Role: package-local technical helpers.
 
-## Input
+## Inputs
 
-- source data từ Firebase / JSON export / Open-Meteo
-- runtime settings từ `Backend/Config/runtime.py`
-- storage helper từ `Backend/Config/storage.py`
+- source data from Firebase or JSON export
+- runtime settings from `Backend/Config/runtime.py`
+- storage helpers from `Backend/Config/storage.py`
 
-## Output
+## Outputs
 
-- latest payload/meta local
-- history snapshot local
-- sync state local
-- source manifest và source snapshot audit
+- local latest payload/meta
+- local history snapshots
+- local sync state
+- source manifest and source snapshot audit artifacts
 
-## Rủi ro / giới hạn hiện tại
+## Limits
 
-- Nếu latest meta thiếu key bắt buộc, pipeline sẽ fail sớm.
-- Sai decision ở `latest_sync.py` có thể làm fetch thiếu hoặc fetch thừa.
-- Package hỗ trợ cả normalized snapshot root lẫn legacy latest/current path để tương thích dữ liệu RTDB hiện tại.
+- If required latest-meta keys are missing, the pipeline fails early.
+- Incorrect decision logic in `latest_sync.py` can still cause missed or
+  redundant fetches.
+- The package still supports both normalized snapshot-root payloads and
+  legacy latest/current RTDB paths for compatibility with current stored
+  data.

@@ -2,7 +2,7 @@
 
 ## 1. Purpose
 
-`Backend/Services/layer0_ingestion` is the standard package for bringing
+`Backend/Core/layer0` is the standard package for bringing
 source telemetry into local raw artifacts that can be audited and
 replayed.
 
@@ -16,7 +16,7 @@ It does not perform analytical preprocessing. Its job is to:
 ## 2. Active Structure
 
 ```text
-layer0_ingestion/
+layer0/
 |-- pipeline.py
 |-- sources/
 |   |-- firebase.py
@@ -48,7 +48,7 @@ fetch latest meta
 
 - Firebase RTDB
 - JSON export file
-- `Backend/Services/.env`
+- `Backend/.env`
 - CLI parameters from `Backend/main.py`
 
 ## 4. Outputs
