@@ -38,6 +38,7 @@ class PreprocessingPipeline:
         temporal_settings: TemporalSettings | None = None,
         export_debug_views: bool = True,
         unknown_catalog_field_policy: str = "warn",
+        source_loader: FirebaseSourceLoader | None = None,
     ):
         self.base_dir = (base_dir or BACKEND_SETTINGS.base_dir).resolve()
         self.output_root = (output_root or BACKEND_SETTINGS.layer1_root).resolve()
@@ -49,7 +50,7 @@ class PreprocessingPipeline:
         self.export_debug_views = export_debug_views
         self.unknown_catalog_field_policy = unknown_catalog_field_policy
 
-        self._source_loader = FirebaseSourceLoader(self.base_dir)
+        self._source_loader = source_loader or FirebaseSourceLoader(self.base_dir)
         self._row_builder = CanonicalRowBuilder()
         self._canonical_writer = CanonicalOutputWriter(self.output_root)
         self._view_writer = DebugViewWriter(self.output_root)

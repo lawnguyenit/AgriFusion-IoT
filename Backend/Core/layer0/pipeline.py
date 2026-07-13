@@ -44,6 +44,9 @@ class Layer0IngestionPipeline:
         self.firebase_client = firebase_client if firebase_client is not None else firebase_service
         self.settings = settings
         self.source_adapter = self._build_source_adapter()
+        self.last_latest_meta_payload: dict[str, Any] | None = None
+        self.last_latest_current_payload: dict[str, Any] | None = None
+        self.last_full_history_payload: dict[str, Any] | None = None
 
     def run(
         self,
@@ -51,12 +54,16 @@ class Layer0IngestionPipeline:
         history_start_date: date | None = None,
         history_end_date: date | None = None,
     ) -> Layer0IngestionResult | None:
+        self.last_latest_meta_payload = None
+        self.last_latest_current_payload = None
+        self.last_full_history_payload = None
         checked_at = _utc_now()
         previous_sync_state = load_sync_state(self.settings)
 
         latest_meta_payload = self.source_adapter.fetch_latest_meta_payload()
         if latest_meta_payload is None:
             return None
+        self.last_latest_meta_payload = latest_meta_payload
 
         source_descriptor = self.source_adapter.describe_source()
         meta_snapshot = parse_latest_meta(
@@ -119,6 +126,7 @@ class Layer0IngestionPipeline:
                     full_history_written_count=0,
                 )
 
+            self.last_latest_current_payload = latest_current_payload
             latest_payload_path = write_latest_payload(self.settings, latest_current_payload)
             history_path = write_history_snapshot(
                 settings=self.settings,
@@ -132,6 +140,7 @@ class Layer0IngestionPipeline:
         if full_history and decision.status != "duplicate_source":
             telemetry_payload = self.source_adapter.fetch_full_history_payload()
             if telemetry_payload is not None:
+                self.last_full_history_payload = telemetry_payload
                 full_history_written_count = write_full_history_snapshots(
                     settings=self.settings,
                     telemetry_payload=telemetry_payload,

@@ -20,15 +20,15 @@ except ModuleNotFoundError as exc:
 
 class FirebaseRTDBClient:
     def __init__(self) -> None:
-        relative_key_path = os.getenv("FIREBASE_KEY_PATH")
+        configured_key_path = os.getenv("FIREBASE_KEY_PATH")
         database_url = os.getenv("DATABASE_URL")
 
-        if not relative_key_path:
+        if not configured_key_path:
             raise ValueError("Missing FIREBASE_KEY_PATH in Backend/.env")
         if not database_url:
             raise ValueError("Missing DATABASE_URL in Backend/.env")
 
-        absolute_key_path = Path(BACKEND_DIR, relative_key_path).resolve()
+        absolute_key_path = self._resolve_key_path(configured_key_path)
         if not absolute_key_path.exists():
             raise FileNotFoundError(f"Firebase key not found: {absolute_key_path}")
 
@@ -87,3 +87,19 @@ class FirebaseRTDBClient:
         except Exception as exc:
             print(f"Firebase update error: {exc!r}")
             return False
+
+    @staticmethod
+    def _resolve_key_path(configured_key_path: str) -> Path:
+        candidate = Path(configured_key_path).expanduser()
+        if candidate.is_absolute():
+            return candidate.resolve()
+
+        backend_relative = (BACKEND_DIR / candidate).resolve()
+        if backend_relative.exists():
+            return backend_relative
+
+        legacy_services_relative = (BACKEND_DIR / "Services" / candidate).resolve()
+        if legacy_services_relative.exists():
+            return legacy_services_relative
+
+        return backend_relative
