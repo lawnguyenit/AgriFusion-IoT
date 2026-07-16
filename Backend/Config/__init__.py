@@ -10,7 +10,7 @@ from .common import (
     series_stats,
     trim_recent_ids,
 )
-from .env import BACKEND_DIR, SERVICES_DIR, coerce_optional_path, env_int, env_path, env_str
+from .env import BACKEND_DIR, coerce_optional_path, env_int, env_path, env_str
 from .paths import BACKEND_PATHS, BackendPaths
 from .runtime import BACKEND_SETTINGS, BackendSettings
 from .storage import (
@@ -29,7 +29,6 @@ from .storage import (
 
 __all__ = [
     "BACKEND_DIR",
-    "SERVICES_DIR",
     "BACKEND_PATHS",
     "BackendPaths",
     "BACKEND_SETTINGS",
