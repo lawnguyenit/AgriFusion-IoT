@@ -69,8 +69,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--legacy-event-csv",
         type=Path,
-        default=BACKEND_PATHS.benchmark_dir / "benchmark_dataset" / "dataset" / "benchmark_input_labeled.csv",
-        help="Legacy weak-label CSV used to bridge V3 operational-lineage events onto canonical history.",
+        default=None,
+        help="Optional legacy weak-label CSV for deprecated V3 operational-lineage bridging. Not used by the active V0-V2 scope.",
     )
     return parser.parse_args()
 

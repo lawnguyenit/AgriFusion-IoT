@@ -5,7 +5,7 @@ import json
 
 import pandas as pd
 
-from Backend.Benchmark.weak_labels.shared.configs import LABEL_STATUS_EXCLUDED_WINDOW, LABEL_STATUS_LABELED, POINT_LABELS, V6_EVENT_LABELS, V6_LOW_RUN_MIN_STEPS
+from Backend.Benchmark.weak_labels.shared.configs import LABEL_STATUS_LABELED, POINT_LABELS, V6_EVENT_LABELS, V6_LOW_RUN_MIN_STEPS, WEAK_LABELS_VERSION
 from Backend.Benchmark.weak_labels.shared.helpers import json_dumps_compact, local_time_bucket
 
 
@@ -20,7 +20,7 @@ def build_event_tables(raw_event_df: pd.DataFrame) -> V6EventArtifacts:
     event_rows, membership_rows = _build_event_rows(raw_event_df)
     event_df = pd.DataFrame(event_rows).convert_dtypes()
     membership_df = pd.DataFrame(membership_rows).convert_dtypes()
-    boundary_event_audit = event_df.loc[event_df["boundary_status"].astype("string") != "within_partition"].copy()
+    boundary_event_audit = event_df.loc[event_df["intrinsic_eligibility"].fillna(False).astype(bool) == False].copy()
 
     matched_normal_rows = _build_matched_normal_events(raw_event_df, event_df, membership_df)
     if matched_normal_rows:
@@ -87,25 +87,21 @@ def _materialize_event_payload(
     event_kind: str,
 ) -> tuple[dict[str, object], list[dict[str, object]]]:
     group_df = pd.DataFrame(rows).convert_dtypes()
-    base_partitions = group_df["base_partition"].astype("string").dropna().unique().tolist()
     record_count = int(len(group_df))
     if event_kind == "persistent_low_relative_moisture_event" and record_count < V6_LOW_RUN_MIN_STEPS:
         event_kind = "unknown_environment_event"
-    boundary_status = "within_partition" if len(base_partitions) == 1 else "crosses_base_partition"
-    effective_partition = base_partitions[0] if len(base_partitions) == 1 else "excluded"
-    exclusion_reason = pd.NA if len(base_partitions) == 1 else "boundary_event"
     start_local = pd.Timestamp(group_df["timestamp_local"].iloc[0])
     end_local = pd.Timestamp(group_df["timestamp_local"].iloc[-1])
     event_payload = {
         "sample_id": event_id,
         "sample_type": "event",
         "task_id": "v6_event",
+        "label_task_id": "v6_event",
         "label_name": event_kind,
-        "label_status": LABEL_STATUS_LABELED if effective_partition != "excluded" else LABEL_STATUS_EXCLUDED_WINDOW,
-        "base_partition": json_dumps_compact(base_partitions),
-        "effective_partition": effective_partition,
-        "boundary_status": boundary_status,
-        "exclusion_reason": exclusion_reason,
+        "label_status": LABEL_STATUS_LABELED,
+        "intrinsic_eligibility": True,
+        "intrinsic_exclusion_reason": pd.NA,
+        "intrinsic_boundary_status": "within_continuity_chunk",
         "record_count": record_count,
         "record_ids": json_dumps_compact(group_df["record.id"].astype("string").tolist()),
         "record.segment_id": str(group_df["record.segment_id"].iloc[0]),
@@ -114,6 +110,7 @@ def _materialize_event_payload(
         "event_end_local": end_local.isoformat(),
         "time_of_day_bucket": local_time_bucket(start_local),
         "matched_to_event_id": pd.NA,
+        "rule_version": WEAK_LABELS_VERSION,
     }
     memberships = [
         {"record.id": str(record_id), "event_id": event_id, "event_label_name": event_kind}
@@ -137,12 +134,11 @@ def _build_matched_normal_events(
     matched_rows: list[dict[str, object]] = []
     normal_run_index = 0
     for event in event_df.to_dict(orient="records"):
-        if event["effective_partition"] == "excluded" or event["label_name"] not in {V6_EVENT_LABELS[1], V6_EVENT_LABELS[2]}:
+        if not bool(event["intrinsic_eligibility"]) or event["label_name"] not in {V6_EVENT_LABELS[1], V6_EVENT_LABELS[2]}:
             continue
         candidate = normal_rows.loc[
             (~normal_rows["record.id"].astype("string").isin(used_record_ids))
             & (normal_rows["record.segment_id"].astype("string") == str(event["record.segment_id"]))
-            & (normal_rows["base_partition"].astype("string") == str(event["effective_partition"]))
         ].copy()
         if candidate.empty:
             continue
@@ -162,12 +158,12 @@ def _build_matched_normal_events(
                 "sample_id": normal_event_id,
                 "sample_type": "event",
                 "task_id": "v6_event",
+                "label_task_id": "v6_event",
                 "label_name": V6_EVENT_LABELS[0],
                 "label_status": LABEL_STATUS_LABELED,
-                "base_partition": json_dumps_compact(sorted(selected["base_partition"].astype("string").dropna().unique().tolist())),
-                "effective_partition": str(selected["base_partition"].iloc[0]),
-                "boundary_status": "within_partition",
-                "exclusion_reason": pd.NA,
+                "intrinsic_eligibility": True,
+                "intrinsic_exclusion_reason": pd.NA,
+                "intrinsic_boundary_status": "within_continuity_chunk",
                 "record_count": int(len(selected)),
                 "record_ids": json_dumps_compact(selected["record.id"].astype("string").tolist()),
                 "record.segment_id": str(selected["record.segment_id"].iloc[0]),
@@ -176,6 +172,7 @@ def _build_matched_normal_events(
                 "event_end_local": pd.Timestamp(selected["timestamp_local"].iloc[-1]).isoformat(),
                 "time_of_day_bucket": local_time_bucket(pd.Timestamp(selected["timestamp_local"].iloc[0])),
                 "matched_to_event_id": event["sample_id"],
+                "rule_version": WEAK_LABELS_VERSION,
             }
         )
     return matched_rows

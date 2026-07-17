@@ -40,8 +40,6 @@ from .shared_outputs import (
     write_shared_outputs,
 )
 from .standard_views import materialize_standard_view
-from .v3_family import materialize_v3_view, prepare_v3_family_context
-from .v6_family import materialize_v6_view, prepare_v6_family_context
 
 
 def materialize_dataset_views(config: MaterializationConfig) -> MaterializationResult:
@@ -122,7 +120,10 @@ def materialize_dataset_views(config: MaterializationConfig) -> MaterializationR
     )
 
     v3_context: dict[str, object] | None = None
+    materialize_v3 = None
     if has_v3_views(selected_public_view_ids):
+        from .v3_family import materialize_v3_view, prepare_v3_family_context
+
         if segment_manifest_payload is None:
             raise ValueError("V3 operational-lineage views require the Layer1 segment manifest.")
         v3_context = prepare_v3_family_context(
@@ -135,8 +136,12 @@ def materialize_dataset_views(config: MaterializationConfig) -> MaterializationR
             parquet_engine=parquet_engine,
             source_manifest_payload=source_manifest_payload,
         )
+        materialize_v3 = materialize_v3_view
     v6_context: dict[str, object] | None = None
+    materialize_v6 = None
     if has_v6_views(selected_public_view_ids):
+        from .v6_family import materialize_v6_view, prepare_v6_family_context
+
         if segment_manifest_payload is None:
             raise ValueError("V6 environmental event views require the Layer1 segment manifest.")
         v6_context = prepare_v6_family_context(
@@ -146,15 +151,16 @@ def materialize_dataset_views(config: MaterializationConfig) -> MaterializationR
             parquet_engine=parquet_engine,
             source_manifest_payload=source_manifest_payload,
         )
+        materialize_v6 = materialize_v6_view
 
     canonical_columns = tuple(canonical_df.columns)
     for view_id in (*selected_public_view_ids, *materialized_nonpublic_drafts):
         taxonomy_entry = get_taxonomy_entry(view_id)
         view_definition = get_view_definition(view_id)
         if view_definition.selection_mode.startswith("operational_lineage_"):
-            if v3_context is None:
+            if v3_context is None or materialize_v3 is None:
                 raise ValueError("V3 context was not prepared.")
-            materialize_v3_view(
+            materialize_v3(
                 taxonomy_entry=taxonomy_entry,
                 view_definition=view_definition,
                 v3_context=v3_context,
@@ -164,9 +170,9 @@ def materialize_dataset_views(config: MaterializationConfig) -> MaterializationR
             )
             continue
         if view_definition.selection_mode == "environmental_sequence_8h":
-            if v6_context is None:
+            if v6_context is None or materialize_v6 is None:
                 raise ValueError("V6 context was not prepared.")
-            materialize_v6_view(
+            materialize_v6(
                 taxonomy_entry=taxonomy_entry,
                 view_definition=view_definition,
                 v6_context=v6_context,

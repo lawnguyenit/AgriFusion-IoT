@@ -14,6 +14,7 @@ from Backend.Benchmark.weak_labels.shared.configs import (
     POINT_SENSITIVITY_LABEL,
     V6_RISE_DELTA_PP,
     V6_THERMAL_THRESHOLD_KPA,
+    WEAK_LABELS_VERSION,
 )
 from Backend.Benchmark.weak_labels.shared.helpers import json_dumps_compact
 
@@ -113,17 +114,17 @@ def build_point_label_artifacts(
     enriched["positive_environmental_evidence_count"] = pd.Series(positive_counts, dtype="Int64")
     enriched["low_run_length_ending_at_point"] = pd.Series(low_run_lengths, dtype="Int64")
 
-    effective_partition = enriched["base_partition"].astype("string").where(
-        enriched["point_label_status"] == LABEL_STATUS_LABELED,
-        "excluded",
-    )
+    intrinsic_eligibility = enriched["point_label_status"].astype("string") == LABEL_STATUS_LABELED
+    intrinsic_exclusion_reason = pd.Series([pd.NA] * len(enriched), dtype="string")
+    intrinsic_exclusion_reason.loc[enriched["point_label_status"].astype("string") == LABEL_STATUS_EXCLUDED_TIME] = "time_integrity_invalid"
+    intrinsic_exclusion_reason.loc[enriched["point_label_status"].astype("string") == LABEL_STATUS_ABSTAIN] = "core_environment_not_fully_evaluable"
     point_evidence_flags = pd.DataFrame(
         {
             "record.id": enriched["record.id"].astype("string"),
             "record.ts_sample": enriched["record.ts_sample"].astype("int64"),
             "record.segment_id": enriched["record.segment_id"].astype("string"),
-            "base_partition": enriched["base_partition"].astype("string"),
-            "effective_partition": effective_partition.astype("string"),
+            "intrinsic_eligibility": intrinsic_eligibility.astype("boolean"),
+            "intrinsic_exclusion_reason": intrinsic_exclusion_reason.astype("string"),
             "low_moisture_applicable": enriched["low_moisture_applicable"].astype("boolean"),
             "thermal_applicable": enriched["thermal_applicable"].astype("boolean"),
             "ec_shift_applicable": enriched["ec_shift_applicable"].astype("boolean"),
@@ -135,6 +136,7 @@ def build_point_label_artifacts(
             "positive_environmental_evidence_count": enriched["positive_environmental_evidence_count"].astype("Int64"),
             "low_run_length_ending_at_point": enriched["low_run_length_ending_at_point"].astype("Int64"),
             "point_label_status": enriched["point_label_status"].astype("string"),
+            "rule_version": pd.Series([WEAK_LABELS_VERSION] * len(enriched), dtype="string"),
             "direct_source_fields": pd.Series(
                 [
                     json_dumps_compact(["npk.soil_moisture_pct", "npk.ec", "sht.temp_c", "sht.humidity_pct"])
@@ -154,10 +156,11 @@ def build_point_label_artifacts(
             "sample_id": enriched["record.id"].astype("string"),
             "sample_type": pd.Series(["record"] * len(enriched), dtype="string"),
             "task_id": pd.Series(["v0_v1_point_detailed"] * len(enriched), dtype="string"),
+            "label_task_id": pd.Series(["v0_v1_point_detailed"] * len(enriched), dtype="string"),
             "label_name": enriched["point_detailed_label_name"].astype("string"),
             "label_status": enriched["point_label_status"].astype("string"),
-            "base_partition": enriched["base_partition"].astype("string"),
-            "effective_partition": effective_partition.astype("string"),
+            "intrinsic_eligibility": intrinsic_eligibility.astype("boolean"),
+            "intrinsic_exclusion_reason": intrinsic_exclusion_reason.astype("string"),
             "primary_rule_id": pd.Series(
                 [
                     "LOW_RELATIVE_MOISTURE_Q10"
@@ -172,6 +175,7 @@ def build_point_label_artifacts(
                 dtype="string",
             ),
             "sensitivity_label_name": enriched["point_sensitivity_label_name"].astype("string"),
+            "rule_version": pd.Series([WEAK_LABELS_VERSION] * len(enriched), dtype="string"),
         }
     ).convert_dtypes()
 
@@ -183,11 +187,13 @@ def build_point_label_artifacts(
                     "sample_id": row.sample_id,
                     "sample_type": row.sample_type,
                     "task_id": task_id,
+                    "label_task_id": task_id,
                     "label_name": train_label_by_record_id.get(str(row.sample_id), pd.NA),
                     "label_status": row.label_status,
-                    "base_partition": row.base_partition,
-                    "effective_partition": row.effective_partition,
+                    "intrinsic_eligibility": row.intrinsic_eligibility,
+                    "intrinsic_exclusion_reason": row.intrinsic_exclusion_reason,
                     "primary_rule_id": row.primary_rule_id,
+                    "rule_version": row.rule_version,
                 }
             )
     point_labels_train = pd.DataFrame(point_labels_train_rows).convert_dtypes()
@@ -196,11 +202,11 @@ def build_point_label_artifacts(
         {
             "record.id": enriched["record.id"].astype("string"),
             "record.segment_id": enriched["record.segment_id"].astype("string"),
-            "base_partition": enriched["base_partition"].astype("string"),
             "time_integrity_ok": enriched["time_integrity_ok"].astype("boolean"),
             "core_environment_fully_evaluable": enriched["core_environment_fully_evaluable"].astype("boolean"),
             "technical_invalid_reason": enriched["technical_invalid_reason"].astype("string"),
             "point_label_status": enriched["point_label_status"].astype("string"),
+            "rule_version": pd.Series([WEAK_LABELS_VERSION] * len(enriched), dtype="string"),
         }
     ).convert_dtypes()
 

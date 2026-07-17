@@ -1,13 +1,15 @@
 from __future__ import annotations
 
+from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
 
+from Backend.Benchmark.common.provenance import resolve_code_commit
 from Backend.Benchmark.dataset_views.configs import ROW_INDEX_COLUMNS, SHARED_METADATA_COLUMNS, TAXONOMY_VERSION
 from Backend.Benchmark.dataset_views.contracts import MaterializationConfig
-from Backend.Benchmark.dataset_views.validators import dataframe_schema_hash, file_sha256
+from Backend.Benchmark.dataset_views.validators import dataframe_schema_hash, file_sha256, hash_dataframe_rows, stable_hash_object
 from Backend.Benchmark.dataset_views.writers import write_csv_file, write_json_file, write_parquet_file
 
 
@@ -52,6 +54,7 @@ def build_source_manifest_payload(
     segment_manifest_payload: dict[str, object] | None,
     dependency_registry_path: Path,
 ) -> dict[str, object]:
+    repo_root = Path(__file__).resolve().parents[4]
     return {
         "run_id": run_id,
         "pipeline": "dataset_views",
@@ -75,6 +78,8 @@ def build_source_manifest_payload(
             "feature_catalog_hash": file_sha256(config.feature_catalog_path),
             "dependency_registry_hash": file_sha256(dependency_registry_path),
             "segment_manifest_hash": file_sha256(segment_manifest_path) if segment_manifest_path is not None else None,
+            "materialization_config_hash": stable_hash_object(asdict(config)),
+            "pipeline_code_commit": resolve_code_commit(repo_root),
         },
         "metadata_columns": list(metadata_df.columns),
         "row_index_columns": list(row_index_df.columns),
@@ -92,11 +97,41 @@ def write_shared_outputs(
     parquet_engine: str,
     source_manifest_payload: dict[str, object],
 ) -> None:
-    write_parquet_file(row_index_df, shared_dir / "row_index.parquet", engine=parquet_engine)
-    write_csv_file(row_index_df, shared_dir / "row_index.csv")
-    write_parquet_file(metadata_df, shared_dir / "metadata.parquet", engine=parquet_engine)
-    write_csv_file(metadata_df, shared_dir / "metadata.csv")
+    row_index_parquet_path = shared_dir / "row_index.parquet"
+    row_index_csv_path = shared_dir / "row_index.csv"
+    metadata_parquet_path = shared_dir / "metadata.parquet"
+    metadata_csv_path = shared_dir / "metadata.csv"
+
+    write_parquet_file(row_index_df, row_index_parquet_path, engine=parquet_engine)
+    write_csv_file(row_index_df, row_index_csv_path)
+    write_parquet_file(metadata_df, metadata_parquet_path, engine=parquet_engine)
+    write_csv_file(metadata_df, metadata_csv_path)
     if labels_df is not None:
         write_parquet_file(labels_df, shared_dir / "labels.parquet", engine=parquet_engine)
         write_csv_file(labels_df, shared_dir / "labels.csv")
+
+    row_index_contract = {
+        "artifact_name": "row_index",
+        "parquet_path": str(row_index_parquet_path.resolve()),
+        "csv_path": str(row_index_csv_path.resolve()),
+        "file_hash": file_sha256(row_index_parquet_path),
+        "schema_hash": dataframe_schema_hash(row_index_df),
+        "row_count": int(len(row_index_df)),
+        "identifier_columns": ["record.id", "source_row_position"],
+        "record_id_hash": hash_dataframe_rows(row_index_df.loc[:, ["record.id"]].astype("string")),
+        "row_index_hash": hash_dataframe_rows(row_index_df.astype("string")),
+    }
+    metadata_contract = {
+        "artifact_name": "metadata",
+        "parquet_path": str(metadata_parquet_path.resolve()),
+        "csv_path": str(metadata_csv_path.resolve()),
+        "file_hash": file_sha256(metadata_parquet_path),
+        "schema_hash": dataframe_schema_hash(metadata_df),
+        "row_count": int(len(metadata_df)),
+    }
+    source_manifest_payload["shared_artifacts"] = {
+        "row_index": row_index_contract,
+        "metadata": metadata_contract,
+    }
+    write_json_file(shared_dir / "row_index_contract.json", row_index_contract)
     write_json_file(shared_dir / "source_manifest.json", source_manifest_payload)

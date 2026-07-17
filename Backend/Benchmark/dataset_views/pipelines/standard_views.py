@@ -4,10 +4,15 @@ from pathlib import Path
 
 import pandas as pd
 
+from Backend.Benchmark.dataset_views.contracts.artifact_contracts import (
+    build_feature_columns_payload,
+    build_schema_payload,
+)
 from Backend.Benchmark.dataset_views.contracts import TaxonomyEntry, ViewDefinition, ViewSelectionResult
 from Backend.Benchmark.dataset_views.row_views import materialize_explicit_view
 from Backend.Benchmark.dataset_views.reports import build_quality_report
 from Backend.Benchmark.dataset_views.validators import (
+    file_sha256,
     hash_dataframe_rows,
     stable_hash_object,
     validate_metadata_separation,
@@ -101,10 +106,18 @@ def materialize_window_view(
     )
 
     output_dir.mkdir(parents=True, exist_ok=False)
-    write_parquet_file(artifacts.feature_frame, output_dir / "X.parquet", engine=parquet_engine)
-    write_csv_file(artifacts.feature_frame, output_dir / "X.csv")
-    write_parquet_file(artifacts.audit_frame, output_dir / "window_quality_audit.parquet", engine=parquet_engine)
-    write_csv_file(artifacts.audit_frame, output_dir / "window_quality_audit.csv")
+    x_parquet_path = output_dir / "X.parquet"
+    x_csv_path = output_dir / "X.csv"
+    audit_parquet_path = output_dir / "window_quality_audit.parquet"
+    audit_csv_path = output_dir / "window_quality_audit.csv"
+    schema_path = output_dir / "schema.json"
+    quality_report_path = output_dir / "quality_report.json"
+    feature_columns_path = output_dir / "feature_columns.json"
+    row_index_path = Path(str(source_manifest_payload["shared_artifacts"]["row_index"]["parquet_path"]))
+    write_parquet_file(artifacts.feature_frame, x_parquet_path, engine=parquet_engine)
+    write_csv_file(artifacts.feature_frame, x_csv_path)
+    write_parquet_file(artifacts.audit_frame, audit_parquet_path, engine=parquet_engine)
+    write_csv_file(artifacts.audit_frame, audit_csv_path)
 
     feature_names = list(artifacts.feature_frame.columns)
     selection = ViewSelectionResult(
@@ -112,12 +125,7 @@ def materialize_window_view(
         ordered_features=tuple(feature_names),
     )
     data_hash = hash_dataframe_rows(artifacts.feature_frame)
-    schema_payload = {
-        "view_id": view_definition.view_id,
-        "row_count": int(len(artifacts.feature_frame)),
-        "feature_count": int(artifacts.feature_frame.shape[1]),
-        "columns": [{"name": column, "dtype": str(dtype)} for column, dtype in artifacts.feature_frame.dtypes.items()],
-    }
+    schema_payload = build_schema_payload(view_id=view_definition.view_id, feature_frame=artifacts.feature_frame)
     quality_report = build_quality_report(
         view_id=view_definition.view_id,
         feature_frame=artifacts.feature_frame,
@@ -126,6 +134,17 @@ def materialize_window_view(
         feature_metadata=artifacts.feature_metadata,
         extra_sections=artifacts.quality_sections,
     )
+    feature_columns_payload = build_feature_columns_payload(
+        view_id=view_definition.view_id,
+        ordered_feature_list=feature_names,
+        metadata_columns=metadata_columns,
+        audit_only_columns=list(artifacts.audit_frame.columns),
+        identifier_source_path=row_index_path,
+        source_manifest_payload=source_manifest_payload,
+    )
+    write_json_file(schema_path, schema_payload)
+    write_json_file(quality_report_path, quality_report)
+    write_json_file(feature_columns_path, feature_columns_payload)
     manifest_payload = {
         "view_id": view_definition.view_id,
         "numeric_alias": taxonomy_entry.numeric_alias,
@@ -140,10 +159,30 @@ def materialize_window_view(
         "ordered_feature_list": feature_names,
         "ordered_feature_list_hash": stable_hash_object(feature_names),
         "x_data_hash": data_hash,
+        "feature_artifact_path": str(x_parquet_path.resolve()),
+        "feature_artifact_hash": file_sha256(x_parquet_path),
+        "feature_schema_path": str(schema_path.resolve()),
+        "feature_schema_hash": str(schema_payload["schema_hash"]),
+        "feature_columns_path": str(feature_columns_path.resolve()),
+        "feature_columns_hash": file_sha256(feature_columns_path),
+        "feature_generator_config_hash": stable_hash_object(
+            {
+                "view_id": view_definition.view_id,
+                "selection_mode": view_definition.selection_mode,
+                "explicit_features": list(view_definition.explicit_features),
+                "window_horizon_names": list(view_definition.window_horizon_names),
+            }
+        ),
+        "feature_generator_code_commit": str(source_manifest_payload["source"]["pipeline_code_commit"]),
+        "materialization_config_hash": str(source_manifest_payload["source"]["materialization_config_hash"]),
+        "row_index_path": str(row_index_path.resolve()),
+        "row_index_hash": str(source_manifest_payload["shared_artifacts"]["row_index"]["file_hash"]),
+        "sample_id_hash": str(source_manifest_payload["shared_artifacts"]["row_index"]["record_id_hash"]),
+        "identifier_columns": feature_columns_payload["identifier_columns"],
         "metadata_columns": metadata_columns,
         "debug_csv_paths": {
-            "feature_matrix_csv": str((output_dir / "X.csv").resolve()),
-            "window_quality_audit_csv": str((output_dir / "window_quality_audit.csv").resolve()),
+            "feature_matrix_csv": str(x_csv_path.resolve()),
+            "window_quality_audit_csv": str(audit_csv_path.resolve()),
         },
         "source_canonical_hash": source_manifest_payload["source"]["canonical_history_hash"],
         "source_schema_hash": source_manifest_payload["source"]["source_schema_hash"],
@@ -169,5 +208,3 @@ def materialize_window_view(
     }
     manifest_payload.update(artifacts.manifest_sections)
     write_json_file(output_dir / "manifest.json", manifest_payload)
-    write_json_file(output_dir / "schema.json", schema_payload)
-    write_json_file(output_dir / "quality_report.json", quality_report)

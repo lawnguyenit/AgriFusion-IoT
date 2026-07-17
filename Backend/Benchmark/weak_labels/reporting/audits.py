@@ -82,11 +82,11 @@ def build_label_distribution(*frames: pd.DataFrame) -> pd.DataFrame:
     for frame in frames:
         if frame.empty:
             continue
-        available = [column for column in ("sample_type", "task_id", "label_name", "label_status", "effective_partition") if column in frame.columns]
+        available = [column for column in ("sample_type", "task_id", "label_name", "label_status", "intrinsic_eligibility") if column in frame.columns]
         grouped = frame.groupby(available, dropna=False, sort=False).size().reset_index(name="row_count")
         distribution_frames.append(grouped)
     if not distribution_frames:
-        return pd.DataFrame(columns=["sample_type", "task_id", "label_name", "label_status", "effective_partition", "row_count"])
+        return pd.DataFrame(columns=["sample_type", "task_id", "label_name", "label_status", "intrinsic_eligibility", "row_count"])
     return pd.concat(distribution_frames, ignore_index=True).convert_dtypes()
 
 
@@ -118,8 +118,8 @@ def build_excluded_samples_audit(*frames: pd.DataFrame) -> pd.DataFrame:
         if frame.empty or "label_status" not in frame.columns:
             continue
         mask = frame["label_status"].astype("string") != LABEL_STATUS_LABELED
-        if "effective_partition" in frame.columns:
-            mask = mask | (frame["effective_partition"].astype("string") == "excluded")
+        if "intrinsic_eligibility" in frame.columns:
+            mask = mask | (~frame["intrinsic_eligibility"].fillna(False).astype(bool))
         if mask.any():
             excluded_frames.append(frame.loc[mask].copy())
     if not excluded_frames:

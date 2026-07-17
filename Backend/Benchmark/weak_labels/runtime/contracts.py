@@ -57,8 +57,6 @@ class LabelArtifactBundle:
     v6_event_labels: object
     v6_b8_block_composition: object
     v6_b8_block_labels: object
-    base_split_assignments: object
-    view_split_assignments: object
     matched_cohort_manifest: object
     boundary_event_audit: object
     label_dependency_registry: object
@@ -68,7 +66,6 @@ class LabelArtifactBundle:
     excluded_samples_audit: object
     label_examples: object
     v2_label_agreement_3h_8h: object
-    split_manifest: dict[str, object]
     run_manifest: dict[str, object]
     label_registry: dict[str, object]
     additional_payloads: dict[str, object] = field(default_factory=dict)

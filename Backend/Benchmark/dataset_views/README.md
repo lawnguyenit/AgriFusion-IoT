@@ -100,9 +100,8 @@ The framework reads only:
 - `Backend/Output_data/Layer1/segments/segments_manifest.json`
   for V2 continuity-aware windows, V3 continuity logic, and V6 cadence
   / continuity handling
-- `Backend/Benchmark/benchmark_dataset/dataset/benchmark_input_labeled.csv`
-  only as the legacy weak-label bridge for V3, unless overridden by
-  `--legacy-event-csv`
+- an explicit external `--legacy-event-csv` only when materializing V3
+  views that still depend on the deprecated legacy event bridge
 
 It does not read Layer0 raw telemetry.
 
@@ -395,7 +394,7 @@ python Backend\Benchmark\dataset_views\main.py --mode feature-only --views v2_se
 V3 family:
 
 ```powershell
-python Backend\Benchmark\dataset_views\main.py --mode feature-only --views v3
+python Backend\Benchmark\dataset_views\main.py --mode feature-only --views v3 --legacy-event-csv D:\path\legacy_event_labels.csv
 ```
 
 V6 sequence lane:

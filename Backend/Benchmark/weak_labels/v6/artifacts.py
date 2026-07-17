@@ -5,7 +5,6 @@ from dataclasses import dataclass
 import pandas as pd
 
 from Backend.Benchmark.dataset_views.continuity import attach_continuity_chunks
-from Backend.Benchmark.weak_labels.shared import build_split_assignment_frame
 from Backend.Benchmark.weak_labels.v6.blocks import build_block_composition, build_block_labels
 from Backend.Benchmark.weak_labels.v6.events import build_event_tables
 
@@ -16,7 +15,6 @@ class V6LabelArtifacts:
     block_composition: pd.DataFrame
     block_labels: pd.DataFrame
     boundary_event_audit: pd.DataFrame
-    view_split_assignments: pd.DataFrame
 
 
 def build_v6_label_artifacts(
@@ -41,12 +39,10 @@ def build_v6_label_artifacts(
     event_artifacts = build_event_tables(raw_event_df)
     block_composition = build_block_composition(raw_event_df, event_artifacts.membership)
     block_labels = build_block_labels(block_composition)
-    split_assignments = build_split_assignment_frame(event_artifacts.event_labels, block_labels)
 
     return V6LabelArtifacts(
         event_labels=event_artifacts.event_labels,
         block_composition=block_composition.convert_dtypes(),
         block_labels=block_labels.convert_dtypes(),
         boundary_event_audit=event_artifacts.boundary_event_audit,
-        view_split_assignments=split_assignments,
     )

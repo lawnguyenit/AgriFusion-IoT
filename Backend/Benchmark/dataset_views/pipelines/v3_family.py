@@ -57,7 +57,13 @@ def prepare_v3_family_context(
         boundary_columns=V3_BOUNDARY_RESET_COLUMNS,
         threshold_multiplier=V3_CONTINUITY_THRESHOLD_MULTIPLIER,
     )
-    event_csv_path = (legacy_event_csv_path or V3_LEGACY_EVENT_CSV_PATH).resolve()
+    event_csv_source = legacy_event_csv_path or V3_LEGACY_EVENT_CSV_PATH
+    if event_csv_source is None:
+        raise ValueError(
+            "V3 legacy bridging no longer ships with an in-repo default event CSV. "
+            "Pass --legacy-event-csv explicitly when materializing V3 views."
+        )
+    event_csv_path = event_csv_source.resolve()
     bridge_result = bridge_legacy_event_labels(continuity_df, event_csv_path=event_csv_path)
     event_artifacts = build_event_registry(bridge_result.enriched_canonical_df)
     pre_onset_artifacts = build_pre_onset_artifacts(event_artifacts.enriched_canonical_df)
