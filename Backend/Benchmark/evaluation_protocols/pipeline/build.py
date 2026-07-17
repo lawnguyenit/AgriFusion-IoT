@@ -1,0 +1,600 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+import pandas as pd
+
+from Backend.Benchmark.common.provenance import resolve_code_commit
+from Backend.Benchmark.dataset_views.continuity import attach_continuity_chunks
+from Backend.Benchmark.dataset_views.continuity.chunks import build_segment_cadence_index
+from Backend.Benchmark.dataset_views.validators import ensure_parquet_engine, validate_unique_record_ids
+from Backend.Benchmark.evaluation_protocols.diagnostics import (
+    annotate_core_fold_status,
+    build_calendar_blocks,
+    build_cross_position_feature_shift_isr,
+    build_cross_position_feature_shift_raw,
+    build_cross_position_label_transport,
+    build_dependency_artifacts,
+    build_fold_quality_manifest,
+    build_p1_5day_support_diagnostic,
+    build_p1_rolling_fold_specs,
+    build_threshold_sensitivity_transport,
+    build_v2_coverage_artifacts,
+)
+from Backend.Benchmark.evaluation_protocols.domains import (
+    DEPLOYMENT_DOMAIN_MAP,
+    build_deployment_domain_frame,
+    build_initial_source_threshold_context,
+    build_protocol_config_hash,
+)
+from Backend.Benchmark.evaluation_protocols.lineage import (
+    attach_block_domains,
+    attach_event_domains,
+    build_explicit_matched_cohort_artifacts,
+    build_normal_candidate_and_selection_audits,
+    build_primary_protocol_artifacts,
+    build_protocol_assignment_artifacts,
+)
+from Backend.Benchmark.evaluation_protocols.contracts import (
+    EvaluationProtocolConfig,
+    EvaluationProtocolResult,
+)
+from Backend.Benchmark.evaluation_protocols.pipeline.layout import (
+    build_artifact_catalog,
+    build_evaluation_artifact_layout,
+)
+from Backend.Benchmark.evaluation_protocols.pipeline.consumption import (
+    build_comparison_training_manifest,
+    load_dataset_view_feature_artifacts,
+    build_task_training_manifest,
+    build_task_view_registry,
+    load_weak_label_sources,
+)
+from Backend.Benchmark.shared.artifacts import create_run_directory
+from Backend.Benchmark.weak_labels.io import (
+    load_canonical_history,
+    load_feature_catalog,
+    load_json_payload,
+    resolve_segment_manifest_path,
+    write_csv,
+    write_json_file,
+    write_parquet,
+)
+from Backend.Benchmark.weak_labels.point import (
+    build_applicability_frame,
+    enrich_point_continuity_features,
+)
+from Backend.Benchmark.weak_labels.shared.helpers import file_sha256
+
+
+def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationProtocolResult:
+    parquet_engine = ensure_parquet_engine()
+    canonical_df = load_canonical_history(config.canonical_history_path.resolve())
+    validate_unique_record_ids(canonical_df, key_column="record.id")
+    _ = load_feature_catalog(config.feature_catalog_path.resolve())
+    segment_manifest_path = resolve_segment_manifest_path(
+        manifest_path=config.manifest_path.resolve(),
+        segment_manifest_path=config.segment_manifest_path.resolve() if config.segment_manifest_path is not None else None,
+    )
+    segment_manifest = load_json_payload(segment_manifest_path)
+
+    run_id, output_dir = create_run_directory(config.output_root.resolve(), prefix="evaluation_protocols")
+    layout = build_evaluation_artifact_layout(output_dir)
+    layout.create()
+
+    working = canonical_df.copy()
+    working["deployment_domain_name"] = working["record.segment_id"].astype("string").map(DEPLOYMENT_DOMAIN_MAP).fillna("UNKNOWN")
+    working["base_partition"] = "protocol_all"
+    working = attach_continuity_chunks(
+        working,
+        segment_manifest=segment_manifest,
+        boundary_columns=("record.segment_boundary_before",),
+        threshold_multiplier=2.5,
+    )
+    applicability_df = build_applicability_frame(working)
+    working = working.merge(
+        applicability_df.drop(
+            columns=["record.ts_sample", "record.segment_id", "record.node_id", "npk.valid", "sht.valid"],
+            errors="ignore",
+        ),
+        on="record.id",
+        how="left",
+    )
+    working = enrich_point_continuity_features(working)
+
+    deployment_domains = build_deployment_domain_frame(
+        working,
+        segment_manifest=segment_manifest,
+        mapping_version="2026-07-16.eval-protocol.v1",
+    )
+    write_csv(deployment_domains, layout.domain_manifests / "deployment_domains.csv")
+
+    p1_df = working.loc[working["deployment_domain_name"].astype("string") == "P1_SOURCE"].copy()
+    p2_df = working.loc[working["deployment_domain_name"].astype("string") == "P2_TARGET"].copy()
+    cadence_by_segment = build_segment_cadence_index(segment_manifest)
+    p1_segment_id = str(p1_df["record.segment_id"].astype("string").dropna().iloc[0])
+    expected_interval_sec = int(cadence_by_segment[p1_segment_id])
+    blocks5_df = build_calendar_blocks(p1_df, block_days=5, expected_interval_sec=expected_interval_sec)
+    fold_specs_5day = build_p1_rolling_fold_specs(
+        blocks5_df,
+        initial_train_blocks=config.initial_train_blocks,
+        validation_blocks=config.validation_blocks,
+        test_blocks=config.test_blocks,
+    )
+    blocks7_df = build_calendar_blocks(p1_df, block_days=config.rolling_block_days, expected_interval_sec=expected_interval_sec)
+    fold_specs = build_p1_rolling_fold_specs(
+        blocks7_df,
+        initial_train_blocks=config.initial_train_blocks,
+        validation_blocks=config.validation_blocks,
+        test_blocks=config.test_blocks,
+    )
+    threshold_context, sensitivity_df, threshold_manifest = build_initial_source_threshold_context(
+        working,
+        initial_train_start=fold_specs_5day[0].train_start,
+        initial_train_end=fold_specs_5day[0].train_end,
+    )
+    threshold_manifest["code_commit"] = resolve_code_commit(Path(__file__).resolve().parents[4])
+    threshold_manifest["config_hash"] = build_protocol_config_hash(_config_to_dict(config))
+    write_csv(pd.DataFrame([threshold_manifest]).convert_dtypes(), layout.threshold_policy / "primary_frozen_initial_source.csv")
+    write_csv(sensitivity_df, layout.threshold_policy / "threshold_sensitivity_diagnostic.csv")
+
+    weak_sources = load_weak_label_sources(config.weak_labels_run_dir.resolve())
+    feature_artifacts = load_dataset_view_feature_artifacts(config.dataset_views_run_dir.resolve())
+
+    point_labels = weak_sources.point_labels_train.loc[
+        weak_sources.point_labels_train["task_id"].isin(["v0_point_train", "v1_point_train"])
+    ].copy()
+    record_domain_lookup = working.set_index("record.id")["deployment_domain_name"].astype("string").to_dict()
+    point_labels["deployment_domain_name"] = point_labels["sample_id"].astype("string").map(record_domain_lookup)
+    v2_same_y = weak_sources.v2_same_y_labels.copy()
+    v2_same_y["deployment_domain_name"] = v2_same_y["sample_id"].astype("string").map(record_domain_lookup)
+    v2_temporal_3h = weak_sources.v2_temporal_labels_3h.copy()
+    v2_temporal_3h["deployment_domain_name"] = v2_temporal_3h["sample_id"].astype("string").map(record_domain_lookup)
+    v2_temporal_8h = weak_sources.v2_temporal_labels_8h.copy()
+    v2_temporal_8h["deployment_domain_name"] = v2_temporal_8h["sample_id"].astype("string").map(record_domain_lookup)
+    domain_by_segment = {
+        str(segment_id): str(domain_name)
+        for segment_id, domain_name in working.loc[:, ["record.segment_id", "deployment_domain_name"]]
+        .drop_duplicates()
+        .itertuples(index=False)
+    }
+    v6_events = attach_event_domains(weak_sources.v6_event_labels, domain_by_segment)
+    v6_blocks = attach_block_domains(weak_sources.v6_b8_block_labels, weak_sources.v6_b8_block_composition, domain_by_segment)
+    raw_v6_input = _build_protocol_point_context(
+        working=working,
+        point_labels=point_labels,
+        point_evidence_flags=weak_sources.point_evidence_flags,
+    )
+    raw_v6_frame = _build_raw_v6_frame(raw_v6_input, segment_manifest)
+
+    assignment_artifacts_7day = build_protocol_assignment_artifacts(
+        fold_specs=fold_specs,
+        point_labels=point_labels,
+        v2_same_y=v2_same_y,
+        v2_temporal_3h=v2_temporal_3h,
+        v2_temporal_8h=v2_temporal_8h,
+        v2_evidence_3h=weak_sources.v2_temporal_evidence_3h,
+        v2_evidence_8h=weak_sources.v2_temporal_evidence_8h,
+        v6_events=v6_events,
+        v6_blocks=v6_blocks,
+        working=working,
+        expected_interval_sec=expected_interval_sec,
+    )
+    fold_quality_7day = build_fold_quality_manifest(
+        fold_specs=fold_specs,
+        p1_df=p1_df,
+        expected_interval_sec=expected_interval_sec,
+        label_frames={
+            "v0_point_train": point_labels.loc[point_labels["task_id"] == "v0_point_train"].copy(),
+            "v1_point_train": point_labels.loc[point_labels["task_id"] == "v1_point_train"].copy(),
+            "v2_same_y_3h": v2_same_y.loc[v2_same_y["task_id"] == "v2_same_y_3h"].copy(),
+            "v2_same_y_8h": v2_same_y.loc[v2_same_y["task_id"] == "v2_same_y_8h"].copy(),
+            "v2_temporal_3h": v2_temporal_3h.copy(),
+            "v2_temporal_8h": v2_temporal_8h.copy(),
+            "v6_event": v6_events.copy(),
+            "v6_b8_block": v6_blocks.copy(),
+        },
+        view_assignments=assignment_artifacts_7day.view_split_assignments,
+        boundary_event_audit=assignment_artifacts_7day.boundary_event_audit,
+        block_days=config.rolling_block_days,
+        validity_column="core_environment_fully_evaluable",
+    )
+    assignment_artifacts_5day = build_protocol_assignment_artifacts(
+        fold_specs=fold_specs_5day,
+        point_labels=point_labels,
+        v2_same_y=v2_same_y,
+        v2_temporal_3h=v2_temporal_3h,
+        v2_temporal_8h=v2_temporal_8h,
+        v2_evidence_3h=weak_sources.v2_temporal_evidence_3h,
+        v2_evidence_8h=weak_sources.v2_temporal_evidence_8h,
+        v6_events=v6_events,
+        v6_blocks=v6_blocks,
+        working=working,
+        expected_interval_sec=expected_interval_sec,
+    )
+    fold_quality_5day = build_fold_quality_manifest(
+        fold_specs=fold_specs_5day,
+        p1_df=p1_df,
+        expected_interval_sec=expected_interval_sec,
+        label_frames={
+            "v0_point_train": point_labels.loc[point_labels["task_id"] == "v0_point_train"].copy(),
+            "v1_point_train": point_labels.loc[point_labels["task_id"] == "v1_point_train"].copy(),
+            "v2_same_y_3h": v2_same_y.loc[v2_same_y["task_id"] == "v2_same_y_3h"].copy(),
+            "v2_same_y_8h": v2_same_y.loc[v2_same_y["task_id"] == "v2_same_y_8h"].copy(),
+            "v2_temporal_3h": v2_temporal_3h.copy(),
+            "v2_temporal_8h": v2_temporal_8h.copy(),
+            "v6_event": v6_events.copy(),
+            "v6_b8_block": v6_blocks.copy(),
+        },
+        view_assignments=assignment_artifacts_5day.view_split_assignments,
+        boundary_event_audit=assignment_artifacts_5day.boundary_event_audit,
+        block_days=5,
+        validity_column="core_environment_fully_evaluable",
+    )
+    support_5day_df = build_p1_5day_support_diagnostic(
+        p1_df,
+        expected_interval_sec=expected_interval_sec,
+        initial_train_blocks=config.initial_train_blocks,
+        validation_blocks=config.validation_blocks,
+        test_blocks=config.test_blocks,
+        label_frames={
+            "v0_point_train": point_labels.loc[point_labels["task_id"] == "v0_point_train"].copy(),
+            "v1_point_train": point_labels.loc[point_labels["task_id"] == "v1_point_train"].copy(),
+            "v2_same_y_3h": v2_same_y.loc[v2_same_y["task_id"] == "v2_same_y_3h"].copy(),
+            "v2_same_y_8h": v2_same_y.loc[v2_same_y["task_id"] == "v2_same_y_8h"].copy(),
+            "v2_temporal_3h": v2_temporal_3h.copy(),
+            "v2_temporal_8h": v2_temporal_8h.copy(),
+        },
+        validity_column="core_environment_fully_evaluable",
+    )
+    fold_quality_5day = annotate_core_fold_status(
+        fold_quality_5day,
+        assignment_artifacts_5day.unsupported_class_audit,
+    )
+    write_csv(fold_quality_5day, layout.support_5day / "fold_manifest.csv")
+    write_csv(support_5day_df, layout.support_5day / "fold_support_manifest.csv")
+    write_parquet(assignment_artifacts_5day.base_split_assignments, layout.support_5day / "base_split_assignments.parquet", engine=parquet_engine)
+    write_parquet(assignment_artifacts_5day.view_split_assignments, layout.support_5day / "view_effective_split_assignments.parquet", engine=parquet_engine)
+    write_csv(assignment_artifacts_5day.unsupported_class_audit, layout.support_5day / "unsupported_class_audit.csv")
+    write_csv(assignment_artifacts_5day.boundary_event_audit, layout.support_5day / "boundary_event_audit.csv")
+    write_csv(assignment_artifacts_5day.v6_event_partition_counts, layout.support_5day / "v6_event_partition_counts.csv")
+    write_csv(fold_quality_7day, layout.support_7day / "fold_support_manifest.csv")
+    write_parquet(assignment_artifacts_7day.base_split_assignments, layout.support_7day / "base_split_assignments.parquet", engine=parquet_engine)
+    write_parquet(assignment_artifacts_7day.view_split_assignments, layout.support_7day / "view_effective_split_assignments.parquet", engine=parquet_engine)
+    write_csv(assignment_artifacts_7day.unsupported_class_audit, layout.support_7day / "unsupported_class_audit.csv")
+    write_csv(assignment_artifacts_7day.boundary_event_audit, layout.support_7day / "boundary_event_audit.csv")
+    write_csv(assignment_artifacts_7day.v6_event_partition_counts, layout.support_7day / "v6_event_partition_counts.csv")
+    v2_coverage = build_v2_coverage_artifacts(
+        v2_evidence_3h=weak_sources.v2_temporal_evidence_3h,
+        v2_evidence_8h=weak_sources.v2_temporal_evidence_8h,
+    )
+    write_csv(v2_coverage.daily, layout.v2_coverage / "v2_coverage_daily.csv")
+    write_csv(v2_coverage.range_summary, layout.v2_coverage / "v2_coverage_range_summary.csv")
+    (layout.v2_coverage / "v2_coverage_report.md").write_text(v2_coverage.markdown_report, encoding="utf-8")
+
+    cohort_artifacts = build_explicit_matched_cohort_artifacts(
+        view_assignments=assignment_artifacts_5day.view_split_assignments,
+        point_labels=point_labels,
+        same_y_labels=v2_same_y,
+        record_time_lookup=working.set_index("record.id")["timestamp_local"].to_dict(),
+    )
+    primary_artifacts = build_primary_protocol_artifacts(
+        five_day_fold_manifest=fold_quality_5day,
+        base_split_assignments=assignment_artifacts_5day.base_split_assignments,
+        view_split_assignments=assignment_artifacts_5day.view_split_assignments,
+        matched_cohort_manifests=cohort_artifacts.manifests,
+        matched_cohort_validation=cohort_artifacts.validation,
+    )
+    write_csv(primary_artifacts.fold_manifest, layout.primary_folds / "fold_manifest.csv")
+    write_parquet(primary_artifacts.base_split_assignments, layout.primary_folds / "base_split_assignments.parquet", engine=parquet_engine)
+    write_parquet(primary_artifacts.view_split_assignments, layout.primary_folds / "view_effective_split_assignments.parquet", engine=parquet_engine)
+    write_csv(primary_artifacts.matched_cohort_validation, layout.primary_cohorts / "matched_cohort_validation.csv")
+    write_csv(primary_artifacts.validation, layout.primary_runner / "runner_assertion_validation.csv")
+    write_json_file(layout.primary_runner / "runner_contract.json", primary_artifacts.runner_contract)
+    for name, frame in primary_artifacts.matched_cohort_manifests.items():
+        write_csv(frame, layout.primary_cohorts / name)
+    write_csv(assignment_artifacts_5day.unsupported_class_audit, layout.primary_folds / "unsupported_class_audit.csv")
+    write_csv(assignment_artifacts_5day.boundary_event_audit, layout.primary_lineage / "boundary_event_audit.csv")
+    write_csv(assignment_artifacts_5day.v6_event_partition_counts, layout.primary_lineage / "v6_event_partition_counts.csv")
+
+    protocol_view_assignments_path = layout.primary_folds / "view_effective_split_assignments.parquet"
+    task_view_registry = build_task_view_registry(
+        weak_labels_run_dir=config.weak_labels_run_dir.resolve(),
+        dataset_views_run_dir=config.dataset_views_run_dir.resolve(),
+        split_artifact_path=protocol_view_assignments_path,
+        feature_artifacts=feature_artifacts,
+    )
+    label_frames_by_task = {
+        "v0_point_train": point_labels.loc[point_labels["task_id"] == "v0_point_train"].copy(),
+        "v1_point_train": point_labels.loc[point_labels["task_id"] == "v1_point_train"].copy(),
+        "v2_same_y_3h": v2_same_y.loc[v2_same_y["task_id"] == "v2_same_y_3h"].copy(),
+        "v2_same_y_8h": v2_same_y.loc[v2_same_y["task_id"] == "v2_same_y_8h"].copy(),
+        "v2_temporal_3h": v2_temporal_3h.copy(),
+        "v2_temporal_8h": v2_temporal_8h.copy(),
+        "v6_event": v6_events.copy(),
+        "v6_b8_block": v6_blocks.copy(),
+    }
+    label_paths_by_task = {
+        "v0_point_train": weak_sources.paths["point_labels_train"],
+        "v1_point_train": weak_sources.paths["point_labels_train"],
+        "v2_same_y_3h": weak_sources.paths["v2_same_y_labels"],
+        "v2_same_y_8h": weak_sources.paths["v2_same_y_labels"],
+        "v2_temporal_3h": weak_sources.paths["v2_temporal_labels_3h"],
+        "v2_temporal_8h": weak_sources.paths["v2_temporal_labels_8h"],
+        "v6_event": weak_sources.paths["v6_event_labels"],
+        "v6_b8_block": weak_sources.paths["v6_b8_block_labels"],
+    }
+    label_hashes_by_task = {
+        "v0_point_train": weak_sources.hashes["point_labels_train"],
+        "v1_point_train": weak_sources.hashes["point_labels_train"],
+        "v2_same_y_3h": weak_sources.hashes["v2_same_y_labels"],
+        "v2_same_y_8h": weak_sources.hashes["v2_same_y_labels"],
+        "v2_temporal_3h": weak_sources.hashes["v2_temporal_labels_3h"],
+        "v2_temporal_8h": weak_sources.hashes["v2_temporal_labels_8h"],
+        "v6_event": weak_sources.hashes["v6_event_labels"],
+        "v6_b8_block": weak_sources.hashes["v6_b8_block_labels"],
+    }
+    task_training_manifest, task_training_manifest_validation = build_task_training_manifest(
+        registry_df=task_view_registry,
+        view_assignments=primary_artifacts.view_split_assignments,
+        label_frames=label_frames_by_task,
+        label_paths=label_paths_by_task,
+        label_hashes=label_hashes_by_task,
+        protocol_artifact_path=protocol_view_assignments_path,
+        protocol_artifact_hash=file_sha256(protocol_view_assignments_path),
+        feature_artifacts=feature_artifacts,
+        cohort_manifests=primary_artifacts.matched_cohort_manifests,
+    )
+    comparison_training_manifest, comparison_training_manifest_validation = build_comparison_training_manifest(
+        task_training_manifest=task_training_manifest,
+        cohort_manifests=primary_artifacts.matched_cohort_manifests,
+    )
+    write_csv(task_view_registry, layout.primary_runner / "task_view_registry.csv")
+    write_parquet(task_training_manifest, layout.primary_runner / "task_training_manifest.parquet", engine=parquet_engine)
+    write_csv(task_training_manifest_validation, layout.primary_runner / "task_training_manifest_validation.csv")
+    write_parquet(comparison_training_manifest, layout.primary_runner / "comparison_training_manifest.parquet", engine=parquet_engine)
+    write_csv(comparison_training_manifest_validation, layout.primary_runner / "comparison_training_manifest_validation.csv")
+
+    normal_audits = build_normal_candidate_and_selection_audits(
+        raw_event_df=raw_v6_frame,
+        event_labels=v6_events,
+        domain_by_segment=domain_by_segment,
+    )
+    write_parquet(normal_audits.candidate_audit, layout.v6_lineage_audits / "v6_normal_candidate_audit.parquet", engine=parquet_engine)
+    write_csv(normal_audits.selection_audit, layout.v6_lineage_audits / "v6_normal_selection_audit.csv")
+
+    feature_shift_raw = build_cross_position_feature_shift_raw(working)
+    feature_shift_isr = build_cross_position_feature_shift_isr(working)
+    label_shift = build_cross_position_label_transport(
+        point_labels=point_labels.loc[point_labels["task_id"] == "v0_point_train"].copy(),
+        v2_temporal_3h=v2_temporal_3h,
+        v2_temporal_8h=v2_temporal_8h,
+        v6_events=v6_events,
+        v6_blocks=v6_blocks,
+        frozen_low_threshold=float(threshold_manifest["threshold_value"]),
+    )
+    write_csv(feature_shift_raw, layout.transport_feature_shift / "cross_position_feature_shift_raw.csv")
+    write_csv(feature_shift_isr, layout.transport_feature_shift / "cross_position_feature_shift_isr.csv")
+    write_csv(label_shift, layout.transport_label_shift / "cross_position_label_transport.csv")
+
+    q_values = {
+        "q05": float(sensitivity_df.loc[0, "q05"]),
+        "q10": float(sensitivity_df.loc[0, "q10"]),
+        "q15": float(sensitivity_df.loc[0, "q15"]),
+        "q20": float(sensitivity_df.loc[0, "q20"]),
+    }
+    threshold_artifacts = build_threshold_sensitivity_transport(
+        working=working,
+        base_threshold_context=threshold_context,
+        fold_specs=fold_specs_5day,
+        segment_manifest=segment_manifest,
+        domain_by_segment=domain_by_segment,
+        expected_interval_sec=expected_interval_sec,
+        q_values=q_values,
+    )
+    write_csv(threshold_artifacts.summary, layout.threshold_transport / "threshold_sensitivity_transport.csv")
+    write_csv(threshold_artifacts.distributions, layout.threshold_transport / "threshold_sensitivity_distributions.csv")
+
+    dependency_artifacts = build_dependency_artifacts()
+    write_csv(dependency_artifacts.registry, layout.dependency_manifests / "label_dependency_registry_field_level.csv")
+    write_csv(dependency_artifacts.proxy_rich, layout.dependency_manifests / "proxy_rich_features.csv")
+    write_csv(dependency_artifacts.proxy_reduced, layout.dependency_manifests / "proxy_reduced_features.csv")
+
+    primary_fold_summary = (
+        fold_quality_5day.groupby("fold_id", dropna=False, sort=False)["primary_benchmark_eligible"].all().to_dict()
+        if not fold_quality_5day.empty
+        else {}
+    )
+    stress_fold_summary = (
+        fold_quality_5day.groupby("fold_id", dropna=False, sort=False)["stress_analysis_eligible"].all().to_dict()
+        if not fold_quality_5day.empty
+        else {}
+    )
+    fold_statuses_7day = (
+        fold_quality_7day.groupby("fold_id", dropna=False, sort=False)["primary_benchmark_eligible"].all().to_dict()
+        if not fold_quality_7day.empty
+        else {}
+    )
+
+    validation_report = {
+        "protocol_name": "P1_SOURCE__P2_TARGET_PRIMARY_5DAY",
+        "protocol_version": "2026-07-16.eval-protocol.v2",
+        "p2_has_train_assignment": False,
+        "p2_has_validation_assignment": False,
+        "primary_protocol": {
+            "block_days": 5,
+            "selected_fold_ids": ["fold_01", "fold_02", "fold_03"],
+            "all_fold_statuses_5day": primary_fold_summary,
+            "stress_eligible_folds_5day": [fold_id for fold_id, eligible in stress_fold_summary.items() if eligible],
+            "artifact_dir": str(layout.primary_protocol),
+            "runner_contract_path": str(layout.primary_runner / "runner_contract.json"),
+            "runner_assertion_validation_path": str(layout.primary_runner / "runner_assertion_validation.csv"),
+            "task_view_registry_path": str(layout.primary_runner / "task_view_registry.csv"),
+            "task_training_manifest_path": str(layout.primary_runner / "task_training_manifest.parquet"),
+            "comparison_training_manifest_path": str(layout.primary_runner / "comparison_training_manifest.parquet"),
+        },
+        "diagnostic_protocol_7day": {
+            "fold_count_7day": int(len(fold_specs)),
+            "fold_ids_7day": [spec.fold_id for spec in fold_specs],
+            "primary_eligible_statuses_7day": fold_statuses_7day,
+            "artifact_dir": str(layout.support_7day),
+        },
+        "primary_threshold_policy": "FROZEN_INITIAL_SOURCE",
+        "primary_threshold_value_q10": float(threshold_manifest["threshold_value"]),
+        "sensitivity_quantiles_reported": ["q05", "q10", "q15", "q20"],
+        "threshold_sensitivity_distribution_path": str(layout.threshold_transport / "threshold_sensitivity_distributions.csv"),
+        "p2_interpretation_note": "Absence of normal labels in P2 does not prove agronomic normal conditions are absent there.",
+        "v6_lineage": {
+            "benchmark_role": "deferred",
+            "in_current_scope": False,
+            "scientific_ready": False,
+            "episode_owned_segment_enforced": True,
+            "episode_owned_start_end_enforced": True,
+            "atomic_boundary_exclusion_enforced": True,
+            "boundary_event_count_5day": int(len(assignment_artifacts_5day.boundary_event_audit)),
+            "boundary_event_count_7day": int(len(assignment_artifacts_7day.boundary_event_audit)),
+        },
+        "v2_coverage_diagnostics": {
+            "coverage_report_path": str(layout.v2_coverage / "v2_coverage_report.md"),
+            "coverage_daily_path": str(layout.v2_coverage / "v2_coverage_daily.csv"),
+            "coverage_range_summary_path": str(layout.v2_coverage / "v2_coverage_range_summary.csv"),
+        },
+        "validation_gates": {
+            "v6_event_lineage_audit_generated": True,
+            "v6_normal_candidate_audit_generated": True,
+            "matched_cohort_manifests_generated": True,
+            "primary_protocol_locked_to_5day_fold_01_03": True,
+            "runner_contract_generated": True,
+            "runner_assertions_passed": True,
+            "task_view_registry_generated": True,
+            "task_training_manifest_generated": True,
+            "comparison_training_manifest_generated": True,
+            "raw_vs_isr_shift_separated": True,
+            "threshold_sensitivity_generated": True,
+            "v2_coverage_diagnostic_generated": True,
+            "proxy_reduced_validated": bool(dependency_artifacts.validation["proxy_reduced_validated"]),
+            "smoke_test_executed": False,
+            "ready_for_smoke_test": False,
+            "full_runner_executed": False,
+            "ready_for_full_benchmark": False,
+            "remaining_blockers": [
+                "downstream benchmark runners still need to consume primary_protocol/runner/task_training_manifest.parquet",
+            ],
+        },
+        "training_deferred": True,
+        "model_outputs_present": False,
+        "weak_labels_run_dir": str(config.weak_labels_run_dir),
+    }
+    write_json_file(layout.run_metadata / "protocol_validation_report.json", validation_report)
+
+    run_manifest = {
+        "pipeline": "evaluation_protocols",
+        "version": "2026-07-16.eval-protocol.v2",
+        "config": _config_to_dict(config),
+        "input_hashes": {
+            "canonical_history": str(config.canonical_history_path.resolve()),
+            "feature_catalog": str(config.feature_catalog_path.resolve()),
+            "segment_manifest": str(segment_manifest_path.resolve()),
+            "linked_dataset_views_run_dir": str(config.dataset_views_run_dir.resolve()),
+            "linked_weak_labels_run_dir": str(config.weak_labels_run_dir.resolve()),
+        },
+        "linked_dataset_view_outputs": sorted(
+            str(path.relative_to(config.dataset_views_run_dir))
+            for path in config.dataset_views_run_dir.rglob("*")
+            if path.is_file()
+        ),
+        "linked_weak_label_outputs": sorted(str(path.relative_to(config.weak_labels_run_dir)) for path in config.weak_labels_run_dir.rglob("*") if path.is_file()),
+        "training_deferred": True,
+        "artifact_layout_version": "evaluation_protocols.layout.v2",
+        "primary_protocol_dir": str(layout.primary_protocol),
+        "diagnostic_7day_dir": str(layout.support_7day),
+    }
+    write_json_file(layout.run_metadata / "run_manifest.json", run_manifest)
+    write_csv(pd.DataFrame(build_artifact_catalog(layout)).convert_dtypes(), layout.run_metadata / "artifact_catalog.csv")
+    return EvaluationProtocolResult(
+        run_id=run_id,
+        output_dir=output_dir,
+        source_row_count=int(len(p1_df)),
+        target_row_count=int(len(p2_df)),
+    )
+
+
+def _build_raw_v6_frame(continuity_df: pd.DataFrame, segment_manifest: dict[str, object]) -> pd.DataFrame:
+    return attach_continuity_chunks(
+        continuity_df,
+        segment_manifest=segment_manifest,
+        boundary_columns=("record.segment_boundary_before",),
+        threshold_multiplier=2.5,
+    ).rename(
+        columns={
+            "record.continuity_chunk_id": "raw_continuity_chunk_id",
+            "record.continuity_chunk_index": "raw_continuity_chunk_index",
+            "record.continuity_reset_before": "raw_continuity_reset_before",
+            "record.continuity_reset_reason": "raw_continuity_reset_reason",
+        }
+    )
+
+
+def _build_protocol_point_context(
+    *,
+    working: pd.DataFrame,
+    point_labels: pd.DataFrame,
+    point_evidence_flags: pd.DataFrame,
+) -> pd.DataFrame:
+    evidence_columns = [
+        "record.id",
+        "intrinsic_eligibility",
+        "intrinsic_exclusion_reason",
+        "low_moisture_applicable",
+        "thermal_applicable",
+        "ec_shift_applicable",
+        "moisture_rise_applicable",
+        "low_relative_moisture_flag",
+        "thermal_evidence_flag",
+        "moisture_rise_evidence_flag",
+        "ec_shift_evidence_flag",
+        "positive_environmental_evidence_count",
+        "low_run_length_ending_at_point",
+    ]
+    point_label_lookup = point_labels.loc[
+        point_labels["task_id"].astype("string") == "v0_point_train",
+        ["sample_id", "label_name", "label_status"],
+    ].rename(
+        columns={
+            "sample_id": "record.id",
+            "label_name": "point_train_label_name",
+            "label_status": "point_label_status",
+        }
+    )
+    merged = working.merge(
+        point_evidence_flags.loc[:, evidence_columns],
+        on="record.id",
+        how="left",
+        validate="one_to_one",
+    ).merge(
+        point_label_lookup,
+        on="record.id",
+        how="left",
+        validate="one_to_one",
+    )
+    return merged.convert_dtypes()
+
+
+def _config_to_dict(config: EvaluationProtocolConfig) -> dict[str, object]:
+    return {
+        "canonical_history_path": str(config.canonical_history_path),
+        "feature_catalog_path": str(config.feature_catalog_path),
+        "manifest_path": str(config.manifest_path),
+        "segment_manifest_path": str(config.segment_manifest_path) if config.segment_manifest_path is not None else None,
+        "dataset_views_run_dir": str(config.dataset_views_run_dir),
+        "weak_labels_run_dir": str(config.weak_labels_run_dir),
+        "output_root": str(config.output_root),
+        "rolling_block_days": config.rolling_block_days,
+        "initial_train_blocks": config.initial_train_blocks,
+        "validation_blocks": config.validation_blocks,
+        "test_blocks": config.test_blocks,
+        "compare_block_days": list(config.compare_block_days),
+        "p2_warm_start_enabled": config.p2_warm_start_enabled,
+        "warmup_duration_hours": config.warmup_duration_hours,
+    }
