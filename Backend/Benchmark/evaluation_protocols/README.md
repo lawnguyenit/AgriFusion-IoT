@@ -1,0 +1,111 @@
+# Evaluation Protocols
+
+`Backend/Benchmark/evaluation_protocols` is an independent benchmark
+lane for source-development and cross-position transport evaluation.
+
+It is intentionally separate from:
+
+- `dataset_views/`, which materializes benchmark-ready views; and
+- `weak_labels/`, which acts as the weak-label authority lane.
+
+Its responsibilities are:
+
+- define deployment domains such as `P1_SOURCE` and `P2_TARGET`;
+- define the primary 5-day source-only protocol and its matched-cohort
+  runner contract;
+- define secondary diagnostic rolling source-only folds such as 7-day
+  comparisons;
+- define untouched target holdouts;
+- freeze source-fitted threshold policy for later transport analysis;
+- emit split manifests, fold diagnostics, runner manifests, and
+  transport-shift reports.
+
+Current output layout distinguishes:
+
+- `run_metadata/`: run manifest, validation report, and artifact index;
+- `domain_manifests/`: deployment-domain ownership and protocol framing;
+- `primary_protocol/`: the authoritative 5-day Fold 01-03 artifacts,
+  split into `folds/`, `cohorts/`, `lineage/`, and `runner/`;
+- `temporal_diagnostics/support_5day/`: non-primary 5-day support
+  diagnostics and full assignment audits;
+- `temporal_diagnostics/secondary_7day/`: secondary 7-day diagnostics
+  kept for audit and comparison, not as the primary training protocol;
+- `transport_diagnostics/`: feature-shift and frozen-label transport
+  reports;
+- `threshold_diagnostics/`: frozen q10 policy and Q05/Q10/Q15/Q20
+  sensitivity diagnostics;
+- `dependency_manifests/` and `v6_lineage_audits/`: auditable support
+  files used to explain or verify the main protocol.
+
+Code layout is responsibility-first:
+
+- `domains/`: deployment-domain mapping and threshold-freezing policy;
+- `diagnostics/`: fold support, sensitivity, shift, and dependency
+  diagnostics;
+- `lineage/`: split-aware assignment construction, matched cohorts,
+  primary protocol selection, and V6 lineage audits;
+- `pipeline/`: orchestration and artifact layout only.
+
+It may consume outputs from `weak_labels`, but it must not be nested
+inside `weak_labels` because protocol framing is a separate benchmark
+concern from label construction.
+
+It also consumes an explicit `dataset_views` artifact run as the
+feature authority. The runner contract must pin resolved feature
+artifacts, row-index lineage, and allowlisted columns from that run
+rather than inferring feature bundles from placeholders.
+
+For downstream model training, the runner-facing authority is under
+`primary_protocol/runner/`:
+
+- `task_view_registry.csv`: explicit mapping between feature views,
+  label tasks, protocol views, and resolved feature artifacts from the
+  linked `dataset_views` run;
+- `task_training_manifest.parquet`: one row per
+  `(feature_view_id, fold_id, partition, sample_id)` with intrinsic
+  state, protocol state, resolved feature lineage, hashes, and final
+  trainability;
+- `comparison_training_manifest.parquet`: matched-cohort runner manifest
+  keyed by `(comparison_id, feature_view_id, fold_id, partition,
+  sample_id)` for same-Y comparisons;
+- `task_training_manifest_validation.csv`: assertions that the manifest
+  did not silently drop protocol-eligible samples.
+- `comparison_training_manifest_validation.csv`: assertions that the
+  comparison manifest resolves every matched cohort row back to the base
+  training manifest.
+
+The optional smoke-train audit remains a post-protocol consumer under
+`primary_protocol/runner/smoke_train/`. Its authoritative outputs are:
+
+- `smoke_training_summary.csv`: run-level trainability and held-out
+  metrics;
+- `smoke_training_validation.csv`: partition, class-support, and
+  matched-cohort assertions;
+- `per_sample_predictions.csv`: held-out prediction rows for direct
+  audit and pooled reporting;
+- `pooled_oof_metrics.csv`: pooled held-out metrics across folds for a
+  given stage/run scope;
+- `smoke_readiness_report.json`: smoke-only readiness state, separate
+  from full benchmark readiness.
+
+The authoritative full benchmark runner lives under
+`primary_protocol/runner/full_train/`. Its key outputs are:
+
+- `full_training_summary.csv`: stage-level task and comparison metrics
+  for the locked primary benchmark;
+- `full_training_validation.csv`: partition, class-support, and
+  matched-cohort assertions for the full runner;
+- `per_sample_predictions.csv`: held-out per-sample predictions for
+  audit and pooled analysis;
+- `pooled_oof_metrics.csv`: pooled held-out metrics across folds for
+  the full primary benchmark;
+- `full_readiness_report.json`: machine-readable full benchmark gate
+  result.
+
+For external review or GPT-assisted audit, start with:
+
+- `run_metadata/benchmark_readiness_report.md`
+- `run_metadata/protocol_validation_report.json`
+
+The Markdown report is the single-file human-readable summary; the JSON
+report remains the machine-readable gate authority.
