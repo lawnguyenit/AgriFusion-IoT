@@ -6,11 +6,12 @@ import json
 
 import pandas as pd
 
+from Backend.Benchmark.evaluation_protocols.scope import PRIMARY_COMPARISON_IDS, PRIMARY_FEATURE_VIEW_IDS, PRIMARY_FOLD_IDS
+
 
 PRIMARY_PROTOCOL_ID = "P1_SOURCE_PRIMARY_5DAY_FOLD_01_03"
 PRIMARY_PROTOCOL_VERSION = "2026-07-16.eval-protocol.v2"
 PRIMARY_BLOCK_DAYS = 5
-PRIMARY_FOLD_IDS: tuple[str, ...] = ("fold_01", "fold_02", "fold_03")
 PRIMARY_PARTITIONS: tuple[str, ...] = ("train", "validation", "test")
 
 
@@ -160,10 +161,17 @@ def _build_runner_contract(matched_cohort_validation: pd.DataFrame) -> dict[str,
         "primary_block_days": PRIMARY_BLOCK_DAYS,
         "primary_fold_ids": list(PRIMARY_FOLD_IDS),
         "primary_partitions": list(PRIMARY_PARTITIONS),
+        "primary_feature_views": list(PRIMARY_FEATURE_VIEW_IDS),
         "target_holdout_fold_id": "p2_target_holdout",
-        "required_comparisons": sorted(required_rows["comparison_id"].astype("string").unique().tolist()),
+        "required_comparisons": list(PRIMARY_COMPARISON_IDS),
         "required_matched_cohort_ids": required_ids,
         "matched_cohort_hashes": cohort_hashes,
+        "frozen_target_evaluation": {
+            "training_aggregation": "single_refit_not_fold_pooling",
+            "source_training_scope": "union_unique_p1_rows_across_primary_folds",
+            "target_scope": "all_eligible_p2_target_test_rows",
+            "target_manifest_filename": "frozen_target_manifest.parquet",
+        },
         "assertions": [
             "exact_record_id_set_equality",
             "exact_ordering_equality",

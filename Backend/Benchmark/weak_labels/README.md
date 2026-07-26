@@ -20,6 +20,11 @@ It must not own:
 - deployment-domain roles such as `P1_SOURCE` / `P2_TARGET`;
 - purge logic or boundary exclusion created by an evaluation protocol.
 
+For V2 specifically, intrinsic weak-label eligibility covers window
+history sufficiency and point-label state only. Horizon-specific purge
+for fold boundaries is owned by `evaluation_protocols`, not by
+`weak_labels`.
+
 Artifact runs now use a grouped folder contract rather than placing all
 files at the run root.
 
@@ -52,3 +57,8 @@ especially:
 
 - `task_view_registry.csv`
 - `task_training_manifest.parquet`
+
+## Detailed Flow
+
+For the implemented orchestration, artifact-writing order, and module
+read order, see [FLOW.md](FLOW.md).

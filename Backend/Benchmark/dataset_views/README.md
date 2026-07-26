@@ -408,3 +408,8 @@ Benchmark-ready with explicit labels:
 ```powershell
 python Backend\Benchmark\dataset_views\main.py --mode benchmark-ready --views v0 v1 --label-artifact D:\path\labels.parquet --label-columns target
 ```
+
+## Detailed Flow
+
+For entrypoint-to-artifact flow, module responsibilities, and code read
+order, see [FLOW.md](FLOW.md).

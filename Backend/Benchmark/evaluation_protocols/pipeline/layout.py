@@ -9,6 +9,9 @@ class EvaluationArtifactLayout:
     root: Path
     run_metadata: Path
     domain_manifests: Path
+    validity_diagnostics: Path
+    validity_representation: Path
+    validity_evaluation: Path
     primary_protocol: Path
     primary_folds: Path
     primary_cohorts: Path
@@ -31,6 +34,9 @@ class EvaluationArtifactLayout:
         for path in (
             self.run_metadata,
             self.domain_manifests,
+            self.validity_diagnostics,
+            self.validity_representation,
+            self.validity_evaluation,
             self.primary_protocol,
             self.primary_folds,
             self.primary_cohorts,
@@ -57,6 +63,9 @@ def build_evaluation_artifact_layout(root: Path) -> EvaluationArtifactLayout:
         root=root,
         run_metadata=root / "run_metadata",
         domain_manifests=root / "domain_manifests",
+        validity_diagnostics=root / "validity_diagnostics",
+        validity_representation=root / "validity_diagnostics" / "representation",
+        validity_evaluation=root / "validity_diagnostics" / "evaluation",
         primary_protocol=root / "primary_protocol",
         primary_folds=root / "primary_protocol" / "folds",
         primary_cohorts=root / "primary_protocol" / "cohorts",
@@ -102,6 +111,30 @@ def build_artifact_catalog(layout: EvaluationArtifactLayout) -> list[dict[str, s
             "path": str(layout.domain_manifests / "deployment_domains.csv"),
             "role": "domain_boundary_manifest",
             "usage": "maps canonical rows to P1/P2 protocol domains",
+        },
+        {
+            "artifact_group": "validity_diagnostics",
+            "path": str(layout.validity_representation / "class_specific_retention.csv"),
+            "role": "representation_retention",
+            "usage": "class-specific retention from native task cohorts to matched same-Y cohorts",
+        },
+        {
+            "artifact_group": "validity_diagnostics",
+            "path": str(layout.validity_representation / "native_vs_matched_distribution.csv"),
+            "role": "representation_distribution_shift",
+            "usage": "native-versus-matched class distribution distortion by comparison side",
+        },
+        {
+            "artifact_group": "validity_diagnostics",
+            "path": str(layout.validity_representation / "representation_validity_report.md"),
+            "role": "representation_report",
+            "usage": "human-readable representation-validity summary for primary same-Y comparisons",
+        },
+        {
+            "artifact_group": "validity_diagnostics",
+            "path": str(layout.validity_evaluation / "estimability_matrix.csv"),
+            "role": "estimability_matrix",
+            "usage": "normalized trainability, selectability, and estimability states by partition and cohort",
         },
         {
             "artifact_group": "primary_protocol",
@@ -159,6 +192,12 @@ def build_artifact_catalog(layout: EvaluationArtifactLayout) -> list[dict[str, s
         },
         {
             "artifact_group": "primary_protocol",
+            "path": str(layout.primary_runner / "frozen_target_manifest.parquet"),
+            "role": "frozen_target_manifest",
+            "usage": "single-refit source-to-target runner manifest for final P2 evaluation",
+        },
+        {
+            "artifact_group": "primary_protocol",
             "path": str(layout.primary_runner / "task_training_manifest_validation.csv"),
             "role": "training_manifest_validation",
             "usage": "count and uniqueness assertions backing the training manifest",
@@ -168,6 +207,12 @@ def build_artifact_catalog(layout: EvaluationArtifactLayout) -> list[dict[str, s
             "path": str(layout.primary_runner / "comparison_training_manifest_validation.csv"),
             "role": "comparison_training_manifest_validation",
             "usage": "count and uniqueness assertions backing the comparison training manifest",
+        },
+        {
+            "artifact_group": "primary_protocol",
+            "path": str(layout.primary_runner / "frozen_target_manifest_validation.csv"),
+            "role": "frozen_target_manifest_validation",
+            "usage": "count and readiness assertions backing the final P2 evaluation manifest",
         },
         {
             "artifact_group": "primary_protocol",

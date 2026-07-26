@@ -92,7 +92,6 @@ def build_weak_labels(config: WeakLabelsConfig) -> WeakLabelsResult:
     v2_artifacts = build_v2_label_artifacts(
         point_artifacts.enriched_df,
         segment_manifest=segment_manifest,
-        boundary_timestamps={},
     )
     v6_artifacts = build_v6_label_artifacts(
         point_artifacts.enriched_df,

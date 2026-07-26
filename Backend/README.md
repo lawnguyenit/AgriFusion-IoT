@@ -1,175 +1,121 @@
 # Backend Data Pipelines
 
-## 1. Mục đích
+## 1. Purpose
 
-`Backend/` là phần điều phối toàn bộ luồng xử lý dữ liệu từ lúc lấy dữ liệu thô về máy cho đến lúc publish kết quả để web đọc được.
+`Backend/` currently covers the accepted pre-benchmark pipeline:
 
-Backend hiện phục vụ 4 việc chính:
+- Layer0 pulls raw telemetry into auditable local artifacts.
+- Layer1 normalizes and flattens raw telemetry into canonical tabular
+  outputs for downstream benchmark preparation.
 
-- Kéo dữ liệu từ Firebase RTDB, JSON export và Open-Meteo.
-- Chuẩn hóa dữ liệu thô thành snapshot có cấu trúc theo từng stream.
-- Hợp nhất snapshot thành bảng chung phục vụ benchmark và tái sử dụng feature.
-- Publish kết quả runtime lên nhánh `result/*` trong Firebase RTDB.
+Anything after Layer1 is not part of the active accepted path in this
+cleanup pass.
 
-## 2. Kiến trúc xử lý
+## 2. Active Architecture
 
 ```text
 Backend/main.py
     |
     +-- Config/
-    |     `-- env, path, runtime setting, helper IO
-    |
-    +-- Services/
-    |     +-- clients/                 -> giao tiếp Firebase RTDB
-    |     +-- layer0_ingestion/        -> kéo raw data về Layer0
-    |     +-- telemetry_runtime_simulator/
-    |     +-- telemetry_orchestrator/
-    |     +-- result_publisher/        -> đẩy result/* lên Firebase
-    |     `-- output_cutoff_maintenance/
+    |     `-- runtime settings, paths, IO helpers
     |
     +-- Core/
-    |     +-- layer1/                  -> chuẩn hóa raw thành snapshot theo stream
-    |     +-- fusion/                  -> tạo SuperTable
-    |     +-- layer2/                  -> helper sinh feature time-series cho benchmark
-    |     `-- canonical/
+    |     +-- infrastructure/           -> Firebase RTDB access
+    |     +-- layer0/                   -> raw ingestion into Layer0
+    |     `-- layer1/                   -> canonical preprocessing
     |
-    +-- DemoUI/
     `-- Benchmark/
 ```
 
-## 3. Các giai đoạn chính trong flow
+## 3. Main Stages
 
-### Giai đoạn 1. Chuẩn bị môi trường
+### Stage 1. Layer0 ingestion
 
-- Đọc `Backend/Services/.env`
-- Xác định đường dẫn output
-- Xác định nguồn dữ liệu và thông số runtime
+- fetch source metadata
+- decide whether current payload should be fetched
+- persist raw history and sync state
 
-### Giai đoạn 2. Layer0 ingestion
+### Stage 2. Layer1 preprocessing
 
-- Kéo metadata `latest/meta`
-- Quyết định có fetch `latest/current` hay bỏ qua
-- Ghi audit artifact và lịch sử raw về local
+- load Layer0 raw artifacts
+- parse telemetry packets and context
+- build canonical rows
+- write canonical history, latest snapshot, debug views, and reports
 
-### Giai đoạn 3. Layer1 preprocessing
+## 4. Inputs
 
-- Đọc raw artifact từ `Layer0`
-- Phân luồng qua `SHT30Processor`, `NPKProcessor`, `MeteoProcessor`
-- Tạo snapshot có `perception`, `memory`, `fuzzy_signals`, `external_weather`
+- `Backend/.env`
+- Firebase RTDB or JSON export
+- local artifacts in `Backend/Output_data`
 
-### Giai đoạn 4. Fusion
-
-- Gộp các snapshot theo `ts_server`
-- Flatten thành một hàng chung trong `SuperTable`
-
-### Giai đoạn 5. Result publish
-
-- Đọc `Layer1`
-- Dựng lại feature runtime
-- Nạp model runtime
-- Tạo payload `result/*`
-- Ghi local debug artifact và publish lên Firebase
-
-## 4. Input
-
-- `Backend/Services/.env`
-- Firebase RTDB hoặc file JSON export
-- Open-Meteo API nếu bật sync meteo
-- các artifact local trong `Backend/Output_data`
-- model artifact trong `Backend/Benchmark`
-
-## 5. Output
+## 5. Outputs
 
 - `Backend/Output_data/Layer0/**`
 - `Backend/Output_data/Layer1/**`
-- `Backend/Output_data/SuperTable/**`
-- `Backend/Output_data/Result_publish/**`
-- dữ liệu `result/*` trên Firebase RTDB
 
-## 6. Ví dụ kết quả
-
-### 6.1. Ví dụ output sau Layer1
+## 6. Example Layer1 Output
 
 ```json
 {
-  "sensor_id": "sht30_1",
-  "timestamps": {
-    "ts_server": 1778387046,
-    "observed_at_local": "2026-05-10T11:24:06+07:00"
-  },
-  "perception": {
-    "temp_air_c": 35.09,
-    "humidity_air_pct": 69.09
-  }
+  "record.id": "Node1:2026-05-10:1778387046",
+  "record.ts_server": 1778387046,
+  "record.sample_time_local": "2026-05-10T11:24:06+07:00",
+  "sht.temp_c": 35.09,
+  "sht.humidity_pct": 69.09,
+  "npk.soil_moisture_pct": 55.8
 }
 ```
 
-### 6.2. Ví dụ output sau publish
+## 7. Reproducibility
 
-```json
-{
-  "meta": {
-    "source": "server"
-  },
-  "latest": {
-    "air": {},
-    "soil": {},
-    "npk": {},
-    "weather": {}
-  },
-  "analysis": {
-    "diagnosis": {},
-    "forecast": {},
-    "anomalies": {}
-  }
-}
-```
-
-## 7. Cách tái lập
-
-### 7.1. Cài thư viện
+Install backend dependencies:
 
 ```powershell
 cd Backend
 python -m pip install -r requirements.txt
 ```
 
-### 7.2. Xem toàn bộ command hỗ trợ
+Show supported commands:
 
 ```powershell
 python main.py --help
 ```
 
-### 7.3. Chạy từng lớp độc lập
+Run Layer0 only:
 
 ```powershell
 python main.py --only-layer0 --source firebase --node-id Node1
-python main.py --only-layer1
-python main.py --only-super-table
-python main.py --only-result --publish-result --result-mode snapshot
+python main.py --only-layer0 --source firebase --node-id Node1 --full-history
 ```
 
-### 7.4. Chạy full flow từ Layer0 đến publish
+Run Layer1 from existing local Layer0 artifacts:
 
 ```powershell
-python main.py --to-layer super-table --source firebase --node-id Node1 --full-history --publish-result --result-mode snapshot
+python main.py --only-layer1
 ```
 
-## 8. Thư viện cần cài
+Run Layer0 then Layer1:
 
-- Nhóm bắt buộc cho flow chính: `firebase-admin`, `python-dotenv`, `openmeteo-requests`, `requests-cache`, `retry-requests`, `numpy`, `pandas`, `scikit-learn`, `joblib`, `matplotlib`, `xgboost`
-- Nhóm benchmark mở rộng: `pytorch-tabnet`
-- Nhóm benchmark Torch: `torch` cài riêng theo CPU/CUDA
+```powershell
+python main.py --to-layer layer1 --source firebase --node-id Node1 --full-history
+```
 
-## 9. Giả định xử lý
+## 8. Notes
 
-- `ts_server` là trục thời gian chính.
-- `Backend/main.py` là entrypoint chuẩn của toàn bộ backend.
-- `Config/` không chứa business logic lớn.
-- `Services/` không thay thế `Core/`; nó chỉ giao tiếp với nguồn ngoài và runtime online.
+- Layer0 is responsible for pull integrity and raw evidence.
+- Layer1 is responsible for canonical flattening and tabular preparation.
+- Benchmark-specific labeling and training logic belongs under
+  `Backend/Benchmark`.
 
-## 10. Rủi ro và giới hạn
+## 9. Detailed Flow Docs
 
-- Một số nhánh benchmark vẫn tồn tại vì mục đích nghiên cứu, nên không nên nhầm toàn bộ `Benchmark/` là đường chạy production.
-- Snapshot trong `Layer1` vẫn mang trường `layer = "layer2"` do legacy contract; README sẽ ghi rõ, nhưng code không đổi schema ở đợt này.
-- Các command có tương tác Firebase là command ghi dữ liệu thật.
+For implemented control flow rather than folder scope summaries, read:
+
+- [Backend Pipeline Flow](PIPELINE_FLOW.md)
+- [Layer0 Flow](Navigation/Core/layer0/FLOW.md)
+- [Layer1 Flow](Navigation/Core/layer1/FLOW.md)
+- [Dataset Views Flow](Benchmark/dataset_views/FLOW.md)
+- [Weak Labels Flow](Benchmark/weak_labels/FLOW.md)
+- [Evaluation Protocols Flow](Benchmark/evaluation_protocols/FLOW.md)
+- [Validity Lifecycle Flow](Benchmark/validity_lifecycle/FLOW.md)
+- [Model Suite Flow](Benchmark/model_suite/FLOW.md)

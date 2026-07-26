@@ -1,0 +1,7 @@
+included:
+  - "V2 temporal labels remain diagnostic-only in this phase."
+  - "Threshold sensitivity remains read-only and may inform later falsification work."
+  - "Metadata-only and reduced-ontology variants remain out of the primary gate contract."
+excluded_from_primary_gate:
+  - "Any train-time refit against P2."
+  - "Any experiment that changes both X and Y without explicit separation."

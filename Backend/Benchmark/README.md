@@ -51,6 +51,38 @@ Responsibilities:
 - freezes source-fitted threshold policy for transport evaluation
 - reports within-position and cross-position diagnostics
 
+Current benchmark-primary scope is intentionally narrower than the full
+artifact universe:
+
+- task views: `V0`, `V1`, `V2 same-Y 3h`, `V2 same-Y 8h`
+- same-Y comparisons: `V0 vs V2 mini/full` and `V1 vs V2 mini/full`
+- final transport evaluation: single-refit `P1 -> P2 target_test`
+
+### `validity_lifecycle/`
+
+Pre-training lifecycle audit lane.
+
+Responsibilities:
+
+- read an authoritative `evaluation_protocols` run;
+- map the benchmark sample universe into explicit E1/E2/E3
+  environments;
+- audit class support, chronological split feasibility, eligibility
+  loss, continuity, and matched comparison integrity;
+- quantify EC-to-NPK proxy risk and pH stability before later
+  lifecycle experiments.
+
+### `model_suite/`
+
+Reusable benchmark model lane.
+
+Responsibilities:
+
+- owns reusable model family definitions
+- owns generic tabular preprocessing and model persistence
+- serves downstream benchmark consumers such as
+  `evaluation_protocols`
+
 ### `common/` and `shared/`
 
 Reusable benchmark infrastructure used by the active forward lanes.
@@ -63,6 +95,13 @@ Reusable benchmark infrastructure used by the active forward lanes.
    canonical source.
 4. `evaluation_protocols` combines dataset views and weak labels into
    source/target benchmark assignments and diagnostics.
+5. `validity_lifecycle` re-audits the frozen benchmark contract as
+   lifecycle-ready evidence before later train or falsification work.
+
+For the implemented end-to-end handoff from benchmark lanes into
+`model_suite`, read:
+
+- `Backend/Benchmark/BENCHMARK_TO_MODEL_SUITE_SPEC.md`
 
 ## Current Limits
 
@@ -71,3 +110,15 @@ Reusable benchmark infrastructure used by the active forward lanes.
   file when requested
 - V6 remains more complex than the primary V0-V2 benchmark and should
   be interpreted separately from the core point/window benchmark
+
+## Detailed Flow Docs
+
+Read these when you need implemented control flow instead of only lane
+boundaries:
+
+- [Dataset Views Flow](dataset_views/FLOW.md)
+- [Weak Labels Flow](weak_labels/FLOW.md)
+- [Evaluation Protocols Flow](evaluation_protocols/FLOW.md)
+- [Validity Lifecycle Flow](validity_lifecycle/FLOW.md)
+- [Model Suite Flow](model_suite/FLOW.md)
+- [Benchmark to Model Suite Spec](BENCHMARK_TO_MODEL_SUITE_SPEC.md)

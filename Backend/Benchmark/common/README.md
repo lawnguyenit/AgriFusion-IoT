@@ -19,6 +19,8 @@ with slightly different assumptions.
   - `DATASET_VIEWS_ROOT`
   - `WEAK_LABELS_ROOT`
   - `EVALUATION_PROTOCOLS_ROOT`
+  - `VALIDITY_LIFECYCLE_ROOT`
+  - `MODEL_SUITE_ROOT`
 
 ## Command
 

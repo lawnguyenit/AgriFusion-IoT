@@ -8,10 +8,16 @@ from pathlib import Path
 def create_run_directory(output_root: Path, prefix: str) -> tuple[str, Path]:
     output_root.mkdir(parents=True, exist_ok=True)
     now = datetime.now()
-    run_id = f"{prefix}_{now.strftime('%Y%m%d_%H%M%S')}"
-    output_dir = output_root / run_id
-    output_dir.mkdir(parents=True, exist_ok=False)
-    return run_id, output_dir
+    base_run_id = f"{prefix}_{now.strftime('%Y%m%d_%H%M%S')}"
+    for suffix_index in range(1000):
+        run_id = base_run_id if suffix_index == 0 else f"{base_run_id}_{suffix_index:03d}"
+        output_dir = output_root / run_id
+        try:
+            output_dir.mkdir(parents=True, exist_ok=False)
+        except FileExistsError:
+            continue
+        return run_id, output_dir
+    raise FileExistsError(f"Unable to allocate unique run directory under {output_root} for prefix={prefix!r}.")
 
 
 def write_json(path: Path, payload: object) -> None:

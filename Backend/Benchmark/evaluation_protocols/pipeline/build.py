@@ -16,9 +16,11 @@ from Backend.Benchmark.evaluation_protocols.diagnostics import (
     build_cross_position_feature_shift_raw,
     build_cross_position_label_transport,
     build_dependency_artifacts,
+    build_estimability_artifacts,
     build_fold_quality_manifest,
     build_p1_5day_support_diagnostic,
     build_p1_rolling_fold_specs,
+    build_representation_validity_artifacts,
     build_threshold_sensitivity_transport,
     build_v2_coverage_artifacts,
 )
@@ -51,6 +53,8 @@ from Backend.Benchmark.evaluation_protocols.pipeline.consumption import (
     build_task_view_registry,
     load_weak_label_sources,
 )
+from Backend.Benchmark.evaluation_protocols.pipeline.frozen_target import build_frozen_target_manifest
+from Backend.Benchmark.evaluation_protocols.scope import PRIMARY_FEATURE_SOURCE_VIEW_IDS, PRIMARY_FEATURE_VIEW_IDS
 from Backend.Benchmark.shared.artifacts import create_run_directory
 from Backend.Benchmark.weak_labels.io import (
     load_canonical_history,
@@ -140,7 +144,10 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
     write_csv(sensitivity_df, layout.threshold_policy / "threshold_sensitivity_diagnostic.csv")
 
     weak_sources = load_weak_label_sources(config.weak_labels_run_dir.resolve())
-    feature_artifacts = load_dataset_view_feature_artifacts(config.dataset_views_run_dir.resolve())
+    feature_artifacts = load_dataset_view_feature_artifacts(
+        config.dataset_views_run_dir.resolve(),
+        required_view_ids=PRIMARY_FEATURE_SOURCE_VIEW_IDS,
+    )
 
     point_labels = weak_sources.point_labels_train.loc[
         weak_sources.point_labels_train["task_id"].isin(["v0_point_train", "v1_point_train"])
@@ -304,6 +311,7 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
         dataset_views_run_dir=config.dataset_views_run_dir.resolve(),
         split_artifact_path=protocol_view_assignments_path,
         feature_artifacts=feature_artifacts,
+        feature_view_ids=PRIMARY_FEATURE_VIEW_IDS,
     )
     label_frames_by_task = {
         "v0_point_train": point_labels.loc[point_labels["task_id"] == "v0_point_train"].copy(),
@@ -350,11 +358,36 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
         task_training_manifest=task_training_manifest,
         cohort_manifests=primary_artifacts.matched_cohort_manifests,
     )
+    frozen_target_manifest, frozen_target_manifest_validation = build_frozen_target_manifest(
+        task_training_manifest,
+        feature_view_ids=PRIMARY_FEATURE_VIEW_IDS,
+    )
+    representation_artifacts = build_representation_validity_artifacts(
+        task_training_manifest=task_training_manifest,
+        comparison_training_manifest=comparison_training_manifest,
+    )
+    estimability_artifacts = build_estimability_artifacts(
+        task_training_manifest=task_training_manifest,
+        comparison_training_manifest=comparison_training_manifest,
+        frozen_target_manifest=frozen_target_manifest,
+    )
     write_csv(task_view_registry, layout.primary_runner / "task_view_registry.csv")
     write_parquet(task_training_manifest, layout.primary_runner / "task_training_manifest.parquet", engine=parquet_engine)
     write_csv(task_training_manifest_validation, layout.primary_runner / "task_training_manifest_validation.csv")
     write_parquet(comparison_training_manifest, layout.primary_runner / "comparison_training_manifest.parquet", engine=parquet_engine)
     write_csv(comparison_training_manifest_validation, layout.primary_runner / "comparison_training_manifest_validation.csv")
+    write_parquet(frozen_target_manifest, layout.primary_runner / "frozen_target_manifest.parquet", engine=parquet_engine)
+    write_csv(frozen_target_manifest_validation, layout.primary_runner / "frozen_target_manifest_validation.csv")
+    write_csv(representation_artifacts.class_specific_retention, layout.validity_representation / "class_specific_retention.csv")
+    write_csv(
+        representation_artifacts.native_vs_matched_distribution,
+        layout.validity_representation / "native_vs_matched_distribution.csv",
+    )
+    (layout.validity_representation / "representation_validity_report.md").write_text(
+        representation_artifacts.markdown_report,
+        encoding="utf-8",
+    )
+    write_csv(estimability_artifacts.matrix, layout.validity_evaluation / "estimability_matrix.csv")
 
     normal_audits = build_normal_candidate_and_selection_audits(
         raw_event_df=raw_v6_frame,
@@ -433,6 +466,7 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
             "task_view_registry_path": str(layout.primary_runner / "task_view_registry.csv"),
             "task_training_manifest_path": str(layout.primary_runner / "task_training_manifest.parquet"),
             "comparison_training_manifest_path": str(layout.primary_runner / "comparison_training_manifest.parquet"),
+            "frozen_target_manifest_path": str(layout.primary_runner / "frozen_target_manifest.parquet"),
         },
         "diagnostic_protocol_7day": {
             "fold_count_7day": int(len(fold_specs)),
@@ -460,6 +494,12 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
             "coverage_daily_path": str(layout.v2_coverage / "v2_coverage_daily.csv"),
             "coverage_range_summary_path": str(layout.v2_coverage / "v2_coverage_range_summary.csv"),
         },
+        "phase1_validity_diagnostics": {
+            "representation_report_path": str(layout.validity_representation / "representation_validity_report.md"),
+            "class_specific_retention_path": str(layout.validity_representation / "class_specific_retention.csv"),
+            "native_vs_matched_distribution_path": str(layout.validity_representation / "native_vs_matched_distribution.csv"),
+            "estimability_matrix_path": str(layout.validity_evaluation / "estimability_matrix.csv"),
+        },
         "validation_gates": {
             "v6_event_lineage_audit_generated": True,
             "v6_normal_candidate_audit_generated": True,
@@ -470,16 +510,19 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
             "task_view_registry_generated": True,
             "task_training_manifest_generated": True,
             "comparison_training_manifest_generated": True,
+            "frozen_target_manifest_generated": True,
             "raw_vs_isr_shift_separated": True,
             "threshold_sensitivity_generated": True,
             "v2_coverage_diagnostic_generated": True,
+            "representation_validity_generated": True,
+            "estimability_matrix_generated": True,
             "proxy_reduced_validated": bool(dependency_artifacts.validation["proxy_reduced_validated"]),
             "smoke_test_executed": False,
             "ready_for_smoke_test": False,
             "full_runner_executed": False,
             "ready_for_full_benchmark": False,
             "remaining_blockers": [
-                "downstream benchmark runners still need to consume primary_protocol/runner/task_training_manifest.parquet",
+                "downstream benchmark runners still need to execute the frozen_target_manifest final source-to-P2 contract",
             ],
         },
         "training_deferred": True,

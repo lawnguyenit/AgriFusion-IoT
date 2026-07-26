@@ -1,0 +1,15 @@
+{
+  "smoke_model_keys": [
+    "dummy_majority",
+    "logistic_regression",
+    "extra_trees",
+    "xgboost"
+  ],
+  "advanced_model_keys": [
+    "realmlp",
+    "ft_transformer"
+  ],
+  "credential_gated_model_keys": [
+    "tabpfn"
+  ]
+}

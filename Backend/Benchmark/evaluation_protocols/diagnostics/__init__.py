@@ -2,6 +2,10 @@ from Backend.Benchmark.evaluation_protocols.diagnostics.dependencies import (
     DependencyArtifacts,
     build_dependency_artifacts,
 )
+from Backend.Benchmark.evaluation_protocols.diagnostics.estimability import (
+    EstimabilityArtifacts,
+    build_estimability_artifacts,
+)
 from Backend.Benchmark.evaluation_protocols.diagnostics.folds import (
     RollingFoldSpec,
     annotate_core_fold_status,
@@ -12,6 +16,10 @@ from Backend.Benchmark.evaluation_protocols.diagnostics.folds import (
     expected_partition_rows,
     max_internal_gap_seconds,
     slice_partition_rows,
+)
+from Backend.Benchmark.evaluation_protocols.diagnostics.representation import (
+    RepresentationValidityArtifacts,
+    build_representation_validity_artifacts,
 )
 from Backend.Benchmark.evaluation_protocols.diagnostics.sensitivity import (
     ThresholdSensitivityArtifacts,
@@ -29,15 +37,19 @@ from Backend.Benchmark.evaluation_protocols.diagnostics.v2_coverage import (
 
 __all__ = [
     "DependencyArtifacts",
+    "EstimabilityArtifacts",
+    "RepresentationValidityArtifacts",
     "ThresholdSensitivityArtifacts",
     "V2CoverageArtifacts",
     "RollingFoldSpec",
     "annotate_core_fold_status",
     "build_dependency_artifacts",
+    "build_estimability_artifacts",
     "build_calendar_blocks",
     "build_fold_quality_manifest",
     "build_p1_5day_support_diagnostic",
     "build_p1_rolling_fold_specs",
+    "build_representation_validity_artifacts",
     "expected_partition_rows",
     "max_internal_gap_seconds",
     "slice_partition_rows",

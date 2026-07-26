@@ -31,16 +31,15 @@ def build_v2_label_artifacts(
     continuity_df: pd.DataFrame,
     *,
     segment_manifest: dict[str, object],
-    boundary_timestamps: dict[str, int],
 ) -> V2LabelArtifacts:
     horizon_outputs: dict[str, tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]] = {}
     same_y_frames: list[pd.DataFrame] = []
     matched_frames: list[pd.DataFrame] = []
     point_lookup = continuity_df.set_index("record.id")
 
-    for horizon_name, task_same_y, task_temporal, purge_seconds in (
-        ("3h", V2_SAME_Y_TASK_IDS[0], V2_TEMPORAL_TASK_IDS[0], 3 * 3600),
-        ("8h", V2_SAME_Y_TASK_IDS[1], V2_TEMPORAL_TASK_IDS[1], 8 * 3600),
+    for horizon_name, task_same_y, task_temporal in (
+        ("3h", V2_SAME_Y_TASK_IDS[0], V2_TEMPORAL_TASK_IDS[0]),
+        ("8h", V2_SAME_Y_TASK_IDS[1], V2_TEMPORAL_TASK_IDS[1]),
     ):
         artifacts = build_v2_sensor_window_view(
             continuity_df,
@@ -60,8 +59,6 @@ def build_v2_label_artifacts(
 
         intrinsic_eligibility, exclusion_reason = resolve_v2_intrinsic_state(
             audit_df=audit_df,
-            boundary_timestamps=boundary_timestamps,
-            purge_seconds=purge_seconds,
         )
         audit_df["intrinsic_eligibility"] = intrinsic_eligibility.astype("boolean")
         audit_df["intrinsic_exclusion_reason"] = exclusion_reason.astype("string")

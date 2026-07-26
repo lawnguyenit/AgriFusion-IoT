@@ -15,8 +15,6 @@ from Backend.Benchmark.weak_labels.shared.configs import (
 def resolve_v2_intrinsic_state(
     *,
     audit_df: pd.DataFrame,
-    boundary_timestamps: dict[str, int],
-    purge_seconds: int,
 ) -> tuple[pd.Series, pd.Series]:
     intrinsic_eligibility = pd.Series([True] * len(audit_df), index=audit_df.index, dtype="boolean")
     exclusion_reason = pd.Series([pd.NA] * len(audit_df), index=audit_df.index, dtype="string")
