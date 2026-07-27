@@ -3,7 +3,7 @@ from __future__ import annotations
 from Backend.Benchmark.dataset_views.contracts import TaxonomyEntry
 
 
-TAXONOMY_VERSION = "2026-07-15.v2-v3-v6-sequence-8h"
+TAXONOMY_VERSION = "2026-07-27.current-public-scope-v0-v1-v2-3h"
 
 _REGISTRY: tuple[TaxonomyEntry, ...] = (
     TaxonomyEntry(
@@ -14,7 +14,7 @@ _REGISTRY: tuple[TaxonomyEntry, ...] = (
         grain="row",
         selection_kind="explicit_measurements",
         public_selectable=True,
-        notes="Approved minimal sensor measurement view.",
+        notes="Approved full snapshot measurement view with nine sensor features. The legacy semantic id is retained for continuity.",
     ),
     TaxonomyEntry(
         semantic_view_id="v1_sensor_row",
@@ -24,7 +24,7 @@ _REGISTRY: tuple[TaxonomyEntry, ...] = (
         grain="row",
         selection_kind="explicit_measurements",
         public_selectable=True,
-        notes="Approved nine-feature sensor-row measurement view.",
+        notes="Approved reduced snapshot measurement view with air/soil temperature, soil moisture, and EC only. The legacy semantic id is retained for continuity.",
     ),
     TaxonomyEntry(
         semantic_view_id="v2_minimal_sensor_window_3h",
@@ -34,7 +34,7 @@ _REGISTRY: tuple[TaxonomyEntry, ...] = (
         grain="window",
         selection_kind="engineered_window",
         public_selectable=True,
-        notes="Minimal sensor set with ISR plus only the 3h observed-only continuity-aware temporal block.",
+        notes="Reduced five-feature snapshot with only the 3h observed-only continuity-aware temporal block.",
     ),
     TaxonomyEntry(
         semantic_view_id="v2_minimal_sensor_window_8h",
@@ -44,7 +44,7 @@ _REGISTRY: tuple[TaxonomyEntry, ...] = (
         grain="window",
         selection_kind="engineered_window",
         public_selectable=True,
-        notes="Minimal sensor set with ISR plus only the 8h observed-only continuity-aware temporal block.",
+        notes="Reduced five-feature snapshot with only the 8h observed-only continuity-aware temporal block.",
     ),
     TaxonomyEntry(
         semantic_view_id="v2_sensor_row_window_3h",
@@ -54,7 +54,7 @@ _REGISTRY: tuple[TaxonomyEntry, ...] = (
         grain="window",
         selection_kind="engineered_window",
         public_selectable=True,
-        notes="Nine-feature sensor-row set with ISR plus only the 3h observed-only continuity-aware temporal block.",
+        notes="Full nine-feature snapshot with only the 3h observed-only continuity-aware temporal block.",
     ),
     TaxonomyEntry(
         semantic_view_id="v2_sensor_row_window_8h",
@@ -64,7 +64,7 @@ _REGISTRY: tuple[TaxonomyEntry, ...] = (
         grain="window",
         selection_kind="engineered_window",
         public_selectable=True,
-        notes="Nine-feature sensor-row set with ISR plus only the 8h observed-only continuity-aware temporal block.",
+        notes="Full nine-feature snapshot with only the 8h observed-only continuity-aware temporal block.",
     ),
     TaxonomyEntry(
         semantic_view_id="v2_sensor_window",
@@ -166,7 +166,7 @@ LEGACY_DRIFTED_NAMES: dict[str, str] = {
     ),
     "v6_proxy_reduced": (
         "Legacy drifted view id 'v6_proxy_reduced' is no longer supported. "
-        "The old artifact meaning is reclassified as internal draft 'v5_proxy_reduced_draft'."
+        "No current public replacement exists in the active benchmark-primary scope."
     ),
     "v6_event_level": (
         "Legacy drifted view id 'v6_event_level' is no longer supported. "
@@ -255,9 +255,7 @@ def resolve_view_ids(requested_view_ids: tuple[str, ...]) -> tuple[str, ...]:
         if view_id.strip() == "v2":
             for semantic_view_id in (
                 "v2_minimal_sensor_window_3h",
-                "v2_minimal_sensor_window_8h",
                 "v2_sensor_row_window_3h",
-                "v2_sensor_row_window_8h",
             ):
                 if semantic_view_id not in seen:
                     seen.add(semantic_view_id)

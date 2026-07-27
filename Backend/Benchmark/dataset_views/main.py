@@ -72,6 +72,12 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Optional legacy weak-label CSV for deprecated V3 operational-lineage bridging. Not used by the active V0-V2 scope.",
     )
+    parser.add_argument(
+        "--legacy-taxonomy-audit-run",
+        type=Path,
+        default=None,
+        help="Optional historical dataset_views artifact run to audit against the current taxonomy. Not used unless explicitly provided.",
+    )
     return parser.parse_args()
 
 
@@ -94,6 +100,9 @@ def main() -> None:
             selected_views=tuple(args.views),
             label_config=label_config,
             legacy_event_csv_path=args.legacy_event_csv.resolve() if args.legacy_event_csv is not None else None,
+            legacy_taxonomy_audit_run_path=(
+                args.legacy_taxonomy_audit_run.resolve() if args.legacy_taxonomy_audit_run is not None else None
+            ),
         )
     )
 
@@ -104,8 +113,6 @@ def main() -> None:
     print(f"Label status: {result.label_status}")
     print(f"Views: {', '.join(result.selected_views)}")
     print(f"Rows: {result.row_count}")
-    if result.materialized_nonpublic_drafts:
-        print(f"Internal drafts: {', '.join(result.materialized_nonpublic_drafts)}")
 
 
 if __name__ == "__main__":
