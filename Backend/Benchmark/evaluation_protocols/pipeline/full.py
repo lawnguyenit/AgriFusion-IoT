@@ -8,8 +8,8 @@ import shutil
 import pandas as pd
 
 from Backend.Benchmark.evaluation_protocols.pipeline.reporting import write_benchmark_readiness_report
-from Backend.Benchmark.evaluation_protocols.pipeline.smoke import APPROVED_FEATURE_VIEWS
 from Backend.Benchmark.evaluation_protocols.pipeline.smoke_support import (
+    build_frozen_target_run_frames,
     build_pooled_prediction_summary,
     build_stage_run_frames,
 )
@@ -18,27 +18,24 @@ from Backend.Benchmark.evaluation_protocols.pipeline.training_support import (
     run_xgboost_training_job,
     xgb,
 )
+from Backend.Benchmark.evaluation_protocols.scope import PRIMARY_COMPARISON_IDS, PRIMARY_FEATURE_VIEW_IDS, PRIMARY_FOLD_IDS
 
 
 FULL_RANDOM_SEED = 20260717
 FULL_THREAD_COUNT = 1
+APPROVED_FEATURE_VIEWS: tuple[str, ...] = PRIMARY_FEATURE_VIEW_IDS
 FULL_STAGE_SPECS: tuple[dict[str, object], ...] = (
     {
         "stage_id": "primary_task_matrix",
         "feature_views": APPROVED_FEATURE_VIEWS,
-        "fold_ids": ("fold_01", "fold_02", "fold_03"),
+        "fold_ids": PRIMARY_FOLD_IDS,
         "comparison_ids": (),
     },
     {
         "stage_id": "primary_comparison_matrix",
         "feature_views": APPROVED_FEATURE_VIEWS,
-        "fold_ids": ("fold_01", "fold_02", "fold_03"),
-        "comparison_ids": (
-            "v0_vs_v2_mini_3h",
-            "v1_vs_v2_full_3h",
-            "v0_vs_v2_mini_8h",
-            "v1_vs_v2_full_8h",
-        ),
+        "fold_ids": PRIMARY_FOLD_IDS,
+        "comparison_ids": PRIMARY_COMPARISON_IDS,
     },
 )
 
@@ -62,6 +59,7 @@ def run_full_training(protocol_run_dir: Path) -> FullRunResult:
     registry_df = pd.read_csv(runner_dir / "task_view_registry.csv").convert_dtypes()
     task_training_manifest = pd.read_parquet(runner_dir / "task_training_manifest.parquet").convert_dtypes()
     comparison_training_manifest = pd.read_parquet(runner_dir / "comparison_training_manifest.parquet").convert_dtypes()
+    frozen_target_manifest = pd.read_parquet(runner_dir / "frozen_target_manifest.parquet").convert_dtypes()
 
     feature_cache: dict[str, pd.DataFrame] = {}
     summary_rows: list[dict[str, object]] = []
@@ -111,6 +109,45 @@ def run_full_training(protocol_run_dir: Path) -> FullRunResult:
             validation_rows.extend(result["validation_rows"])
             prediction_rows.extend(result["prediction_rows"])
         completed_stage_ids.append(stage_id)
+
+    frozen_runs, frozen_validation_rows = build_frozen_target_run_frames(
+        frozen_target_manifest,
+        feature_view_ids=APPROVED_FEATURE_VIEWS,
+    )
+    validation_rows.extend(frozen_validation_rows)
+    frozen_stage_dir = full_dir / "frozen_target_holdout"
+    frozen_stage_dir.mkdir(parents=True, exist_ok=True)
+    for stage_run in frozen_runs:
+        feature_view_id = str(stage_run["feature_view_id"])
+        task_rows = pd.DataFrame(stage_run["task_rows"]).convert_dtypes()
+        registry_rows = registry_df.loc[
+            registry_df["feature_view_id"].astype("string") == feature_view_id
+        ].copy()
+        if len(registry_rows) != 1:
+            raise ValueError(f"Expected exactly one registry row for feature_view_id={feature_view_id}.")
+        result = run_xgboost_training_job(
+            stage_id="frozen_target_holdout",
+            run_scope="task",
+            comparison_id=None,
+            comparison_side=None,
+            feature_view_id=feature_view_id,
+            fold_id=str(stage_run["fold_id"]),
+            registry_row=registry_rows.iloc[0],
+            task_rows=task_rows,
+            feature_cache=feature_cache,
+            output_dir=frozen_stage_dir / "task" / feature_view_id / str(stage_run["fold_id"]),
+            random_seed=FULL_RANDOM_SEED,
+            thread_count=FULL_THREAD_COUNT,
+            n_estimators=250,
+            max_depth=5,
+            learning_rate=0.05,
+            use_balanced_sample_weight=True,
+            evaluation_partitions=("target_test",),
+        )
+        summary_rows.append(result["summary"])
+        validation_rows.extend(result["validation_rows"])
+        prediction_rows.extend(result["prediction_rows"])
+    completed_stage_ids.append("frozen_target_holdout")
 
     summary_df = pd.DataFrame(summary_rows).convert_dtypes()
     validation_df = pd.DataFrame(validation_rows).convert_dtypes()
@@ -182,6 +219,7 @@ def _update_protocol_validation_report(
     validation_gates["full_runner_executed"] = True
     validation_gates["ready_for_full_benchmark"] = bool(readiness_report["ready_for_full_benchmark"])
     validation_gates["comparison_runner_uses_matched_manifest"] = True
+    validation_gates["frozen_target_evaluation_executed"] = True
     validation_gates["per_sample_predictions_generated"] = bool(readiness_report["per_sample_predictions_generated"])
     validation_gates["pooled_oof_metrics_generated"] = bool(readiness_report["pooled_oof_metrics_generated"])
     validation_gates["remaining_blockers"] = [] if bool(readiness_report["ready_for_full_benchmark"]) else list(validation_gates.get("remaining_blockers", []))

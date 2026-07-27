@@ -341,7 +341,9 @@ def build_task_view_registry(
     dataset_views_run_dir: Path,
     split_artifact_path: Path,
     feature_artifacts: dict[str, ResolvedFeatureArtifact],
+    feature_view_ids: tuple[str, ...] | None = None,
 ) -> pd.DataFrame:
+    allowed_feature_views = set(feature_view_ids) if feature_view_ids is not None else None
     rows = [
         _registry_row(
             spec=spec,
@@ -351,6 +353,7 @@ def build_task_view_registry(
             resolved_feature=feature_artifacts.get(str(spec["feature_source_view_id"])),
         )
         for spec in REGISTRY_SPECS
+        if allowed_feature_views is None or str(spec["feature_view_id"]) in allowed_feature_views
     ]
     return pd.DataFrame(rows).convert_dtypes()
 

@@ -1,3 +1,4 @@
+from .ablation_registry import ABALATION_SUBSETS
 from .operational_lineage import (
     V3_BOUNDARY_RESET_COLUMNS,
     V3_CONTINUITY_POLICY_VERSION,
@@ -59,6 +60,7 @@ from .windowing import (
 from .views import DEFAULT_VIEW_IDS, get_view_definition
 
 __all__ = [
+    "ABALATION_SUBSETS",
     "BENCHMARK_READY_MODE",
     "DEFAULT_PUBLIC_VIEW_IDS",
     "DEFAULT_VIEW_IDS",

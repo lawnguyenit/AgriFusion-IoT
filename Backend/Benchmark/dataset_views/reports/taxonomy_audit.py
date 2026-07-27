@@ -82,8 +82,8 @@ def build_taxonomy_drift_audit_payload(audited_run_dir: Path) -> dict[str, Any]:
             },
             {
                 "from": "v6_proxy_reduced",
-                "to": "v5_proxy_reduced_draft",
-                "reason": "Current v6 is a proxy-reduced draft, not the approved event-level v6.",
+                "to": None,
+                "reason": "This historical proxy-reduced output has no current public replacement in the active scope.",
             },
         ],
         "outputs_retained_as_valid": ["v0_minimal_sensor"],
@@ -97,7 +97,7 @@ def build_taxonomy_drift_audit_payload(audited_run_dir: Path) -> dict[str, Any]:
             {
                 "view_id": "v6_proxy_reduced",
                 "status": "INVALID_INDEPENDENT_VIEW",
-                "reason": "The historical v6 is a proxy-reduced draft rather than the approved event-level v6.",
+                "reason": "The historical v6 proxy-reduced output is outside the current public scope and has no current public replacement.",
             },
         ],
         "drift_findings": {

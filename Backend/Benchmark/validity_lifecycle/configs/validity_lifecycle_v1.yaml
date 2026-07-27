@@ -1,0 +1,43 @@
+protocol_version: "2026-07-26.validity-lifecycle.v1"
+environments:
+  -
+    environment_id: "E1"
+    stage_name: "Discovery"
+    start_local: "2026-04-01T00:00:00+07:00"
+    end_local: "2026-05-09T00:00:00+07:00"
+    deployment_id: "P1_SOURCE"
+    boundary_status: "protocol_locked"
+    boundary_reason: "Initial P1 source-development interval locked by the lifecycle contract."
+    train_description: "Train on E1 only."
+    evaluation_description: "Evaluate on future folds within E1."
+    stage_question: "Under stable source conditions, what dependency appears usable before transport stress?"
+  -
+    environment_id: "E2"
+    stage_name: "Temporal falsification"
+    start_local: "2026-05-09T00:00:00+07:00"
+    end_local: "2026-05-20T00:00:00+07:00"
+    deployment_id: "P1_SOURCE"
+    boundary_status: "post_hoc_exploratory"
+    boundary_reason: "Operational boundary retained as exploratory until an independent field log is linked."
+    train_description: "Train on E1 only."
+    evaluation_description: "Evaluate on all of E2."
+    stage_question: "Does a dependency seen in E1 survive the later P1 regime without refitting the contract?"
+  -
+    environment_id: "E3"
+    stage_name: "Deployment transport"
+    start_local: "2026-06-27T00:00:00+07:00"
+    end_local: "2026-07-13T00:00:00+07:00"
+    deployment_id: "P2_TARGET"
+    boundary_status: "protocol_locked"
+    boundary_reason: "P2 relocation holdout interval locked by the transport benchmark contract."
+    train_description: "Train on E1 or E1+E2 depending on the later experiment stage."
+    evaluation_description: "Evaluate on all of E3."
+    stage_question: "After relocation, what remains estimable, transportable, or ambiguous?"
+support_thresholds:
+  min_samples: 5
+  min_days: 2
+  min_segments: 1
+gating_policy:
+  support_fail_state: "NOT_ESTIMABLE"
+  eligibility_warn_below_rate: 0.25
+  comparison_hash_mismatch_blocks_training: true

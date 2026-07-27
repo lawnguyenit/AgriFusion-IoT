@@ -1,0 +1,206 @@
+{
+  "profiles": {
+    "smoke_phase1_protocol": {
+      "description": "Smoke suite on the locked protocol manifests using Fold 01 task and comparison runs.",
+      "stage_specs": [
+        {
+          "stage_id": "smoke_task_fold_01",
+          "source_kind": "task_and_comparison",
+          "feature_views": [
+            "v0_point",
+            "v1_point",
+            "v2_same_y_mini_3h",
+            "v2_same_y_full_3h",
+            "v2_same_y_mini_8h",
+            "v2_same_y_full_8h"
+          ],
+          "fold_ids": [
+            "fold_01"
+          ],
+          "comparison_ids": [],
+          "evaluation_partitions": [
+            "validation",
+            "test"
+          ]
+        },
+        {
+          "stage_id": "smoke_comparison_fold_01",
+          "source_kind": "task_and_comparison",
+          "feature_views": [
+            "v0_point",
+            "v1_point",
+            "v2_same_y_mini_3h",
+            "v2_same_y_full_3h",
+            "v2_same_y_mini_8h",
+            "v2_same_y_full_8h"
+          ],
+          "fold_ids": [
+            "fold_01"
+          ],
+          "comparison_ids": [
+            "v0_vs_v2_mini_3h",
+            "v1_vs_v2_full_3h",
+            "v0_vs_v2_mini_8h",
+            "v1_vs_v2_full_8h"
+          ],
+          "evaluation_partitions": [
+            "validation",
+            "test"
+          ]
+        }
+      ]
+    },
+    "phase1_primary_tasks": {
+      "description": "Primary source-only task benchmark across Fold 01-03 for V0, V1, and V2 same-Y views.",
+      "stage_specs": [
+        {
+          "stage_id": "primary_task_matrix",
+          "source_kind": "task_and_comparison",
+          "feature_views": [
+            "v0_point",
+            "v1_point",
+            "v2_same_y_mini_3h",
+            "v2_same_y_full_3h",
+            "v2_same_y_mini_8h",
+            "v2_same_y_full_8h"
+          ],
+          "fold_ids": [
+            "fold_01",
+            "fold_02",
+            "fold_03"
+          ],
+          "comparison_ids": [],
+          "evaluation_partitions": [
+            "validation",
+            "test"
+          ]
+        }
+      ]
+    },
+    "phase1_primary_comparisons": {
+      "description": "Matched-cohort same-Y representation comparisons across Fold 01-03.",
+      "stage_specs": [
+        {
+          "stage_id": "primary_comparison_matrix",
+          "source_kind": "task_and_comparison",
+          "feature_views": [
+            "v0_point",
+            "v1_point",
+            "v2_same_y_mini_3h",
+            "v2_same_y_full_3h",
+            "v2_same_y_mini_8h",
+            "v2_same_y_full_8h"
+          ],
+          "fold_ids": [
+            "fold_01",
+            "fold_02",
+            "fold_03"
+          ],
+          "comparison_ids": [
+            "v0_vs_v2_mini_3h",
+            "v1_vs_v2_full_3h",
+            "v0_vs_v2_mini_8h",
+            "v1_vs_v2_full_8h"
+          ],
+          "evaluation_partitions": [
+            "validation",
+            "test"
+          ]
+        }
+      ]
+    },
+    "phase2_frozen_target_holdout": {
+      "description": "Single-refit P1 to P2 zero-shot holdout evaluation on all primary feature views.",
+      "stage_specs": [
+        {
+          "stage_id": "frozen_target_holdout",
+          "source_kind": "frozen_target",
+          "feature_views": [
+            "v0_point",
+            "v1_point",
+            "v2_same_y_mini_3h",
+            "v2_same_y_full_3h",
+            "v2_same_y_mini_8h",
+            "v2_same_y_full_8h"
+          ],
+          "fold_ids": [],
+          "comparison_ids": [],
+          "evaluation_partitions": [
+            "target_test"
+          ]
+        }
+      ]
+    },
+    "full_benchmark_v0_v2": {
+      "description": "Combined execution of primary source tasks, matched comparisons, and frozen P1 to P2 holdout for V0-V2 same-Y.",
+      "stage_specs": [
+        {
+          "stage_id": "primary_task_matrix",
+          "source_kind": "task_and_comparison",
+          "feature_views": [
+            "v0_point",
+            "v1_point",
+            "v2_same_y_mini_3h",
+            "v2_same_y_full_3h",
+            "v2_same_y_mini_8h",
+            "v2_same_y_full_8h"
+          ],
+          "fold_ids": [
+            "fold_01",
+            "fold_02",
+            "fold_03"
+          ],
+          "comparison_ids": [],
+          "evaluation_partitions": [
+            "validation",
+            "test"
+          ]
+        },
+        {
+          "stage_id": "primary_comparison_matrix",
+          "source_kind": "task_and_comparison",
+          "feature_views": [
+            "v0_point",
+            "v1_point",
+            "v2_same_y_mini_3h",
+            "v2_same_y_full_3h",
+            "v2_same_y_mini_8h",
+            "v2_same_y_full_8h"
+          ],
+          "fold_ids": [
+            "fold_01",
+            "fold_02",
+            "fold_03"
+          ],
+          "comparison_ids": [
+            "v0_vs_v2_mini_3h",
+            "v1_vs_v2_full_3h",
+            "v0_vs_v2_mini_8h",
+            "v1_vs_v2_full_8h"
+          ],
+          "evaluation_partitions": [
+            "validation",
+            "test"
+          ]
+        },
+        {
+          "stage_id": "frozen_target_holdout",
+          "source_kind": "frozen_target",
+          "feature_views": [
+            "v0_point",
+            "v1_point",
+            "v2_same_y_mini_3h",
+            "v2_same_y_full_3h",
+            "v2_same_y_mini_8h",
+            "v2_same_y_full_8h"
+          ],
+          "fold_ids": [],
+          "comparison_ids": [],
+          "evaluation_partitions": [
+            "target_test"
+          ]
+        }
+      ]
+    }
+  }
+}

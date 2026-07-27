@@ -50,7 +50,10 @@ def build_threshold_sensitivity_transport(
             sensitivity_df=base_threshold_context.sensitivity_df,
         )
         point_artifacts = build_point_label_artifacts(working, threshold_context=threshold_context)
-        v2_artifacts = build_v2_label_artifacts(point_artifacts.enriched_df, segment_manifest=segment_manifest, boundary_timestamps={})
+        v2_artifacts = build_v2_label_artifacts(
+            point_artifacts.enriched_df,
+            segment_manifest=segment_manifest,
+        )
         v6_artifacts = build_v6_label_artifacts(point_artifacts.enriched_df, segment_manifest=segment_manifest)
 
         point_labels = point_artifacts.point_labels_train.loc[

@@ -1,9 +1,6 @@
 from __future__ import annotations
 
 from Backend.Benchmark.dataset_views.contracts import CycleWindowHorizon, PreOnsetTargetHorizon
-from Backend.Config.paths import BACKEND_PATHS
-
-
 V3_FAMILY_VIEW_IDS: tuple[str, ...] = (
     "v3_direct",
     "v3_derived",
@@ -16,9 +13,7 @@ V3_DEFAULT_VIEW_IDS: tuple[str, ...] = (
     "v3_independent",
 )
 
-V3_LEGACY_EVENT_CSV_PATH = (
-    BACKEND_PATHS.benchmark_dir / "benchmark_dataset" / "dataset" / "benchmark_input_labeled.csv"
-)
+V3_LEGACY_EVENT_CSV_PATH = None
 
 V3_CONTINUITY_POLICY_VERSION = "segment_cadence_x2_5.v1"
 V3_CONTINUITY_THRESHOLD_MULTIPLIER = 2.5

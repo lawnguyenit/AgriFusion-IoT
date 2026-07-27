@@ -10,6 +10,7 @@ from Backend.Benchmark.dataset_views.configs import (
     V6_RAPID_WETTING_DELTA_PP,
     V6_THERMAL_VPD_THRESHOLD_KPA,
 )
+from Backend.Benchmark.shared.weak_rules import fit_low_relative_moisture_thresholds
 
 
 @dataclass(frozen=True)
@@ -65,13 +66,14 @@ def _fit_threshold_bucket(group: pd.DataFrame) -> ThresholdBucket:
     moisture = pd.to_numeric(observed["npk.soil_moisture_pct"], errors="coerce").dropna()
     if moisture.empty:
         raise ValueError("V6 could not fit low-moisture thresholds because no observed moisture values were available.")
+    low_thresholds = fit_low_relative_moisture_thresholds(moisture, scope_key=str(group["record.segment_id"].iloc[0]))
     ec_values = pd.to_numeric(observed["npk.ec"], errors="coerce").dropna()
     ec_shift_q95 = None
     if len(ec_values) >= 2:
         ec_shift_q95 = float(ec_values.diff().abs().dropna().quantile(V6_EC_SHIFT_DELTA_Q))
     return ThresholdBucket(
-        low_moisture_q10=float(moisture.quantile(0.10)),
-        low_moisture_q15=float(moisture.quantile(0.15)),
+        low_moisture_q10=float(low_thresholds.q10),
+        low_moisture_q15=float(low_thresholds.q15),
         ec_shift_abs_delta_q95=ec_shift_q95,
     )
 

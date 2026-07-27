@@ -16,7 +16,6 @@ VIEW_ID_ALIASES: dict[str, str] = {
     "v4_hybrid": "v4",
     "v5_proxy_reduced": "v5",
     "v6_sequence_8h": "v6",
-    "v5_proxy_reduced_draft": "draft",
 }
 
 ROW_INDEX_COLUMNS: tuple[str, ...] = (

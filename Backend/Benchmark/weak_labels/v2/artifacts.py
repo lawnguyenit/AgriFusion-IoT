@@ -6,14 +6,13 @@ import pandas as pd
 
 from Backend.Benchmark.dataset_views.configs.windowing import V2_MEASUREMENT_CHANNELS
 from Backend.Benchmark.dataset_views.windowing.builder import build_v2_sensor_window_view
-from Backend.Benchmark.weak_labels.shared import build_split_assignment_frame
 from Backend.Benchmark.weak_labels.shared.configs import V2_SAME_Y_TASK_IDS, V2_TEMPORAL_TASK_IDS
 from Backend.Benchmark.weak_labels.v2.frames import (
     build_label_agreement,
     build_matched_cohort_manifest,
     build_same_y_frame,
     build_temporal_labels,
-    resolve_v2_effective_partition,
+    resolve_v2_intrinsic_state,
 )
 
 
@@ -25,7 +24,6 @@ class V2LabelArtifacts:
     temporal_labels_3h: pd.DataFrame
     temporal_labels_8h: pd.DataFrame
     matched_cohort_manifest: pd.DataFrame
-    view_split_assignments: pd.DataFrame
     label_agreement_3h_8h: pd.DataFrame
 
 
@@ -33,16 +31,15 @@ def build_v2_label_artifacts(
     continuity_df: pd.DataFrame,
     *,
     segment_manifest: dict[str, object],
-    boundary_timestamps: dict[str, int],
 ) -> V2LabelArtifacts:
     horizon_outputs: dict[str, tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]] = {}
     same_y_frames: list[pd.DataFrame] = []
     matched_frames: list[pd.DataFrame] = []
     point_lookup = continuity_df.set_index("record.id")
 
-    for horizon_name, task_same_y, task_temporal, purge_seconds in (
-        ("3h", V2_SAME_Y_TASK_IDS[0], V2_TEMPORAL_TASK_IDS[0], 3 * 3600),
-        ("8h", V2_SAME_Y_TASK_IDS[1], V2_TEMPORAL_TASK_IDS[1], 8 * 3600),
+    for horizon_name, task_same_y, task_temporal in (
+        ("3h", V2_SAME_Y_TASK_IDS[0], V2_TEMPORAL_TASK_IDS[0]),
+        ("8h", V2_SAME_Y_TASK_IDS[1], V2_TEMPORAL_TASK_IDS[1]),
     ):
         artifacts = build_v2_sensor_window_view(
             continuity_df,
@@ -52,7 +49,6 @@ def build_v2_label_artifacts(
         )
         audit_df = artifacts.audit_frame.copy()
         audit_df["record.id"] = continuity_df["record.id"].astype("string")
-        audit_df["base_partition"] = continuity_df["base_partition"].astype("string")
         audit_df["record.segment_id"] = continuity_df["record.segment_id"].astype("string")
         audit_df["point_label_status"] = continuity_df["point_label_status"].astype("string")
         audit_df["point_train_label_name"] = continuity_df["point_train_label_name"].astype("string")
@@ -61,31 +57,22 @@ def build_v2_label_artifacts(
         audit_df["record.continuity_chunk_id"] = continuity_df["record.continuity_chunk_id"].astype("string")
         audit_df["record.ts_sample"] = pd.to_numeric(continuity_df["record.ts_sample"], errors="coerce").astype("int64")
 
-        effective_partition, exclusion_reason = resolve_v2_effective_partition(
+        intrinsic_eligibility, exclusion_reason = resolve_v2_intrinsic_state(
             audit_df=audit_df,
-            boundary_timestamps=boundary_timestamps,
-            purge_seconds=purge_seconds,
         )
-        audit_df["effective_partition"] = effective_partition.astype("string")
-        audit_df["exclusion_reason"] = exclusion_reason.astype("string")
+        audit_df["intrinsic_eligibility"] = intrinsic_eligibility.astype("boolean")
+        audit_df["intrinsic_exclusion_reason"] = exclusion_reason.astype("string")
 
         same_y_df = build_same_y_frame(audit_df, task_id=task_same_y)
         temporal_labels = build_temporal_labels(audit_df, task_id=task_temporal)
         evidence_df = audit_df.copy().convert_dtypes()
         evidence_df["task_id"] = task_temporal
+        evidence_df["label_task_id"] = task_temporal
         evidence_df["window_horizon_name"] = horizon_name
 
         same_y_frames.append(same_y_df)
         matched_frames.append(build_matched_cohort_manifest(same_y_df, horizon_name=horizon_name, task_id=task_same_y))
         horizon_outputs[horizon_name] = (evidence_df, temporal_labels, same_y_df)
-
-    split_assignments = build_split_assignment_frame(
-        horizon_outputs["3h"][2],
-        horizon_outputs["3h"][1],
-        horizon_outputs["8h"][2],
-        horizon_outputs["8h"][1],
-        group_id_resolver=lambda sample_id, _row: point_lookup.loc[sample_id, "record.continuity_chunk_id"],
-    )
     agreement_df = build_label_agreement(horizon_outputs["3h"][1], horizon_outputs["8h"][1])
 
     return V2LabelArtifacts(
@@ -95,6 +82,5 @@ def build_v2_label_artifacts(
         temporal_labels_3h=horizon_outputs["3h"][1].convert_dtypes(),
         temporal_labels_8h=horizon_outputs["8h"][1].convert_dtypes(),
         matched_cohort_manifest=pd.concat(matched_frames, ignore_index=True).convert_dtypes(),
-        view_split_assignments=split_assignments,
         label_agreement_3h_8h=agreement_df.convert_dtypes(),
     )

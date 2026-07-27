@@ -34,7 +34,10 @@ from Backend.Benchmark.weak_labels.reporting import (
     build_run_manifest,
 )
 from Backend.Benchmark.weak_labels.runtime.contracts import LabelArtifactBundle, WeakLabelsConfig, WeakLabelsResult
-from Backend.Benchmark.weak_labels.shared import build_split_assignment_frame
+from Backend.Benchmark.weak_labels.runtime.layout import (
+    build_artifact_catalog,
+    build_weak_labels_artifact_layout,
+)
 from Backend.Benchmark.weak_labels.shared.configs import PRIMARY_OUTPUT_FILES
 from Backend.Benchmark.weak_labels.v2 import build_v2_label_artifacts
 from Backend.Benchmark.weak_labels.v6 import build_v6_label_artifacts
@@ -52,6 +55,8 @@ def build_weak_labels(config: WeakLabelsConfig) -> WeakLabelsResult:
     segment_manifest = load_json_payload(segment_manifest_path)
 
     run_id, output_dir = create_run_directory(config.output_root.resolve(), prefix="weak_labels")
+    layout = build_weak_labels_artifact_layout(output_dir)
+    layout.create()
     split_bundle = build_base_split_bundle(
         canonical_df,
         train_ratio=config.train_ratio,
@@ -61,7 +66,7 @@ def build_weak_labels(config: WeakLabelsConfig) -> WeakLabelsResult:
         run_profile=config.run_profile,
     )
     continuity_df = canonical_df.merge(
-        split_bundle.assignments_df[["record.id", "base_partition", "split.boundary_before", "base_partition_index"]],
+        split_bundle.assignments_df[["record.id", "base_partition", "base_partition_index"]],
         on="record.id",
         how="left",
         validate="one_to_one",
@@ -69,7 +74,7 @@ def build_weak_labels(config: WeakLabelsConfig) -> WeakLabelsResult:
     continuity_df = attach_continuity_chunks(
         continuity_df,
         segment_manifest=segment_manifest,
-        boundary_columns=("record.segment_boundary_before", "split.boundary_before"),
+        boundary_columns=("record.segment_boundary_before",),
         threshold_multiplier=2.5,
     )
     applicability_df = build_applicability_frame(continuity_df)
@@ -87,18 +92,11 @@ def build_weak_labels(config: WeakLabelsConfig) -> WeakLabelsResult:
     v2_artifacts = build_v2_label_artifacts(
         point_artifacts.enriched_df,
         segment_manifest=segment_manifest,
-        boundary_timestamps=split_bundle.boundary_timestamps,
     )
     v6_artifacts = build_v6_label_artifacts(
         point_artifacts.enriched_df,
         segment_manifest=segment_manifest,
     )
-
-    point_split_assignments = build_split_assignment_frame(point_artifacts.point_labels_train)
-    view_split_assignments = pd.concat(
-        [point_split_assignments, v2_artifacts.view_split_assignments, v6_artifacts.view_split_assignments],
-        ignore_index=True,
-    ).convert_dtypes()
 
     bundle = LabelArtifactBundle(
         point_evidence_flags=point_artifacts.point_evidence_flags,
@@ -113,8 +111,6 @@ def build_weak_labels(config: WeakLabelsConfig) -> WeakLabelsResult:
         v6_event_labels=v6_artifacts.event_labels,
         v6_b8_block_composition=v6_artifacts.block_composition,
         v6_b8_block_labels=v6_artifacts.block_labels,
-        base_split_assignments=split_bundle.assignments_df.convert_dtypes(),
-        view_split_assignments=view_split_assignments,
         matched_cohort_manifest=v2_artifacts.matched_cohort_manifest,
         boundary_event_audit=v6_artifacts.boundary_event_audit,
         label_dependency_registry=build_label_dependency_registry(),
@@ -150,12 +146,11 @@ def build_weak_labels(config: WeakLabelsConfig) -> WeakLabelsResult:
             v6_artifacts.block_labels,
         ),
         v2_label_agreement_3h_8h=v2_artifacts.label_agreement_3h_8h,
-        split_manifest=split_bundle.split_manifest,
         run_manifest={},
         label_registry=build_label_registry(),
     )
 
-    _write_bundle(bundle, output_dir=output_dir, parquet_engine=parquet_engine)
+    _write_bundle(bundle, output_dir=output_dir, layout=layout, parquet_engine=parquet_engine)
     run_manifest = build_run_manifest(
         config_dict=_config_to_dict(config),
         canonical_path=config.canonical_history_path.resolve(),
@@ -166,7 +161,9 @@ def build_weak_labels(config: WeakLabelsConfig) -> WeakLabelsResult:
         split_manifest=split_bundle.split_manifest,
         threshold_records=[record.__dict__ for record in threshold_context.threshold_records],
     )
-    write_json_file(output_dir / "run_manifest.json", run_manifest)
+    run_manifest["artifact_layout_version"] = "weak_labels.layout.v2"
+    write_json_file(layout.run_metadata / "run_manifest.json", run_manifest)
+    write_csv(pd.DataFrame(build_artifact_catalog(layout)).convert_dtypes(), layout.run_metadata / "artifact_catalog.csv")
     return WeakLabelsResult(
         run_id=run_id,
         output_dir=output_dir,
@@ -175,32 +172,29 @@ def build_weak_labels(config: WeakLabelsConfig) -> WeakLabelsResult:
     )
 
 
-def _write_bundle(bundle: LabelArtifactBundle, *, output_dir: Path, parquet_engine: str) -> None:
-    write_parquet(bundle.point_evidence_flags, output_dir / "point_evidence_flags.parquet", engine=parquet_engine)
-    write_parquet(bundle.point_labels_detailed, output_dir / "point_labels_detailed.parquet", engine=parquet_engine)
-    write_parquet(bundle.point_labels_train, output_dir / "point_labels_train.parquet", engine=parquet_engine)
-    write_parquet(bundle.technical_labels_audit, output_dir / "technical_labels_audit.parquet", engine=parquet_engine)
-    write_parquet(bundle.v2_same_y_labels, output_dir / "v2_same_y_labels.parquet", engine=parquet_engine)
-    write_parquet(bundle.v2_temporal_evidence_3h, output_dir / "v2_temporal_evidence_3h.parquet", engine=parquet_engine)
-    write_parquet(bundle.v2_temporal_evidence_8h, output_dir / "v2_temporal_evidence_8h.parquet", engine=parquet_engine)
-    write_parquet(bundle.v2_temporal_labels_3h, output_dir / "v2_temporal_labels_3h.parquet", engine=parquet_engine)
-    write_parquet(bundle.v2_temporal_labels_8h, output_dir / "v2_temporal_labels_8h.parquet", engine=parquet_engine)
-    write_parquet(bundle.v6_event_labels, output_dir / "v6_event_labels.parquet", engine=parquet_engine)
-    write_parquet(bundle.v6_b8_block_composition, output_dir / "v6_b8_block_composition.parquet", engine=parquet_engine)
-    write_parquet(bundle.v6_b8_block_labels, output_dir / "v6_b8_block_labels.parquet", engine=parquet_engine)
-    write_parquet(bundle.base_split_assignments, output_dir / "base_split_assignments.parquet", engine=parquet_engine)
-    write_parquet(bundle.view_split_assignments, output_dir / "view_split_assignments.parquet", engine=parquet_engine)
-    write_parquet(bundle.matched_cohort_manifest, output_dir / "matched_cohort_manifest.parquet", engine=parquet_engine)
-    write_parquet(bundle.boundary_event_audit, output_dir / "boundary_event_audit.parquet", engine=parquet_engine)
-    write_csv(bundle.label_dependency_registry, output_dir / "label_dependency_registry.csv")
-    write_csv(bundle.label_distribution, output_dir / "label_distribution.csv")
-    write_csv(bundle.label_overlap_matrix, output_dir / "label_overlap_matrix.csv")
-    write_csv(bundle.threshold_sensitivity, output_dir / "threshold_sensitivity.csv")
-    write_csv(bundle.excluded_samples_audit, output_dir / "excluded_samples_audit.csv")
-    write_csv(bundle.label_examples, output_dir / "label_examples.csv")
-    write_json_file(output_dir / "split_manifest.json", bundle.split_manifest)
-    write_yaml_file(output_dir / "label_registry.yaml", bundle.label_registry)
-    write_csv(bundle.v2_label_agreement_3h_8h, output_dir / "v2_label_agreement_3h_8h.csv")
+def _write_bundle(bundle: LabelArtifactBundle, *, output_dir: Path, layout, parquet_engine: str) -> None:
+    write_parquet(bundle.point_evidence_flags, layout.point / "point_evidence_flags.parquet", engine=parquet_engine)
+    write_parquet(bundle.point_labels_detailed, layout.point / "point_labels_detailed.parquet", engine=parquet_engine)
+    write_parquet(bundle.point_labels_train, layout.point / "point_labels_train.parquet", engine=parquet_engine)
+    write_parquet(bundle.technical_labels_audit, layout.point / "technical_labels_audit.parquet", engine=parquet_engine)
+    write_parquet(bundle.v2_same_y_labels, layout.v2 / "v2_same_y_labels.parquet", engine=parquet_engine)
+    write_parquet(bundle.v2_temporal_evidence_3h, layout.v2 / "v2_temporal_evidence_3h.parquet", engine=parquet_engine)
+    write_parquet(bundle.v2_temporal_evidence_8h, layout.v2 / "v2_temporal_evidence_8h.parquet", engine=parquet_engine)
+    write_parquet(bundle.v2_temporal_labels_3h, layout.v2 / "v2_temporal_labels_3h.parquet", engine=parquet_engine)
+    write_parquet(bundle.v2_temporal_labels_8h, layout.v2 / "v2_temporal_labels_8h.parquet", engine=parquet_engine)
+    write_parquet(bundle.v6_event_labels, layout.v6 / "v6_event_labels.parquet", engine=parquet_engine)
+    write_parquet(bundle.v6_b8_block_composition, layout.v6 / "v6_b8_block_composition.parquet", engine=parquet_engine)
+    write_parquet(bundle.v6_b8_block_labels, layout.v6 / "v6_b8_block_labels.parquet", engine=parquet_engine)
+    write_parquet(bundle.matched_cohort_manifest, layout.v2 / "matched_cohort_manifest.parquet", engine=parquet_engine)
+    write_parquet(bundle.boundary_event_audit, layout.v6 / "boundary_event_audit.parquet", engine=parquet_engine)
+    write_csv(bundle.label_dependency_registry, layout.registries / "label_dependency_registry.csv")
+    write_csv(bundle.label_distribution, layout.audits / "label_distribution.csv")
+    write_csv(bundle.label_overlap_matrix, layout.audits / "label_overlap_matrix.csv")
+    write_csv(bundle.threshold_sensitivity, layout.threshold_diagnostics / "threshold_sensitivity.csv")
+    write_csv(bundle.excluded_samples_audit, layout.audits / "excluded_samples_audit.csv")
+    write_csv(bundle.label_examples, layout.audits / "label_examples.csv")
+    write_yaml_file(layout.registries / "label_registry.yaml", bundle.label_registry)
+    write_csv(bundle.v2_label_agreement_3h_8h, layout.v2 / "v2_label_agreement_3h_8h.csv")
 
 
 def _config_to_dict(config: WeakLabelsConfig) -> dict[str, object]:

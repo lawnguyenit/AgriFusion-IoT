@@ -22,13 +22,14 @@ from Backend.Benchmark.dataset_views.loaders import (
 from Backend.Benchmark.dataset_views.selectors import normalize_feature_catalog
 from Backend.Benchmark.dataset_views.validators import ensure_parquet_engine, validate_label_join, validate_unique_record_ids
 from Backend.Benchmark.dataset_views.writers import write_json_file
+from Backend.Benchmark.dataset_views.reports.lineage_contracts import emit_tranche0_lineage_artifacts
+from Backend.Benchmark.dataset_views.reports import build_current_scope_taxonomy_report_payload
 
 from .runtime import (
     has_v3_views,
     has_v6_views,
-    load_taxonomy_audit_if_available,
+    load_requested_legacy_taxonomy_audit,
     requires_segment_manifest,
-    resolve_nonpublic_drafts,
     resolve_selected_public_view_ids,
     validate_requested_views,
 )
@@ -37,11 +38,10 @@ from .shared_outputs import (
     build_row_index_frame,
     build_run_id,
     build_source_manifest_payload,
+    write_artifact_guides,
     write_shared_outputs,
 )
 from .standard_views import materialize_standard_view
-from .v3_family import materialize_v3_view, prepare_v3_family_context
-from .v6_family import materialize_v6_view, prepare_v6_family_context
 
 
 def materialize_dataset_views(config: MaterializationConfig) -> MaterializationResult:
@@ -62,7 +62,7 @@ def materialize_dataset_views(config: MaterializationConfig) -> MaterializationR
 
     validate_unique_record_ids(canonical_df, key_column="record.id")
 
-    audited_run_dir, taxonomy_audit_payload = load_taxonomy_audit_if_available(config.output_root)
+    audited_run_dir, legacy_taxonomy_audit_payload = load_requested_legacy_taxonomy_audit(config)
 
     run_id = build_run_id()
     output_dir = config.output_root.resolve() / run_id
@@ -73,10 +73,16 @@ def materialize_dataset_views(config: MaterializationConfig) -> MaterializationR
     views_dir.mkdir(parents=True, exist_ok=False)
     reports_dir.mkdir(parents=True, exist_ok=False)
 
-    taxonomy_audit_path: Path | None = None
-    if taxonomy_audit_payload is not None:
-        taxonomy_audit_path = reports_dir / "taxonomy_drift_audit.json"
-        write_json_file(taxonomy_audit_path, taxonomy_audit_payload)
+    current_scope_report_path = reports_dir / "current_scope_taxonomy_report.json"
+    write_json_file(
+        current_scope_report_path,
+        build_current_scope_taxonomy_report_payload(selected_public_view_ids),
+    )
+
+    legacy_taxonomy_audit_path: Path | None = None
+    if legacy_taxonomy_audit_payload is not None:
+        legacy_taxonomy_audit_path = reports_dir / "legacy_taxonomy_drift_audit.json"
+        write_json_file(legacy_taxonomy_audit_path, legacy_taxonomy_audit_payload)
 
     row_index_df = build_row_index_frame(canonical_df)
     metadata_df = build_metadata_frame(canonical_df)
@@ -94,18 +100,17 @@ def materialize_dataset_views(config: MaterializationConfig) -> MaterializationR
     elif config.label_config is not None:
         raise ValueError("feature-only mode does not accept a label artifact. Use benchmark-ready mode instead.")
 
-    materialized_nonpublic_drafts = resolve_nonpublic_drafts(config=config, selected_public_view_ids=selected_public_view_ids)
     source_manifest_payload = build_source_manifest_payload(
         run_id=run_id,
         config=config,
         label_status=label_status,
         selected_public_view_ids=selected_public_view_ids,
-        materialized_nonpublic_drafts=materialized_nonpublic_drafts,
         canonical_df=canonical_df,
         metadata_df=metadata_df,
         row_index_df=row_index_df,
         audited_run_dir=audited_run_dir,
-        taxonomy_audit_path=taxonomy_audit_path,
+        current_scope_report_path=current_scope_report_path,
+        legacy_taxonomy_audit_path=legacy_taxonomy_audit_path,
         layer1_manifest=layer1_manifest,
         segment_manifest_path=segment_manifest_path,
         segment_manifest_payload=segment_manifest_payload,
@@ -122,7 +127,10 @@ def materialize_dataset_views(config: MaterializationConfig) -> MaterializationR
     )
 
     v3_context: dict[str, object] | None = None
+    materialize_v3 = None
     if has_v3_views(selected_public_view_ids):
+        from .v3_family import materialize_v3_view, prepare_v3_family_context
+
         if segment_manifest_payload is None:
             raise ValueError("V3 operational-lineage views require the Layer1 segment manifest.")
         v3_context = prepare_v3_family_context(
@@ -135,8 +143,12 @@ def materialize_dataset_views(config: MaterializationConfig) -> MaterializationR
             parquet_engine=parquet_engine,
             source_manifest_payload=source_manifest_payload,
         )
+        materialize_v3 = materialize_v3_view
     v6_context: dict[str, object] | None = None
+    materialize_v6 = None
     if has_v6_views(selected_public_view_ids):
+        from .v6_family import materialize_v6_view, prepare_v6_family_context
+
         if segment_manifest_payload is None:
             raise ValueError("V6 environmental event views require the Layer1 segment manifest.")
         v6_context = prepare_v6_family_context(
@@ -146,15 +158,16 @@ def materialize_dataset_views(config: MaterializationConfig) -> MaterializationR
             parquet_engine=parquet_engine,
             source_manifest_payload=source_manifest_payload,
         )
+        materialize_v6 = materialize_v6_view
 
     canonical_columns = tuple(canonical_df.columns)
-    for view_id in (*selected_public_view_ids, *materialized_nonpublic_drafts):
+    for view_id in selected_public_view_ids:
         taxonomy_entry = get_taxonomy_entry(view_id)
         view_definition = get_view_definition(view_id)
         if view_definition.selection_mode.startswith("operational_lineage_"):
-            if v3_context is None:
+            if v3_context is None or materialize_v3 is None:
                 raise ValueError("V3 context was not prepared.")
-            materialize_v3_view(
+            materialize_v3(
                 taxonomy_entry=taxonomy_entry,
                 view_definition=view_definition,
                 v3_context=v3_context,
@@ -164,9 +177,9 @@ def materialize_dataset_views(config: MaterializationConfig) -> MaterializationR
             )
             continue
         if view_definition.selection_mode == "environmental_sequence_8h":
-            if v6_context is None:
+            if v6_context is None or materialize_v6 is None:
                 raise ValueError("V6 context was not prepared.")
-            materialize_v6_view(
+            materialize_v6(
                 taxonomy_entry=taxonomy_entry,
                 view_definition=view_definition,
                 v6_context=v6_context,
@@ -191,11 +204,28 @@ def materialize_dataset_views(config: MaterializationConfig) -> MaterializationR
             segment_manifest_payload=segment_manifest_payload,
         )
 
+    emit_tranche0_lineage_artifacts(
+        output_dir=output_dir,
+        shared_dir=shared_dir,
+        canonical_columns=canonical_columns,
+        row_index_df=row_index_df,
+        catalog_index=catalog_index,
+        dependency_registry=dependency_registry,
+        parquet_engine=parquet_engine,
+    )
+    write_artifact_guides(
+        output_dir=output_dir,
+        shared_dir=shared_dir,
+        selected_public_view_ids=selected_public_view_ids,
+        current_scope_report_path=current_scope_report_path,
+        legacy_taxonomy_audit_path=legacy_taxonomy_audit_path,
+    )
+
     return MaterializationResult(
         run_id=run_id,
         output_dir=output_dir,
         label_status=label_status,
         selected_views=selected_public_view_ids,
         row_count=int(len(canonical_df)),
-        materialized_nonpublic_drafts=materialized_nonpublic_drafts,
+        materialized_nonpublic_drafts=(),
     )

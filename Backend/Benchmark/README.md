@@ -1,74 +1,124 @@
 # Benchmark Workspace
 
-## Purpose
+`Backend/Benchmark` is the research workspace for canonical dataset
+construction, weak-label generation, and evaluation protocols. The
+current forward architecture keeps dataset materialization, label
+authority, and benchmark framing in separate lanes.
 
-`Backend/Benchmark` is the reproducible benchmark workspace, kept separate from `Backend/Core` and `Backend/Services`.
+## Active Areas
 
-The active architecture is:
+### `dataset_views/`
 
-- `benchmark_dataset/`
-- `tabular_benchmark/`
-- `reporting/`
+Canonical feature-view materialization.
 
-## Active Families
+Current active scope:
 
-### `benchmark_dataset/`
+- `v0_minimal_sensor`
+- `v1_sensor_row`
+- `v2_minimal_sensor_window_3h`
+- `v2_minimal_sensor_window_8h`
+- `v2_sensor_row_window_3h`
+- `v2_sensor_row_window_8h`
+- optional legacy-carried V3 views
+- `v6_sequence_8h`
 
-- builds the benchmark base tables
-- owns `benchmark_input_aligned.csv`
-- owns `benchmark_input_labeled.csv`
-- exports single-window and multi-window feature datasets
+Important properties:
 
-### `tabular_benchmark/`
+- reads frozen Layer1 canonical history and feature governance directly
+- writes versioned Parquet artifacts plus CSV debug mirrors
+- keeps view taxonomy explicit and auditable
+- does not own benchmark fold assignment or model training
 
-- active real-only training family
-- supports `binary`, `tri_class`, and `four_class`
-- always trains the same 3-model suite:
-  - `xgboost`
-  - `tabnet_classifier`
-  - `ft_transformer_classifier`
+### `weak_labels/`
 
-### `reporting/`
+Weak-label authority lane.
 
-- shared report/chart aggregation namespace for active benchmark artifacts
+Responsibilities:
 
-## Retained / Historical Families
+- consumes canonical telemetry keyed by `record_id`
+- builds point, temporal-window, event, and block label artifacts
+- separates evidence and exclusion states from train labels
+- versions rule sources, proxy dependencies, and audits
 
-These trees are not the main active train lane, but they are still kept for specific purposes:
+### `evaluation_protocols/`
 
-- `context_benchmark/`
-  - retained because runtime FT diagnosis and some simulator sizing helpers still read its artifacts
-- `pretrain_supervised/`
-  - retained for embedding-oriented experiments and historical comparisons
-- `tabpfn_benchmark/`
-  - retained as an auxiliary benchmark family
-- `ft_transformer_benchmark/`
-  - retained as a standalone historical family outside the unified `tabular_benchmark` train lane
+Independent protocol-definition lane.
 
-Historical outputs are kept on disk. Active rebuilds should prefer `benchmark_dataset/` and `tabular_benchmark/` unless a runtime or research consumer explicitly needs one of the retained families.
+Responsibilities:
+
+- defines source-development and target-holdout benchmark framing
+- emits deployment-domain manifests and rolling temporal folds
+- freezes source-fitted threshold policy for transport evaluation
+- reports within-position and cross-position diagnostics
+
+Current benchmark-primary scope is intentionally narrower than the full
+artifact universe:
+
+- task views: `V0`, `V1`, `V2 same-Y 3h`, `V2 same-Y 8h`
+- same-Y comparisons: `V0 vs V2 mini/full` and `V1 vs V2 mini/full`
+- final transport evaluation: single-refit `P1 -> P2 target_test`
+
+### `validity_lifecycle/`
+
+Pre-training lifecycle audit lane.
+
+Responsibilities:
+
+- read an authoritative `evaluation_protocols` run;
+- map the benchmark sample universe into explicit E1/E2/E3
+  environments;
+- audit class support, chronological split feasibility, eligibility
+  loss, continuity, and matched comparison integrity;
+- quantify EC-to-NPK proxy risk and pH stability before later
+  lifecycle experiments.
+
+### `model_suite/`
+
+Reusable benchmark model lane.
+
+Responsibilities:
+
+- owns reusable model family definitions
+- owns generic tabular preprocessing and model persistence
+- serves downstream benchmark consumers such as
+  `evaluation_protocols`
+
+### `common/` and `shared/`
+
+Reusable benchmark infrastructure used by the active forward lanes.
 
 ## Data Flow
 
-1. `benchmark_dataset`
-   - rebuilds the benchmark tables and `big_label`
-2. `tabular_benchmark/prepare.py`
-   - builds a real-only dataset for one label lane
-3. `tabular_benchmark/train.py`
-   - trains the unified 3-model suite
-4. `tabular_benchmark/report.py`
-   - generates metric summaries and charts
+1. Layer1 freezes canonical telemetry and segment metadata.
+2. `dataset_views` materializes feature views from canonical rows.
+3. `weak_labels` materializes auditable label artifacts from the same
+   canonical source.
+4. `evaluation_protocols` combines dataset views and weak labels into
+   source/target benchmark assignments and diagnostics.
+5. `validity_lifecycle` re-audits the frozen benchmark contract as
+   lifecycle-ready evidence before later train or falsification work.
 
-## Output Layout
+For the implemented end-to-end handoff from benchmark lanes into
+`model_suite`, read:
 
-Active `tabular_benchmark` artifacts are standardized under:
+- `Backend/Benchmark/BENCHMARK_TO_MODEL_SUITE_SPEC.md`
 
-- `tabular_benchmark/artifacts/binary/datasets/...`
-- `tabular_benchmark/artifacts/binary/training/...`
-- `tabular_benchmark/artifacts/binary/reports/...`
-- `tabular_benchmark/artifacts/tri_class/...`
-- `tabular_benchmark/artifacts/four_class/...`
+## Current Limits
 
-## Risks / Limits
+- `v4_hybrid` and `v5_proxy_reduced` remain reserved
+- V3 remains legacy-scoped and now requires an explicit external bridge
+  file when requested
+- V6 remains more complex than the primary V0-V2 benchmark and should
+  be interpreted separately from the core point/window benchmark
 
-- `tri_class` and `four_class` remain highly imbalanced on real-only data
-- historical outputs still exist on disk, and some older tooling may still need fallback handling for them
+## Detailed Flow Docs
+
+Read these when you need implemented control flow instead of only lane
+boundaries:
+
+- [Dataset Views Flow](dataset_views/FLOW.md)
+- [Weak Labels Flow](weak_labels/FLOW.md)
+- [Evaluation Protocols Flow](evaluation_protocols/FLOW.md)
+- [Validity Lifecycle Flow](validity_lifecycle/FLOW.md)
+- [Model Suite Flow](model_suite/FLOW.md)
+- [Benchmark to Model Suite Spec](BENCHMARK_TO_MODEL_SUITE_SPEC.md)

@@ -51,19 +51,35 @@ def write_benchmark_readiness_report(
     lines.extend(
         [
             "",
-            "## Primary Test Metrics",
+            "## Within-P1 Test Metrics",
             "",
         ]
     )
-    lines.extend(_build_metric_table(pooled_metrics))
+    lines.extend(_build_metric_table(pooled_metrics, stage_id="primary_task_matrix", partition="test"))
     lines.extend(
         [
+            "",
+            "## Frozen P1-to-P2 Metrics",
+            "",
+        ]
+    )
+    lines.extend(_build_metric_table(pooled_metrics, stage_id="frozen_target_holdout", partition="target_test"))
+    lines.extend(
+        [
+            "",
+            "## Phase 1 Validity Diagnostics",
+            "",
+            f"- Representation validity report: `{protocol_run_dir / 'validity_diagnostics' / 'representation' / 'representation_validity_report.md'}`",
+            f"- Class-specific retention: `{protocol_run_dir / 'validity_diagnostics' / 'representation' / 'class_specific_retention.csv'}`",
+            f"- Native vs matched distribution: `{protocol_run_dir / 'validity_diagnostics' / 'representation' / 'native_vs_matched_distribution.csv'}`",
+            f"- Unified estimability matrix: `{protocol_run_dir / 'validity_diagnostics' / 'evaluation' / 'estimability_matrix.csv'}`",
             "",
             "## Authoritative Outputs",
             "",
             f"- Protocol gate summary: `{run_metadata_dir / 'protocol_validation_report.json'}`",
             f"- Runner manifest for task training: `{protocol_run_dir / 'primary_protocol' / 'runner' / 'task_training_manifest.parquet'}`",
             f"- Runner manifest for matched comparisons: `{protocol_run_dir / 'primary_protocol' / 'runner' / 'comparison_training_manifest.parquet'}`",
+            f"- Frozen target manifest: `{protocol_run_dir / 'primary_protocol' / 'runner' / 'frozen_target_manifest.parquet'}`",
             f"- Full benchmark validation: `{full_output_dir / 'full_training_validation.csv'}`",
             f"- Full benchmark pooled metrics: `{full_output_dir / 'pooled_oof_metrics.csv'}`",
             f"- V2 coverage diagnostic: `{protocol_run_dir / 'temporal_diagnostics' / 'v2_coverage' / 'v2_coverage_report.md'}`",
@@ -112,15 +128,20 @@ def _build_v2_coverage_notes(v2_coverage: pd.DataFrame) -> list[str]:
     return notes
 
 
-def _build_metric_table(pooled_metrics: pd.DataFrame) -> list[str]:
+def _build_metric_table(
+    pooled_metrics: pd.DataFrame,
+    *,
+    stage_id: str,
+    partition: str,
+) -> list[str]:
     if pooled_metrics.empty:
         return ["No pooled metric output was generated."]
     task_rows = pooled_metrics.loc[
-        (pooled_metrics["stage_id"].astype("string") == "primary_task_matrix")
-        & (pooled_metrics["partition"].astype("string") == "test")
+        (pooled_metrics["stage_id"].astype("string") == stage_id)
+        & (pooled_metrics["partition"].astype("string") == partition)
     ].copy()
     if task_rows.empty:
-        return ["No primary task test metrics were generated."]
+        return [f"No pooled metrics were generated for `{stage_id}` / `{partition}`."]
     task_rows = task_rows.sort_values("feature_view_id", kind="stable")
     lines = [
         "| Feature view | Rows | Accuracy | Supported macro F1 | Balanced accuracy |",

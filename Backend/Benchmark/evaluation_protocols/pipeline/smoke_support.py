@@ -200,6 +200,50 @@ def build_pooled_prediction_summary(predictions_df: pd.DataFrame) -> pd.DataFram
     return pd.DataFrame(rows).convert_dtypes()
 
 
+def build_frozen_target_run_frames(
+    frozen_target_manifest: pd.DataFrame,
+    *,
+    feature_view_ids: tuple[str, ...],
+) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
+    validation_rows: list[dict[str, object]] = []
+    run_frames: list[dict[str, object]] = []
+    for feature_view_id in feature_view_ids:
+        frame = frozen_target_manifest.loc[
+            frozen_target_manifest["feature_view_id"].astype("string") == feature_view_id
+        ].copy()
+        source_count = int(frame["partition"].astype("string").eq("train").sum()) if not frame.empty else 0
+        target_count = int(frame["partition"].astype("string").eq("target_test").sum()) if not frame.empty else 0
+        validation_rows.append(
+            {
+                "stage_id": "frozen_target_holdout",
+                "scope": f"frozen_target_gate::{feature_view_id}",
+                "passed": bool(source_count > 0 and target_count > 0),
+                "details": json.dumps(
+                    {
+                        "feature_view_id": feature_view_id,
+                        "source_final_train_count": source_count,
+                        "target_test_count": target_count,
+                    },
+                    ensure_ascii=True,
+                    separators=(",", ":"),
+                ),
+            }
+        )
+        if source_count == 0 or target_count == 0:
+            continue
+        run_frames.append(
+            {
+                "run_scope": "task",
+                "comparison_id": None,
+                "comparison_side": None,
+                "feature_view_id": feature_view_id,
+                "fold_id": "source_final_fit__p2_target_holdout",
+                "task_rows": _order_task_rows(frame),
+            }
+        )
+    return run_frames, validation_rows
+
+
 def _build_comparison_alignment_validation(
     stage_id: str,
     comparison_frame: pd.DataFrame,

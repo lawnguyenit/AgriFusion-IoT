@@ -11,11 +11,9 @@ from Backend.Benchmark.dataset_views.configs import (
 from Backend.Benchmark.dataset_views.contracts import MaterializationConfig
 from Backend.Benchmark.dataset_views.reports import (
     build_taxonomy_drift_audit_payload,
-    find_latest_audited_legacy_run,
 )
 
 
-NONPUBLIC_DRAFT_VIEW_IDS: tuple[str, ...] = ("v5_proxy_reduced_draft",)
 V3_VIEW_IDS: tuple[str, ...] = ("v3_direct", "v3_derived", "v3_independent", "v3_pre_onset")
 V6_VIEW_IDS: tuple[str, ...] = ("v6_sequence_8h",)
 
@@ -38,11 +36,12 @@ def validate_requested_views(selected_public_view_ids: tuple[str, ...], config: 
         raise ValueError(f"Unsupported public materialization state for '{view_id}'.")
 
 
-def load_taxonomy_audit_if_available(output_root: Path) -> tuple[Path | None, dict[str, object] | None]:
-    try:
-        audited_run_dir = find_latest_audited_legacy_run(output_root.resolve())
-    except FileNotFoundError:
+def load_requested_legacy_taxonomy_audit(config: MaterializationConfig) -> tuple[Path | None, dict[str, object] | None]:
+    if config.legacy_taxonomy_audit_run_path is None:
         return None, None
+    audited_run_dir = config.legacy_taxonomy_audit_run_path.resolve()
+    if not audited_run_dir.exists():
+        raise FileNotFoundError(f"Legacy taxonomy audit run not found: {audited_run_dir}")
     return audited_run_dir, build_taxonomy_drift_audit_payload(audited_run_dir)
 
 
@@ -73,8 +72,6 @@ def resolve_nonpublic_drafts(
     config: MaterializationConfig,
     selected_public_view_ids: tuple[str, ...],
 ) -> tuple[str, ...]:
-    if config.mode != "feature-only":
-        return ()
-    if has_v3_views(selected_public_view_ids) or has_v6_views(selected_public_view_ids):
-        return ()
-    return NONPUBLIC_DRAFT_VIEW_IDS
+    del config
+    del selected_public_view_ids
+    return ()

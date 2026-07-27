@@ -24,6 +24,8 @@ Current output layout distinguishes:
 
 - `run_metadata/`: run manifest, validation report, and artifact index;
 - `domain_manifests/`: deployment-domain ownership and protocol framing;
+- `validity_diagnostics/`: benchmark-validity audits for representation
+  and estimability that sit above the raw runner manifests;
 - `primary_protocol/`: the authoritative 5-day Fold 01-03 artifacts,
   split into `folds/`, `cohorts/`, `lineage/`, and `runner/`;
 - `temporal_diagnostics/support_5day/`: non-primary 5-day support
@@ -58,6 +60,8 @@ rather than inferring feature bundles from placeholders.
 For downstream model training, the runner-facing authority is under
 `primary_protocol/runner/`:
 
+- authoritative benchmark scope here is `V0`, `V1`, and `V2 same-Y`
+  only;
 - `task_view_registry.csv`: explicit mapping between feature views,
   label tasks, protocol views, and resolved feature artifacts from the
   linked `dataset_views` run;
@@ -68,11 +72,29 @@ For downstream model training, the runner-facing authority is under
 - `comparison_training_manifest.parquet`: matched-cohort runner manifest
   keyed by `(comparison_id, feature_view_id, fold_id, partition,
   sample_id)` for same-Y comparisons;
+- `frozen_target_manifest.parquet`: single-refit source-to-target
+  manifest for the final `P1 -> P2` zero-shot evaluation, distinct from
+  pooled fold outputs;
 - `task_training_manifest_validation.csv`: assertions that the manifest
   did not silently drop protocol-eligible samples.
 - `comparison_training_manifest_validation.csv`: assertions that the
   comparison manifest resolves every matched cohort row back to the base
   training manifest.
+- `frozen_target_manifest_validation.csv`: assertions that every primary
+  feature view has both final source-fit rows and `P2 target_test` rows.
+- `validity_diagnostics/representation/class_specific_retention.csv`:
+  class-specific retention from native task cohorts to matched same-Y
+  cohorts.
+- `validity_diagnostics/representation/native_vs_matched_distribution.csv`:
+  native-versus-matched class-distribution distortion by comparison
+  side.
+- `validity_diagnostics/representation/representation_validity_report.md`:
+  human-readable summary of class-selective attrition under matched
+  same-Y comparisons.
+- `validity_diagnostics/evaluation/estimability_matrix.csv`:
+  normalized `TRAINABLE` / `SELECTABLE` /
+  `FULLY_ESTIMABLE` / `PARTIALLY_ESTIMABLE` / `NOT_ESTIMABLE`
+  states by partition and cohort.
 
 The optional smoke-train audit remains a post-protocol consumer under
 `primary_protocol/runner/smoke_train/`. Its authoritative outputs are:
@@ -109,3 +131,8 @@ For external review or GPT-assisted audit, start with:
 
 The Markdown report is the single-file human-readable summary; the JSON
 report remains the machine-readable gate authority.
+
+## Detailed Flow
+
+For the implemented build order from canonical data and linked artifact
+runs to runner manifests, see [FLOW.md](FLOW.md).

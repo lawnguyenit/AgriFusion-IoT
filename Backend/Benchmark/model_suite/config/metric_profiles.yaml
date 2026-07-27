@@ -1,0 +1,9 @@
+{
+  "primary_metrics": [
+    "accuracy",
+    "supported_class_balanced_accuracy",
+    "supported_class_macro_f1",
+    "fixed_ontology_macro_f1",
+    "weighted_f1"
+  ]
+}

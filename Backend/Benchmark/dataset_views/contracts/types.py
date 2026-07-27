@@ -120,6 +120,7 @@ class MaterializationConfig:
     manifest_path: Path | None = None
     label_config: LabelConfig | None = None
     legacy_event_csv_path: Path | None = None
+    legacy_taxonomy_audit_run_path: Path | None = None
 
 
 @dataclass(frozen=True)
