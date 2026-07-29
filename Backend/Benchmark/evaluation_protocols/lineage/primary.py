@@ -42,15 +42,18 @@ def build_primary_protocol_artifacts(
         view_split_assignments["fold_id"].astype("string").isin(set(PRIMARY_FOLD_IDS) | {"p2_target_holdout"})
     ].copy()
     filtered_validation = matched_cohort_validation.loc[
-        matched_cohort_validation["fold_id"].astype("string").isin(PRIMARY_FOLD_IDS)
+        matched_cohort_validation["comparison_id"].astype("string").isin(PRIMARY_COMPARISON_IDS)
+        & matched_cohort_validation["fold_id"].astype("string").isin(PRIMARY_FOLD_IDS)
         & matched_cohort_validation["partition"].astype("string").isin(PRIMARY_PARTITIONS)
     ].copy()
     filtered_manifests = {
         name: frame.loc[
-            frame["fold_id"].astype("string").isin(PRIMARY_FOLD_IDS)
+            frame["comparison_id"].astype("string").isin(PRIMARY_COMPARISON_IDS)
+            & frame["fold_id"].astype("string").isin(PRIMARY_FOLD_IDS)
             & frame["partition"].astype("string").isin(PRIMARY_PARTITIONS)
         ].copy()
         for name, frame in matched_cohort_manifests.items()
+        if name.removesuffix(".csv") in PRIMARY_COMPARISON_IDS
     }
     validation_rows = _build_primary_validation_rows(
         fold_manifest=fold_manifest,

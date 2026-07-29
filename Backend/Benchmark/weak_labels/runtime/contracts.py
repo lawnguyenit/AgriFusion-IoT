@@ -41,6 +41,12 @@ class ThresholdRecord:
     segment_scope: str
     value: float
     notes: str = ""
+    threshold_fit_sample_hash: str | None = None
+    threshold_fit_start: str | None = None
+    threshold_fit_end: str | None = None
+    threshold_statistic: str | None = None
+    threshold_parameters_json: str | None = None
+    code_hash: str | None = None
 
 
 @dataclass
@@ -68,4 +74,9 @@ class LabelArtifactBundle:
     v2_label_agreement_3h_8h: object
     run_manifest: dict[str, object]
     label_registry: dict[str, object]
+    label_assignment: object | None = None
+    rule_firings: object | None = None
+    rule_registry: object | None = None
+    threshold_registry: object | None = None
+    label_source_dependency: object | None = None
     additional_payloads: dict[str, object] = field(default_factory=dict)

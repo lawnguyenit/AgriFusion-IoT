@@ -102,8 +102,10 @@ Each model job may emit:
 
 Each standalone smoke run emits:
 
+- `ARTIFACT_GUIDE.md`
 - `run_manifest.json`
 - `artifact_catalog.csv`
+- `smoke_protocol/README.md`
 - `smoke_protocol/smoke_model_summary.csv`
 - `smoke_protocol/smoke_model_validation.csv`
 - `smoke_protocol/per_sample_predictions.csv`
@@ -113,13 +115,24 @@ Each standalone smoke run emits:
 
 Non-smoke profile runs emit profile-scoped outputs under:
 
+- `ARTIFACT_GUIDE.md`
 - `profiles/<profile_name>/training_summary.csv`
 - `profiles/<profile_name>/training_validation.csv`
 - `profiles/<profile_name>/per_sample_predictions.csv`
 - `profiles/<profile_name>/pooled_metrics.csv`
 - `profiles/<profile_name>/model_comparison_table.csv`
 - `profiles/<profile_name>/run_report.md`
+- `profiles/README.md`
+- `profiles/<profile_name>/README.md`
+- `profiles/<profile_name>/jobs/README.md`
 - `profiles/<profile_name>/jobs/<stage_id>/<model_key>/...`
+
+The generated guide files are intentionally short and use the same
+reader-facing format as the other benchmark layers:
+
+- input
+- what this layer or folder does
+- output
 
 ## Commands
 

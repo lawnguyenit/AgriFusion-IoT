@@ -10,7 +10,7 @@ from Backend.Benchmark.validity_lifecycle.audits.dependencies import classify_de
 from Backend.Benchmark.validity_lifecycle.audits.eligibility import build_environment_eligibility_matrix
 from Backend.Benchmark.validity_lifecycle.audits.support import classify_support_status
 from Backend.Benchmark.validity_lifecycle.contracts import EnvironmentSpec, ValidityLifecycleConfig
-from Backend.Benchmark.validity_lifecycle.defaults import default_environment_specs
+from Backend.Benchmark.validity_lifecycle.defaults import PRIMARY_VIEW_IDS, default_environment_specs, primary_claims_payload
 from Backend.Benchmark.validity_lifecycle.registry import assign_environment_id
 from Backend.Benchmark.validity_lifecycle.reporting import build_validation_payload, render_validity_lifecycle_report
 
@@ -192,6 +192,18 @@ class ValidityLifecycleTests(unittest.TestCase):
         self.assertIn("```mermaid", markdown)
         self.assertIn("Stage Answers", markdown)
         self.assertIn("Discovery", markdown)
+
+    def test_primary_lifecycle_scope_aligns_to_current_3h_public_views(self) -> None:
+        payload = primary_claims_payload()
+
+        self.assertEqual(
+            PRIMARY_VIEW_IDS,
+            ("v0_point", "v1_point", "v2_same_y_mini_3h", "v2_same_y_full_3h"),
+        )
+        self.assertEqual(
+            payload["comparisons"],
+            ["v0_vs_v2_mini_3h", "v1_vs_v2_full_3h"],
+        )
 
 
 if __name__ == "__main__":

@@ -15,9 +15,9 @@ class EvaluationProtocolSmokeSupportTests(unittest.TestCase):
     def test_build_stage_run_frames_uses_comparison_groups_for_same_y_stage(self) -> None:
         stage_spec = {
             "stage_id": "level_3_primary_matrix",
-            "feature_views": ("v0_point", "v2_same_y_mini_3h", "v2_same_y_mini_8h"),
+            "feature_views": ("v0_point", "v2_same_y_mini_3h"),
             "fold_ids": ("fold_01",),
-            "comparison_ids": ("v0_vs_v2_mini_3h", "v0_vs_v2_mini_8h"),
+            "comparison_ids": ("v0_vs_v2_mini_3h",),
         }
         comparison_training_manifest = pd.DataFrame(
             [
@@ -41,26 +41,6 @@ class EvaluationProtocolSmokeSupportTests(unittest.TestCase):
                     "record_id_order": 1,
                     "record_set_hash": "hash_3h",
                 },
-                {
-                    "comparison_id": "v0_vs_v2_mini_8h",
-                    "comparison_side": "left",
-                    "feature_view_id": "v0_point",
-                    "fold_id": "fold_01",
-                    "partition": "train",
-                    "sample_id": "r2",
-                    "record_id_order": 1,
-                    "record_set_hash": "hash_8h",
-                },
-                {
-                    "comparison_id": "v0_vs_v2_mini_8h",
-                    "comparison_side": "right",
-                    "feature_view_id": "v2_same_y_mini_8h",
-                    "fold_id": "fold_01",
-                    "partition": "train",
-                    "sample_id": "r2",
-                    "record_id_order": 1,
-                    "record_set_hash": "hash_8h",
-                },
             ]
         ).convert_dtypes()
 
@@ -70,7 +50,7 @@ class EvaluationProtocolSmokeSupportTests(unittest.TestCase):
             comparison_training_manifest=comparison_training_manifest,
         )
 
-        self.assertEqual(len(run_frames), 4)
+        self.assertEqual(len(run_frames), 2)
         self.assertEqual(
             {
                 (str(row["comparison_id"]), str(row["comparison_side"]), str(row["feature_view_id"]))
@@ -79,8 +59,6 @@ class EvaluationProtocolSmokeSupportTests(unittest.TestCase):
             {
                 ("v0_vs_v2_mini_3h", "left", "v0_point"),
                 ("v0_vs_v2_mini_3h", "right", "v2_same_y_mini_3h"),
-                ("v0_vs_v2_mini_8h", "left", "v0_point"),
-                ("v0_vs_v2_mini_8h", "right", "v2_same_y_mini_8h"),
             },
         )
         self.assertTrue(all(bool(row["passed"]) for row in validation_rows))

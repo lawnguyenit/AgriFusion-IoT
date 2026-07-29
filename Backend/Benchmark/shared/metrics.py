@@ -17,13 +17,13 @@ def summarize_classification(y_true: np.ndarray, y_pred: np.ndarray, class_names
         labels=list(range(len(class_names))),
         target_names=class_names,
         output_dict=True,
-        zero_division=0,
+        zero_division=np.nan,
     )
     return {
         "accuracy": float(accuracy_score(y_true, y_pred)),
         "balanced_accuracy": float(balanced_accuracy_score(y_true, y_pred)),
-        "macro_f1": float(f1_score(y_true, y_pred, average="macro", zero_division=0)),
-        "weighted_f1": float(f1_score(y_true, y_pred, average="weighted", zero_division=0)),
+        "macro_f1": float(f1_score(y_true, y_pred, average="macro", zero_division=np.nan)),
+        "weighted_f1": float(f1_score(y_true, y_pred, average="weighted", zero_division=np.nan)),
         "classification_report": report,
         "confusion_matrix": confusion_matrix(y_true, y_pred, labels=list(range(len(class_names)))).tolist(),
     }

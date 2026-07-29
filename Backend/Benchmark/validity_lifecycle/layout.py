@@ -12,6 +12,7 @@ class ValidityLifecycleArtifactLayout:
     manifests: Path
     audits: Path
     reports: Path
+    synthesis: Path
     ambiguity: Path
     collection_repair: Path
 
@@ -22,6 +23,7 @@ class ValidityLifecycleArtifactLayout:
             self.manifests,
             self.audits,
             self.reports,
+            self.synthesis,
             self.ambiguity,
             self.collection_repair,
         ):
@@ -36,6 +38,7 @@ def build_validity_lifecycle_layout(root: Path) -> ValidityLifecycleArtifactLayo
         manifests=root / "manifests",
         audits=root / "audits",
         reports=root / "reports",
+        synthesis=root / "synthesis",
         ambiguity=root / "ambiguity",
         collection_repair=root / "collection_repair",
     )
@@ -126,5 +129,77 @@ def build_artifact_catalog(layout: ValidityLifecycleArtifactLayout) -> list[dict
             "path": str(layout.reports / "validity_lifecycle_audit_report.md"),
             "role": "human_report",
             "usage": "English lifecycle report with stage readiness answers",
+        },
+        {
+            "artifact_group": "synthesis",
+            "path": str(layout.synthesis / "dependency_effects.parquet"),
+            "role": "dependency_effects",
+            "usage": "registered comparison effects computed only from preregistered pairs",
+        },
+        {
+            "artifact_group": "synthesis",
+            "path": str(layout.synthesis / "dependency_stability_matrix.csv"),
+            "role": "dependency_stability_matrix",
+            "usage": "comparison x environment stability view for tranche-0 synthesis",
+        },
+        {
+            "artifact_group": "synthesis",
+            "path": str(layout.synthesis / "dependency_classification.csv"),
+            "role": "dependency_classification",
+            "usage": "separate estimability and dependency classifications",
+        },
+        {
+            "artifact_group": "synthesis",
+            "path": str(layout.synthesis / "estimability_matrix.csv"),
+            "role": "estimability_matrix",
+            "usage": "estimability states for preregistered comparisons",
+        },
+        {
+            "artifact_group": "synthesis",
+            "path": str(layout.synthesis / "effect_uncertainty.csv"),
+            "role": "effect_uncertainty",
+            "usage": "descriptive uncertainty outputs for tranche-0 registered effects",
+        },
+        {
+            "artifact_group": "synthesis",
+            "path": str(layout.synthesis / "claim_evidence_matrix.csv"),
+            "role": "claim_evidence_matrix",
+            "usage": "claim-level evidence statuses with supporting and contradicting artifacts",
+        },
+        {
+            "artifact_group": "synthesis",
+            "path": str(layout.synthesis / "source_expansion_operational_effects.csv"),
+            "role": "source_expansion_operational_effects",
+            "usage": "operational source-expansion effect summary",
+        },
+        {
+            "artifact_group": "synthesis",
+            "path": str(layout.synthesis / "source_expansion_matched_budget_effects.csv"),
+            "role": "source_expansion_matched_budget_effects",
+            "usage": "matched-segment/day-budget source-expansion effect summary",
+        },
+        {
+            "artifact_group": "ambiguity",
+            "path": str(layout.ambiguity / "candidate_ambiguity_sets.yaml"),
+            "role": "candidate_ambiguity_sets",
+            "usage": "registered ambiguity candidates prior to evidence updates",
+        },
+        {
+            "artifact_group": "ambiguity",
+            "path": str(layout.ambiguity / "evidence_updated_ambiguity_sets.yaml"),
+            "role": "evidence_updated_ambiguity_sets",
+            "usage": "evidence-updated ambiguity statuses without causal promotion",
+        },
+        {
+            "artifact_group": "ambiguity",
+            "path": str(layout.ambiguity / "failure_attribution_matrix.csv"),
+            "role": "failure_attribution_matrix",
+            "usage": "claim-level ambiguity and evidence attribution table",
+        },
+        {
+            "artifact_group": "ambiguity",
+            "path": str(layout.ambiguity / "non_identifiability_report.md"),
+            "role": "non_identifiability_report",
+            "usage": "remaining ambiguity report and interpretation boundaries",
         },
     ]

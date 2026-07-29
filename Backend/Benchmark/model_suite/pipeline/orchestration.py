@@ -12,6 +12,7 @@ from Backend.Benchmark.model_suite.evaluation.comparisons import build_model_com
 from Backend.Benchmark.model_suite.evaluation.pooling import build_pooled_prediction_summary
 from Backend.Benchmark.model_suite.persistence.artifact_catalog import write_artifact_catalog
 from Backend.Benchmark.model_suite.persistence.run_signature import build_run_manifest
+from Backend.Benchmark.model_suite.pipeline.guides import write_run_guides
 from Backend.Benchmark.model_suite.pipeline.native_runner import run_protocol_model_job
 from Backend.Benchmark.model_suite.pipeline.tuning import resolve_smoke_hyperparameters
 from Backend.Benchmark.model_suite.registries import assert_models_available
@@ -164,10 +165,21 @@ def run_smoke_suite(
         predictions_df.to_csv(profile_root / "per_sample_predictions.csv", index=False)
         pooled_df.to_csv(profile_root / "pooled_metrics.csv", index=False)
         comparison_df.to_csv(profile_root / "model_comparison_table.csv", index=False)
+        write_text(
+            profile_root / report_filename,
+            build_run_report_markdown(
+                run_id=run_id,
+                profile_name=profile_name,
+                summary_df=summary_df,
+                pooled_df=pooled_df,
+            ),
+        )
         write_json(output_dir / "run_manifest.json", build_run_manifest(run_spec))
+        guide_rows = write_run_guides(output_dir=output_dir, profile_name=profile_name)
         write_artifact_catalog(
             output_dir / "artifact_catalog.csv",
-            artifact_catalog_rows
+            guide_rows
+            + artifact_catalog_rows
             + [
                 {
                     "artifact_group": "run_metadata",
@@ -212,15 +224,6 @@ def run_smoke_suite(
                     "usage": f"human-readable summary with status counts and pooled metrics for profile {profile_name}",
                 },
             ],
-        )
-        write_text(
-            profile_root / report_filename,
-            build_run_report_markdown(
-                run_id=run_id,
-                profile_name=profile_name,
-                summary_df=summary_df,
-                pooled_df=pooled_df,
-            ),
         )
         trained_jobs = int(summary_df["status"].astype("string").eq("trained").sum()) if not summary_df.empty else 0
         progress.finish(trained_jobs=trained_jobs, total_jobs=total_jobs, output_dir=output_dir)

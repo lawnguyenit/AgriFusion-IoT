@@ -14,8 +14,6 @@ PRIMARY_VIEW_IDS: tuple[str, ...] = (
     "v1_point",
     "v2_same_y_mini_3h",
     "v2_same_y_full_3h",
-    "v2_same_y_mini_8h",
-    "v2_same_y_full_8h",
 )
 POINT_TARGET_MAP: dict[str, str] = {
     "normal_point": "NRM",
@@ -106,8 +104,6 @@ def primary_claims_payload() -> dict[str, object]:
         "comparisons": [
             "v0_vs_v2_mini_3h",
             "v1_vs_v2_full_3h",
-            "v0_vs_v2_mini_8h",
-            "v1_vs_v2_full_8h",
         ],
         "constraints": [
             "Use V0, V1, and V2 same-Y only for primary lifecycle gating.",

@@ -19,13 +19,11 @@ class DatasetViewsWindowTests(unittest.TestCase):
             resolve_view_ids(("v2",)),
             (
                 "v2_minimal_sensor_window_3h",
-                "v2_minimal_sensor_window_8h",
                 "v2_sensor_row_window_3h",
-                "v2_sensor_row_window_8h",
             ),
         )
 
-    def test_v2_split_subviews_isolate_base_set_and_horizon(self) -> None:
+    def test_v2_alias_materializes_only_primary_3h_subviews(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             fixture = create_dataset_views_v2_fixture(Path(temp_dir))
             result = materialize_dataset_views(
@@ -40,21 +38,34 @@ class DatasetViewsWindowTests(unittest.TestCase):
             )
 
             v2m3 = pd.read_parquet(result.output_dir / "views" / "v2_minimal_sensor_window_3h" / "X.parquet")
-            v2m8 = pd.read_parquet(result.output_dir / "views" / "v2_minimal_sensor_window_8h" / "X.parquet")
             v2r3 = pd.read_parquet(result.output_dir / "views" / "v2_sensor_row_window_3h" / "X.parquet")
-            v2r8 = pd.read_parquet(result.output_dir / "views" / "v2_sensor_row_window_8h" / "X.parquet")
+            self.assertFalse((result.output_dir / "views" / "v2_minimal_sensor_window_8h").exists())
+            self.assertFalse((result.output_dir / "views" / "v2_sensor_row_window_8h").exists())
 
             self.assertEqual(v2m3.shape[1], 30)
-            self.assertEqual(v2m8.shape[1], 30)
             self.assertEqual(v2r3.shape[1], 54)
-            self.assertEqual(v2r8.shape[1], 54)
 
             self.assertIn("sht.temp_c__3h_median", v2m3.columns)
             self.assertNotIn("sht.temp_c__8h_median", v2m3.columns)
-            self.assertIn("sht.temp_c__8h_median", v2m8.columns)
-            self.assertNotIn("sht.temp_c__3h_median", v2m8.columns)
             self.assertNotIn("npk.ph", v2m3.columns)
             self.assertIn("npk.ph", v2r3.columns)
+
+    def test_explicit_8h_subviews_remain_available(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            fixture = create_dataset_views_v2_fixture(Path(temp_dir))
+            result = materialize_dataset_views(
+                MaterializationConfig(
+                    canonical_history_path=fixture["canonical_path"],
+                    feature_catalog_path=fixture["catalog_path"],
+                    manifest_path=fixture["manifest_path"],
+                    output_root=Path(temp_dir) / "artifacts",
+                    mode="feature-only",
+                    selected_views=("v2_minimal_sensor_window_8h", "v2_sensor_row_window_8h"),
+                )
+            )
+
+            self.assertTrue((result.output_dir / "views" / "v2_minimal_sensor_window_8h" / "X.parquet").exists())
+            self.assertTrue((result.output_dir / "views" / "v2_sensor_row_window_8h" / "X.parquet").exists())
 
     def test_v2_preserves_row_identity_and_no_synthetic_rows(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

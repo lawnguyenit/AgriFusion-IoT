@@ -1,9 +1,10 @@
 # Validity Lifecycle
 
-`Backend/Benchmark/validity_lifecycle` is a standalone pre-training
-audit lane. It reads an authoritative `evaluation_protocols` run and
-re-expresses the benchmark sample universe as lifecycle-ready evidence
-for E1, E2, and E3.
+`Backend/Benchmark/validity_lifecycle` is the tranche-0 audit and
+synthesis lane. It reads an authoritative `evaluation_protocols` run,
+links the corresponding `model_suite` outputs, and re-expresses the
+benchmark sample universe as lifecycle-ready evidence for E1, E2, and
+E3.
 
 ## Responsibilities
 
@@ -14,6 +15,10 @@ for E1, E2, and E3.
   loss, continuity issues, and matched-cohort integrity;
 - quantify proxy-risk evidence such as EC-to-NPK determinism and pH
   stability before any new train run is allowed to proceed;
+- consume preregistered claims, registered comparison pairs, and
+  model-side prediction artifacts;
+- emit dependency, estimability, source-expansion, and
+  evidence-updated ambiguity artifacts under the tranche-0 contract;
 - publish an English report and machine-readable gate summary.
 
 ## Inputs
@@ -21,7 +26,9 @@ for E1, E2, and E3.
 - one `evaluation_protocols` artifact run;
 - linked canonical Layer1 history from that run manifest;
 - linked `dataset_views` and `weak_labels` artifact runs referenced by
-  the same protocol manifest.
+  the same protocol manifest;
+- one linked `model_suite` artifact run, resolved explicitly or by
+  latest artifact timestamp.
 
 ## Outputs
 
@@ -32,17 +39,24 @@ Each lifecycle run writes:
 - `manifests/`
 - `audits/`
 - `reports/`
+- `synthesis/`
 - `ambiguity/`
 - `collection_repair/`
 
-The primary report is `reports/validity_lifecycle_audit_report.md`.
+Primary tranche-0 outputs include:
+
+- `reports/validity_lifecycle_audit_report.md`
+- `synthesis/dependency_effects.parquet`
+- `synthesis/claim_evidence_matrix.csv`
+- `ambiguity/evidence_updated_ambiguity_sets.yaml`
 
 ## Non-Goals
 
 - no model fitting;
 - no new train/validation/test slicing inside this lane;
 - no mutation of existing `evaluation_protocols` or `model_suite`
-  contracts.
+  contracts;
+- no automatic promotion from metric evidence to physical-causal claims.
 
 ## Command
 
@@ -51,7 +65,8 @@ python Backend/Benchmark/validity_lifecycle/main.py --evaluation-protocol-run-di
 ```
 
 If `--evaluation-protocol-run-dir` is omitted, the latest available
-`evaluation_protocols` run is used.
+`evaluation_protocols` run is used. The implementation also resolves the
+latest `model_suite` run unless a config-level override is supplied.
 
 ## Flow
 

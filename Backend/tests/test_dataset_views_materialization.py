@@ -71,7 +71,12 @@ class DatasetViewsMaterializationTests(unittest.TestCase):
             self.assertEqual(source_manifest["label_status"], "not_attached")
             self.assertEqual(view_manifest["label_status"], "not_attached")
             self.assertEqual(source_manifest["materialized_public_views"], ["v1_sensor_row"])
-            self.assertIn("v5_proxy_reduced_draft", source_manifest["materialized_nonpublic_drafts"])
+            self.assertNotIn("materialized_nonpublic_drafts", source_manifest)
+            self.assertTrue((result.output_dir / "shared" / "README.md").exists())
+            self.assertTrue((result.output_dir / "views" / "README.md").exists())
+            self.assertTrue((result.output_dir / "ARTIFACT_GUIDE.md").exists())
+            self.assertTrue((result.output_dir / "reports" / "current_scope_taxonomy_report.json").exists())
+            self.assertFalse((result.output_dir / "reports" / "legacy_taxonomy_drift_audit.json").exists())
             self.assertIn("debug_csv_paths", view_manifest)
             self.assertIn("pipeline_code_commit", source_manifest["source"])
             self.assertIn("materialization_config_hash", source_manifest["source"])
@@ -83,6 +88,8 @@ class DatasetViewsMaterializationTests(unittest.TestCase):
             self.assertEqual(view_manifest["row_index_hash"], row_index_contract["file_hash"])
             self.assertEqual(view_manifest["feature_generator_code_commit"], source_manifest["source"]["pipeline_code_commit"])
             self.assertEqual(view_manifest["materialization_config_hash"], source_manifest["source"]["materialization_config_hash"])
+            self.assertIn("current_scope_taxonomy_report_path", source_manifest)
+            self.assertIsNone(source_manifest["legacy_taxonomy_audit_path"])
 
     def test_null_and_dtype_preservation(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -164,12 +171,14 @@ class DatasetViewsMaterializationTests(unittest.TestCase):
             invalid_row = int(row_index_df.index[row_index_df["record.id"] == "r8"][0])
             self.assertTrue(pd.isna(v0_df.loc[invalid_row, "npk.ec"]))
             for column in ("npk.soil_temp_c", "npk.soil_moisture_pct", "npk.ec", "npk.ph", "npk.n_proxy", "npk.p_proxy", "npk.k_proxy"):
-                self.assertTrue(pd.isna(v1_df.loc[invalid_row, column]), column)
+                self.assertTrue(pd.isna(v0_df.loc[invalid_row, column]), column)
                 self.assertTrue(pd.isna(v2_df.loc[invalid_row, column]), column)
                 self.assertTrue(
-                    pd.isna(v1_df.loc[invalid_row, column]) == pd.isna(v2_df.loc[invalid_row, column]),
+                    pd.isna(v0_df.loc[invalid_row, column]) == pd.isna(v2_df.loc[invalid_row, column]),
                     column,
                 )
+            for column in ("npk.soil_temp_c", "npk.soil_moisture_pct", "npk.ec"):
+                self.assertTrue(pd.isna(v1_df.loc[invalid_row, column]), column)
 
 
 if __name__ == "__main__":

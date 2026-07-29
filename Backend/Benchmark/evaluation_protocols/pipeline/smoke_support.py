@@ -149,6 +149,12 @@ def build_prediction_rows(
                 "matched_cohort_id": row.get("matched_cohort_id", pd.NA),
                 "record_id_order": row.get("record_id_order", pd.NA),
                 "record_set_hash": row.get("record_set_hash", pd.NA),
+                "environment_id": row.get("environment_id", pd.NA),
+                "eligibility_status": row.get("eligibility_status", pd.NA),
+                "day_id": row.get("day_id", row.get("date_local", pd.NA)),
+                "segment_id": row.get("segment_id", row.get("record.segment_id", pd.NA)),
+                "gap_regime": row.get("gap_regime", pd.NA),
+                "ontology_id": row.get("ontology_id", pd.NA),
             }
         )
     return rows

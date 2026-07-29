@@ -1,4 +1,6 @@
 from Backend.Benchmark.weak_labels.reporting.audits import (
+    build_artifact_guide_markdown,
+    build_current_scope_summary,
     build_excluded_samples_audit,
     build_label_dependency_registry,
     build_label_distribution,
@@ -9,6 +11,8 @@ from Backend.Benchmark.weak_labels.reporting.audits import (
 )
 
 __all__ = [
+    "build_artifact_guide_markdown",
+    "build_current_scope_summary",
     "build_excluded_samples_audit",
     "build_label_dependency_registry",
     "build_label_distribution",

@@ -6,7 +6,9 @@ import pandas as pd
 
 from Backend.Benchmark.dataset_views.validators.hashes import dataframe_schema_hash
 from Backend.Benchmark.weak_labels.shared.configs import (
+    CURRENT_PRIMARY_SCOPE_TASK_IDS,
     LABEL_STATUS_LABELED,
+    OPTIONAL_EXPLICIT_TASK_IDS,
     POINT_LABELS,
     PRIMARY_OUTPUT_FILES,
     V2_TEMPORAL_LABELS,
@@ -19,21 +21,126 @@ from Backend.Benchmark.weak_labels.shared.helpers import file_sha256, output_has
 
 
 def build_label_registry() -> dict[str, object]:
+    tasks = [
+        {
+            "task_id": "v0_point_train",
+            "sample_type": "record",
+            "labels": list(POINT_LABELS),
+            "scope_role": "PRIMARY_PUBLIC_SCOPE",
+            "compatible_feature_views": ["v0_minimal_sensor"],
+            "notes": "Point weak labels paired with the current full-snapshot v0 feature contract.",
+        },
+        {
+            "task_id": "v1_point_train",
+            "sample_type": "record",
+            "labels": list(POINT_LABELS),
+            "scope_role": "PRIMARY_PUBLIC_SCOPE",
+            "compatible_feature_views": ["v1_sensor_row"],
+            "notes": "Point weak labels paired with the current reduced-snapshot v1 feature contract.",
+        },
+        {
+            "task_id": "v2_same_y_3h",
+            "sample_type": "record",
+            "labels": list(POINT_LABELS),
+            "scope_role": "PRIMARY_PUBLIC_SCOPE",
+            "compatible_feature_views": ["v2_minimal_sensor_window_3h", "v2_sensor_row_window_3h"],
+            "notes": "Same-Y label copy for the current primary 3h temporal scope.",
+        },
+        {
+            "task_id": "v2_same_y_8h",
+            "sample_type": "record",
+            "labels": list(POINT_LABELS),
+            "scope_role": "OPTIONAL_EXPLICIT",
+            "compatible_feature_views": ["v2_minimal_sensor_window_8h", "v2_sensor_row_window_8h"],
+            "notes": "Same-Y label copy for the optional explicit 8h temporal scope.",
+        },
+        {
+            "task_id": "v2_temporal_3h",
+            "sample_type": "record",
+            "labels": list(V2_TEMPORAL_LABELS),
+            "scope_role": "PRIMARY_PUBLIC_SCOPE",
+            "compatible_feature_views": ["v2_minimal_sensor_window_3h", "v2_sensor_row_window_3h"],
+            "notes": "Primary temporal weak labels for the 3h scope.",
+        },
+        {
+            "task_id": "v2_temporal_8h",
+            "sample_type": "record",
+            "labels": list(V2_TEMPORAL_LABELS),
+            "scope_role": "OPTIONAL_EXPLICIT",
+            "compatible_feature_views": ["v2_minimal_sensor_window_8h", "v2_sensor_row_window_8h"],
+            "notes": "Optional explicit temporal weak labels for the 8h scope.",
+        },
+        {
+            "task_id": "v6_event",
+            "sample_type": "event",
+            "labels": list(V6_EVENT_LABELS),
+            "scope_role": "OPTIONAL_EXPLICIT",
+            "compatible_feature_views": ["v6_sequence_8h"],
+            "notes": "Optional environmental event weak labels outside the current benchmark-primary lane.",
+        },
+        {
+            "task_id": "v6_b8_block",
+            "sample_type": "block",
+            "labels": list(V6_BLOCK_LABELS),
+            "scope_role": "OPTIONAL_EXPLICIT",
+            "compatible_feature_views": ["v6_sequence_8h"],
+            "notes": "Optional environmental block weak labels outside the current benchmark-primary lane.",
+        },
+    ]
     return {
         "pipeline": WEAK_LABELS_PIPELINE_NAME,
         "version": WEAK_LABELS_VERSION,
-        "tasks": [
-            {"task_id": "v0_point_train", "sample_type": "record", "labels": list(POINT_LABELS)},
-            {"task_id": "v1_point_train", "sample_type": "record", "labels": list(POINT_LABELS)},
-            {"task_id": "v2_same_y_3h", "sample_type": "record", "labels": list(POINT_LABELS)},
-            {"task_id": "v2_same_y_8h", "sample_type": "record", "labels": list(POINT_LABELS)},
-            {"task_id": "v2_temporal_3h", "sample_type": "record", "labels": list(V2_TEMPORAL_LABELS)},
-            {"task_id": "v2_temporal_8h", "sample_type": "record", "labels": list(V2_TEMPORAL_LABELS)},
-            {"task_id": "v6_event", "sample_type": "event", "labels": list(V6_EVENT_LABELS)},
-            {"task_id": "v6_b8_block", "sample_type": "block", "labels": list(V6_BLOCK_LABELS)},
-        ],
+        "current_primary_scope_task_ids": list(CURRENT_PRIMARY_SCOPE_TASK_IDS),
+        "optional_explicit_task_ids": list(OPTIONAL_EXPLICIT_TASK_IDS),
+        "tasks": tasks,
         "output_files": list(PRIMARY_OUTPUT_FILES),
     }
+
+
+def build_current_scope_summary() -> dict[str, object]:
+    return {
+        "scope_kind": "current_weak_label_scope",
+        "primary_public_scope": {
+            "task_ids": list(CURRENT_PRIMARY_SCOPE_TASK_IDS),
+            "description": "Current benchmark-primary weak-label scope aligned to v0, v1, and v2-3h.",
+        },
+        "optional_explicit_scope": {
+            "task_ids": list(OPTIONAL_EXPLICIT_TASK_IDS),
+            "description": "Optional weak-label outputs retained for explicit 8h and V6 workflows.",
+        },
+        "synchronization_notes": [
+            "weak_labels does not consume dataset_views outputs; both lanes read the same frozen Layer1 canonical source.",
+            "v0_point_train and v1_point_train share the same point weak-label logic but are published as separate task ids for downstream protocol compatibility.",
+            "v2_temporal_3h is primary for the current scope; 8h remains optional explicit output.",
+        ],
+    }
+
+
+def build_artifact_guide_markdown() -> str:
+    return "\n".join(
+        [
+            "# Weak Labels Artifact Guide",
+            "",
+            "## Input",
+            "- frozen Layer1 canonical telemetry",
+            "- frozen Layer1 feature catalog",
+            "- manifest and segment context for continuity-aware or event-aware labeling",
+            "- weak-label runtime config such as threshold mode and run profile",
+            "",
+            "## This Layer Does",
+            "- convert canonical evidence into weak targets and rule traces",
+            "- keep technical invalidity and intrinsic eligibility separate from downstream protocol decisions",
+            "- publish label provenance for point, V2, and optional V6 tasks",
+            "",
+            "## Output",
+            "- `run_metadata/`: provenance, artifact index, and current-scope summary",
+            "- `registries/`: label ontology and dependency registry",
+            "- `point/`: point weak labels used by v0 and v1",
+            "- `v2/`: same-Y and temporal weak labels for 3h and optional 8h",
+            "- `v6/`: optional event/block weak labels",
+            "- `audit/`: tranche-0 label assignment, rule firing, and threshold provenance",
+        ]
+    )
 
 
 def build_label_dependency_registry() -> pd.DataFrame:
@@ -155,6 +262,8 @@ def build_run_manifest(
     return {
         "pipeline": WEAK_LABELS_PIPELINE_NAME,
         "version": WEAK_LABELS_VERSION,
+        "current_primary_scope_task_ids": list(CURRENT_PRIMARY_SCOPE_TASK_IDS),
+        "optional_explicit_task_ids": list(OPTIONAL_EXPLICIT_TASK_IDS),
         "config": config_dict,
         "input_hashes": {
             "canonical_history": file_sha256(canonical_path),
