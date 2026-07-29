@@ -28,7 +28,7 @@ def parse_args() -> argparse.Namespace:
         "--views",
         nargs="+",
         default=list(DEFAULT_PUBLIC_VIEW_IDS),
-        help="Dataset semantic view ids or numeric aliases to materialize.",
+        help="Dataset semantic view ids or numeric aliases to materialize. Active support is limited to v0, v1, and v2.",
     )
     parser.add_argument(
         "--canonical-history",
@@ -66,12 +66,6 @@ def parse_args() -> argparse.Namespace:
         default=(),
         help="Required label columns that must exist in the label artifact.",
     )
-    parser.add_argument(
-        "--legacy-event-csv",
-        type=Path,
-        default=BACKEND_PATHS.benchmark_dir / "benchmark_dataset" / "dataset" / "benchmark_input_labeled.csv",
-        help="Legacy weak-label CSV used to bridge V3 operational-lineage events onto canonical history.",
-    )
     return parser.parse_args()
 
 
@@ -93,7 +87,6 @@ def main() -> None:
             mode=args.mode,
             selected_views=tuple(args.views),
             label_config=label_config,
-            legacy_event_csv_path=args.legacy_event_csv.resolve() if args.legacy_event_csv is not None else None,
         )
     )
 

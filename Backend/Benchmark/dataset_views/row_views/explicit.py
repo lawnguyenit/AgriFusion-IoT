@@ -6,7 +6,6 @@ from pathlib import Path
 
 import pandas as pd
 
-from Backend.Benchmark.dataset_views.configs import get_view_definition
 from Backend.Benchmark.dataset_views.contracts import TaxonomyEntry, ViewDefinition
 from Backend.Benchmark.dataset_views.reports import build_quality_report
 from Backend.Benchmark.dataset_views.selectors import select_view_features
@@ -106,22 +105,6 @@ def materialize_explicit_view(
             "unresolved_risks": list(selection.unresolved_risks),
         },
     }
-    if taxonomy_entry.semantic_view_id == "v5_proxy_reduced_draft":
-        v0_definition = get_view_definition("v0_minimal_sensor")
-        v0_frame = build_explicit_feature_frame(
-            canonical_df=canonical_df,
-            feature_columns=list(v0_definition.explicit_features),
-        )
-        manifest_payload["invalid_independent_view_reason"] = {
-            "ordered_feature_equality_with_v0": bool(feature_columns == list(v0_definition.explicit_features)),
-            "x_hash_equality_with_v0": bool(data_hash == hash_dataframe_rows(v0_frame)),
-            "candidate_universe_status": "incorrectly_defined",
-            "summary": (
-                "This proxy-reduced draft is not an independent benchmark view. "
-                "Its current candidate universe definition collapses it onto the v0 feature set."
-            ),
-        }
-
     write_json_file(output_dir / "manifest.json", manifest_payload)
     write_json_file(output_dir / "schema.json", schema_payload)
     write_json_file(output_dir / "quality_report.json", quality_report)

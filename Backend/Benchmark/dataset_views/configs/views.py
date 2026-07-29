@@ -66,46 +66,10 @@ _VIEW_DEFINITIONS: dict[str, ViewDefinition] = {
         explicit_features=V2_MEASUREMENT_CHANNELS,
         window_horizon_names=("3h", "8h"),
     ),
-    "v3_direct": ViewDefinition(
-        view_id="v3_direct",
-        description="Operational-lineage direct-rule evidence view.",
-        selection_mode="operational_lineage_direct",
-    ),
-    "v3_derived": ViewDefinition(
-        view_id="v3_derived",
-        description="Operational-lineage derived-rule descendants view.",
-        selection_mode="operational_lineage_derived",
-    ),
-    "v3_independent": ViewDefinition(
-        view_id="v3_independent",
-        description="Operational-lineage independent-process evidence view.",
-        selection_mode="operational_lineage_independent",
-    ),
-    "v3_pre_onset": ViewDefinition(
-        view_id="v3_pre_onset",
-        description="Operational-lineage pre-onset benchmark view using only independent-process evidence.",
-        selection_mode="operational_lineage_pre_onset",
-    ),
     "v4_hybrid": ViewDefinition(
         view_id="v4_hybrid",
         description="Reserved hybrid sensor-plus-metadata view for a later batch.",
         selection_mode="reserved_not_implemented",
-    ),
-    "v5_proxy_reduced": ViewDefinition(
-        view_id="v5_proxy_reduced",
-        description="Reserved final proxy-reduced view pending validated dependency registry coverage.",
-        selection_mode="reserved_blocked_prerequisite",
-    ),
-    "v5_proxy_reduced_draft": ViewDefinition(
-        view_id="v5_proxy_reduced_draft",
-        description="Internal proxy-reduced draft reclassified from the historical drifted v6 output.",
-        selection_mode="proxy_reduced_draft",
-        candidate_prefixes=("sht.", "npk."),
-    ),
-    "v6_sequence_8h": ViewDefinition(
-        view_id="v6_sequence_8h",
-        description="Environmental V6 sequence-labeling dataset using fixed independent 8-hour day chunks.",
-        selection_mode="environmental_sequence_8h",
     ),
 }
 

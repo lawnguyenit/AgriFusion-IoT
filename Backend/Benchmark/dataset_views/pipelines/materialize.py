@@ -24,11 +24,8 @@ from Backend.Benchmark.dataset_views.validators import ensure_parquet_engine, va
 from Backend.Benchmark.dataset_views.writers import write_json_file
 
 from .runtime import (
-    has_v3_views,
-    has_v6_views,
     load_taxonomy_audit_if_available,
     requires_segment_manifest,
-    resolve_nonpublic_drafts,
     resolve_selected_public_view_ids,
     validate_requested_views,
 )
@@ -40,8 +37,6 @@ from .shared_outputs import (
     write_shared_outputs,
 )
 from .standard_views import materialize_standard_view
-from .v3_family import materialize_v3_view, prepare_v3_family_context
-from .v6_family import materialize_v6_view, prepare_v6_family_context
 
 
 def materialize_dataset_views(config: MaterializationConfig) -> MaterializationResult:
@@ -94,7 +89,7 @@ def materialize_dataset_views(config: MaterializationConfig) -> MaterializationR
     elif config.label_config is not None:
         raise ValueError("feature-only mode does not accept a label artifact. Use benchmark-ready mode instead.")
 
-    materialized_nonpublic_drafts = resolve_nonpublic_drafts(config=config, selected_public_view_ids=selected_public_view_ids)
+    materialized_nonpublic_drafts: tuple[str, ...] = ()
     source_manifest_payload = build_source_manifest_payload(
         run_id=run_id,
         config=config,
@@ -121,61 +116,10 @@ def materialize_dataset_views(config: MaterializationConfig) -> MaterializationR
         source_manifest_payload=source_manifest_payload,
     )
 
-    v3_context: dict[str, object] | None = None
-    if has_v3_views(selected_public_view_ids):
-        if segment_manifest_payload is None:
-            raise ValueError("V3 operational-lineage views require the Layer1 segment manifest.")
-        v3_context = prepare_v3_family_context(
-            legacy_event_csv_path=config.legacy_event_csv_path,
-            canonical_df=canonical_df,
-            catalog_index=catalog_index,
-            segment_manifest_payload=segment_manifest_payload,
-            shared_dir=shared_dir,
-            reports_dir=reports_dir,
-            parquet_engine=parquet_engine,
-            source_manifest_payload=source_manifest_payload,
-        )
-    v6_context: dict[str, object] | None = None
-    if has_v6_views(selected_public_view_ids):
-        if segment_manifest_payload is None:
-            raise ValueError("V6 environmental event views require the Layer1 segment manifest.")
-        v6_context = prepare_v6_family_context(
-            canonical_df=canonical_df,
-            segment_manifest_payload=segment_manifest_payload,
-            output_dir=output_dir,
-            parquet_engine=parquet_engine,
-            source_manifest_payload=source_manifest_payload,
-        )
-
     canonical_columns = tuple(canonical_df.columns)
     for view_id in (*selected_public_view_ids, *materialized_nonpublic_drafts):
         taxonomy_entry = get_taxonomy_entry(view_id)
         view_definition = get_view_definition(view_id)
-        if view_definition.selection_mode.startswith("operational_lineage_"):
-            if v3_context is None:
-                raise ValueError("V3 context was not prepared.")
-            materialize_v3_view(
-                taxonomy_entry=taxonomy_entry,
-                view_definition=view_definition,
-                v3_context=v3_context,
-                output_dir=views_dir / view_id,
-                parquet_engine=parquet_engine,
-                source_manifest_payload=source_manifest_payload,
-            )
-            continue
-        if view_definition.selection_mode == "environmental_sequence_8h":
-            if v6_context is None:
-                raise ValueError("V6 context was not prepared.")
-            materialize_v6_view(
-                taxonomy_entry=taxonomy_entry,
-                view_definition=view_definition,
-                v6_context=v6_context,
-                output_dir=views_dir / view_id,
-                parquet_engine=parquet_engine,
-                source_manifest_payload=source_manifest_payload,
-            )
-            continue
-
         materialize_standard_view(
             taxonomy_entry=taxonomy_entry,
             view_definition=view_definition,
