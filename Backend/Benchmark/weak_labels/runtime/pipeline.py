@@ -25,6 +25,8 @@ from Backend.Benchmark.weak_labels.point import (
     enrich_point_continuity_features,
 )
 from Backend.Benchmark.weak_labels.reporting import (
+    build_artifact_guide_markdown,
+    build_current_scope_summary,
     build_excluded_samples_audit,
     build_label_dependency_registry,
     build_label_distribution,
@@ -33,6 +35,7 @@ from Backend.Benchmark.weak_labels.reporting import (
     build_label_registry,
     build_run_manifest,
 )
+from Backend.Benchmark.weak_labels.reporting.tranche0_contracts import build_tranche0_audit_artifacts
 from Backend.Benchmark.weak_labels.runtime.contracts import LabelArtifactBundle, WeakLabelsConfig, WeakLabelsResult
 from Backend.Benchmark.weak_labels.runtime.layout import (
     build_artifact_catalog,
@@ -149,6 +152,22 @@ def build_weak_labels(config: WeakLabelsConfig) -> WeakLabelsResult:
         run_manifest={},
         label_registry=build_label_registry(),
     )
+    tranche0_audits = build_tranche0_audit_artifacts(
+        point_enriched_df=point_artifacts.enriched_df,
+        point_labels_detailed=point_artifacts.point_labels_detailed,
+        v2_same_y_labels=v2_artifacts.same_y_labels,
+        v2_temporal_labels_3h=v2_artifacts.temporal_labels_3h,
+        v2_temporal_labels_8h=v2_artifacts.temporal_labels_8h,
+        v2_temporal_evidence_3h=v2_artifacts.temporal_evidence_3h,
+        v2_temporal_evidence_8h=v2_artifacts.temporal_evidence_8h,
+        threshold_records=threshold_context.threshold_records,
+        weak_labels_repo_root=Path(__file__).resolve().parents[4],
+    )
+    bundle.label_assignment = tranche0_audits["label_assignment"]
+    bundle.rule_firings = tranche0_audits["rule_firings"]
+    bundle.rule_registry = tranche0_audits["rule_registry"]
+    bundle.threshold_registry = tranche0_audits["threshold_registry"]
+    bundle.label_source_dependency = tranche0_audits["label_source_dependency"]
 
     _write_bundle(bundle, output_dir=output_dir, layout=layout, parquet_engine=parquet_engine)
     run_manifest = build_run_manifest(
@@ -163,7 +182,9 @@ def build_weak_labels(config: WeakLabelsConfig) -> WeakLabelsResult:
     )
     run_manifest["artifact_layout_version"] = "weak_labels.layout.v2"
     write_json_file(layout.run_metadata / "run_manifest.json", run_manifest)
+    write_json_file(layout.run_metadata / "current_scope_summary.json", build_current_scope_summary())
     write_csv(pd.DataFrame(build_artifact_catalog(layout)).convert_dtypes(), layout.run_metadata / "artifact_catalog.csv")
+    (output_dir / "ARTIFACT_GUIDE.md").write_text(build_artifact_guide_markdown() + "\n", encoding="utf-8")
     return WeakLabelsResult(
         run_id=run_id,
         output_dir=output_dir,
@@ -195,6 +216,16 @@ def _write_bundle(bundle: LabelArtifactBundle, *, output_dir: Path, layout, parq
     write_csv(bundle.label_examples, layout.audits / "label_examples.csv")
     write_yaml_file(layout.registries / "label_registry.yaml", bundle.label_registry)
     write_csv(bundle.v2_label_agreement_3h_8h, layout.v2 / "v2_label_agreement_3h_8h.csv")
+    if bundle.label_assignment is not None:
+        write_parquet(bundle.label_assignment, layout.audit / "label_assignment.parquet", engine=parquet_engine)
+    if bundle.rule_firings is not None:
+        write_parquet(bundle.rule_firings, layout.audit / "rule_firings.parquet", engine=parquet_engine)
+    if bundle.rule_registry is not None:
+        write_csv(bundle.rule_registry, layout.audit / "rule_registry.csv")
+    if bundle.threshold_registry is not None:
+        write_csv(bundle.threshold_registry, layout.audit / "threshold_registry.csv")
+    if bundle.label_source_dependency is not None:
+        write_csv(bundle.label_source_dependency, layout.audit / "label_source_dependency.csv")
 
 
 def _config_to_dict(config: WeakLabelsConfig) -> dict[str, object]:

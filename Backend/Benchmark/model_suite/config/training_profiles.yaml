@@ -10,9 +10,7 @@
             "v0_point",
             "v1_point",
             "v2_same_y_mini_3h",
-            "v2_same_y_full_3h",
-            "v2_same_y_mini_8h",
-            "v2_same_y_full_8h"
+            "v2_same_y_full_3h"
           ],
           "fold_ids": [
             "fold_01"
@@ -30,18 +28,14 @@
             "v0_point",
             "v1_point",
             "v2_same_y_mini_3h",
-            "v2_same_y_full_3h",
-            "v2_same_y_mini_8h",
-            "v2_same_y_full_8h"
+            "v2_same_y_full_3h"
           ],
           "fold_ids": [
             "fold_01"
           ],
           "comparison_ids": [
             "v0_vs_v2_mini_3h",
-            "v1_vs_v2_full_3h",
-            "v0_vs_v2_mini_8h",
-            "v1_vs_v2_full_8h"
+            "v1_vs_v2_full_3h"
           ],
           "evaluation_partitions": [
             "validation",
@@ -60,9 +54,7 @@
             "v0_point",
             "v1_point",
             "v2_same_y_mini_3h",
-            "v2_same_y_full_3h",
-            "v2_same_y_mini_8h",
-            "v2_same_y_full_8h"
+            "v2_same_y_full_3h"
           ],
           "fold_ids": [
             "fold_01",
@@ -87,9 +79,7 @@
             "v0_point",
             "v1_point",
             "v2_same_y_mini_3h",
-            "v2_same_y_full_3h",
-            "v2_same_y_mini_8h",
-            "v2_same_y_full_8h"
+            "v2_same_y_full_3h"
           ],
           "fold_ids": [
             "fold_01",
@@ -98,9 +88,7 @@
           ],
           "comparison_ids": [
             "v0_vs_v2_mini_3h",
-            "v1_vs_v2_full_3h",
-            "v0_vs_v2_mini_8h",
-            "v1_vs_v2_full_8h"
+            "v1_vs_v2_full_3h"
           ],
           "evaluation_partitions": [
             "validation",
@@ -119,9 +107,7 @@
             "v0_point",
             "v1_point",
             "v2_same_y_mini_3h",
-            "v2_same_y_full_3h",
-            "v2_same_y_mini_8h",
-            "v2_same_y_full_8h"
+            "v2_same_y_full_3h"
           ],
           "fold_ids": [],
           "comparison_ids": [],
@@ -141,9 +127,7 @@
             "v0_point",
             "v1_point",
             "v2_same_y_mini_3h",
-            "v2_same_y_full_3h",
-            "v2_same_y_mini_8h",
-            "v2_same_y_full_8h"
+            "v2_same_y_full_3h"
           ],
           "fold_ids": [
             "fold_01",
@@ -163,9 +147,7 @@
             "v0_point",
             "v1_point",
             "v2_same_y_mini_3h",
-            "v2_same_y_full_3h",
-            "v2_same_y_mini_8h",
-            "v2_same_y_full_8h"
+            "v2_same_y_full_3h"
           ],
           "fold_ids": [
             "fold_01",
@@ -174,9 +156,7 @@
           ],
           "comparison_ids": [
             "v0_vs_v2_mini_3h",
-            "v1_vs_v2_full_3h",
-            "v0_vs_v2_mini_8h",
-            "v1_vs_v2_full_8h"
+            "v1_vs_v2_full_3h"
           ],
           "evaluation_partitions": [
             "validation",
@@ -190,9 +170,7 @@
             "v0_point",
             "v1_point",
             "v2_same_y_mini_3h",
-            "v2_same_y_full_3h",
-            "v2_same_y_mini_8h",
-            "v2_same_y_full_8h"
+            "v2_same_y_full_3h"
           ],
           "fold_ids": [],
           "comparison_ids": [],

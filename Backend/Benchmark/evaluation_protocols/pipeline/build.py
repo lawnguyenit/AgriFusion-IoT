@@ -8,7 +8,7 @@ import pandas as pd
 from Backend.Benchmark.common.provenance import resolve_code_commit
 from Backend.Benchmark.dataset_views.continuity import attach_continuity_chunks
 from Backend.Benchmark.dataset_views.continuity.chunks import build_segment_cadence_index
-from Backend.Benchmark.dataset_views.validators import ensure_parquet_engine, validate_unique_record_ids
+from Backend.Benchmark.dataset_views.validators import ensure_parquet_engine, stable_hash_object, validate_unique_record_ids
 from Backend.Benchmark.evaluation_protocols.diagnostics import (
     annotate_core_fold_status,
     build_calendar_blocks,
@@ -46,6 +46,18 @@ from Backend.Benchmark.evaluation_protocols.pipeline.layout import (
     build_artifact_catalog,
     build_evaluation_artifact_layout,
 )
+from Backend.Benchmark.evaluation_protocols.pipeline.guides import write_artifact_guides
+from Backend.Benchmark.evaluation_protocols.pipeline.tranche0_contracts import (
+    build_claim_registry,
+    build_comparison_registry,
+    build_e1_fold_registry,
+    build_environment_registry,
+    build_experiment_registry,
+    build_legacy_to_v2_equivalence_report,
+    build_runner_contract_v2_payload,
+    build_sample_environment_manifest,
+    extend_manifest_with_contracts,
+)
 from Backend.Benchmark.evaluation_protocols.pipeline.consumption import (
     build_comparison_training_manifest,
     load_dataset_view_feature_artifacts,
@@ -64,6 +76,7 @@ from Backend.Benchmark.weak_labels.io import (
     write_csv,
     write_json_file,
     write_parquet,
+    write_yaml_file,
 )
 from Backend.Benchmark.weak_labels.point import (
     build_applicability_frame,
@@ -113,6 +126,10 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
         mapping_version="2026-07-16.eval-protocol.v1",
     )
     write_csv(deployment_domains, layout.domain_manifests / "deployment_domains.csv")
+    environment_registry = build_environment_registry(working)
+    sample_environment_manifest = build_sample_environment_manifest(working, environment_registry)
+    write_csv(environment_registry, layout.domain_manifests / "environment_registry.csv")
+    write_parquet(sample_environment_manifest, layout.domain_manifests / "sample_environment_manifest.parquet", engine=parquet_engine)
 
     p1_df = working.loc[working["deployment_domain_name"].astype("string") == "P1_SOURCE"].copy()
     p2_df = working.loc[working["deployment_domain_name"].astype("string") == "P2_TARGET"].copy()
@@ -142,6 +159,7 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
     threshold_manifest["config_hash"] = build_protocol_config_hash(_config_to_dict(config))
     write_csv(pd.DataFrame([threshold_manifest]).convert_dtypes(), layout.threshold_policy / "primary_frozen_initial_source.csv")
     write_csv(sensitivity_df, layout.threshold_policy / "threshold_sensitivity_diagnostic.csv")
+    threshold_manifest_hash = stable_hash_object(threshold_manifest)
 
     weak_sources = load_weak_label_sources(config.weak_labels_run_dir.resolve())
     feature_artifacts = load_dataset_view_feature_artifacts(
@@ -299,6 +317,18 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
     write_csv(primary_artifacts.matched_cohort_validation, layout.primary_cohorts / "matched_cohort_validation.csv")
     write_csv(primary_artifacts.validation, layout.primary_runner / "runner_assertion_validation.csv")
     write_json_file(layout.primary_runner / "runner_contract.json", primary_artifacts.runner_contract)
+    e1_fold_registry = build_e1_fold_registry(
+        fold_specs=fold_specs_5day,
+        threshold_fit_manifest_hash=threshold_manifest_hash,
+        preprocessing_fit_manifest_hash=stable_hash_object(
+            {
+                "policy": "TRAIN_ONLY_PREPROCESSING_POLICY",
+                "fold_ids": [spec.fold_id for spec in fold_specs_5day],
+                "maximum_history_horizon": 8,
+            }
+        ),
+    )
+    write_csv(e1_fold_registry, layout.domain_manifests / "e1_fold_registry.csv")
     for name, frame in primary_artifacts.matched_cohort_manifests.items():
         write_csv(frame, layout.primary_cohorts / name)
     write_csv(assignment_artifacts_5day.unsupported_class_audit, layout.primary_folds / "unsupported_class_audit.csv")
@@ -362,6 +392,21 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
         task_training_manifest,
         feature_view_ids=PRIMARY_FEATURE_VIEW_IDS,
     )
+    task_training_manifest = extend_manifest_with_contracts(
+        task_training_manifest,
+        sample_environment_manifest=sample_environment_manifest,
+        ontology_id="point_ontology_v1",
+    )
+    comparison_training_manifest = extend_manifest_with_contracts(
+        comparison_training_manifest,
+        sample_environment_manifest=sample_environment_manifest,
+        ontology_id="point_ontology_v1",
+    )
+    frozen_target_manifest = extend_manifest_with_contracts(
+        frozen_target_manifest,
+        sample_environment_manifest=sample_environment_manifest,
+        ontology_id="point_ontology_v1",
+    )
     representation_artifacts = build_representation_validity_artifacts(
         task_training_manifest=task_training_manifest,
         comparison_training_manifest=comparison_training_manifest,
@@ -378,6 +423,69 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
     write_csv(comparison_training_manifest_validation, layout.primary_runner / "comparison_training_manifest_validation.csv")
     write_parquet(frozen_target_manifest, layout.primary_runner / "frozen_target_manifest.parquet", engine=parquet_engine)
     write_csv(frozen_target_manifest_validation, layout.primary_runner / "frozen_target_manifest_validation.csv")
+    claim_registry = build_claim_registry(Path(__file__).resolve().parents[4])
+    comparison_registry = build_comparison_registry()
+    experiment_registry = build_experiment_registry()
+    write_yaml_file(layout.run_metadata / "claim_registry.yaml", claim_registry)
+    write_csv(comparison_registry, layout.run_metadata / "comparison_registry.csv")
+    write_csv(experiment_registry, layout.run_metadata / "experiment_registry.csv")
+    discovery_training_manifest = task_training_manifest.loc[
+        task_training_manifest["partition"].astype("string").isin(["train", "validation", "test"])
+    ].copy()
+    temporal_falsification_manifest = task_training_manifest.loc[
+        task_training_manifest["environment_id"].astype("string").isin(["E1", "E2"])
+    ].copy()
+    deployment_transport_manifest = frozen_target_manifest.copy()
+    source_expansion_operational_manifest = deployment_transport_manifest.copy()
+    source_expansion_operational_manifest["estimand_id"] = "OPERATIONAL_EXPANSION"
+    source_expansion_operational_manifest["sampling_strategy_id"] = "FULL_SOURCE_ROWS"
+    source_expansion_operational_manifest["sampling_unit"] = "row"
+    source_expansion_operational_manifest["budget_value"] = int(len(source_expansion_operational_manifest))
+    source_expansion_operational_manifest["budget_tolerance"] = 0
+    source_expansion_operational_manifest["number_of_repetitions"] = 1
+    source_expansion_operational_manifest["seed_registry_path"] = str((layout.run_metadata / "seed_registry.csv").resolve())
+    source_expansion_matched_budget_manifest = deployment_transport_manifest.copy()
+    source_expansion_matched_budget_manifest["estimand_id"] = "MATCHED_SEGMENT_DAY_BUDGET_EXPANSION"
+    source_expansion_matched_budget_manifest["sampling_strategy_id"] = "MATCHED_SEGMENT_DAY_BUDGET_EXPANSION"
+    source_expansion_matched_budget_manifest["sampling_unit"] = "segment_day"
+    source_expansion_matched_budget_manifest["budget_value"] = int(
+        max(
+            1,
+            source_expansion_matched_budget_manifest.get("sample_id", pd.Series(dtype="string")).astype("string").nunique(),
+        )
+    )
+    source_expansion_matched_budget_manifest["budget_tolerance"] = 0.05
+    source_expansion_matched_budget_manifest["number_of_repetitions"] = 5
+    source_expansion_matched_budget_manifest["seed_registry_path"] = str((layout.run_metadata / "seed_registry.csv").resolve())
+    seed_registry = pd.DataFrame(
+        {
+            "repetition_id": [f"rep_{index:02d}" for index in range(1, 6)],
+            "random_seed": [41, 42, 43, 44, 45],
+        }
+    ).convert_dtypes()
+    write_csv(seed_registry, layout.run_metadata / "seed_registry.csv")
+    write_parquet(discovery_training_manifest, layout.primary_runner / "discovery_training_manifest.parquet", engine=parquet_engine)
+    write_parquet(temporal_falsification_manifest, layout.primary_runner / "temporal_falsification_manifest.parquet", engine=parquet_engine)
+    write_parquet(source_expansion_operational_manifest, layout.primary_runner / "source_expansion_operational_manifest.parquet", engine=parquet_engine)
+    write_parquet(source_expansion_matched_budget_manifest, layout.primary_runner / "source_expansion_matched_budget_manifest.parquet", engine=parquet_engine)
+    write_parquet(deployment_transport_manifest, layout.primary_runner / "deployment_transport_manifest.parquet", engine=parquet_engine)
+    legacy_to_v2_equivalence_report = build_legacy_to_v2_equivalence_report(
+        task_training_manifest=task_training_manifest,
+        comparison_training_manifest=comparison_training_manifest,
+        frozen_target_manifest=frozen_target_manifest,
+        discovery_training_manifest=discovery_training_manifest,
+        temporal_falsification_manifest=temporal_falsification_manifest,
+        source_expansion_operational_manifest=source_expansion_operational_manifest,
+        deployment_transport_manifest=deployment_transport_manifest,
+    )
+    write_csv(legacy_to_v2_equivalence_report, layout.run_metadata / "legacy_to_v2_equivalence_report.csv")
+    runner_contract_v2 = build_runner_contract_v2_payload(
+        claim_registry_path=layout.run_metadata / "claim_registry.yaml",
+        comparison_registry_path=layout.run_metadata / "comparison_registry.csv",
+        experiment_registry_path=layout.run_metadata / "experiment_registry.csv",
+        environment_registry_path=layout.domain_manifests / "environment_registry.csv",
+    )
+    write_json_file(layout.primary_runner / "runner_contract_v2.json", runner_contract_v2)
     write_csv(representation_artifacts.class_specific_retention, layout.validity_representation / "class_specific_retention.csv")
     write_csv(
         representation_artifacts.native_vs_matched_distribution,
@@ -476,6 +584,16 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
         },
         "primary_threshold_policy": "FROZEN_INITIAL_SOURCE",
         "primary_threshold_value_q10": float(threshold_manifest["threshold_value"]),
+        "tranche0_contracts": {
+            "claim_registry_path": str((layout.run_metadata / "claim_registry.yaml").resolve()),
+            "comparison_registry_path": str((layout.run_metadata / "comparison_registry.csv").resolve()),
+            "experiment_registry_path": str((layout.run_metadata / "experiment_registry.csv").resolve()),
+            "environment_registry_path": str((layout.domain_manifests / "environment_registry.csv").resolve()),
+            "sample_environment_manifest_path": str((layout.domain_manifests / "sample_environment_manifest.parquet").resolve()),
+            "e1_fold_registry_path": str((layout.domain_manifests / "e1_fold_registry.csv").resolve()),
+            "runner_contract_v2_path": str((layout.primary_runner / "runner_contract_v2.json").resolve()),
+            "legacy_to_v2_equivalence_report_path": str((layout.run_metadata / "legacy_to_v2_equivalence_report.csv").resolve()),
+        },
         "sensitivity_quantiles_reported": ["q05", "q10", "q15", "q20"],
         "threshold_sensitivity_distribution_path": str(layout.threshold_transport / "threshold_sensitivity_distributions.csv"),
         "p2_interpretation_note": "Absence of normal labels in P2 does not prove agronomic normal conditions are absent there.",
@@ -517,6 +635,8 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
             "representation_validity_generated": True,
             "estimability_matrix_generated": True,
             "proxy_reduced_validated": bool(dependency_artifacts.validation["proxy_reduced_validated"]),
+            "tranche0_v2_contract_generated": True,
+            "legacy_to_v2_equivalence_generated": True,
             "smoke_test_executed": False,
             "ready_for_smoke_test": False,
             "full_runner_executed": False,
@@ -552,8 +672,24 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
         "artifact_layout_version": "evaluation_protocols.layout.v2",
         "primary_protocol_dir": str(layout.primary_protocol),
         "diagnostic_7day_dir": str(layout.support_7day),
+        "tranche0_v2_outputs": {
+            "environment_registry_path": str((layout.domain_manifests / "environment_registry.csv").resolve()),
+            "sample_environment_manifest_path": str((layout.domain_manifests / "sample_environment_manifest.parquet").resolve()),
+            "e1_fold_registry_path": str((layout.domain_manifests / "e1_fold_registry.csv").resolve()),
+            "claim_registry_path": str((layout.run_metadata / "claim_registry.yaml").resolve()),
+            "comparison_registry_path": str((layout.run_metadata / "comparison_registry.csv").resolve()),
+            "experiment_registry_path": str((layout.run_metadata / "experiment_registry.csv").resolve()),
+            "discovery_training_manifest_path": str((layout.primary_runner / "discovery_training_manifest.parquet").resolve()),
+            "temporal_falsification_manifest_path": str((layout.primary_runner / "temporal_falsification_manifest.parquet").resolve()),
+            "source_expansion_operational_manifest_path": str((layout.primary_runner / "source_expansion_operational_manifest.parquet").resolve()),
+            "source_expansion_matched_budget_manifest_path": str((layout.primary_runner / "source_expansion_matched_budget_manifest.parquet").resolve()),
+            "deployment_transport_manifest_path": str((layout.primary_runner / "deployment_transport_manifest.parquet").resolve()),
+            "runner_contract_v2_path": str((layout.primary_runner / "runner_contract_v2.json").resolve()),
+            "legacy_to_v2_equivalence_report_path": str((layout.run_metadata / "legacy_to_v2_equivalence_report.csv").resolve()),
+        },
     }
     write_json_file(layout.run_metadata / "run_manifest.json", run_manifest)
+    write_artifact_guides(layout)
     write_csv(pd.DataFrame(build_artifact_catalog(layout)).convert_dtypes(), layout.run_metadata / "artifact_catalog.csv")
     return EvaluationProtocolResult(
         run_id=run_id,

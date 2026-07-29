@@ -20,6 +20,20 @@ V2_TEMPORAL_TASK_IDS: tuple[str, ...] = ("v2_temporal_3h", "v2_temporal_8h")
 V6_EVENT_TASK_ID = "v6_event"
 V6_BLOCK_TASK_ID = "v6_b8_block"
 
+CURRENT_PRIMARY_SCOPE_TASK_IDS: tuple[str, ...] = (
+    "v0_point_train",
+    "v1_point_train",
+    "v2_same_y_3h",
+    "v2_temporal_3h",
+)
+
+OPTIONAL_EXPLICIT_TASK_IDS: tuple[str, ...] = (
+    "v2_same_y_8h",
+    "v2_temporal_8h",
+    "v6_event",
+    "v6_b8_block",
+)
+
 POINT_LABELS: tuple[str, ...] = (
     "normal_point",
     "low_relative_moisture_point",
@@ -99,7 +113,14 @@ PRIMARY_OUTPUT_FILES: tuple[str, ...] = (
     "audits/label_overlap_matrix.csv",
     "audits/excluded_samples_audit.csv",
     "audits/label_examples.csv",
+    "audit/label_assignment.parquet",
+    "audit/rule_firings.parquet",
+    "audit/rule_registry.csv",
+    "audit/threshold_registry.csv",
+    "audit/label_source_dependency.csv",
     "threshold_diagnostics/threshold_sensitivity.csv",
     "run_metadata/run_manifest.json",
     "run_metadata/artifact_catalog.csv",
+    "run_metadata/current_scope_summary.json",
+    "ARTIFACT_GUIDE.md",
 )

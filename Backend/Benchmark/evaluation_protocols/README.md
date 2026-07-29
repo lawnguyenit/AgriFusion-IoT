@@ -22,6 +22,8 @@ Its responsibilities are:
 
 Current output layout distinguishes:
 
+- `ARTIFACT_GUIDE.md`: reader-first map of what the run takes in, does,
+  and writes out;
 - `run_metadata/`: run manifest, validation report, and artifact index;
 - `domain_manifests/`: deployment-domain ownership and protocol framing;
 - `validity_diagnostics/`: benchmark-validity audits for representation
@@ -38,6 +40,10 @@ Current output layout distinguishes:
   sensitivity diagnostics;
 - `dependency_manifests/` and `v6_lineage_audits/`: auditable support
   files used to explain or verify the main protocol.
+
+The current artifact runs also write short `README.md` guides inside the
+main output groups so a returning reader can re-enter the project by
+opening the folder itself rather than reverse-engineering the code.
 
 Code layout is responsibility-first:
 
@@ -61,7 +67,9 @@ For downstream model training, the runner-facing authority is under
 `primary_protocol/runner/`:
 
 - authoritative benchmark scope here is `V0`, `V1`, and `V2 same-Y`
-  only;
+  `3h` only;
+- `V2 same-Y 8h` remains available for diagnostics and sensitivity,
+  but it is not part of the default public runner contract;
 - `task_view_registry.csv`: explicit mapping between feature views,
   label tasks, protocol views, and resolved feature artifacts from the
   linked `dataset_views` run;

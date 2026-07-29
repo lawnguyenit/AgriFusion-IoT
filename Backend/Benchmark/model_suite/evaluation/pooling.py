@@ -33,6 +33,7 @@ def build_pooled_prediction_summary(predictions_df: pd.DataFrame) -> pd.DataFram
             frame["y_true_index"].astype(int).to_numpy(),
             frame["y_pred_index"].astype(int).to_numpy(),
             class_names,
+            environment_ids=frame.get("environment_id", pd.Series(dtype="string")).astype("string").dropna().tolist(),
         )
         row = {column: value for column, value in zip(group_columns, keys, strict=True)}
         row.update(

@@ -1,100 +1,67 @@
 # Weak Labels Flow
 
-## Purpose
-
-`weak_labels` is the label-authority lane. It builds point, V2, and V6
-label artifacts from canonical Layer1, but it does not own downstream
-benchmark fold authority.
-
-## Entrypoint
-
-- CLI:
-  - `python Backend/Benchmark/weak_labels/main.py ...`
-- Runtime:
-  - `main.py -> build_weak_labels()`
-  - `runtime/pipeline.py`
-
-## Implemented flow
+## Layer Contract
 
 ```mermaid
-flowchart TD
-    A["weak_labels/main.py"] --> B["Build WeakLabelsConfig"]
-    B --> C["Load canonical history"]
-    C --> D["Validate unique record.id"]
-    D --> E["Load feature catalog"]
-    E --> F["Resolve and load segment manifest"]
-    F --> G["Create run directory + artifact layout"]
-    G --> H["build_base_split_bundle()"]
-    H --> I["Attach continuity chunks"]
-    I --> J["build_applicability_frame()"]
-    J --> K["enrich_point_continuity_features()"]
-    K --> L["build_threshold_context()"]
-    L --> M["build_point_label_artifacts()"]
-    M --> N["build_v2_label_artifacts()"]
-    N --> O["build_v6_label_artifacts()"]
-    O --> P["Build audits, registries, examples, overlap"]
-    P --> Q["Write grouped artifact bundle"]
-    Q --> R["Write run manifest + artifact catalog"]
+flowchart LR
+    A["Layer1 canonical data"] --> B["weak_labels"]
+    B --> C["weak-label artifacts + rule traces"]
 ```
 
-## What comes in
+## Input
 
 - Layer1 canonical history
 - Layer1 feature catalog
-- Layer1 manifest or segment manifest
-- weak-label config:
-  - base split strategy
-  - run profile
-  - threshold mode
+- Layer1/segment manifest context
+- weak-label configuration such as threshold mode and base split mode
 
-## What goes out
+## This Layer Does
 
-- `point/point_evidence_flags.parquet`
-- `point/point_labels_detailed.parquet`
-- `point/point_labels_train.parquet`
-- `v2/v2_same_y_labels.parquet`
-- `v2/v2_temporal_labels_3h.parquet`
-- `v2/v2_temporal_labels_8h.parquet`
-- `v6/v6_event_labels.parquet`
-- `v6/v6_b8_block_labels.parquet`
-- audits, threshold diagnostics, registries, and artifact catalog
+- generate the weak-label targets for point, V2, and optional V6 tasks
+- keep the current primary public scope centered on point labels and
+  `v2-3h`, while still allowing explicit `8h` and `v6` outputs
+- keep intrinsic eligibility and exclusion separate from downstream
+  protocol decisions
+- publish condition-level rule traces and threshold provenance for
+  tranche-0 auditability
+- separate semantic fired rules, gate outcomes, resolution IDs, and
+  label-transfer provenance inside the tranche-0 audit contract
 
-## Folder map
+It does **not** decide benchmark fold IDs, deployment environments, or
+final trainability.
 
-- `runtime/pipeline.py`
-  - main orchestration
-- `point/`
-  - applicability, thresholds, point evidence, point train labels
-- `v2/`
-  - same-Y and temporal-window label logic
-- `v6/`
-  - event and block label logic
-- `partitions/`
-  - base split context for intrinsic rule fitting
-- `reporting/`
-  - distributions, overlaps, examples, run manifest
-- `io/`
-  - load and write helpers
+## Output
 
-## Important boundary
+- point label artifacts
+  - `point/point_evidence_flags.parquet`
+  - `point/point_labels_detailed.parquet`
+  - `point/point_labels_train.parquet`
+- primary V2 label artifacts
+  - `v2/v2_same_y_labels.parquet`
+  - `v2/v2_temporal_labels_3h.parquet`
+- optional explicit V2 label artifacts
+  - `v2/v2_temporal_labels_8h.parquet`
+- optional explicit V6 label artifacts
+  - `v6/v6_event_labels.parquet`
+  - `v6/v6_b8_block_labels.parquet`
+- tranche-0 audit artifacts
+  - `audit/label_assignment.parquet`
+    - authoritative assignment provenance with `fired_rule_ids`,
+      `primary_fired_rule_id`, `resolution_id`, `assignment_mode`, and
+      transfer lineage fields
+  - `audit/rule_firings.parquet`
+    - condition-level rule and gate evaluation only; same-Y transfer is
+      not represented as a synthetic environmental firing
+  - `audit/rule_registry.csv`
+  - `audit/threshold_registry.csv`
+  - `audit/label_source_dependency.csv`
+- run-level scope aids
+  - `run_metadata/current_scope_summary.json`
+  - `ARTIFACT_GUIDE.md`
+- supporting audits and registries
 
-- `partitions/` here does not mean final fold authority for benchmark
-  training
-- `weak_labels` owns:
-  - intrinsic eligibility
-  - intrinsic exclusion
-  - weak label state
-- `evaluation_protocols` owns:
-  - fold ids
-  - deployment domains
-  - final trainability
+## Main Handoff
 
-## Read this next
-
-1. `main.py`
-2. `runtime/pipeline.py`
-3. `partitions/splitting.py`
-4. `point/artifacts.py`
-5. `v2/artifacts.py`
-6. `v6/artifacts.py`
-7. `reporting/audits.py`
+- downstream label authority for `evaluation_protocols`
+- downstream rule-trace authority for exact-rule validation and later
+  synthesis

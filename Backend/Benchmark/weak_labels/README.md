@@ -1,64 +1,192 @@
-# Weak Labels
+# `weak_labels`
 
-`Backend/Benchmark/weak_labels` is the weak-label authority lane for
-benchmark dataset construction from canonical telemetry.
+`weak_labels` is the label-authority lane for Benchmark.
 
-Its responsibilities are:
+If `dataset_views` prepares `X`, then `weak_labels` prepares `y`.
+Both read the same frozen Layer1 canonical evidence, but they own
+different contracts:
 
-- build versioned V0/V1 point weak labels;
-- build V2 same-Y and temporal weak labels;
-- build V6-E event labels and V6-B8 block labels;
-- preserve evidence and exclusion states separately from train labels;
-- preserve intrinsic applicability and intrinsic exclusion state;
-- emit auditable label artifacts without owning protocol split/fold
-  authority.
+- `dataset_views` owns feature meaning and feature artifacts
+- `weak_labels` owns label meaning, rule traces, and label artifacts
 
-It must not own:
+It does **not** own train/validation/test protocol boundaries, fold
+purge, environment assignment, or final runner trainability.
 
-- train / validation / test partitions;
-- fold ids;
-- deployment-domain roles such as `P1_SOURCE` / `P2_TARGET`;
-- purge logic or boundary exclusion created by an evaluation protocol.
+## Current Scope
 
-For V2 specifically, intrinsic weak-label eligibility covers window
-history sufficiency and point-label state only. Horizon-specific purge
-for fold boundaries is owned by `evaluation_protocols`, not by
-`weak_labels`.
+Current benchmark-primary weak-label scope:
 
-Artifact runs now use a grouped folder contract rather than placing all
-files at the run root.
+- `v0_point_train`
+- `v1_point_train`
+- `v2_same_y_3h`
+- `v2_temporal_3h`
 
-Current artifact layout:
+Optional explicit outputs still produced by the lane:
+
+- `v2_same_y_8h`
+- `v2_temporal_8h`
+- `v6_event`
+- `v6_b8_block`
+
+Important:
+
+- `weak_labels` does not consume `dataset_views` outputs
+- both lanes read the same frozen Layer1 canonical source
+- `evaluation_protocols` is the later layer that pairs feature views
+  with label tasks under a registered protocol contract
+
+## Input
+
+`weak_labels` reads:
+
+- frozen Layer1 canonical history
+- frozen Layer1 feature catalog
+- Layer1 manifest
+- segment manifest for continuity-aware and event/block label logic
+- weak-label runtime config such as:
+  - `base_split_strategy`
+  - `run_profile`
+  - `threshold_mode`
+
+It does not read `dataset_views` outputs directly.
+
+## This Layer Does
+
+`weak_labels` converts canonical evidence into auditable weak targets.
+
+Main responsibilities:
+
+- build point weak labels used by `v0` and `v1`
+- build V2 same-Y and temporal weak labels for `3h` and `8h`
+- build V6 event and block weak labels
+- keep technical invalidity separate from environmental label states
+- keep intrinsic label eligibility separate from downstream protocol
+  exclusions
+- emit condition-level rule traces and threshold provenance
+- keep tranche-0 assignment provenance explicit by separating:
+  - fired semantic rules
+  - gate / exclusion outcomes
+  - resolution IDs
+  - label-transfer lineage
+
+In short:
+
+- `dataset_views` answers: "what features exist for this row/window?"
+- `weak_labels` answers: "what weak target state does this row/window
+  receive, and why?"
+
+## Output
+
+Each run creates:
+
+- `Backend/Benchmark/weak_labels/artifacts/<run_id>/`
+
+The folder groups are:
 
 - `run_metadata/`
-  - run manifest and artifact catalog
+  - run provenance and artifact index
+  - key files:
+    - `run_manifest.json`
+    - `artifact_catalog.csv`
+    - `current_scope_summary.json`
 - `registries/`
-  - label ontology and dependency registry
+  - label ontology and label-dependency contracts
+  - key files:
+    - `label_registry.yaml`
+    - `label_dependency_registry.csv`
 - `point/`
-  - point evidence, detailed labels, train labels, technical audit
+  - point evidence and point weak labels for `v0` / `v1`
+  - key files:
+    - `point_evidence_flags.parquet`
+    - `point_labels_detailed.parquet`
+    - `point_labels_train.parquet`
+    - `technical_labels_audit.parquet`
 - `v2/`
-  - same-Y labels, temporal evidence, temporal labels, matched cohorts,
-    and 3h/8h agreement audit
+  - V2 same-Y and temporal weak labels
+  - key files:
+    - `v2_same_y_labels.parquet`
+    - `v2_temporal_evidence_3h.parquet`
+    - `v2_temporal_labels_3h.parquet`
+    - `v2_temporal_evidence_8h.parquet`
+    - `v2_temporal_labels_8h.parquet`
+    - `matched_cohort_manifest.parquet`
+    - `v2_label_agreement_3h_8h.csv`
 - `v6/`
-  - event labels, block composition, block labels, boundary-event audit
+  - V6 event and block weak labels
+  - key files:
+    - `v6_event_labels.parquet`
+    - `v6_b8_block_composition.parquet`
+    - `v6_b8_block_labels.parquet`
+    - `boundary_event_audit.parquet`
 - `audits/`
-  - label distributions, overlaps, exclusions, example rows
+  - high-level label summaries and example/exclusion tables
+  - key files:
+    - `label_distribution.csv`
+    - `label_overlap_matrix.csv`
+    - `excluded_samples_audit.csv`
+    - `label_examples.csv`
+- `audit/`
+  - tranche-0 scientific trace artifacts
+  - key files:
+    - `label_assignment.parquet`
+      - authoritative assignment provenance including
+        `fired_rule_ids`, `primary_fired_rule_id`, `resolution_id`,
+        `assignment_mode`, and transfer lineage fields
+    - `rule_firings.parquet`
+      - condition-level rule and gate evaluation only; same-Y transfer
+        does not appear here as a synthetic rule firing
+    - `rule_registry.csv`
+    - `threshold_registry.csv`
+    - `label_source_dependency.csv`
 - `threshold_diagnostics/`
   - threshold sensitivity diagnostics
+  - key file:
+    - `threshold_sensitivity.csv`
 
-Use `run_metadata/artifact_catalog.csv` as the single entrypoint for
-outside readers who need to understand which file is authoritative for
-which purpose.
+Run-level guide:
 
-For downstream training, `weak_labels` is only the label-state source.
-Runner-facing split/fold authority lives under
-`Backend/Benchmark/evaluation_protocols/.../primary_protocol/runner/`,
-especially:
+- `ARTIFACT_GUIDE.md`
 
-- `task_view_registry.csv`
-- `task_training_manifest.parquet`
+For outside readers, the single best entrypoint is:
 
-## Detailed Flow
+- `run_metadata/artifact_catalog.csv`
 
-For the implemented orchestration, artifact-writing order, and module
-read order, see [FLOW.md](FLOW.md).
+That file tells you which artifact is authoritative for which purpose.
+
+## What Downstream Layers Use
+
+The most important downstream handoff is:
+
+- sample-level weak targets
+- assignment / exclusion state
+- rule provenance
+- threshold provenance
+
+Typical downstream use:
+
+- `evaluation_protocols`
+  - combines weak-label authority with feature authority and protocol
+    authority
+- `model_suite`
+  - trains on the protocol-approved subset only
+- `validity_lifecycle`
+  - reads label dependencies and rule traces during synthesis and
+    ambiguity review
+
+## Commands
+
+Default run:
+
+```powershell
+python Backend\Benchmark\weak_labels\main.py
+```
+
+Example with explicit threshold mode:
+
+```powershell
+python Backend\Benchmark\weak_labels\main.py --threshold-mode TRAIN_FITTED_GLOBAL
+```
+
+## Flow
+
+For the short layer contract, see [FLOW.md](FLOW.md).
