@@ -8,7 +8,6 @@ ROOT_DIR = Path(__file__).resolve().parents[3]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from Backend.Benchmark.common.paths import WEAK_LABELS_ROOT
 from Backend.Benchmark.weak_labels.runtime import WeakLabelsConfig, build_weak_labels
 from Backend.Config.paths import BACKEND_PATHS
 
@@ -44,7 +43,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--output-root",
         type=Path,
-        default=WEAK_LABELS_ROOT / "artifacts",
+        default=BACKEND_PATHS.benchmark_dir / "weak_labels" / "artifacts",
         help="Output root for weak-label runs.",
     )
     parser.add_argument(

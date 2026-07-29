@@ -54,13 +54,9 @@ class LabelArtifactBundle:
     v2_temporal_evidence_8h: object
     v2_temporal_labels_3h: object
     v2_temporal_labels_8h: object
-    v6_event_labels: object
-    v6_b8_block_composition: object
-    v6_b8_block_labels: object
     base_split_assignments: object
     view_split_assignments: object
     matched_cohort_manifest: object
-    boundary_event_audit: object
     label_dependency_registry: object
     label_distribution: object
     label_overlap_matrix: object

@@ -10,11 +10,11 @@ from Backend.Benchmark.shared.weak_rules import (
 )
 from Backend.Benchmark.weak_labels.runtime.contracts import ThresholdRecord
 from Backend.Benchmark.weak_labels.shared.configs import (
+    MOISTURE_RISE_DELTA_PP,
+    PERSISTENT_LOW_RUN_MIN_STEPS,
+    THERMAL_EVIDENCE_THRESHOLD_KPA,
     THRESHOLD_MODE_TRAIN_FITTED_GLOBAL,
     THRESHOLD_MODE_TRAIN_FITTED_SEGMENT,
-    V6_LOW_RUN_MIN_STEPS,
-    V6_RISE_DELTA_PP,
-    V6_THERMAL_THRESHOLD_KPA,
     WEAK_LABELS_VERSION,
 )
 from Backend.Benchmark.weak_labels.shared.helpers import hash_dataframe_rows
@@ -63,7 +63,7 @@ def build_threshold_context(
             ),
             segment_scope="global",
             value=float(low_global.q10),
-            notes="Primary low-relative-moisture cutoff reused across point/V2/V6 labels.",
+            notes="Primary low-relative-moisture cutoff reused across point and V2 labels.",
         ),
     ]
     if threshold_mode == THRESHOLD_MODE_TRAIN_FITTED_SEGMENT:
@@ -122,8 +122,8 @@ def build_threshold_context(
                 fit_record_count=0,
                 fit_record_hash="fixed",
                 segment_scope="global",
-                value=float(V6_LOW_RUN_MIN_STEPS),
-                notes="Fixed persistence minimum for V2/V6.",
+                value=float(PERSISTENT_LOW_RUN_MIN_STEPS),
+                notes="Fixed persistence minimum for V2 temporal labels.",
             ),
             ThresholdRecord(
                 threshold_id="rapid_wetting_delta_pp",
@@ -134,7 +134,7 @@ def build_threshold_context(
                 fit_record_count=0,
                 fit_record_hash="fixed",
                 segment_scope="global",
-                value=float(V6_RISE_DELTA_PP),
+                value=float(MOISTURE_RISE_DELTA_PP),
                 notes="Fixed moisture-rise sensitivity threshold.",
             ),
             ThresholdRecord(
@@ -146,8 +146,8 @@ def build_threshold_context(
                 fit_record_count=0,
                 fit_record_hash="fixed",
                 segment_scope="global",
-                value=float(V6_THERMAL_THRESHOLD_KPA),
-                notes="Fixed thermal-dry-air threshold reused from V6.",
+                value=float(THERMAL_EVIDENCE_THRESHOLD_KPA),
+                notes="Fixed thermal-dry-air threshold for point evidence.",
             ),
         ]
     )

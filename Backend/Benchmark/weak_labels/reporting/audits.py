@@ -10,8 +10,6 @@ from Backend.Benchmark.weak_labels.shared.configs import (
     POINT_LABELS,
     PRIMARY_OUTPUT_FILES,
     V2_TEMPORAL_LABELS,
-    V6_BLOCK_LABELS,
-    V6_EVENT_LABELS,
     WEAK_LABELS_PIPELINE_NAME,
     WEAK_LABELS_VERSION,
 )
@@ -29,8 +27,6 @@ def build_label_registry() -> dict[str, object]:
             {"task_id": "v2_same_y_8h", "sample_type": "record", "labels": list(POINT_LABELS)},
             {"task_id": "v2_temporal_3h", "sample_type": "record", "labels": list(V2_TEMPORAL_LABELS)},
             {"task_id": "v2_temporal_8h", "sample_type": "record", "labels": list(V2_TEMPORAL_LABELS)},
-            {"task_id": "v6_event", "sample_type": "event", "labels": list(V6_EVENT_LABELS)},
-            {"task_id": "v6_b8_block", "sample_type": "block", "labels": list(V6_BLOCK_LABELS)},
         ],
         "output_files": list(PRIMARY_OUTPUT_FILES),
     }
@@ -58,20 +54,6 @@ def build_label_dependency_registry() -> pd.DataFrame:
             "direct_source_fields": "record.id|npk.soil_moisture_pct",
             "proxy_fields": "v2_window_audit",
             "notes": "Temporal persistence reuses point low predicate plus causal low-run ending at anchor.",
-        },
-        {
-            "task_id": "v6_event",
-            "label_name": "persistent_low_relative_moisture_event",
-            "direct_source_fields": "npk.soil_moisture_pct",
-            "proxy_fields": "",
-            "notes": "Event persistence is built from maximal valid low runs.",
-        },
-        {
-            "task_id": "v6_b8_block",
-            "label_name": "persistent_low_relative_moisture_block",
-            "direct_source_fields": "",
-            "proxy_fields": "v6_event_overlap",
-            "notes": "Block labels are derived from event overlap, not row-majority voting.",
         },
     ]
     return pd.DataFrame(rows).convert_dtypes()

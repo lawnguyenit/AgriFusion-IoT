@@ -10,10 +10,10 @@ from Backend.Benchmark.weak_labels.shared.configs import (
     LABEL_STATUS_ABSTAIN,
     LABEL_STATUS_EXCLUDED_TIME,
     LABEL_STATUS_LABELED,
+    MOISTURE_RISE_DELTA_PP,
     POINT_LABELS,
     POINT_SENSITIVITY_LABEL,
-    V6_RISE_DELTA_PP,
-    V6_THERMAL_THRESHOLD_KPA,
+    THERMAL_EVIDENCE_THRESHOLD_KPA,
 )
 from Backend.Benchmark.weak_labels.shared.helpers import json_dumps_compact
 
@@ -56,10 +56,10 @@ def build_point_label_artifacts(
         )
         thermal_flag = bool(row.get("thermal_applicable", False)) and (
             pd.to_numeric(pd.Series([row.get("derived.vpd_kpa")]), errors="coerce").iloc[0]
-            >= V6_THERMAL_THRESHOLD_KPA
+            >= THERMAL_EVIDENCE_THRESHOLD_KPA
         )
         rise_delta = pd.to_numeric(pd.Series([row.get("moisture_rise_delta")]), errors="coerce").iloc[0]
-        rise_flag = bool(row.get("moisture_rise_applicable", False)) and pd.notna(rise_delta) and float(rise_delta) >= V6_RISE_DELTA_PP
+        rise_flag = bool(row.get("moisture_rise_applicable", False)) and pd.notna(rise_delta) and float(rise_delta) >= MOISTURE_RISE_DELTA_PP
         ec_delta = pd.to_numeric(pd.Series([row.get("ec_shift_delta_abs")]), errors="coerce").iloc[0]
         ec_flag = (
             bool(row.get("ec_shift_applicable", False))
