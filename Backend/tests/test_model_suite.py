@@ -12,6 +12,8 @@ from Backend.Benchmark.model_suite.cli import build_parser
 from Backend.Benchmark.model_suite.config import TRAINING_PROFILES_PATH
 from Backend.Benchmark.model_suite.contracts import ModelUnavailableError
 from Backend.Benchmark.model_suite.data import list_training_profiles
+from Backend.Benchmark.model_suite.data.scope_resolver import load_stage_specs_for_profile
+from Backend.Benchmark.model_suite.pipeline.guides import write_run_guides
 from Backend.Benchmark.model_suite.pipeline.training_job import train_tabular_classifier
 from Backend.Benchmark.model_suite.registries import (
     DEFAULT_ARTIFACT_ROOT,
@@ -47,6 +49,50 @@ class ModelSuiteTests(unittest.TestCase):
         self.assertIn("phase1_primary_comparisons", profiles)
         self.assertIn("phase2_frozen_target_holdout", profiles)
         self.assertIn("full_benchmark_v0_v2", profiles)
+
+    def test_primary_profiles_align_to_current_3h_public_scope(self) -> None:
+        for profile_name in (
+            "smoke_phase1_protocol",
+            "phase1_primary_tasks",
+            "phase1_primary_comparisons",
+            "phase2_frozen_target_holdout",
+            "full_benchmark_v0_v2",
+        ):
+            stage_specs = load_stage_specs_for_profile(TRAINING_PROFILES_PATH, profile_name)
+            for stage_spec in stage_specs:
+                feature_views = {str(value) for value in stage_spec.get("feature_views", [])}
+                comparison_ids = {str(value) for value in stage_spec.get("comparison_ids", [])}
+                self.assertNotIn("v2_same_y_mini_8h", feature_views)
+                self.assertNotIn("v2_same_y_full_8h", feature_views)
+                self.assertNotIn("v0_vs_v2_mini_8h", comparison_ids)
+                self.assertNotIn("v1_vs_v2_full_8h", comparison_ids)
+
+    def test_profile_run_guides_are_written(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_dir = Path(temp_dir) / "model_suite_run"
+            (output_dir / "profiles" / "phase1_primary_tasks" / "jobs").mkdir(parents=True, exist_ok=True)
+
+            rows = write_run_guides(output_dir=output_dir, profile_name="phase1_primary_tasks")
+
+            self.assertTrue((output_dir / "ARTIFACT_GUIDE.md").exists())
+            self.assertTrue((output_dir / "profiles" / "README.md").exists())
+            self.assertTrue((output_dir / "profiles" / "phase1_primary_tasks" / "README.md").exists())
+            self.assertTrue((output_dir / "profiles" / "phase1_primary_tasks" / "jobs" / "README.md").exists())
+            self.assertIn("artifact_guide", {str(row["role"]) for row in rows})
+            self.assertIn("profile_run_guide", {str(row["role"]) for row in rows})
+            self.assertIn("job_group_guide", {str(row["role"]) for row in rows})
+
+    def test_smoke_run_guides_are_written(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_dir = Path(temp_dir) / "model_suite_run"
+            (output_dir / "smoke_protocol").mkdir(parents=True, exist_ok=True)
+
+            rows = write_run_guides(output_dir=output_dir, profile_name="smoke_phase1_protocol")
+
+            self.assertTrue((output_dir / "ARTIFACT_GUIDE.md").exists())
+            self.assertTrue((output_dir / "smoke_protocol" / "README.md").exists())
+            self.assertIn("artifact_guide", {str(row["role"]) for row in rows})
+            self.assertIn("smoke_protocol_guide", {str(row["role"]) for row in rows})
 
     def test_model_catalog_exposes_registered_model_keys(self) -> None:
         model_keys = {profile.model_key for profile in list_model_profiles()}

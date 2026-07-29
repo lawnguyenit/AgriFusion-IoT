@@ -37,6 +37,10 @@ class DatasetViewsSelectionTests(unittest.TestCase):
                     "npk.soil_temp_c",
                     "npk.soil_moisture_pct",
                     "npk.ec",
+                    "npk.ph",
+                    "npk.n_proxy",
+                    "npk.p_proxy",
+                    "npk.k_proxy",
                 ],
             )
 
@@ -63,12 +67,25 @@ class DatasetViewsSelectionTests(unittest.TestCase):
                     "npk.soil_temp_c",
                     "npk.soil_moisture_pct",
                     "npk.ec",
-                    "npk.ph",
-                    "npk.n_proxy",
-                    "npk.p_proxy",
-                    "npk.k_proxy",
                 ],
             )
+
+    def test_v1_contains_no_extra_measurement_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            fixture = create_dataset_views_fixture(Path(temp_dir))
+            result = materialize_dataset_views(
+                MaterializationConfig(
+                    canonical_history_path=fixture["canonical_path"],
+                    feature_catalog_path=fixture["catalog_path"],
+                    manifest_path=fixture["manifest_path"],
+                    output_root=Path(temp_dir) / "artifacts",
+                    mode="feature-only",
+                    selected_views=("v1_sensor_row",),
+                )
+            )
+
+            dataframe = pd.read_parquet(result.output_dir / "views" / "v1_sensor_row" / "X.parquet")
+            self.assertTrue({"npk.ph", "npk.n_proxy", "npk.p_proxy", "npk.k_proxy"}.isdisjoint(dataframe.columns))
 
     def test_v1_contains_no_diagnostic_or_metadata_fields(self) -> None:
         blocked = {
@@ -108,7 +125,7 @@ class DatasetViewsSelectionTests(unittest.TestCase):
             dataframe = pd.read_parquet(result.output_dir / "views" / "v1_sensor_row" / "X.parquet")
             self.assertTrue(blocked.isdisjoint(dataframe.columns))
 
-    def test_proxy_reduced_draft_is_not_named_v6(self) -> None:
+    def test_current_run_does_not_materialize_proxy_reduced_draft(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             fixture = create_dataset_views_fixture(Path(temp_dir))
             result = materialize_dataset_views(
@@ -123,36 +140,7 @@ class DatasetViewsSelectionTests(unittest.TestCase):
             )
 
             self.assertFalse((result.output_dir / "views" / "v6_event_level").exists())
-            self.assertTrue((result.output_dir / "views" / "v5_proxy_reduced_draft").exists())
-            manifest = json.loads(
-                (result.output_dir / "views" / "v5_proxy_reduced_draft" / "manifest.json").read_text(encoding="utf-8")
-            )
-            self.assertEqual(manifest["status"], "INVALID_INDEPENDENT_VIEW")
-
-    def test_proxy_reduced_draft_matches_v0_features_and_hash(self) -> None:
-        with tempfile.TemporaryDirectory() as temp_dir:
-            fixture = create_dataset_views_fixture(Path(temp_dir))
-            result = materialize_dataset_views(
-                MaterializationConfig(
-                    canonical_history_path=fixture["canonical_path"],
-                    feature_catalog_path=fixture["catalog_path"],
-                    manifest_path=fixture["manifest_path"],
-                    output_root=Path(temp_dir) / "artifacts",
-                    mode="feature-only",
-                    selected_views=("v0_minimal_sensor",),
-                )
-            )
-
-            v0_manifest = json.loads(
-                (result.output_dir / "views" / "v0_minimal_sensor" / "manifest.json").read_text(encoding="utf-8")
-            )
-            draft_manifest = json.loads(
-                (result.output_dir / "views" / "v5_proxy_reduced_draft" / "manifest.json").read_text(encoding="utf-8")
-            )
-            self.assertEqual(v0_manifest["ordered_feature_list"], draft_manifest["ordered_feature_list"])
-            self.assertEqual(v0_manifest["x_data_hash"], draft_manifest["x_data_hash"])
-            self.assertTrue(draft_manifest["invalid_independent_view_reason"]["ordered_feature_equality_with_v0"])
-            self.assertTrue(draft_manifest["invalid_independent_view_reason"]["x_hash_equality_with_v0"])
+            self.assertFalse((result.output_dir / "views" / "v5_proxy_reduced_draft").exists())
 
     def test_semantic_view_names_are_unique(self) -> None:
         view_ids = [entry.semantic_view_id for entry in taxonomy_entries()]
@@ -169,7 +157,7 @@ class DatasetViewsSelectionTests(unittest.TestCase):
     def test_legacy_names_are_rejected_with_targeted_error(self) -> None:
         with self.assertRaisesRegex(ValueError, "Use 'v1_sensor_row'"):
             resolve_view_id("v1_full_sensor")
-        with self.assertRaisesRegex(ValueError, "v5_proxy_reduced_draft"):
+        with self.assertRaisesRegex(ValueError, "No current public replacement exists"):
             resolve_view_id("v6_proxy_reduced")
         with self.assertRaisesRegex(ValueError, "Use 'v6_sequence_8h'"):
             resolve_view_id("v6_event_level")
@@ -185,6 +173,12 @@ class DatasetViewsSelectionTests(unittest.TestCase):
         self.assertEqual(
             resolve_view_ids(("v6",)),
             ("v6_sequence_8h",),
+        )
+
+    def test_v2_alias_resolves_only_primary_3h_views(self) -> None:
+        self.assertEqual(
+            resolve_view_ids(("v2",)),
+            ("v2_minimal_sensor_window_3h", "v2_sensor_row_window_3h"),
         )
 
 

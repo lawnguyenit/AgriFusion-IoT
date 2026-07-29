@@ -15,6 +15,14 @@ from Backend.Benchmark.evaluation_protocols.pipeline.consumption import (
     build_task_training_manifest,
     load_dataset_view_feature_artifacts,
 )
+from Backend.Benchmark.evaluation_protocols.pipeline.layout import (
+    build_artifact_catalog,
+    build_evaluation_artifact_layout,
+)
+from Backend.Benchmark.evaluation_protocols.pipeline.tranche0_contracts import (
+    build_comparison_registry,
+    build_e1_fold_registry,
+)
 from Backend.Benchmark.evaluation_protocols.pipeline.reporting import write_benchmark_readiness_report
 from Backend.Benchmark.evaluation_protocols.lineage.v6_partitions import build_fold_v6_event_assignments
 
@@ -485,6 +493,72 @@ class EvaluationProtocolsTests(unittest.TestCase):
             {"v0_point", "v2_same_y_mini_3h"},
         )
         self.assertTrue(validation_df["count_assertion_passed"].astype(bool).all())
+
+    def test_e1_fold_registry_marks_locked_primary_folds_by_fold_id(self) -> None:
+        tz = "Asia/Ho_Chi_Minh"
+        fold_specs = [
+            RollingFoldSpec(
+                fold_id="fold_01",
+                train_start=pd.Timestamp("2026-04-01 00:00:00", tz=tz),
+                train_end=pd.Timestamp("2026-04-16 00:00:00", tz=tz),
+                validation_start=pd.Timestamp("2026-04-16 00:00:00", tz=tz),
+                validation_end=pd.Timestamp("2026-04-21 00:00:00", tz=tz),
+                test_start=pd.Timestamp("2026-04-21 00:00:00", tz=tz),
+                test_end=pd.Timestamp("2026-04-26 00:00:00", tz=tz),
+                fold_status="full_candidate",
+            ),
+            RollingFoldSpec(
+                fold_id="fold_03",
+                train_start=pd.Timestamp("2026-04-01 00:00:00", tz=tz),
+                train_end=pd.Timestamp("2026-04-26 00:00:00", tz=tz),
+                validation_start=pd.Timestamp("2026-04-26 00:00:00", tz=tz),
+                validation_end=pd.Timestamp("2026-05-01 00:00:00", tz=tz),
+                test_start=pd.Timestamp("2026-05-01 00:00:00", tz=tz),
+                test_end=pd.Timestamp("2026-05-06 00:00:00", tz=tz),
+                fold_status="partial_stress",
+            ),
+            RollingFoldSpec(
+                fold_id="fold_04",
+                train_start=pd.Timestamp("2026-04-01 00:00:00", tz=tz),
+                train_end=pd.Timestamp("2026-05-01 00:00:00", tz=tz),
+                validation_start=pd.Timestamp("2026-05-01 00:00:00", tz=tz),
+                validation_end=pd.Timestamp("2026-05-06 00:00:00", tz=tz),
+                test_start=pd.Timestamp("2026-05-06 00:00:00", tz=tz),
+                test_end=pd.Timestamp("2026-05-11 00:00:00", tz=tz),
+                fold_status="full_candidate",
+            ),
+        ]
+
+        registry = build_e1_fold_registry(
+            fold_specs=fold_specs,
+            threshold_fit_manifest_hash="threshold_hash",
+            preprocessing_fit_manifest_hash="preprocess_hash",
+        )
+
+        statuses = registry.set_index("fold_id")["analysis_status"].astype("string").to_dict()
+        self.assertEqual(statuses["fold_01"], "PRIMARY_LOCKED")
+        self.assertEqual(statuses["fold_03"], "PRIMARY_LOCKED")
+        self.assertEqual(statuses["fold_04"], "SECONDARY_EXPLORATORY")
+
+    def test_comparison_registry_marks_8h_history_as_sensitivity_only(self) -> None:
+        comparison_registry = build_comparison_registry()
+        status_lookup = comparison_registry.set_index("comparison_id")["analysis_status"].astype("string").to_dict()
+
+        self.assertEqual(status_lookup["CMP_HISTORY_MINI_3H"], "PRIMARY_LOCKED")
+        self.assertEqual(status_lookup["CMP_HISTORY_FULL_3H"], "PRIMARY_LOCKED")
+        self.assertEqual(status_lookup["CMP_HISTORY_MINI_8H"], "SENSITIVITY_ONLY")
+        self.assertEqual(status_lookup["CMP_HISTORY_FULL_8H"], "SENSITIVITY_ONLY")
+
+    def test_artifact_catalog_includes_reader_guides(self) -> None:
+        layout = build_evaluation_artifact_layout(Path("D:/fake-evaluation-protocol-run"))
+        catalog = pd.DataFrame(build_artifact_catalog(layout)).convert_dtypes()
+        paths = set(catalog["path"].astype("string").tolist())
+
+        self.assertIn(str(layout.root / "ARTIFACT_GUIDE.md"), paths)
+        self.assertIn(str(layout.run_metadata / "README.md"), paths)
+        self.assertIn(str(layout.domain_manifests / "README.md"), paths)
+        self.assertIn(str(layout.primary_protocol / "README.md"), paths)
+        self.assertIn(str(layout.primary_runner / "README.md"), paths)
 
     def test_write_benchmark_readiness_report_summarizes_scope_and_v2_gap(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
