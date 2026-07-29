@@ -15,14 +15,13 @@ flowchart LR
 - Layer1 manifest
 - segment manifest when a selected view needs continuity-aware windows
 - optional explicit label artifact in `benchmark-ready` mode
-- optional explicit legacy audit run only when a historical taxonomy
-  comparison is requested
 
 ## This Layer Does
 
-- materialize the current public benchmark scope:
-  `v0`, `v1`, and `v2-3h`
-- allow optional explicit materialization of `v2-8h`, `v3`, and `v6`
+- materialize the active benchmark feature scope:
+  `v0`, `v1`, and `v2`
+- reject removed `v3`, `v5`, and `v6` family requests at view
+  resolution time
 - publish one shared sample universe and one shared feature-lineage
   contract so downstream layers read the same rows and feature meanings
 - write short artifact guides so the run explains itself in place
@@ -52,8 +51,6 @@ status.
   - `views/<view_id>/feature_lineage.json`
 - scope reports
   - `reports/current_scope_taxonomy_report.json`
-  - `reports/legacy_taxonomy_drift_audit.json` only when explicitly
-    requested
 
 ## Main Handoff
 

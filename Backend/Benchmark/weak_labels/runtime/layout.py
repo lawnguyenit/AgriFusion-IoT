@@ -11,7 +11,6 @@ class WeakLabelsArtifactLayout:
     registries: Path
     point: Path
     v2: Path
-    v6: Path
     audits: Path
     audit: Path
     threshold_diagnostics: Path
@@ -22,7 +21,6 @@ class WeakLabelsArtifactLayout:
             self.registries,
             self.point,
             self.v2,
-            self.v6,
             self.audits,
             self.audit,
             self.threshold_diagnostics,
@@ -37,7 +35,6 @@ def build_weak_labels_artifact_layout(root: Path) -> WeakLabelsArtifactLayout:
         registries=root / "registries",
         point=root / "point",
         v2=root / "v2",
-        v6=root / "v6",
         audits=root / "audits",
         audit=root / "audit",
         threshold_diagnostics=root / "threshold_diagnostics",
@@ -164,34 +161,6 @@ def build_artifact_catalog(layout: WeakLabelsArtifactLayout) -> list[dict[str, s
             "role": "horizon_agreement_audit",
             "usage": "agreement summary between 3h and 8h temporal outputs",
             "scope_role": "shared",
-        },
-        {
-            "artifact_group": "v6",
-            "path": str(layout.v6 / "v6_event_labels.parquet"),
-            "role": "v6_event_labels",
-            "usage": "authoritative V6-E event labels",
-            "scope_role": "OPTIONAL_EXPLICIT",
-        },
-        {
-            "artifact_group": "v6",
-            "path": str(layout.v6 / "v6_b8_block_composition.parquet"),
-            "role": "v6_block_composition",
-            "usage": "event-overlap composition of fixed local-time blocks",
-            "scope_role": "OPTIONAL_EXPLICIT",
-        },
-        {
-            "artifact_group": "v6",
-            "path": str(layout.v6 / "v6_b8_block_labels.parquet"),
-            "role": "v6_block_labels",
-            "usage": "authoritative V6-B8 block labels",
-            "scope_role": "OPTIONAL_EXPLICIT",
-        },
-        {
-            "artifact_group": "v6",
-            "path": str(layout.v6 / "boundary_event_audit.parquet"),
-            "role": "v6_boundary_audit",
-            "usage": "boundary-crossing event exclusions",
-            "scope_role": "OPTIONAL_EXPLICIT",
         },
         {
             "artifact_group": "audits",

@@ -91,46 +91,6 @@ def validate_label_join(row_index_df: pd.DataFrame, labels_df: pd.DataFrame, key
     return merged
 
 
-def validate_v6_proxy_exclusion(selected_features: list[str], dependency_registry: dict[str, object]) -> None:
-    blocked_types = {"DIRECT_RULE_SOURCE", "DERIVED_RULE_PROXY", "CORRELATED_SURROGATE", "IDENTIFIER", "SPLIT_ONLY", "AUDIT_ONLY"}
-    leaking_features = sorted(
-        feature_name
-        for feature_name in selected_features
-        if getattr(dependency_registry.get(feature_name), "dependency_type", None) in blocked_types
-    )
-    if leaking_features:
-        raise ValueError(
-            "v6_proxy_reduced still contains blocked proxy-bearing features: " + ", ".join(leaking_features)
-        )
-
-
-def validate_episode_artifact_contract(artifact_path: Path | None, required_columns: tuple[str, ...]) -> None:
-    if artifact_path is None or not artifact_path.exists():
-        raise ValueError(
-            "v6_event_level requires an explicit episode artifact with columns: "
-            + ", ".join(required_columns)
-        )
-
-    suffix = artifact_path.suffix.lower()
-    if suffix == ".parquet":
-        dataframe = pd.read_parquet(artifact_path)
-    elif suffix == ".csv":
-        dataframe = pd.read_csv(artifact_path)
-    else:
-        raise ValueError(
-            f"Unsupported episode artifact format '{artifact_path.suffix}'. Use .parquet or .csv."
-        )
-
-    missing_columns = [column for column in required_columns if column not in dataframe.columns]
-    if missing_columns:
-        raise ValueError(
-            "v6_event_level episode artifact is missing required columns: "
-            + ", ".join(missing_columns)
-        )
-    if "episode_id" in dataframe.columns and "record.segment_id" in dataframe.columns:
-        raise ValueError("Episode artifacts must not use 'record.segment_id' as the episode identifier.")
-
-
 def validate_no_infinite_values(dataframe: pd.DataFrame, artifact_name: str) -> None:
     numeric = dataframe.select_dtypes(include=["number", "floating", "integer"])
     if numeric.empty:

@@ -13,11 +13,8 @@ PRIMARY_PUBLIC_SCOPE_VIEW_IDS: tuple[str, ...] = (
     "v0_minimal_sensor",
     "v1_sensor_row",
     "v2_minimal_sensor_window_3h",
-    "v2_sensor_row_window_3h",
-)
-
-OPTIONAL_EXPLICIT_VIEW_IDS: tuple[str, ...] = (
     "v2_minimal_sensor_window_8h",
+    "v2_sensor_row_window_3h",
     "v2_sensor_row_window_8h",
 )
 
@@ -30,9 +27,14 @@ def build_current_scope_taxonomy_report_payload(selected_view_ids: tuple[str, ..
         "default_alias_resolution": {
             "v0": ["v0_minimal_sensor"],
             "v1": ["v1_sensor_row"],
-            "v2": ["v2_minimal_sensor_window_3h", "v2_sensor_row_window_3h"],
+            "v2": [
+                "v2_minimal_sensor_window_3h",
+                "v2_minimal_sensor_window_8h",
+                "v2_sensor_row_window_3h",
+                "v2_sensor_row_window_8h",
+            ],
         },
-        "optional_explicit_views": list(OPTIONAL_EXPLICIT_VIEW_IDS),
+        "optional_explicit_views": [],
         "selected_views": [_selected_view_summary(view_id) for view_id in selected_view_ids],
     }
 
@@ -46,5 +48,5 @@ def _selected_view_summary(view_id: str) -> dict[str, object]:
         "grain": taxonomy_entry.grain,
         "selection_kind": taxonomy_entry.selection_kind,
         "description": view_definition.description,
-        "scope_role": "PRIMARY_PUBLIC_SCOPE" if view_id in PRIMARY_PUBLIC_SCOPE_VIEW_IDS else "OPTIONAL_EXPLICIT",
+        "scope_role": "PRIMARY_PUBLIC_SCOPE",
     }

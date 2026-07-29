@@ -17,9 +17,9 @@ flowchart LR
 
 ## This Layer Does
 
-- generate the weak-label targets for point, V2, and optional V6 tasks
+- generate the weak-label targets for point and V2 tasks
 - keep the current primary public scope centered on point labels and
-  `v2-3h`, while still allowing explicit `8h` and `v6` outputs
+  `v2-3h`, while still allowing explicit `8h` outputs
 - keep intrinsic eligibility and exclusion separate from downstream
   protocol decisions
 - publish condition-level rule traces and threshold provenance for
@@ -36,14 +36,10 @@ final trainability.
   - `point/point_evidence_flags.parquet`
   - `point/point_labels_detailed.parquet`
   - `point/point_labels_train.parquet`
-- primary V2 label artifacts
+- V2 label artifacts
   - `v2/v2_same_y_labels.parquet`
   - `v2/v2_temporal_labels_3h.parquet`
-- optional explicit V2 label artifacts
   - `v2/v2_temporal_labels_8h.parquet`
-- optional explicit V6 label artifacts
-  - `v6/v6_event_labels.parquet`
-  - `v6/v6_b8_block_labels.parquet`
 - tranche-0 audit artifacts
   - `audit/label_assignment.parquet`
     - authoritative assignment provenance with `fired_rule_ids`,
