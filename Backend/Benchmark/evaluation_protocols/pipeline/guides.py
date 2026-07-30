@@ -27,7 +27,7 @@ def build_root_artifact_guide() -> str:
             "- `transport_diagnostics/`: raw and standardized P1-to-P2 drift checks",
             "- `threshold_diagnostics/`: frozen threshold policy and sensitivity outputs",
             "- `validity_diagnostics/`: representation and estimability audits above the raw manifests",
-            "- `dependency_manifests/` and `v6_lineage_audits/`: supporting scientific audits",
+            "- `dependency_manifests/`: supporting scientific audits",
             "",
             "## Read Order",
             "1. `run_metadata/artifact_catalog.csv`",
@@ -102,7 +102,7 @@ def build_primary_protocol_readme() -> str:
             "## Output",
             "- `folds/`: base and view-aware split assignments",
             "- `cohorts/`: matched same-Y cohort manifests",
-            "- `lineage/`: support files explaining exclusions and deferred V6 lineage",
+            "- `lineage/`: support files explaining fold and assignment exclusions",
             "- `runner/`: actual downstream training manifests and contracts",
         ]
     )
@@ -227,26 +227,6 @@ def build_dependency_manifests_readme() -> str:
             "- `proxy_reduced_features.csv`: reduced feature list after removing direct rule sources",
         ]
     )
-
-
-def build_v6_lineage_readme() -> str:
-    return "\n".join(
-        [
-            "# V6 Lineage Audits",
-            "",
-            "## Input",
-            "- deferred V6 event or block labels and segment-boundary lineage checks",
-            "",
-            "## This Folder Does",
-            "- document why V6 is deferred from the current benchmark-primary lane and audit the episode-selection logic",
-            "",
-            "## Output",
-            "- `v6_normal_candidate_audit.parquet`: candidate normal episodes before selection",
-            "- `v6_normal_selection_audit.csv`: selected episodes and any matching issues",
-        ]
-    )
-
-
 def write_artifact_guides(layout: EvaluationArtifactLayout) -> None:
     (layout.root / "ARTIFACT_GUIDE.md").write_text(build_root_artifact_guide() + "\n", encoding="utf-8")
     (layout.run_metadata / "README.md").write_text(build_run_metadata_readme() + "\n", encoding="utf-8")
@@ -258,4 +238,3 @@ def write_artifact_guides(layout: EvaluationArtifactLayout) -> None:
     (layout.threshold_diagnostics / "README.md").write_text(build_threshold_diagnostics_readme() + "\n", encoding="utf-8")
     (layout.validity_diagnostics / "README.md").write_text(build_validity_diagnostics_readme() + "\n", encoding="utf-8")
     (layout.dependency_manifests / "README.md").write_text(build_dependency_manifests_readme() + "\n", encoding="utf-8")
-    (layout.v6_lineage_audits / "README.md").write_text(build_v6_lineage_readme() + "\n", encoding="utf-8")

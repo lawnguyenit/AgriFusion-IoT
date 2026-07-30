@@ -25,8 +25,6 @@ Optional explicit outputs still produced by the lane:
 
 - `v2_same_y_8h`
 - `v2_temporal_8h`
-- `v6_event`
-- `v6_b8_block`
 
 Important:
 
@@ -42,7 +40,7 @@ Important:
 - frozen Layer1 canonical history
 - frozen Layer1 feature catalog
 - Layer1 manifest
-- segment manifest for continuity-aware and event/block label logic
+- segment manifest for continuity-aware label logic
 - weak-label runtime config such as:
   - `base_split_strategy`
   - `run_profile`
@@ -58,7 +56,6 @@ Main responsibilities:
 
 - build point weak labels used by `v0` and `v1`
 - build V2 same-Y and temporal weak labels for `3h` and `8h`
-- build V6 event and block weak labels
 - keep technical invalidity separate from environmental label states
 - keep intrinsic label eligibility separate from downstream protocol
   exclusions
@@ -111,13 +108,6 @@ The folder groups are:
     - `v2_temporal_labels_8h.parquet`
     - `matched_cohort_manifest.parquet`
     - `v2_label_agreement_3h_8h.csv`
-- `v6/`
-  - V6 event and block weak labels
-  - key files:
-    - `v6_event_labels.parquet`
-    - `v6_b8_block_composition.parquet`
-    - `v6_b8_block_labels.parquet`
-    - `boundary_event_audit.parquet`
 - `audits/`
   - high-level label summaries and example/exclusion tables
   - key files:

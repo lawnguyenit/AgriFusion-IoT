@@ -135,8 +135,6 @@ def build_p2_holdout_view_assignments(
     same_y_labels: pd.DataFrame,
     temporal_3h_labels: pd.DataFrame,
     temporal_8h_labels: pd.DataFrame,
-    v6_events: pd.DataFrame,
-    v6_blocks: pd.DataFrame,
 ) -> list[dict[str, object]]:
     rows: list[dict[str, object]] = []
     for frame, view_id, group_by_record, purge_minutes in (
@@ -146,24 +144,16 @@ def build_p2_holdout_view_assignments(
         (same_y_labels.loc[same_y_labels["task_id"] == "v2_same_y_8h"], "v2_same_y_8h", True, 480),
         (temporal_3h_labels, "v2_temporal_3h", True, 180),
         (temporal_8h_labels, "v2_temporal_8h", True, 480),
-        (v6_events, "v6_event", False, 0),
-        (v6_blocks, "v6_b8_block", False, 0),
     ):
         source_rows = frame.loc[frame["deployment_domain_name"].astype("string") == "P2_TARGET"].copy()
         for row in source_rows.itertuples(index=False):
             intrinsic_eligible = bool(getattr(row, "intrinsic_eligibility", str(row.label_status) == "LABELED"))
             effective = "target_test" if str(row.label_status) == "LABELED" and intrinsic_eligible else "excluded"
-            if view_id == "v6_event" and effective == "target_test":
-                start_local = pd.Timestamp(str(row.event_start_local))
-                end_local = pd.Timestamp(str(row.event_end_local))
-                if start_local > end_local:
-                    raise ValueError(f"P2 V6 event {row.sample_id} has start after end.")
             sample_id = str(row.sample_id)
-            record_id = sample_id if group_by_record else pd.NA
             rows.append(
                 {
                     "sample_id": sample_id,
-                    "record_id": record_id,
+                    "record_id": sample_id,
                     "view_id": view_id,
                     "protocol_view_id": view_id,
                     "fold_id": "p2_target_holdout",

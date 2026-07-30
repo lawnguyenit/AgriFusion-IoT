@@ -3,7 +3,7 @@ from __future__ import annotations
 from Backend.Benchmark.dataset_views.contracts import TaxonomyEntry
 
 
-TAXONOMY_VERSION = "2026-07-27.current-public-scope-v0-v1-v2-3h"
+TAXONOMY_VERSION = "2026-07-29.v0-v1-v2-active"
 
 _REGISTRY: tuple[TaxonomyEntry, ...] = (
     TaxonomyEntry(
@@ -14,7 +14,7 @@ _REGISTRY: tuple[TaxonomyEntry, ...] = (
         grain="row",
         selection_kind="explicit_measurements",
         public_selectable=True,
-        notes="Approved full snapshot measurement view with nine sensor features. The legacy semantic id is retained for continuity.",
+        notes="Approved minimal sensor measurement view.",
     ),
     TaxonomyEntry(
         semantic_view_id="v1_sensor_row",
@@ -24,7 +24,7 @@ _REGISTRY: tuple[TaxonomyEntry, ...] = (
         grain="row",
         selection_kind="explicit_measurements",
         public_selectable=True,
-        notes="Approved reduced snapshot measurement view with air/soil temperature, soil moisture, and EC only. The legacy semantic id is retained for continuity.",
+        notes="Approved nine-feature sensor-row measurement view.",
     ),
     TaxonomyEntry(
         semantic_view_id="v2_minimal_sensor_window_3h",
@@ -34,7 +34,7 @@ _REGISTRY: tuple[TaxonomyEntry, ...] = (
         grain="window",
         selection_kind="engineered_window",
         public_selectable=True,
-        notes="Reduced five-feature snapshot with only the 3h observed-only continuity-aware temporal block.",
+        notes="Minimal sensor set with ISR plus only the 3h observed-only continuity-aware temporal block.",
     ),
     TaxonomyEntry(
         semantic_view_id="v2_minimal_sensor_window_8h",
@@ -44,7 +44,7 @@ _REGISTRY: tuple[TaxonomyEntry, ...] = (
         grain="window",
         selection_kind="engineered_window",
         public_selectable=True,
-        notes="Reduced five-feature snapshot with only the 8h observed-only continuity-aware temporal block.",
+        notes="Minimal sensor set with ISR plus only the 8h observed-only continuity-aware temporal block.",
     ),
     TaxonomyEntry(
         semantic_view_id="v2_sensor_row_window_3h",
@@ -54,7 +54,7 @@ _REGISTRY: tuple[TaxonomyEntry, ...] = (
         grain="window",
         selection_kind="engineered_window",
         public_selectable=True,
-        notes="Full nine-feature snapshot with only the 3h observed-only continuity-aware temporal block.",
+        notes="Nine-feature sensor-row set with ISR plus only the 3h observed-only continuity-aware temporal block.",
     ),
     TaxonomyEntry(
         semantic_view_id="v2_sensor_row_window_8h",
@@ -64,7 +64,7 @@ _REGISTRY: tuple[TaxonomyEntry, ...] = (
         grain="window",
         selection_kind="engineered_window",
         public_selectable=True,
-        notes="Full nine-feature snapshot with only the 8h observed-only continuity-aware temporal block.",
+        notes="Nine-feature sensor-row set with ISR plus only the 8h observed-only continuity-aware temporal block.",
     ),
     TaxonomyEntry(
         semantic_view_id="v2_sensor_window",
@@ -77,46 +77,6 @@ _REGISTRY: tuple[TaxonomyEntry, ...] = (
         notes="Legacy bundled V2 compatibility view containing v1 ISR plus both 3h and 8h temporal blocks.",
     ),
     TaxonomyEntry(
-        semantic_view_id="v3_direct",
-        numeric_alias="v3d",
-        status="ACTIVE_OPERATIONAL_LINEAGE",
-        batch="Batch 2",
-        grain="row",
-        selection_kind="operational_lineage_direct",
-        public_selectable=True,
-        notes="Operational-lineage direct-rule evidence view.",
-    ),
-    TaxonomyEntry(
-        semantic_view_id="v3_derived",
-        numeric_alias="v3a",
-        status="ACTIVE_OPERATIONAL_LINEAGE",
-        batch="Batch 2",
-        grain="row",
-        selection_kind="operational_lineage_derived",
-        public_selectable=True,
-        notes="Operational-lineage derived-rule descendants view.",
-    ),
-    TaxonomyEntry(
-        semantic_view_id="v3_independent",
-        numeric_alias="v3i",
-        status="ACTIVE_OPERATIONAL_LINEAGE",
-        batch="Batch 2",
-        grain="row",
-        selection_kind="operational_lineage_independent",
-        public_selectable=True,
-        notes="Operational-lineage independent-process evidence view.",
-    ),
-    TaxonomyEntry(
-        semantic_view_id="v3_pre_onset",
-        numeric_alias="v3p",
-        status="ACTIVE_OPERATIONAL_LINEAGE",
-        batch="Batch 2",
-        grain="row",
-        selection_kind="operational_lineage_pre_onset",
-        public_selectable=True,
-        notes="Operational-lineage pre-onset target view.",
-    ),
-    TaxonomyEntry(
         semantic_view_id="v4_hybrid",
         numeric_alias="v4",
         status="RESERVED_NOT_IMPLEMENTED",
@@ -126,71 +86,51 @@ _REGISTRY: tuple[TaxonomyEntry, ...] = (
         public_selectable=True,
         notes="Reserved for hybrid sensor plus metadata row features after V3 stabilization.",
     ),
-    TaxonomyEntry(
-        semantic_view_id="v5_proxy_reduced",
-        numeric_alias="v5",
-        status="RESERVED_BLOCKED_PREREQUISITE",
-        batch="Batch 4",
-        grain="row",
-        selection_kind="blocked_proxy_reduction",
-        public_selectable=True,
-        notes="Reserved for validated proxy-reduced row features after dependency registry completion.",
-    ),
-    TaxonomyEntry(
-        semantic_view_id="v6_sequence_8h",
-        numeric_alias="v6",
-        status="ACTIVE_ENVIRONMENTAL_SEQUENCE",
-        batch="Batch 4",
-        grain="sequence",
-        selection_kind="environmental_sequence_8h",
-        public_selectable=True,
-        notes="Environmental V6 sequence-labeling dataset using fixed independent 8-hour day chunks.",
-    ),
-    TaxonomyEntry(
-        semantic_view_id="v5_proxy_reduced_draft",
-        numeric_alias="draft",
-        status="INVALID_INDEPENDENT_VIEW",
-        batch="Draft",
-        grain="row",
-        selection_kind="proxy_reduced_draft",
-        public_selectable=False,
-        notes="Internal draft only; currently duplicates v0 and must not be treated as an independent benchmark view.",
-    ),
 )
 
 LEGACY_DRIFTED_NAMES: dict[str, str] = {
     "v1_full_sensor": "Legacy drifted view id 'v1_full_sensor' is no longer supported. Use 'v1_sensor_row'.",
+    "v3": "View family 'v3' has been removed from the active benchmark surface. Only v0, v1, and v2 remain supported.",
+    "v3_direct": "View 'v3_direct' has been removed from the active benchmark surface. Only v0, v1, and v2 remain supported.",
+    "v3_derived": "View 'v3_derived' has been removed from the active benchmark surface. Only v0, v1, and v2 remain supported.",
+    "v3_independent": "View 'v3_independent' has been removed from the active benchmark surface. Only v0, v1, and v2 remain supported.",
+    "v3_pre_onset": "View 'v3_pre_onset' has been removed from the active benchmark surface. Only v0, v1, and v2 remain supported.",
     "v3_metadata_only": (
-        "Legacy reserved id 'v3_metadata_only' is superseded by the V3 operational-lineage family. "
-        "Use 'v3_direct', 'v3_derived', 'v3_independent', or 'v3_pre_onset'."
+        "Legacy reserved id 'v3_metadata_only' is no longer supported because the V3 family has been removed "
+        "from the active benchmark surface."
     ),
+    "v5": "View family 'v5' has been removed from the active benchmark surface. Only v0, v1, and v2 remain supported.",
+    "v5_proxy_reduced": "View 'v5_proxy_reduced' has been removed from the active benchmark surface.",
+    "v5_proxy_reduced_draft": "View 'v5_proxy_reduced_draft' has been removed from the active benchmark surface.",
+    "draft": "Draft proxy-reduced views have been removed from the active benchmark surface.",
+    "v6": "View family 'v6' has been removed from the active benchmark surface. Only v0, v1, and v2 remain supported.",
     "v6_proxy_reduced": (
-        "Legacy drifted view id 'v6_proxy_reduced' is no longer supported. "
-        "No current public replacement exists in the active benchmark-primary scope."
+        "Legacy drifted view id 'v6_proxy_reduced' is no longer supported because the V6 family has been removed "
+        "from the active benchmark surface."
     ),
     "v6_event_level": (
-        "Legacy drifted view id 'v6_event_level' is no longer supported. "
-        "Use 'v6_sequence_8h' or the numeric alias 'v6'."
+        "Legacy drifted view id 'v6_event_level' is no longer supported because the V6 family has been removed "
+        "from the active benchmark surface."
     ),
     "v6a_window_45m": (
-        "Legacy drifted view id 'v6a_window_45m' is no longer supported. "
-        "V6 is now a single 8-hour sequence dataset. Use 'v6_sequence_8h' or 'v6'."
+        "Legacy drifted view id 'v6a_window_45m' is no longer supported because the V6 family has been removed "
+        "from the active benchmark surface."
     ),
     "v6a_window_90m": (
-        "Legacy drifted view id 'v6a_window_90m' is no longer supported. "
-        "V6 is now a single 8-hour sequence dataset. Use 'v6_sequence_8h' or 'v6'."
+        "Legacy drifted view id 'v6a_window_90m' is no longer supported because the V6 family has been removed "
+        "from the active benchmark surface."
     ),
     "v6a_window_180m": (
-        "Legacy drifted view id 'v6a_window_180m' is no longer supported. "
-        "V6 is now a single 8-hour sequence dataset. Use 'v6_sequence_8h' or 'v6'."
+        "Legacy drifted view id 'v6a_window_180m' is no longer supported because the V6 family has been removed "
+        "from the active benchmark surface."
     ),
     "v6b_continuous_sequence": (
-        "Legacy drifted view id 'v6b_continuous_sequence' is no longer supported. "
-        "V6 is now a single 8-hour sequence dataset. Use 'v6_sequence_8h' or 'v6'."
+        "Legacy drifted view id 'v6b_continuous_sequence' is no longer supported because the V6 family has been removed "
+        "from the active benchmark surface."
     ),
     "v6c_decoded_episode_registry": (
-        "Legacy drifted view id 'v6c_decoded_episode_registry' is no longer supported. "
-        "V6 is now a single 8-hour sequence dataset. Use 'v6_sequence_8h' or 'v6'."
+        "Legacy drifted view id 'v6c_decoded_episode_registry' is no longer supported because the V6 family has been removed "
+        "from the active benchmark surface."
     ),
 }
 
@@ -255,23 +195,13 @@ def resolve_view_ids(requested_view_ids: tuple[str, ...]) -> tuple[str, ...]:
         if view_id.strip() == "v2":
             for semantic_view_id in (
                 "v2_minimal_sensor_window_3h",
+                "v2_minimal_sensor_window_8h",
                 "v2_sensor_row_window_3h",
+                "v2_sensor_row_window_8h",
             ):
                 if semantic_view_id not in seen:
                     seen.add(semantic_view_id)
                     resolved.append(semantic_view_id)
-            continue
-        if view_id.strip() == "v3":
-            for semantic_view_id in ("v3_direct", "v3_derived", "v3_independent", "v3_pre_onset"):
-                if semantic_view_id not in seen:
-                    seen.add(semantic_view_id)
-                    resolved.append(semantic_view_id)
-            continue
-        if view_id.strip() == "v6":
-            semantic_view_id = "v6_sequence_8h"
-            if semantic_view_id not in seen:
-                seen.add(semantic_view_id)
-                resolved.append(semantic_view_id)
             continue
         semantic_view_id = resolve_view_id(view_id)
         if semantic_view_id in seen:

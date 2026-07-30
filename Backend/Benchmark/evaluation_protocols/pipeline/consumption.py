@@ -137,32 +137,6 @@ REGISTRY_SPECS: tuple[dict[str, object], ...] = (
         "label_relative_path": "v2/v2_temporal_labels_8h.parquet",
         "scientific_blocker": "",
     },
-    {
-        "experiment_id": "v6_event_unresolved",
-        "feature_view_id": "v6_event_unresolved",
-        "feature_source_view_id": "UNRESOLVED_V6_EVENT_FEATURE_VIEW",
-        "label_task_id": "v6_event",
-        "protocol_view_id": "v6_event",
-        "sample_unit": "event",
-        "feature_join_key": "sample_id",
-        "label_join_key": "sample_id",
-        "label_relative_path": "v6/v6_event_labels.parquet",
-        "scientific_blocker": "normal_selection_audit",
-        "feature_artifact_status": "unresolved",
-    },
-    {
-        "experiment_id": "v6_block_unresolved",
-        "feature_view_id": "v6_block_unresolved",
-        "feature_source_view_id": "UNRESOLVED_V6_BLOCK_FEATURE_VIEW",
-        "label_task_id": "v6_b8_block",
-        "protocol_view_id": "v6_b8_block",
-        "sample_unit": "block",
-        "feature_join_key": "sample_id",
-        "label_join_key": "sample_id",
-        "label_relative_path": "v6/v6_b8_block_labels.parquet",
-        "scientific_blocker": "normal_selection_audit",
-        "feature_artifact_status": "unresolved",
-    },
 )
 
 COMPARISON_TO_FEATURE_VIEWS: dict[str, tuple[str, str]] = {
@@ -183,9 +157,6 @@ class WeakLabelSources:
     v2_temporal_evidence_8h: pd.DataFrame
     v2_temporal_labels_3h: pd.DataFrame
     v2_temporal_labels_8h: pd.DataFrame
-    v6_event_labels: pd.DataFrame
-    v6_b8_block_composition: pd.DataFrame
-    v6_b8_block_labels: pd.DataFrame
     paths: dict[str, Path]
     hashes: dict[str, str]
 
@@ -224,9 +195,6 @@ def load_weak_label_sources(run_dir: Path) -> WeakLabelSources:
         "v2_temporal_evidence_8h": _resolve_artifact(run_dir, "v2/v2_temporal_evidence_8h.parquet", "v2_temporal_evidence_8h.parquet"),
         "v2_temporal_labels_3h": _resolve_artifact(run_dir, "v2/v2_temporal_labels_3h.parquet", "v2_temporal_labels_3h.parquet"),
         "v2_temporal_labels_8h": _resolve_artifact(run_dir, "v2/v2_temporal_labels_8h.parquet", "v2_temporal_labels_8h.parquet"),
-        "v6_event_labels": _resolve_artifact(run_dir, "v6/v6_event_labels.parquet", "v6_event_labels.parquet"),
-        "v6_b8_block_composition": _resolve_artifact(run_dir, "v6/v6_b8_block_composition.parquet", "v6_b8_block_composition.parquet"),
-        "v6_b8_block_labels": _resolve_artifact(run_dir, "v6/v6_b8_block_labels.parquet", "v6_b8_block_labels.parquet"),
     }
     frames = {name: pd.read_parquet(path).convert_dtypes() for name, path in paths.items()}
     for name, frame in frames.items():
@@ -242,9 +210,6 @@ def load_weak_label_sources(run_dir: Path) -> WeakLabelSources:
         v2_temporal_evidence_8h=frames["v2_temporal_evidence_8h"],
         v2_temporal_labels_3h=frames["v2_temporal_labels_3h"],
         v2_temporal_labels_8h=frames["v2_temporal_labels_8h"],
-        v6_event_labels=frames["v6_event_labels"],
-        v6_b8_block_composition=frames["v6_b8_block_composition"],
-        v6_b8_block_labels=frames["v6_b8_block_labels"],
         paths=paths,
         hashes=hashes,
     )

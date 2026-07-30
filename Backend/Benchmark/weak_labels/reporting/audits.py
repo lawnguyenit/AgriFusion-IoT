@@ -12,8 +12,6 @@ from Backend.Benchmark.weak_labels.shared.configs import (
     POINT_LABELS,
     PRIMARY_OUTPUT_FILES,
     V2_TEMPORAL_LABELS,
-    V6_BLOCK_LABELS,
-    V6_EVENT_LABELS,
     WEAK_LABELS_PIPELINE_NAME,
     WEAK_LABELS_VERSION,
 )
@@ -70,22 +68,6 @@ def build_label_registry() -> dict[str, object]:
             "compatible_feature_views": ["v2_minimal_sensor_window_8h", "v2_sensor_row_window_8h"],
             "notes": "Optional explicit temporal weak labels for the 8h scope.",
         },
-        {
-            "task_id": "v6_event",
-            "sample_type": "event",
-            "labels": list(V6_EVENT_LABELS),
-            "scope_role": "OPTIONAL_EXPLICIT",
-            "compatible_feature_views": ["v6_sequence_8h"],
-            "notes": "Optional environmental event weak labels outside the current benchmark-primary lane.",
-        },
-        {
-            "task_id": "v6_b8_block",
-            "sample_type": "block",
-            "labels": list(V6_BLOCK_LABELS),
-            "scope_role": "OPTIONAL_EXPLICIT",
-            "compatible_feature_views": ["v6_sequence_8h"],
-            "notes": "Optional environmental block weak labels outside the current benchmark-primary lane.",
-        },
     ]
     return {
         "pipeline": WEAK_LABELS_PIPELINE_NAME,
@@ -106,7 +88,7 @@ def build_current_scope_summary() -> dict[str, object]:
         },
         "optional_explicit_scope": {
             "task_ids": list(OPTIONAL_EXPLICIT_TASK_IDS),
-            "description": "Optional weak-label outputs retained for explicit 8h and V6 workflows.",
+            "description": "Optional weak-label outputs retained for explicit 8h workflows only.",
         },
         "synchronization_notes": [
             "weak_labels does not consume dataset_views outputs; both lanes read the same frozen Layer1 canonical source.",
@@ -124,20 +106,19 @@ def build_artifact_guide_markdown() -> str:
             "## Input",
             "- frozen Layer1 canonical telemetry",
             "- frozen Layer1 feature catalog",
-            "- manifest and segment context for continuity-aware or event-aware labeling",
+            "- manifest and segment context for continuity-aware labeling",
             "- weak-label runtime config such as threshold mode and run profile",
             "",
             "## This Layer Does",
             "- convert canonical evidence into weak targets and rule traces",
             "- keep technical invalidity and intrinsic eligibility separate from downstream protocol decisions",
-            "- publish label provenance for point, V2, and optional V6 tasks",
+            "- publish label provenance for point and V2 tasks",
             "",
             "## Output",
             "- `run_metadata/`: provenance, artifact index, and current-scope summary",
             "- `registries/`: label ontology and dependency registry",
             "- `point/`: point weak labels used by v0 and v1",
             "- `v2/`: same-Y and temporal weak labels for 3h and optional 8h",
-            "- `v6/`: optional event/block weak labels",
             "- `audit/`: tranche-0 label assignment, rule firing, and threshold provenance",
         ]
     )
@@ -165,20 +146,6 @@ def build_label_dependency_registry() -> pd.DataFrame:
             "direct_source_fields": "record.id|npk.soil_moisture_pct",
             "proxy_fields": "v2_window_audit",
             "notes": "Temporal persistence reuses point low predicate plus causal low-run ending at anchor.",
-        },
-        {
-            "task_id": "v6_event",
-            "label_name": "persistent_low_relative_moisture_event",
-            "direct_source_fields": "npk.soil_moisture_pct",
-            "proxy_fields": "",
-            "notes": "Event persistence is built from maximal valid low runs.",
-        },
-        {
-            "task_id": "v6_b8_block",
-            "label_name": "persistent_low_relative_moisture_block",
-            "direct_source_fields": "",
-            "proxy_fields": "v6_event_overlap",
-            "notes": "Block labels are derived from event overlap, not row-majority voting.",
         },
     ]
     return pd.DataFrame(rows).convert_dtypes()

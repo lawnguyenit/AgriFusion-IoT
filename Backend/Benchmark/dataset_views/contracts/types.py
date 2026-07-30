@@ -9,14 +9,7 @@ MaterializationMode = Literal["feature-only", "benchmark-ready"]
 ViewSelectionMode = Literal[
     "explicit",
     "window_engineered",
-    "operational_lineage_direct",
-    "operational_lineage_derived",
-    "operational_lineage_independent",
-    "operational_lineage_pre_onset",
-    "environmental_sequence_8h",
-    "proxy_reduced_draft",
     "reserved_not_implemented",
-    "reserved_blocked_prerequisite",
 ]
 
 
@@ -46,39 +39,11 @@ class DependencyRegistryEntry:
 
 
 @dataclass(frozen=True)
-class OperationalLineageFeatureSpec:
-    feature_name: str
-    source_path: str
-    source_group: str
-    description: str
-    data_type: str
-    genealogy: Literal["direct_rule", "derived_rule", "independent_process", "unresolved"]
-    direct_parent_features: tuple[str, ...] = ()
-    derived_from_rule_id: str = ""
-    used_by_firmware_rule: bool = False
-    used_by_collection_rule: bool = False
-    used_by_label_rule: bool = False
-    available_at_prediction_time: bool = True
-    uses_future_information: bool = False
-    allowed_in_v3_direct: bool = False
-    allowed_in_v3_derived: bool = False
-    allowed_in_v3_independent: bool = False
-    allowed_in_v3_pre_onset: bool = False
-    notes: str = ""
-
-
-@dataclass(frozen=True)
 class CycleWindowHorizon:
     name: str
     cycles: int
     min_valid_observations: int
     min_slope_observations: int = 0
-
-
-@dataclass(frozen=True)
-class PreOnsetTargetHorizon:
-    name: str
-    cycles: int
 
 
 @dataclass(frozen=True)
@@ -119,8 +84,6 @@ class MaterializationConfig:
     selected_views: tuple[str, ...]
     manifest_path: Path | None = None
     label_config: LabelConfig | None = None
-    legacy_event_csv_path: Path | None = None
-    legacy_taxonomy_audit_run_path: Path | None = None
 
 
 @dataclass(frozen=True)

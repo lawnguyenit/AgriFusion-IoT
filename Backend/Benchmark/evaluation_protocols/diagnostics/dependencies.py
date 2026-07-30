@@ -15,9 +15,9 @@ class DependencyArtifacts:
 
 def build_dependency_artifacts() -> DependencyArtifacts:
     rows = [
-        _row("point_low_moisture", "npk.soil_moisture_pct", "DIRECT_RULE_SOURCE", "v0|v1|v2|v6", "Primary direct rule source."),
-        _row("point_low_moisture", "low_relative_moisture_flag", "DIRECT_RULE_SOURCE", "point|v2|v6", "Point predicate derived directly from current soil moisture."),
-        _row("point_low_moisture", "low_run_length_ending_at_point", "DIRECT_RULE_SOURCE", "v2|v6", "Active low run state reused directly by persistent labels."),
+        _row("point_low_moisture", "npk.soil_moisture_pct", "DIRECT_RULE_SOURCE", "v0|v1|v2", "Primary direct rule source."),
+        _row("point_low_moisture", "low_relative_moisture_flag", "DIRECT_RULE_SOURCE", "point|v2", "Point predicate derived directly from current soil moisture."),
+        _row("point_low_moisture", "low_run_length_ending_at_point", "DIRECT_RULE_SOURCE", "v2", "Active low run state reused directly by persistent labels."),
         _row("point_low_moisture", "moisture_rise_delta", "DERIVED_RULE_PROXY", "point|v2", "Directly derived from the same moisture sequence."),
         _row("point_low_moisture", "ec_shift_delta_abs", "CORRELATED_SURROGATE", "point|v2", "Potentially correlated environmental surrogate, not a direct moisture rule source."),
         _row("point_low_moisture", "npk.soil_temp_c", "SAFE_CANDIDATE", "v0|v1", "Sensor channel not used directly by the low-moisture rule."),

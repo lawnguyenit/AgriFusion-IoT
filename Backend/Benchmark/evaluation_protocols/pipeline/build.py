@@ -31,10 +31,7 @@ from Backend.Benchmark.evaluation_protocols.domains import (
     build_protocol_config_hash,
 )
 from Backend.Benchmark.evaluation_protocols.lineage import (
-    attach_block_domains,
-    attach_event_domains,
     build_explicit_matched_cohort_artifacts,
-    build_normal_candidate_and_selection_audits,
     build_primary_protocol_artifacts,
     build_protocol_assignment_artifacts,
 )
@@ -178,21 +175,6 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
     v2_temporal_3h["deployment_domain_name"] = v2_temporal_3h["sample_id"].astype("string").map(record_domain_lookup)
     v2_temporal_8h = weak_sources.v2_temporal_labels_8h.copy()
     v2_temporal_8h["deployment_domain_name"] = v2_temporal_8h["sample_id"].astype("string").map(record_domain_lookup)
-    domain_by_segment = {
-        str(segment_id): str(domain_name)
-        for segment_id, domain_name in working.loc[:, ["record.segment_id", "deployment_domain_name"]]
-        .drop_duplicates()
-        .itertuples(index=False)
-    }
-    v6_events = attach_event_domains(weak_sources.v6_event_labels, domain_by_segment)
-    v6_blocks = attach_block_domains(weak_sources.v6_b8_block_labels, weak_sources.v6_b8_block_composition, domain_by_segment)
-    raw_v6_input = _build_protocol_point_context(
-        working=working,
-        point_labels=point_labels,
-        point_evidence_flags=weak_sources.point_evidence_flags,
-    )
-    raw_v6_frame = _build_raw_v6_frame(raw_v6_input, segment_manifest)
-
     assignment_artifacts_7day = build_protocol_assignment_artifacts(
         fold_specs=fold_specs,
         point_labels=point_labels,
@@ -201,8 +183,6 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
         v2_temporal_8h=v2_temporal_8h,
         v2_evidence_3h=weak_sources.v2_temporal_evidence_3h,
         v2_evidence_8h=weak_sources.v2_temporal_evidence_8h,
-        v6_events=v6_events,
-        v6_blocks=v6_blocks,
         working=working,
         expected_interval_sec=expected_interval_sec,
     )
@@ -217,11 +197,9 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
             "v2_same_y_8h": v2_same_y.loc[v2_same_y["task_id"] == "v2_same_y_8h"].copy(),
             "v2_temporal_3h": v2_temporal_3h.copy(),
             "v2_temporal_8h": v2_temporal_8h.copy(),
-            "v6_event": v6_events.copy(),
-            "v6_b8_block": v6_blocks.copy(),
         },
         view_assignments=assignment_artifacts_7day.view_split_assignments,
-        boundary_event_audit=assignment_artifacts_7day.boundary_event_audit,
+        boundary_event_audit=None,
         block_days=config.rolling_block_days,
         validity_column="core_environment_fully_evaluable",
     )
@@ -233,8 +211,6 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
         v2_temporal_8h=v2_temporal_8h,
         v2_evidence_3h=weak_sources.v2_temporal_evidence_3h,
         v2_evidence_8h=weak_sources.v2_temporal_evidence_8h,
-        v6_events=v6_events,
-        v6_blocks=v6_blocks,
         working=working,
         expected_interval_sec=expected_interval_sec,
     )
@@ -249,11 +225,9 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
             "v2_same_y_8h": v2_same_y.loc[v2_same_y["task_id"] == "v2_same_y_8h"].copy(),
             "v2_temporal_3h": v2_temporal_3h.copy(),
             "v2_temporal_8h": v2_temporal_8h.copy(),
-            "v6_event": v6_events.copy(),
-            "v6_b8_block": v6_blocks.copy(),
         },
         view_assignments=assignment_artifacts_5day.view_split_assignments,
-        boundary_event_audit=assignment_artifacts_5day.boundary_event_audit,
+        boundary_event_audit=None,
         block_days=5,
         validity_column="core_environment_fully_evaluable",
     )
@@ -282,14 +256,10 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
     write_parquet(assignment_artifacts_5day.base_split_assignments, layout.support_5day / "base_split_assignments.parquet", engine=parquet_engine)
     write_parquet(assignment_artifacts_5day.view_split_assignments, layout.support_5day / "view_effective_split_assignments.parquet", engine=parquet_engine)
     write_csv(assignment_artifacts_5day.unsupported_class_audit, layout.support_5day / "unsupported_class_audit.csv")
-    write_csv(assignment_artifacts_5day.boundary_event_audit, layout.support_5day / "boundary_event_audit.csv")
-    write_csv(assignment_artifacts_5day.v6_event_partition_counts, layout.support_5day / "v6_event_partition_counts.csv")
     write_csv(fold_quality_7day, layout.support_7day / "fold_support_manifest.csv")
     write_parquet(assignment_artifacts_7day.base_split_assignments, layout.support_7day / "base_split_assignments.parquet", engine=parquet_engine)
     write_parquet(assignment_artifacts_7day.view_split_assignments, layout.support_7day / "view_effective_split_assignments.parquet", engine=parquet_engine)
     write_csv(assignment_artifacts_7day.unsupported_class_audit, layout.support_7day / "unsupported_class_audit.csv")
-    write_csv(assignment_artifacts_7day.boundary_event_audit, layout.support_7day / "boundary_event_audit.csv")
-    write_csv(assignment_artifacts_7day.v6_event_partition_counts, layout.support_7day / "v6_event_partition_counts.csv")
     v2_coverage = build_v2_coverage_artifacts(
         v2_evidence_3h=weak_sources.v2_temporal_evidence_3h,
         v2_evidence_8h=weak_sources.v2_temporal_evidence_8h,
@@ -332,8 +302,6 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
     for name, frame in primary_artifacts.matched_cohort_manifests.items():
         write_csv(frame, layout.primary_cohorts / name)
     write_csv(assignment_artifacts_5day.unsupported_class_audit, layout.primary_folds / "unsupported_class_audit.csv")
-    write_csv(assignment_artifacts_5day.boundary_event_audit, layout.primary_lineage / "boundary_event_audit.csv")
-    write_csv(assignment_artifacts_5day.v6_event_partition_counts, layout.primary_lineage / "v6_event_partition_counts.csv")
 
     protocol_view_assignments_path = layout.primary_folds / "view_effective_split_assignments.parquet"
     task_view_registry = build_task_view_registry(
@@ -350,8 +318,6 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
         "v2_same_y_8h": v2_same_y.loc[v2_same_y["task_id"] == "v2_same_y_8h"].copy(),
         "v2_temporal_3h": v2_temporal_3h.copy(),
         "v2_temporal_8h": v2_temporal_8h.copy(),
-        "v6_event": v6_events.copy(),
-        "v6_b8_block": v6_blocks.copy(),
     }
     label_paths_by_task = {
         "v0_point_train": weak_sources.paths["point_labels_train"],
@@ -360,8 +326,6 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
         "v2_same_y_8h": weak_sources.paths["v2_same_y_labels"],
         "v2_temporal_3h": weak_sources.paths["v2_temporal_labels_3h"],
         "v2_temporal_8h": weak_sources.paths["v2_temporal_labels_8h"],
-        "v6_event": weak_sources.paths["v6_event_labels"],
-        "v6_b8_block": weak_sources.paths["v6_b8_block_labels"],
     }
     label_hashes_by_task = {
         "v0_point_train": weak_sources.hashes["point_labels_train"],
@@ -370,8 +334,6 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
         "v2_same_y_8h": weak_sources.hashes["v2_same_y_labels"],
         "v2_temporal_3h": weak_sources.hashes["v2_temporal_labels_3h"],
         "v2_temporal_8h": weak_sources.hashes["v2_temporal_labels_8h"],
-        "v6_event": weak_sources.hashes["v6_event_labels"],
-        "v6_b8_block": weak_sources.hashes["v6_b8_block_labels"],
     }
     task_training_manifest, task_training_manifest_validation = build_task_training_manifest(
         registry_df=task_view_registry,
@@ -497,22 +459,12 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
     )
     write_csv(estimability_artifacts.matrix, layout.validity_evaluation / "estimability_matrix.csv")
 
-    normal_audits = build_normal_candidate_and_selection_audits(
-        raw_event_df=raw_v6_frame,
-        event_labels=v6_events,
-        domain_by_segment=domain_by_segment,
-    )
-    write_parquet(normal_audits.candidate_audit, layout.v6_lineage_audits / "v6_normal_candidate_audit.parquet", engine=parquet_engine)
-    write_csv(normal_audits.selection_audit, layout.v6_lineage_audits / "v6_normal_selection_audit.csv")
-
     feature_shift_raw = build_cross_position_feature_shift_raw(working)
     feature_shift_isr = build_cross_position_feature_shift_isr(working)
     label_shift = build_cross_position_label_transport(
         point_labels=point_labels.loc[point_labels["task_id"] == "v0_point_train"].copy(),
         v2_temporal_3h=v2_temporal_3h,
         v2_temporal_8h=v2_temporal_8h,
-        v6_events=v6_events,
-        v6_blocks=v6_blocks,
         frozen_low_threshold=float(threshold_manifest["threshold_value"]),
     )
     write_csv(feature_shift_raw, layout.transport_feature_shift / "cross_position_feature_shift_raw.csv")
@@ -530,7 +482,6 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
         base_threshold_context=threshold_context,
         fold_specs=fold_specs_5day,
         segment_manifest=segment_manifest,
-        domain_by_segment=domain_by_segment,
         expected_interval_sec=expected_interval_sec,
         q_values=q_values,
     )
@@ -597,16 +548,6 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
         "sensitivity_quantiles_reported": ["q05", "q10", "q15", "q20"],
         "threshold_sensitivity_distribution_path": str(layout.threshold_transport / "threshold_sensitivity_distributions.csv"),
         "p2_interpretation_note": "Absence of normal labels in P2 does not prove agronomic normal conditions are absent there.",
-        "v6_lineage": {
-            "benchmark_role": "deferred",
-            "in_current_scope": False,
-            "scientific_ready": False,
-            "episode_owned_segment_enforced": True,
-            "episode_owned_start_end_enforced": True,
-            "atomic_boundary_exclusion_enforced": True,
-            "boundary_event_count_5day": int(len(assignment_artifacts_5day.boundary_event_audit)),
-            "boundary_event_count_7day": int(len(assignment_artifacts_7day.boundary_event_audit)),
-        },
         "v2_coverage_diagnostics": {
             "coverage_report_path": str(layout.v2_coverage / "v2_coverage_report.md"),
             "coverage_daily_path": str(layout.v2_coverage / "v2_coverage_daily.csv"),
@@ -619,8 +560,6 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
             "estimability_matrix_path": str(layout.validity_evaluation / "estimability_matrix.csv"),
         },
         "validation_gates": {
-            "v6_event_lineage_audit_generated": True,
-            "v6_normal_candidate_audit_generated": True,
             "matched_cohort_manifests_generated": True,
             "primary_protocol_locked_to_5day_fold_01_03": True,
             "runner_contract_generated": True,
@@ -697,69 +636,6 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
         source_row_count=int(len(p1_df)),
         target_row_count=int(len(p2_df)),
     )
-
-
-def _build_raw_v6_frame(continuity_df: pd.DataFrame, segment_manifest: dict[str, object]) -> pd.DataFrame:
-    return attach_continuity_chunks(
-        continuity_df,
-        segment_manifest=segment_manifest,
-        boundary_columns=("record.segment_boundary_before",),
-        threshold_multiplier=2.5,
-    ).rename(
-        columns={
-            "record.continuity_chunk_id": "raw_continuity_chunk_id",
-            "record.continuity_chunk_index": "raw_continuity_chunk_index",
-            "record.continuity_reset_before": "raw_continuity_reset_before",
-            "record.continuity_reset_reason": "raw_continuity_reset_reason",
-        }
-    )
-
-
-def _build_protocol_point_context(
-    *,
-    working: pd.DataFrame,
-    point_labels: pd.DataFrame,
-    point_evidence_flags: pd.DataFrame,
-) -> pd.DataFrame:
-    evidence_columns = [
-        "record.id",
-        "intrinsic_eligibility",
-        "intrinsic_exclusion_reason",
-        "low_moisture_applicable",
-        "thermal_applicable",
-        "ec_shift_applicable",
-        "moisture_rise_applicable",
-        "low_relative_moisture_flag",
-        "thermal_evidence_flag",
-        "moisture_rise_evidence_flag",
-        "ec_shift_evidence_flag",
-        "positive_environmental_evidence_count",
-        "low_run_length_ending_at_point",
-    ]
-    point_label_lookup = point_labels.loc[
-        point_labels["task_id"].astype("string") == "v0_point_train",
-        ["sample_id", "label_name", "label_status"],
-    ].rename(
-        columns={
-            "sample_id": "record.id",
-            "label_name": "point_train_label_name",
-            "label_status": "point_label_status",
-        }
-    )
-    merged = working.merge(
-        point_evidence_flags.loc[:, evidence_columns],
-        on="record.id",
-        how="left",
-        validate="one_to_one",
-    ).merge(
-        point_label_lookup,
-        on="record.id",
-        how="left",
-        validate="one_to_one",
-    )
-    return merged.convert_dtypes()
-
-
 def _config_to_dict(config: EvaluationProtocolConfig) -> dict[str, object]:
     return {
         "canonical_history_path": str(config.canonical_history_path),

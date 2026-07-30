@@ -9,13 +9,7 @@ VIEW_ID_ALIASES: dict[str, str] = {
     "v2_sensor_row_window_3h": "v2r3",
     "v2_sensor_row_window_8h": "v2r8",
     "v2_sensor_window": "v2legacy",
-    "v3_direct": "v3d",
-    "v3_derived": "v3a",
-    "v3_independent": "v3i",
-    "v3_pre_onset": "v3p",
     "v4_hybrid": "v4",
-    "v5_proxy_reduced": "v5",
-    "v6_sequence_8h": "v6",
 }
 
 ROW_INDEX_COLUMNS: tuple[str, ...] = (

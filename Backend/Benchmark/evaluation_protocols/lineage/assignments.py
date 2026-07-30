@@ -4,7 +4,6 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from Backend.Benchmark.evaluation_protocols.lineage.common import attach_block_domains, attach_event_domains
 from Backend.Benchmark.evaluation_protocols.lineage.fold_support import (
     append_matched_rows_for_fold,
     build_fold_manifest_rows,
@@ -17,13 +16,6 @@ from Backend.Benchmark.evaluation_protocols.lineage.point_v2 import (
     build_p2_base_assignments,
     build_p2_holdout_view_assignments,
 )
-from Backend.Benchmark.evaluation_protocols.lineage.v6_partitions import (
-    assert_v6_event_partition_lineage,
-    boundary_event_frame,
-    build_fold_v6_block_assignments,
-    build_fold_v6_event_assignments,
-    build_v6_event_partition_counts,
-)
 
 
 @dataclass(frozen=True)
@@ -33,8 +25,6 @@ class ProtocolAssignmentArtifacts:
     base_split_assignments: pd.DataFrame
     view_split_assignments: pd.DataFrame
     matched_cohorts: dict[str, pd.DataFrame]
-    boundary_event_audit: pd.DataFrame
-    v6_event_partition_counts: pd.DataFrame
 
 
 def build_protocol_assignment_artifacts(
@@ -47,8 +37,6 @@ def build_protocol_assignment_artifacts(
     v2_temporal_8h: pd.DataFrame,
     v2_evidence_3h: pd.DataFrame,
     v2_evidence_8h: pd.DataFrame,
-    v6_events: pd.DataFrame,
-    v6_blocks: pd.DataFrame,
     expected_interval_sec: int,
 ) -> ProtocolAssignmentArtifacts:
     record_lookup = working.loc[
@@ -77,8 +65,6 @@ def build_protocol_assignment_artifacts(
         "v2_same_y_8h": same_y_labels.loc[same_y_labels["task_id"] == "v2_same_y_8h"].copy(),
         "v2_temporal_3h": temporal_3h_labels.copy(),
         "v2_temporal_8h": temporal_8h_labels.copy(),
-        "v6_event": v6_events.copy(),
-        "v6_b8_block": v6_blocks.copy(),
     }
     v2_group_lookup = {
         "v2_same_y_3h": v2_evidence_3h.set_index("record.id")["record.continuity_chunk_id"].astype("string").to_dict(),
@@ -89,7 +75,6 @@ def build_protocol_assignment_artifacts(
 
     base_rows: list[dict[str, object]] = []
     view_rows: list[dict[str, object]] = []
-    boundary_rows: list[dict[str, object]] = []
     fold_manifest_rows: list[dict[str, object]] = []
     unsupported_rows: list[dict[str, object]] = []
     matched_rows: dict[str, list[dict[str, object]]] = {
@@ -119,18 +104,6 @@ def build_protocol_assignment_artifacts(
                     purge_minutes=purge_minutes,
                 )
             )
-
-        event_rows, event_boundaries = build_fold_v6_event_assignments(
-            v6_events=v6_events,
-            spec=spec,
-            record_domain=record_domain,
-            record_segment=record_segment,
-            record_time=record_time,
-        )
-        view_rows.extend(event_rows)
-        boundary_rows.extend(event_boundaries)
-        view_rows.extend(build_fold_v6_block_assignments(v6_blocks, spec))
-
         fold_manifest_rows.extend(
             build_fold_manifest_rows(
                 spec=spec,
@@ -138,7 +111,7 @@ def build_protocol_assignment_artifacts(
                 expected_interval_sec=expected_interval_sec,
                 label_frames=label_frames,
                 view_rows=view_rows,
-                boundary_rows=boundary_rows,
+                boundary_rows=[],
             )
         )
         unsupported_rows.extend(
@@ -162,11 +135,8 @@ def build_protocol_assignment_artifacts(
             same_y_labels=same_y_labels,
             temporal_3h_labels=temporal_3h_labels,
             temporal_8h_labels=temporal_8h_labels,
-            v6_events=v6_events,
-            v6_blocks=v6_blocks,
         )
     )
-    assert_v6_event_partition_lineage(view_rows, v6_events)
 
     return ProtocolAssignmentArtifacts(
         fold_manifest=pd.DataFrame(fold_manifest_rows).convert_dtypes(),
@@ -174,15 +144,10 @@ def build_protocol_assignment_artifacts(
         base_split_assignments=pd.DataFrame(base_rows).convert_dtypes(),
         view_split_assignments=pd.DataFrame(view_rows).convert_dtypes(),
         matched_cohorts={name: pd.DataFrame(rows).convert_dtypes() for name, rows in matched_rows.items()},
-        boundary_event_audit=boundary_event_frame(boundary_rows),
-        v6_event_partition_counts=build_v6_event_partition_counts(pd.DataFrame(view_rows).convert_dtypes(), v6_events),
     )
 
 
 __all__ = [
     "ProtocolAssignmentArtifacts",
-    "attach_block_domains",
-    "attach_event_domains",
-    "build_fold_v6_event_assignments",
     "build_protocol_assignment_artifacts",
 ]

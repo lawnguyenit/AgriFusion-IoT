@@ -112,8 +112,6 @@ def build_cross_position_label_transport(
     point_labels: pd.DataFrame,
     v2_temporal_3h: pd.DataFrame,
     v2_temporal_8h: pd.DataFrame,
-    v6_events: pd.DataFrame,
-    v6_blocks: pd.DataFrame,
     frozen_low_threshold: float,
 ) -> pd.DataFrame:
     rows: list[dict[str, object]] = []
@@ -162,35 +160,6 @@ def build_cross_position_label_transport(
                     "collapse_indicator": transport_summary["collapse_indicator"],
                     "collapse_reason": transport_summary["collapse_reason"],
                     "notes": "Frozen same-threshold temporal distribution.",
-                }
-            )
-    for artifact_name, frame in (("v6_events", v6_events), ("v6_blocks", v6_blocks)):
-        for domain_name, domain_frame in _domain_frames(frame):
-            transport_summary = _build_transport_summary(
-                frame=domain_frame,
-                excluded_label_names={"insufficient_coverage_block"},
-                reference_label_names={"normal", "normal_block"},
-            )
-            duration_hours = pd.NA
-            if "event_start_local" in domain_frame.columns and "event_end_local" in domain_frame.columns:
-                start = pd.to_datetime(domain_frame["event_start_local"], errors="coerce")
-                end = pd.to_datetime(domain_frame["event_end_local"], errors="coerce")
-                duration_hours = float((end - start).dt.total_seconds().sum() / 3600.0) if len(domain_frame) else pd.NA
-            rows.append(
-                {
-                    "deployment_domain": domain_name,
-                    "artifact_name": artifact_name,
-                    "metric_name": "label_distribution",
-                    "metric_value": json.dumps(transport_summary["label_counts"], ensure_ascii=False, separators=(",", ":")),
-                    "sample_count": transport_summary["total_count"],
-                    "eligible_count": transport_summary["eligible_count"],
-                    "excluded_count": transport_summary["excluded_count"],
-                    "majority_class": transport_summary["majority_class"],
-                    "majority_prevalence_among_eligible": transport_summary["majority_prevalence_among_eligible"],
-                    "reference_class_missing": transport_summary["reference_class_missing"],
-                    "collapse_indicator": transport_summary["collapse_indicator"],
-                    "collapse_reason": transport_summary["collapse_reason"],
-                    "notes": f"aggregate_duration_hours={duration_hours}",
                 }
             )
     return pd.DataFrame(rows).convert_dtypes()

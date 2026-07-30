@@ -19,8 +19,6 @@ Current active scope:
 - `v2_minimal_sensor_window_8h`
 - `v2_sensor_row_window_3h`
 - `v2_sensor_row_window_8h`
-- optional legacy-carried V3 views
-- `v6_sequence_8h`
 
 Important properties:
 
@@ -36,7 +34,7 @@ Weak-label authority lane.
 Responsibilities:
 
 - consumes canonical telemetry keyed by `record_id`
-- builds point, temporal-window, event, and block label artifacts
+- builds point and temporal-window label artifacts
 - separates evidence and exclusion states from train labels
 - versions rule sources, proxy dependencies, and audits
 
@@ -105,11 +103,8 @@ For the implemented end-to-end handoff from benchmark lanes into
 
 ## Current Limits
 
-- `v4_hybrid` and `v5_proxy_reduced` remain reserved
-- V3 remains legacy-scoped and now requires an explicit external bridge
-  file when requested
-- V6 remains more complex than the primary V0-V2 benchmark and should
-  be interpreted separately from the core point/window benchmark
+- `v4_hybrid` remains reserved
+- V3, V5, and V6 are removed from the active benchmark runtime surface
 
 ## Detailed Flow Docs
 

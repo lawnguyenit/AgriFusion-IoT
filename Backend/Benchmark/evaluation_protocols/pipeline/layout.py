@@ -28,7 +28,6 @@ class EvaluationArtifactLayout:
     threshold_policy: Path
     threshold_transport: Path
     dependency_manifests: Path
-    v6_lineage_audits: Path
 
     def create(self) -> None:
         for path in (
@@ -53,7 +52,6 @@ class EvaluationArtifactLayout:
             self.threshold_policy,
             self.threshold_transport,
             self.dependency_manifests,
-            self.v6_lineage_audits,
         ):
             path.mkdir(parents=True, exist_ok=True)
 
@@ -82,7 +80,6 @@ def build_evaluation_artifact_layout(root: Path) -> EvaluationArtifactLayout:
         threshold_policy=root / "threshold_diagnostics" / "policy",
         threshold_transport=root / "threshold_diagnostics" / "transport",
         dependency_manifests=root / "dependency_manifests",
-        v6_lineage_audits=root / "v6_lineage_audits",
     )
 
 
@@ -335,18 +332,6 @@ def build_artifact_catalog(layout: EvaluationArtifactLayout) -> list[dict[str, s
             "usage": "assertion checks backing the runner contract",
         },
         {
-            "artifact_group": "primary_protocol",
-            "path": str(layout.primary_lineage / "boundary_event_audit.csv"),
-            "role": "v6_boundary_audit",
-            "usage": "event lineage exclusions for primary protocol",
-        },
-        {
-            "artifact_group": "primary_protocol",
-            "path": str(layout.primary_lineage / "v6_event_partition_counts.csv"),
-            "role": "v6_partition_summary",
-            "usage": "partitioned V6 event counts for primary protocol",
-        },
-        {
             "artifact_group": "temporal_diagnostics",
             "path": str(layout.temporal_diagnostics / "README.md"),
             "role": "temporal_diagnostics_guide",
@@ -459,23 +444,5 @@ def build_artifact_catalog(layout: EvaluationArtifactLayout) -> list[dict[str, s
             "path": str(layout.dependency_manifests / "proxy_reduced_features.csv"),
             "role": "proxy_feature_manifest_reduced",
             "usage": "reduced proxy feature list for lean baselines",
-        },
-        {
-            "artifact_group": "v6_lineage_audits",
-            "path": str(layout.v6_lineage_audits / "README.md"),
-            "role": "v6_lineage_guide",
-            "usage": "short explanation of deferred V6 lineage audits",
-        },
-        {
-            "artifact_group": "v6_lineage_audits",
-            "path": str(layout.v6_lineage_audits / "v6_normal_candidate_audit.parquet"),
-            "role": "v6_candidate_audit",
-            "usage": "candidate normal episodes before selection",
-        },
-        {
-            "artifact_group": "v6_lineage_audits",
-            "path": str(layout.v6_lineage_audits / "v6_normal_selection_audit.csv"),
-            "role": "v6_selection_audit",
-            "usage": "selected normal episodes and matching issues",
         },
     ]

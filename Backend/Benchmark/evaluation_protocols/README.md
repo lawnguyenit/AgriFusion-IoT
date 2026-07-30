@@ -38,8 +38,8 @@ Current output layout distinguishes:
   reports;
 - `threshold_diagnostics/`: frozen q10 policy and Q05/Q10/Q15/Q20
   sensitivity diagnostics;
-- `dependency_manifests/` and `v6_lineage_audits/`: auditable support
-  files used to explain or verify the main protocol.
+- `dependency_manifests/`: auditable support files used to explain or
+  verify the main protocol.
 
 The current artifact runs also write short `README.md` guides inside the
 main output groups so a returning reader can re-enter the project by
@@ -51,7 +51,7 @@ Code layout is responsibility-first:
 - `diagnostics/`: fold support, sensitivity, shift, and dependency
   diagnostics;
 - `lineage/`: split-aware assignment construction, matched cohorts,
-  primary protocol selection, and V6 lineage audits;
+  and primary protocol selection;
 - `pipeline/`: orchestration and artifact layout only.
 
 It may consume outputs from `weak_labels`, but it must not be nested
