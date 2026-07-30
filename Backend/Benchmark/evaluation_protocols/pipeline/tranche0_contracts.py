@@ -25,40 +25,6 @@ SECONDARY_CLAIM_IDS: frozenset[str] = frozenset(
 )
 
 
-ENVIRONMENT_SPECS: tuple[dict[str, object], ...] = (
-    {
-        "environment_id": "E1",
-        "deployment_id": "P1_SOURCE",
-        "start_local": "2026-04-01T00:00:00+07:00",
-        "end_local": "2026-05-09T00:00:00+07:00",
-        "boundary_basis": "initial P1 source-development interval",
-        "boundary_origin": "DEPLOYMENT_INTERVAL",
-        "boundary_status": "PROTOCOL_LOCKED",
-        "analysis_status": "PRIMARY_LOCKED",
-    },
-    {
-        "environment_id": "E2",
-        "deployment_id": "P1_SOURCE",
-        "start_local": "2026-05-09T00:00:00+07:00",
-        "end_local": "2026-05-20T00:00:00+07:00",
-        "boundary_basis": "later P1 temporal regime retained for falsification",
-        "boundary_origin": "UNLABELED_DATA_ANALYSIS",
-        "boundary_status": "POST_HOC_EXPLORATORY",
-        "analysis_status": "SECONDARY_EXPLORATORY",
-    },
-    {
-        "environment_id": "E3",
-        "deployment_id": "P2_TARGET",
-        "start_local": "2026-06-27T00:00:00+07:00",
-        "end_local": "2026-07-13T00:00:00+07:00",
-        "boundary_basis": "P2 relocation holdout interval",
-        "boundary_origin": "DEPLOYMENT_INTERVAL",
-        "boundary_status": "PROTOCOL_LOCKED",
-        "analysis_status": "PRIMARY_LOCKED",
-    },
-)
-
-
 ABALATION_SUBSETS: tuple[dict[str, object], ...] = (
     {
         "subset_id": "v0_core",
@@ -514,20 +480,39 @@ CLAIM_SPECS: tuple[dict[str, object], ...] = (
 )
 
 
-def build_environment_registry(working: pd.DataFrame) -> pd.DataFrame:
+def build_environment_registry(
+    working: pd.DataFrame,
+    protocol_environment_manifest: pd.DataFrame,
+) -> pd.DataFrame:
     rows: list[dict[str, object]] = []
-    for spec in ENVIRONMENT_SPECS:
-        start_local = pd.Timestamp(str(spec["start_local"]))
-        end_local = pd.Timestamp(str(spec["end_local"]))
+    for environment in protocol_environment_manifest.to_dict(orient="records"):
+        start_local = pd.Timestamp(str(environment["start_time"]))
+        end_local = pd.Timestamp(str(environment["end_time"]))
         observed = working.loc[
             (working["timestamp_local"] >= start_local)
             & (working["timestamp_local"] < end_local)
-            & (working["deployment_domain_name"].astype("string") == str(spec["deployment_id"])),
+            & (
+                working["deployment_domain_name"].astype("string")
+                == str(environment["deployment_id"])
+            ),
             ["timestamp_local"],
         ].copy()
         rows.append(
             {
-                **spec,
+                "environment_id": environment["environment_id"],
+                "legacy_environment_alias": environment["legacy_environment_alias"],
+                "deployment_id": environment["deployment_id"],
+                "position_id": environment["position_id"],
+                "phase_id": environment["phase_id"],
+                "acquisition_regime_id": environment["acquisition_regime_id"],
+                "start_local": environment["start_time"],
+                "end_local": environment["end_time"],
+                "protocol_role": environment["protocol_role"],
+                "historical_exposure_status": environment["historical_exposure_status"],
+                "boundary_basis": "upstream protocol_registry environment fact",
+                "boundary_origin": "PROTOCOL_REGISTRY",
+                "boundary_status": "PROTOCOL_GOVERNED",
+                "analysis_status": _environment_analysis_status(str(environment["environment_id"])),
                 "start_inclusive": True,
                 "end_exclusive": True,
                 "timezone": "Asia/Ho_Chi_Minh",
@@ -540,6 +525,16 @@ def build_environment_registry(working: pd.DataFrame) -> pd.DataFrame:
             }
         )
     return pd.DataFrame(rows).convert_dtypes()
+
+
+def _environment_analysis_status(environment_id: str) -> str:
+    if environment_id == "E1":
+        return "SOURCE_DISCOVERY"
+    if environment_id == "E2":
+        return "SOURCE_ACQUISITION_STRESS"
+    if environment_id == "E3_TARGET_PREEXPOSED":
+        return "PROTOCOL_LOCKED_TRANSPORT_REEVALUATION"
+    return "UNASSIGNED"
 
 
 def build_sample_environment_manifest(working: pd.DataFrame, environment_registry: pd.DataFrame) -> pd.DataFrame:

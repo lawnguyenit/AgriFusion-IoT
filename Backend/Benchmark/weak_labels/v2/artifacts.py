@@ -6,7 +6,11 @@ import pandas as pd
 
 from Backend.Benchmark.dataset_views.configs.windowing import V2_MEASUREMENT_CHANNELS
 from Backend.Benchmark.dataset_views.windowing.builder import build_v2_sensor_window_view
-from Backend.Benchmark.weak_labels.shared.configs import V2_SAME_Y_TASK_IDS, V2_TEMPORAL_TASK_IDS
+from Backend.Benchmark.weak_labels.shared.configs import (
+    DEFAULT_PERSISTENT_LOW_RUN_MIN_STEPS,
+    V2_SAME_Y_TASK_IDS,
+    V2_TEMPORAL_TASK_IDS,
+)
 from Backend.Benchmark.weak_labels.v2.frames import (
     build_label_agreement,
     build_matched_cohort_manifest,
@@ -31,6 +35,7 @@ def build_v2_label_artifacts(
     continuity_df: pd.DataFrame,
     *,
     segment_manifest: dict[str, object],
+    persistent_low_run_min_steps: int = DEFAULT_PERSISTENT_LOW_RUN_MIN_STEPS,
 ) -> V2LabelArtifacts:
     horizon_outputs: dict[str, tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]] = {}
     same_y_frames: list[pd.DataFrame] = []
@@ -64,7 +69,11 @@ def build_v2_label_artifacts(
         audit_df["intrinsic_exclusion_reason"] = exclusion_reason.astype("string")
 
         same_y_df = build_same_y_frame(audit_df, task_id=task_same_y)
-        temporal_labels = build_temporal_labels(audit_df, task_id=task_temporal)
+        temporal_labels = build_temporal_labels(
+            audit_df,
+            task_id=task_temporal,
+            persistent_low_run_min_steps=persistent_low_run_min_steps,
+        )
         evidence_df = audit_df.copy().convert_dtypes()
         evidence_df["task_id"] = task_temporal
         evidence_df["label_task_id"] = task_temporal

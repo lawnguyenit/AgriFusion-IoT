@@ -10,8 +10,8 @@ from Backend.Benchmark.shared.weak_rules import (
 )
 from Backend.Benchmark.weak_labels.runtime.contracts import ThresholdRecord
 from Backend.Benchmark.weak_labels.shared.configs import (
+    DEFAULT_PERSISTENT_LOW_RUN_MIN_STEPS,
     MOISTURE_RISE_DELTA_PP,
-    PERSISTENT_LOW_RUN_MIN_STEPS,
     THERMAL_EVIDENCE_THRESHOLD_KPA,
     THRESHOLD_MODE_TRAIN_FITTED_GLOBAL,
     THRESHOLD_MODE_TRAIN_FITTED_SEGMENT,
@@ -39,6 +39,7 @@ def build_threshold_context(
     continuity_df: pd.DataFrame,
     *,
     threshold_mode: str,
+    persistent_low_run_min_steps: int = DEFAULT_PERSISTENT_LOW_RUN_MIN_STEPS,
 ) -> ThresholdContext:
     train_df = continuity_df.loc[continuity_df["base_partition"] == "train"].copy()
     moisture_train = pd.to_numeric(
@@ -122,7 +123,7 @@ def build_threshold_context(
                 fit_record_count=0,
                 fit_record_hash="fixed",
                 segment_scope="global",
-                value=float(PERSISTENT_LOW_RUN_MIN_STEPS),
+                value=float(persistent_low_run_min_steps),
                 notes="Fixed persistence minimum for V2 temporal labels.",
             ),
             ThresholdRecord(

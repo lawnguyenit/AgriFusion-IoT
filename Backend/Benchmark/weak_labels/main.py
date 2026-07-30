@@ -65,6 +65,12 @@ def parse_args() -> argparse.Namespace:
         default="TRAIN_FITTED_GLOBAL",
         help="Threshold fitting mode for weak environmental rules.",
     )
+    parser.add_argument(
+        "--persistent-low-run-min-steps",
+        type=int,
+        default=3,
+        help="Exploratory temporal persistence threshold k. Default keeps current benchmark semantics at 3.",
+    )
     return parser.parse_args()
 
 
@@ -80,6 +86,7 @@ def main() -> None:
             base_split_strategy=args.base_split_strategy,
             run_profile=args.run_profile,
             threshold_mode=args.threshold_mode,
+            persistent_low_run_min_steps=args.persistent_low_run_min_steps,
         )
     )
     print("weak_labels build complete")

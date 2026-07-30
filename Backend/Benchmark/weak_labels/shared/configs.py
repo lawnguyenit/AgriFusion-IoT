@@ -33,7 +33,7 @@ V2_TEMPORAL_LABELS: tuple[str, ...] = (
     "unknown_environment_window",
 )
 V2_TEMPORAL_EXCLUDED_LABEL = "insufficient_window_context"
-PERSISTENT_LOW_RUN_MIN_STEPS = 3
+DEFAULT_PERSISTENT_LOW_RUN_MIN_STEPS = 3
 THERMAL_EVIDENCE_THRESHOLD_KPA = 2.5
 MOISTURE_RISE_DELTA_PP = 5.0
 
@@ -84,6 +84,7 @@ PRIMARY_OUTPUT_FILES: tuple[str, ...] = (
     "audit/threshold_registry.csv",
     "audit/label_source_dependency.csv",
     "threshold_diagnostics/threshold_sensitivity.csv",
+    "threshold_diagnostics/persistent_low_k_support.csv",
     "run_metadata/run_manifest.json",
     "run_metadata/artifact_catalog.csv",
     "run_metadata/current_scope_summary.json",

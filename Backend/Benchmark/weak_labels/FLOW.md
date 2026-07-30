@@ -6,14 +6,22 @@
 flowchart LR
     A["Layer1 canonical data"] --> B["weak_labels"]
     B --> C["weak-label artifacts + rule traces"]
+    A --> D["protocol_registry"]
+    D --> E["weak_labels.readiness"]
+    E --> F["candidate evidence + STOP gate"]
 ```
+
+`weak_labels` and `weak_labels.readiness` are separate execution paths.
+Readiness never calls the label builder and its candidate outputs are not
+label authority.
 
 ## Input
 
 - Layer1 canonical history
 - Layer1 feature catalog
 - Layer1/segment manifest context
-- weak-label configuration such as threshold mode and base split mode
+- weak-label configuration such as threshold mode, base split mode,
+  and exploratory persistence threshold `k`
 
 ## This Layer Does
 
@@ -24,11 +32,23 @@ flowchart LR
   protocol decisions
 - publish condition-level rule traces and threshold provenance for
   tranche-0 auditability
+- emit explicit support counts for persistent-low threshold sweeps so
+  nearby `k` values can be inspected before downstream training
 - separate semantic fired rules, gate outcomes, resolution IDs, and
   label-transfer provenance inside the tranche-0 audit contract
 
 It does **not** decide benchmark fold IDs, deployment environments, or
 final trainability.
+
+## Phase A Readiness Path
+
+- consumes an explicit `protocol_registry` run;
+- reads full evidence only for E1;
+- emits structural commitments only for sealed E2/E3;
+- separates deployment, strict, window, and causal evaluation continuity;
+- reconstructs Q diagnostics on `E1_DISCOVERY_TRAIN_V1`;
+- reports candidate ontology resolution and legacy inconsistencies;
+- stops at `STOP_NO_BENCHMARK_LABEL_CHANGES`.
 
 ## Output
 
@@ -54,6 +74,8 @@ final trainability.
 - run-level scope aids
   - `run_metadata/current_scope_summary.json`
   - `ARTIFACT_GUIDE.md`
+- threshold-support aids
+  - `threshold_diagnostics/persistent_low_k_support.csv`
 - supporting audits and registries
 
 ## Main Handoff

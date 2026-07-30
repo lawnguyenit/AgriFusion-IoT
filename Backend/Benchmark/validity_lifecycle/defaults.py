@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from Backend.Benchmark.protocol_registry import load_protocol_registry
 from Backend.Benchmark.validity_lifecycle.contracts import EnvironmentSpec
 
 
@@ -23,6 +24,7 @@ POINT_TARGET_MAP: dict[str, str] = {
 
 
 def default_environment_specs() -> tuple[EnvironmentSpec, ...]:
+    """Historical compatibility specs; governed runs use protocol_registry."""
     return (
         EnvironmentSpec(
             environment_id="E1",
@@ -63,7 +65,57 @@ def default_environment_specs() -> tuple[EnvironmentSpec, ...]:
     )
 
 
-def lifecycle_config_payload() -> dict[str, object]:
+def environment_specs_from_protocol_registry(run_dir: Path) -> tuple[EnvironmentSpec, ...]:
+    registry = load_protocol_registry(run_dir)
+    rows: list[EnvironmentSpec] = []
+    for environment in registry.environment_manifest.to_dict(orient="records"):
+        environment_id = str(environment["environment_id"])
+        role = str(environment["protocol_role"])
+        rows.append(
+            EnvironmentSpec(
+                environment_id=environment_id,
+                stage_name=role,
+                start_local=pd.Timestamp(environment["start_time"]),
+                end_local=pd.Timestamp(environment["end_time"]),
+                deployment_id=str(environment["deployment_id"]),
+                boundary_status="protocol_registry_governed",
+                boundary_reason="Immutable environment fact loaded from the linked protocol registry.",
+                train_description=_train_description(environment_id),
+                evaluation_description=_evaluation_description(environment_id),
+                stage_question=_stage_question(environment_id),
+            )
+        )
+    return tuple(rows)
+
+
+def _train_description(environment_id: str) -> str:
+    if environment_id == "E1":
+        return "Source discovery, selection, and fit according to the registered arm."
+    if environment_id == "E2":
+        return "Source expansion fit only after RQ2A release and only in the registered expansion arm."
+    return "Target-only; fitting is forbidden."
+
+
+def _evaluation_description(environment_id: str) -> str:
+    if environment_id == "E3_TARGET_PREEXPOSED":
+        return "Protocol-locked transport re-evaluation on a previously exposed target."
+    if environment_id == "E2":
+        return "Acquisition-stress evaluation after RQ2A release."
+    return "Chronological source evaluation under the registered fold policy."
+
+
+def _stage_question(environment_id: str) -> str:
+    if environment_id == "E1":
+        return "What construct is supportable and stable within source discovery?"
+    if environment_id == "E2":
+        return "Does the frozen E1 construct survive acquisition stress?"
+    return "What survives transport without redefining the frozen construct?"
+
+
+def lifecycle_config_payload(
+    environment_specs: tuple[EnvironmentSpec, ...] | None = None,
+) -> dict[str, object]:
+    specs = environment_specs or default_environment_specs()
     return {
         "protocol_version": DEFAULT_PROTOCOL_VERSION,
         "environments": [
@@ -79,7 +131,7 @@ def lifecycle_config_payload() -> dict[str, object]:
                 "evaluation_description": spec.evaluation_description,
                 "stage_question": spec.stage_question,
             }
-            for spec in default_environment_specs()
+            for spec in specs
         ],
         "support_thresholds": {
             "min_samples": 5,
@@ -127,9 +179,11 @@ def secondary_analyses_payload() -> dict[str, object]:
     }
 
 
-def config_file_payloads() -> dict[Path, dict[str, object]]:
+def config_file_payloads(
+    environment_specs: tuple[EnvironmentSpec, ...] | None = None,
+) -> dict[Path, dict[str, object]]:
     return {
-        Path("validity_lifecycle_v1.yaml"): lifecycle_config_payload(),
+        Path("validity_lifecycle_v1.yaml"): lifecycle_config_payload(environment_specs),
         Path("primary_claims.yaml"): primary_claims_payload(),
         Path("secondary_analyses.yaml"): secondary_analyses_payload(),
     }

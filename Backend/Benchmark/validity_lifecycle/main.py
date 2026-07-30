@@ -10,7 +10,7 @@ if str(ROOT_DIR) not in sys.path:
 
 from Backend.Benchmark.common.paths import VALIDITY_LIFECYCLE_ROOT
 from Backend.Benchmark.validity_lifecycle import ValidityLifecycleConfig, build_validity_lifecycle
-from Backend.Benchmark.validity_lifecycle.defaults import default_environment_specs
+from Backend.Benchmark.validity_lifecycle.defaults import environment_specs_from_protocol_registry
 from Backend.Benchmark.validity_lifecycle.loaders import resolve_latest_evaluation_protocol_run
 
 
@@ -19,6 +19,7 @@ def parse_args() -> argparse.Namespace:
         description="Build validity lifecycle audits from an authoritative evaluation_protocols run."
     )
     parser.add_argument("--evaluation-protocol-run-dir", type=Path, default=None)
+    parser.add_argument("--protocol-registry-run-dir", type=Path, required=True)
     parser.add_argument("--output-root", type=Path, default=VALIDITY_LIFECYCLE_ROOT / "artifacts")
     return parser.parse_args()
 
@@ -32,9 +33,12 @@ def main() -> None:
     )
     result = build_validity_lifecycle(
         ValidityLifecycleConfig(
+            protocol_registry_run_dir=args.protocol_registry_run_dir.resolve(),
             evaluation_protocol_run_dir=protocol_run_dir,
             output_root=args.output_root.resolve(),
-            environment_specs=default_environment_specs(),
+            environment_specs=environment_specs_from_protocol_registry(
+                args.protocol_registry_run_dir.resolve()
+            ),
         )
     )
     print("validity_lifecycle build complete")

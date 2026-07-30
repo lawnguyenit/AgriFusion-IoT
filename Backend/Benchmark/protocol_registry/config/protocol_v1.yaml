@@ -1,0 +1,117 @@
+protocol_registry_version: "2026-07-31.phase-a.v1"
+environment_manifest_version: "2026-07-31.environment.v1"
+policy_version: "2026-07-31.visibility.v1"
+timezone: "Asia/Ho_Chi_Minh"
+
+environments:
+  - environment_id: E1
+    legacy_environment_alias: E1
+    deployment_id: P1_SOURCE
+    position_id: POSITION_1
+    phase_id: E1_DISCOVERY
+    acquisition_regime_id: P1_STABLE_ACQUISITION
+    start_time: "2026-04-01T00:00:00+07:00"
+    end_time: "2026-05-09T00:00:00+07:00"
+    protocol_role: SOURCE_DISCOVERY
+    historical_exposure_status: SOURCE_FULL_VISIBILITY
+  - environment_id: E2
+    legacy_environment_alias: E2
+    deployment_id: P1_SOURCE
+    position_id: POSITION_1
+    phase_id: E2_ACQUISITION_STRESS
+    acquisition_regime_id: P1_DEGRADED_ACQUISITION
+    start_time: "2026-05-09T00:00:00+07:00"
+    end_time: "2026-05-20T00:00:00+07:00"
+    protocol_role: SOURCE_ACQUISITION_STRESS
+    historical_exposure_status: PREEXISTING_UNGOVERNED_EXPOSURE
+  - environment_id: E3_TARGET_PREEXPOSED
+    legacy_environment_alias: E3
+    deployment_id: P2_TARGET
+    position_id: POSITION_2
+    phase_id: E3_DEPLOYMENT_TRANSPORT
+    acquisition_regime_id: P2_RELOCATED_ACQUISITION
+    start_time: "2026-06-27T00:00:00+07:00"
+    end_time: "2026-07-13T00:00:00+07:00"
+    protocol_role: TARGET_TRANSPORT
+    historical_exposure_status: PREEXISTING_UNGOVERNED_EXPOSURE
+
+stages:
+  - protocol_stage_id: PHASE_A_AUDIT
+    stage_order: 1
+  - protocol_stage_id: CONTRACT_FROZEN
+    stage_order: 2
+  - protocol_stage_id: RQ2A_E2_RELEASE
+    stage_order: 3
+  - protocol_stage_id: RQ2B_E3_REEVALUATION_BATCH
+    stage_order: 4
+  - protocol_stage_id: FINAL_E4_TRANSPORT_BATCH
+    stage_order: 5
+
+visibility_policies:
+  - {protocol_stage_id: PHASE_A_AUDIT, environment_id: E1, visibility_status: FULL, fit_allowed: true, tuning_allowed: true, evaluation_allowed: false, unlock_stage_id: PHASE_A_AUDIT}
+  - {protocol_stage_id: PHASE_A_AUDIT, environment_id: E2, visibility_status: STRUCTURAL_ONLY, fit_allowed: false, tuning_allowed: false, evaluation_allowed: false, unlock_stage_id: RQ2A_E2_RELEASE}
+  - {protocol_stage_id: PHASE_A_AUDIT, environment_id: E3_TARGET_PREEXPOSED, visibility_status: STRUCTURAL_ONLY, fit_allowed: false, tuning_allowed: false, evaluation_allowed: false, unlock_stage_id: RQ2B_E3_REEVALUATION_BATCH}
+  - {protocol_stage_id: PHASE_A_AUDIT, environment_id: E4_FUTURE_TARGET, visibility_status: NOT_MATERIALIZED, fit_allowed: false, tuning_allowed: false, evaluation_allowed: false, unlock_stage_id: FINAL_E4_TRANSPORT_BATCH}
+  - {protocol_stage_id: CONTRACT_FROZEN, environment_id: E1, visibility_status: FULL, fit_allowed: true, tuning_allowed: true, evaluation_allowed: true, unlock_stage_id: CONTRACT_FROZEN}
+  - {protocol_stage_id: CONTRACT_FROZEN, environment_id: E2, visibility_status: STRUCTURAL_ONLY, fit_allowed: false, tuning_allowed: false, evaluation_allowed: false, unlock_stage_id: RQ2A_E2_RELEASE}
+  - {protocol_stage_id: CONTRACT_FROZEN, environment_id: E3_TARGET_PREEXPOSED, visibility_status: STRUCTURAL_ONLY, fit_allowed: false, tuning_allowed: false, evaluation_allowed: false, unlock_stage_id: RQ2B_E3_REEVALUATION_BATCH}
+  - {protocol_stage_id: CONTRACT_FROZEN, environment_id: E4_FUTURE_TARGET, visibility_status: NOT_MATERIALIZED, fit_allowed: false, tuning_allowed: false, evaluation_allowed: false, unlock_stage_id: FINAL_E4_TRANSPORT_BATCH}
+  - {protocol_stage_id: RQ2A_E2_RELEASE, environment_id: E1, visibility_status: FULL, fit_allowed: true, tuning_allowed: false, evaluation_allowed: true, unlock_stage_id: CONTRACT_FROZEN}
+  - {protocol_stage_id: RQ2A_E2_RELEASE, environment_id: E2, visibility_status: SOURCE_RELEASED, fit_allowed: true, tuning_allowed: false, evaluation_allowed: true, unlock_stage_id: RQ2A_E2_RELEASE}
+  - {protocol_stage_id: RQ2A_E2_RELEASE, environment_id: E3_TARGET_PREEXPOSED, visibility_status: STRUCTURAL_ONLY, fit_allowed: false, tuning_allowed: false, evaluation_allowed: false, unlock_stage_id: RQ2B_E3_REEVALUATION_BATCH}
+  - {protocol_stage_id: RQ2A_E2_RELEASE, environment_id: E4_FUTURE_TARGET, visibility_status: NOT_MATERIALIZED, fit_allowed: false, tuning_allowed: false, evaluation_allowed: false, unlock_stage_id: FINAL_E4_TRANSPORT_BATCH}
+  - {protocol_stage_id: RQ2B_E3_REEVALUATION_BATCH, environment_id: E1, visibility_status: FULL, fit_allowed: true, tuning_allowed: false, evaluation_allowed: true, unlock_stage_id: CONTRACT_FROZEN}
+  - {protocol_stage_id: RQ2B_E3_REEVALUATION_BATCH, environment_id: E2, visibility_status: SOURCE_RELEASED, fit_allowed: true, tuning_allowed: false, evaluation_allowed: true, unlock_stage_id: RQ2A_E2_RELEASE}
+  - {protocol_stage_id: RQ2B_E3_REEVALUATION_BATCH, environment_id: E3_TARGET_PREEXPOSED, visibility_status: EVALUATION_ONLY, fit_allowed: false, tuning_allowed: false, evaluation_allowed: true, unlock_stage_id: RQ2B_E3_REEVALUATION_BATCH}
+  - {protocol_stage_id: RQ2B_E3_REEVALUATION_BATCH, environment_id: E4_FUTURE_TARGET, visibility_status: NOT_MATERIALIZED, fit_allowed: false, tuning_allowed: false, evaluation_allowed: false, unlock_stage_id: FINAL_E4_TRANSPORT_BATCH}
+  - {protocol_stage_id: FINAL_E4_TRANSPORT_BATCH, environment_id: E1, visibility_status: FULL, fit_allowed: true, tuning_allowed: false, evaluation_allowed: true, unlock_stage_id: CONTRACT_FROZEN}
+  - {protocol_stage_id: FINAL_E4_TRANSPORT_BATCH, environment_id: E2, visibility_status: SOURCE_RELEASED, fit_allowed: true, tuning_allowed: false, evaluation_allowed: true, unlock_stage_id: RQ2A_E2_RELEASE}
+  - {protocol_stage_id: FINAL_E4_TRANSPORT_BATCH, environment_id: E3_TARGET_PREEXPOSED, visibility_status: EVALUATION_ONLY, fit_allowed: false, tuning_allowed: false, evaluation_allowed: true, unlock_stage_id: RQ2B_E3_REEVALUATION_BATCH}
+  - {protocol_stage_id: FINAL_E4_TRANSPORT_BATCH, environment_id: E4_FUTURE_TARGET, visibility_status: EVALUATION_ONLY, fit_allowed: false, tuning_allowed: false, evaluation_allowed: true, unlock_stage_id: FINAL_E4_TRANSPORT_BATCH}
+
+fold_policies:
+  - fold_policy_id: E1_PRIMARY_7D_V1
+    fold_policy_role: PRIMARY
+    train_window_mode: EXPANDING
+    initial_train_duration_days: 21
+    validation_duration_days: 7
+    test_duration_days: 7
+    purge_3h_min: 180
+    purge_8h_min: 480
+    fold_policy_version: "2026-07-31.fold.v1"
+  - fold_policy_id: E1_DIAGNOSTIC_5D_V1
+    fold_policy_role: DIAGNOSTIC
+    train_window_mode: EXPANDING
+    initial_train_duration_days: 15
+    validation_duration_days: 5
+    test_duration_days: 5
+    purge_3h_min: 180
+    purge_8h_min: 480
+    fold_policy_version: "2026-07-31.fold.v1"
+
+threshold_fit_cohorts:
+  - threshold_fit_cohort_id: E1_DISCOVERY_TRAIN_V1
+    environment_id: E1
+    start_time: "2026-04-01T00:00:00+07:00"
+    end_time: "2026-04-22T00:00:00+07:00"
+    membership_rule: "start_time <= sample_time < end_time"
+    cohort_version: "2026-07-31.cohort.v1"
+
+future_target_policy:
+  environment_id: E4_FUTURE_TARGET
+  activation_event: CONTRACT_FREEZE_COMPLETED
+  membership_rule: "sample_time_utc > freeze_timestamp_utc and unassigned_to_E1_E2_E3 and same_telemetry_source_family and not_demo"
+  freeze_timestamp_utc: null
+  materialization_status: NOT_MATERIALIZED
+  untouched_claim_allowed_before_materialization: false
+  policy_version: "2026-07-31.future-target.v1"
+
+experiment_arms:
+  - {experiment_arm_id: E1_ONLY_FROZEN, environment_id: E1, arm_role: MODEL_SELECTION_AND_FIT, allow_label_refit: false, allow_threshold_refit: false, allow_preprocessing_refit: true, allow_model_refit: true, allow_hyperparameter_refit: false, allow_target_inspection: true, model_selection_environment_ids: "E1"}
+  - {experiment_arm_id: E1_ONLY_FROZEN, environment_id: E2, arm_role: ACQUISITION_STRESS_EVALUATION, allow_label_refit: false, allow_threshold_refit: false, allow_preprocessing_refit: false, allow_model_refit: false, allow_hyperparameter_refit: false, allow_target_inspection: false, model_selection_environment_ids: "E1"}
+  - {experiment_arm_id: E1_ONLY_FROZEN, environment_id: E3_TARGET_PREEXPOSED, arm_role: PROTOCOL_LOCKED_TRANSPORT_REEVALUATION, allow_label_refit: false, allow_threshold_refit: false, allow_preprocessing_refit: false, allow_model_refit: false, allow_hyperparameter_refit: false, allow_target_inspection: false, model_selection_environment_ids: "E1"}
+  - {experiment_arm_id: E1_ONLY_FROZEN, environment_id: E4_FUTURE_TARGET, arm_role: FINAL_UNTOUCHED_TRANSPORT, allow_label_refit: false, allow_threshold_refit: false, allow_preprocessing_refit: false, allow_model_refit: false, allow_hyperparameter_refit: false, allow_target_inspection: false, model_selection_environment_ids: "E1"}
+  - {experiment_arm_id: E1_PLUS_E2_SOURCE_EXPANSION, environment_id: E1, arm_role: FROZEN_MODEL_SELECTION_SOURCE, allow_label_refit: false, allow_threshold_refit: false, allow_preprocessing_refit: true, allow_model_refit: true, allow_hyperparameter_refit: false, allow_target_inspection: true, model_selection_environment_ids: "E1"}
+  - {experiment_arm_id: E1_PLUS_E2_SOURCE_EXPANSION, environment_id: E2, arm_role: SOURCE_EXPANSION_FIT, allow_label_refit: false, allow_threshold_refit: false, allow_preprocessing_refit: true, allow_model_refit: true, allow_hyperparameter_refit: false, allow_target_inspection: false, model_selection_environment_ids: "E1"}
+  - {experiment_arm_id: E1_PLUS_E2_SOURCE_EXPANSION, environment_id: E3_TARGET_PREEXPOSED, arm_role: PROTOCOL_LOCKED_TRANSPORT_REEVALUATION, allow_label_refit: false, allow_threshold_refit: false, allow_preprocessing_refit: false, allow_model_refit: false, allow_hyperparameter_refit: false, allow_target_inspection: false, model_selection_environment_ids: "E1"}
+  - {experiment_arm_id: E1_PLUS_E2_SOURCE_EXPANSION, environment_id: E4_FUTURE_TARGET, arm_role: FINAL_UNTOUCHED_TRANSPORT, allow_label_refit: false, allow_threshold_refit: false, allow_preprocessing_refit: false, allow_model_refit: false, allow_hyperparameter_refit: false, allow_target_inspection: false, model_selection_environment_ids: "E1"}

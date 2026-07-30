@@ -17,6 +17,7 @@ class WeakLabelsConfig:
     base_split_strategy: str = "chronological_v1"
     run_profile: str = "chronological_temporal"
     threshold_mode: str = "TRAIN_FITTED_GLOBAL"
+    persistent_low_run_min_steps: int = 3
     split_gap_minutes_override: int | None = None
     random_seed: int = 42
 
@@ -65,6 +66,7 @@ class LabelArtifactBundle:
     label_distribution: object
     label_overlap_matrix: object
     threshold_sensitivity: object
+    persistent_low_k_support: object
     excluded_samples_audit: object
     label_examples: object
     v2_label_agreement_3h_8h: object

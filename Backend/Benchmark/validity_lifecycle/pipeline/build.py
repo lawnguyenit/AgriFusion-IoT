@@ -6,6 +6,7 @@ from pathlib import Path
 import pandas as pd
 
 from Backend.Benchmark.dataset_views.validators import ensure_parquet_engine
+from Backend.Benchmark.protocol_registry import load_protocol_registry
 from Backend.Benchmark.shared.artifacts import create_run_directory, write_yaml
 from Backend.Benchmark.validity_lifecycle.audits import (
     build_class_day_segment_support,
@@ -33,6 +34,10 @@ from Backend.Benchmark.weak_labels.io import write_csv, write_json_file, write_p
 
 
 def build_validity_lifecycle(config: ValidityLifecycleConfig) -> ValidityLifecycleResult:
+    if config.protocol_registry_run_dir is None:
+        raise ValueError("Governed validity_lifecycle runs require protocol_registry_run_dir.")
+    protocol_registry = load_protocol_registry(config.protocol_registry_run_dir)
+    _validate_protocol_registry_link(config, protocol_registry)
     parquet_engine = ensure_parquet_engine()
     inputs = load_protocol_lifecycle_inputs(config.evaluation_protocol_run_dir)
     claim_registry, comparison_registry, experiment_registry = load_claim_and_comparison_inputs(config.evaluation_protocol_run_dir)
@@ -46,7 +51,7 @@ def build_validity_lifecycle(config: ValidityLifecycleConfig) -> ValidityLifecyc
     layout = build_validity_lifecycle_layout(output_dir)
     layout.create()
 
-    for relative_path, payload in config_file_payloads().items():
+    for relative_path, payload in config_file_payloads(config.environment_specs).items():
         write_yaml(layout.configs / relative_path, payload)
 
     observation_artifacts = build_observation_artifacts(inputs=inputs, environment_specs=config.environment_specs)
@@ -142,6 +147,8 @@ def build_validity_lifecycle(config: ValidityLifecycleConfig) -> ValidityLifecyc
         {
             "pipeline": "validity_lifecycle",
             "version": "2026-07-26.validity-lifecycle.v1",
+            "protocol_registry_run_dir": str(protocol_registry.run_dir),
+            "protocol_registry_contract_hash": protocol_registry.run_manifest["registry_contract_hash"],
             "evaluation_protocol_run_dir": str(config.evaluation_protocol_run_dir.resolve()),
             "linked_dataset_views_run_dir": str(inputs.dataset_views_run_dir),
             "linked_weak_labels_run_dir": str(inputs.weak_labels_run_dir),
@@ -160,3 +167,22 @@ def build_validity_lifecycle(config: ValidityLifecycleConfig) -> ValidityLifecyc
         overall_status=str(validation_payload["overall_status"]),
         observation_count=int(len(observation_artifacts.observation_registry)),
     )
+
+
+def _validate_protocol_registry_link(config: ValidityLifecycleConfig, registry) -> None:
+    if bool(registry.run_manifest.get("phase_a_only", False)):
+        raise PermissionError(
+            "This protocol registry is Phase A audit-only. "
+            "STOP before validity_lifecycle until a Phase B frozen registry exists."
+        )
+    evaluation_manifest_path = (
+        config.evaluation_protocol_run_dir.resolve() / "run_metadata" / "run_manifest.json"
+    )
+    evaluation_manifest = json.loads(evaluation_manifest_path.read_text(encoding="utf-8"))
+    linked = evaluation_manifest.get("protocol_registry", {})
+    if str(linked.get("registry_contract_hash")) != str(
+        registry.run_manifest.get("registry_contract_hash")
+    ):
+        raise ValueError(
+            "validity_lifecycle protocol registry does not match the linked evaluation run."
+        )

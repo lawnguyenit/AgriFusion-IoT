@@ -232,4 +232,11 @@ def build_artifact_catalog(layout: WeakLabelsArtifactLayout) -> list[dict[str, s
             "usage": "diagnostic threshold quantiles and fit support",
             "scope_role": "shared",
         },
+        {
+            "artifact_group": "threshold_diagnostics",
+            "path": str(layout.threshold_diagnostics / "persistent_low_k_support.csv"),
+            "role": "persistent_low_k_support",
+            "usage": "support distribution for exploratory persistent-low threshold k by temporal horizon",
+            "scope_role": "shared",
+        },
     ]

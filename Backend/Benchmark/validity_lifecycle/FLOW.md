@@ -4,7 +4,8 @@
 
 ```mermaid
 flowchart LR
-    A["evaluation_protocols + model_suite outputs"] --> B["validity_lifecycle"]
+    P["protocol_registry frozen contract"] --> B["validity_lifecycle"]
+    A["evaluation_protocols + model_suite outputs"] --> B
     B --> C["audit outputs + synthesis outputs + evidence-updated ambiguity outputs"]
 ```
 
@@ -15,6 +16,7 @@ flowchart LR
   protocol run
 - one linked `model_suite` run
 - preregistered claim, comparison, and experiment registries
+- the same explicit non-Phase-A protocol registry linked by the evaluation run
 
 ## This Layer Does
 
@@ -26,6 +28,8 @@ flowchart LR
   artifacts
 
 It does **not** create new splits or train new models.
+It fails closed if the registry is Phase A-only or its contract hash differs
+from the linked evaluation run.
 
 ## Output
 

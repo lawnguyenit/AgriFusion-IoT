@@ -59,6 +59,7 @@ def build_tranche0_audit_artifacts(
     v2_temporal_evidence_8h: pd.DataFrame,
     threshold_records: tuple[ThresholdRecord, ...],
     weak_labels_repo_root: Path,
+    persistent_low_run_min_steps: int,
 ) -> dict[str, pd.DataFrame]:
     threshold_lookup = {record.threshold_id: record for record in threshold_records}
     point_label_assignment = _build_point_label_assignment(point_enriched_df, point_labels_detailed)
@@ -80,12 +81,14 @@ def build_tranche0_audit_artifacts(
         evidence_df=v2_temporal_evidence_3h,
         point_assignment_lookup=point_assignment_lookup,
         horizon_name="3h",
+        persistent_low_run_min_steps=persistent_low_run_min_steps,
     )
     temporal_assignment_8h = _build_temporal_label_assignment(
         v2_temporal_labels_8h,
         evidence_df=v2_temporal_evidence_8h,
         point_assignment_lookup=point_assignment_lookup,
         horizon_name="8h",
+        persistent_low_run_min_steps=persistent_low_run_min_steps,
     )
     label_assignment = pd.concat(
         [
@@ -99,15 +102,23 @@ def build_tranche0_audit_artifacts(
     rule_firings = pd.concat(
         [
             _build_point_rule_firings(point_enriched_df, threshold_lookup),
-            _build_temporal_rule_firings(v2_temporal_evidence_3h, horizon_name="3h"),
-            _build_temporal_rule_firings(v2_temporal_evidence_8h, horizon_name="8h"),
+            _build_temporal_rule_firings(
+                v2_temporal_evidence_3h,
+                horizon_name="3h",
+                persistent_low_run_min_steps=persistent_low_run_min_steps,
+            ),
+            _build_temporal_rule_firings(
+                v2_temporal_evidence_8h,
+                horizon_name="8h",
+                persistent_low_run_min_steps=persistent_low_run_min_steps,
+            ),
         ],
         ignore_index=True,
     ).convert_dtypes()
     return {
         "label_assignment": label_assignment,
         "rule_firings": rule_firings,
-        "rule_registry": _build_rule_registry(),
+        "rule_registry": _build_rule_registry(persistent_low_run_min_steps=persistent_low_run_min_steps),
         "threshold_registry": _build_threshold_registry(
             threshold_records=threshold_records,
             weak_labels_repo_root=weak_labels_repo_root,
@@ -281,6 +292,7 @@ def _build_temporal_label_assignment(
     evidence_df: pd.DataFrame,
     point_assignment_lookup: pd.DataFrame,
     horizon_name: str,
+    persistent_low_run_min_steps: int,
 ) -> pd.DataFrame:
     merged = temporal_labels.merge(
         evidence_df[
@@ -327,10 +339,11 @@ def _build_temporal_label_assignment(
         low_run_length = _coerce_int(row.get("low_run_length_ending_at_point"))
         point_label_name = str(row.get("point_train_label_name")) if pd.notna(row.get("point_train_label_name")) else ""
         intrinsic_eligibility = bool(row.get("window_intrinsic_eligibility", row.get("intrinsic_eligibility", False)))
-        persistent_low = point_label_name == POINT_LABELS[1] and low_run_length >= 3
-        insufficient_persistence = point_label_name == POINT_LABELS[1] and low_run_length < 3
+        persistent_low = point_label_name == POINT_LABELS[1] and low_run_length >= persistent_low_run_min_steps
+        insufficient_persistence = point_label_name == POINT_LABELS[1] and low_run_length < persistent_low_run_min_steps
         point_unknown_transfer = point_label_name == POINT_LABELS[2]
-        fired_rule_ids = ["LOW_RUN_ENDING_AT_ANCHOR_GE_3"] if persistent_low else []
+        persistent_rule_id = f"LOW_RUN_ENDING_AT_ANCHOR_GE_{persistent_low_run_min_steps}"
+        fired_rule_ids = [persistent_rule_id] if persistent_low else []
         primary_fired_rule_id = fired_rule_ids[0] if fired_rule_ids else pd.NA
         resolution_id, assignment_mode = _temporal_resolution_and_mode(
             intrinsic_eligibility=intrinsic_eligibility,
@@ -527,6 +540,7 @@ def _build_temporal_rule_firings(
     evidence_df: pd.DataFrame,
     *,
     horizon_name: str,
+    persistent_low_run_min_steps: int,
 ) -> pd.DataFrame:
     rows: list[dict[str, object]] = []
     for row in evidence_df.to_dict(orient="records"):
@@ -535,8 +549,9 @@ def _build_temporal_rule_firings(
         persistent_low = (
             row.get("point_train_label_name") == POINT_LABELS[1]
             and pd.notna(row.get("low_run_length_ending_at_point"))
-            and int(row["low_run_length_ending_at_point"]) >= 3
+            and int(row["low_run_length_ending_at_point"]) >= persistent_low_run_min_steps
         )
+        persistent_rule_id = f"LOW_RUN_ENDING_AT_ANCHOR_GE_{persistent_low_run_min_steps}"
         rows.extend(
             [
                 _rule_row(
@@ -558,9 +573,9 @@ def _build_temporal_rule_firings(
                 _rule_row(
                     sample_id=sample_id,
                     label_task_id=f"v2_temporal_{horizon_name}",
-                    rule_id="LOW_RUN_ENDING_AT_ANCHOR_GE_3",
+                    rule_id=persistent_rule_id,
                     condition_id="low_run_length_ending_at_point",
-                    condition_group_id="LOW_RUN_ENDING_AT_ANCHOR_GE_3",
+                    condition_group_id=persistent_rule_id,
                     logical_operator="AND",
                     evidence_field="low_run_length_ending_at_point",
                     evidence_value=row.get("low_run_length_ending_at_point"),
@@ -576,7 +591,8 @@ def _build_temporal_rule_firings(
     return pd.DataFrame(rows).convert_dtypes()
 
 
-def _build_rule_registry() -> pd.DataFrame:
+def _build_rule_registry(*, persistent_low_run_min_steps: int) -> pd.DataFrame:
+    persistent_rule_id = f"LOW_RUN_ENDING_AT_ANCHOR_GE_{persistent_low_run_min_steps}"
     return pd.DataFrame(
         [
             {
@@ -620,7 +636,7 @@ def _build_rule_registry() -> pd.DataFrame:
                 "scientific_role": "window_eligibility_gate",
             },
             {
-                "rule_id": "LOW_RUN_ENDING_AT_ANCHOR_GE_3",
+                "rule_id": persistent_rule_id,
                 "label_scope": "v2_temporal",
                 "priority_rank": 1,
                 "condition_logic": "AND",

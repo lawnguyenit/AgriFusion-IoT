@@ -4,7 +4,8 @@
 
 ```mermaid
 flowchart LR
-    A["dataset_views + weak_labels + canonical data"] --> B["evaluation_protocols"]
+    P["protocol_registry frozen contract"] --> B["evaluation_protocols"]
+    A["dataset_views + weak_labels + canonical data"] --> B
     B --> C["runner manifests + protocol registries + protocol diagnostics"]
 ```
 
@@ -14,10 +15,12 @@ flowchart LR
 - segment manifest
 - one `dataset_views` run as feature authority
 - one `weak_labels` run as label authority
+- one explicit non-Phase-A `protocol_registry` run as environment and
+  permission authority
 
 ## This Layer Does
 
-- define the benchmark environments and fold semantics
+- consume benchmark environments from the upstream registry
 - decide which rows belong to which training or evaluation protocol
 - build the runner-facing manifests consumed by `model_suite`
 - publish the tranche-0 scientific contract artifacts such as
@@ -26,7 +29,9 @@ flowchart LR
 - keep `8h` history diagnostics available without making them part of
   the default public benchmark runner scope
 
-It is the protocol authority. It does **not** train models.
+It remains runner-protocol authority but no longer owns environment facts.
+Phase-A-only registries trigger a hard STOP before this lane creates a run.
+It does **not** train models.
 
 ## Output
 

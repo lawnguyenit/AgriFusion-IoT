@@ -6,6 +6,7 @@ from pathlib import Path
 import pandas as pd
 
 from Backend.Benchmark.common.provenance import resolve_code_commit
+from Backend.Benchmark.protocol_registry import authorize_operation, load_protocol_registry
 from Backend.Benchmark.dataset_views.continuity import attach_continuity_chunks
 from Backend.Benchmark.dataset_views.continuity.chunks import build_segment_cadence_index
 from Backend.Benchmark.dataset_views.validators import ensure_parquet_engine, stable_hash_object, validate_unique_record_ids
@@ -83,6 +84,8 @@ from Backend.Benchmark.weak_labels.shared.helpers import file_sha256
 
 
 def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationProtocolResult:
+    protocol_registry = load_protocol_registry(config.protocol_registry_run_dir)
+    _validate_protocol_registry_authority(config, protocol_registry)
     parquet_engine = ensure_parquet_engine()
     canonical_df = load_canonical_history(config.canonical_history_path.resolve())
     validate_unique_record_ids(canonical_df, key_column="record.id")
@@ -123,7 +126,10 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
         mapping_version="2026-07-16.eval-protocol.v1",
     )
     write_csv(deployment_domains, layout.domain_manifests / "deployment_domains.csv")
-    environment_registry = build_environment_registry(working)
+    environment_registry = build_environment_registry(
+        working,
+        protocol_registry.environment_manifest,
+    )
     sample_environment_manifest = build_sample_environment_manifest(working, environment_registry)
     write_csv(environment_registry, layout.domain_manifests / "environment_registry.csv")
     write_parquet(sample_environment_manifest, layout.domain_manifests / "sample_environment_manifest.parquet", engine=parquet_engine)
@@ -594,6 +600,12 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
         "pipeline": "evaluation_protocols",
         "version": "2026-07-16.eval-protocol.v2",
         "config": _config_to_dict(config),
+        "protocol_registry": {
+            "run_dir": str(protocol_registry.run_dir),
+            "registry_contract_hash": protocol_registry.run_manifest["registry_contract_hash"],
+            "protocol_stage_id": config.protocol_stage_id,
+            "authority_mode": "UPSTREAM_PROTOCOL_REGISTRY",
+        },
         "input_hashes": {
             "canonical_history": str(config.canonical_history_path.resolve()),
             "feature_catalog": str(config.feature_catalog_path.resolve()),
@@ -636,8 +648,12 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
         source_row_count=int(len(p1_df)),
         target_row_count=int(len(p2_df)),
     )
+
+
 def _config_to_dict(config: EvaluationProtocolConfig) -> dict[str, object]:
     return {
+        "protocol_registry_run_dir": str(config.protocol_registry_run_dir),
+        "protocol_stage_id": config.protocol_stage_id,
         "canonical_history_path": str(config.canonical_history_path),
         "feature_catalog_path": str(config.feature_catalog_path),
         "manifest_path": str(config.manifest_path),
@@ -653,3 +669,33 @@ def _config_to_dict(config: EvaluationProtocolConfig) -> dict[str, object]:
         "p2_warm_start_enabled": config.p2_warm_start_enabled,
         "warmup_duration_hours": config.warmup_duration_hours,
     }
+
+
+def _validate_protocol_registry_authority(config: EvaluationProtocolConfig, registry) -> None:
+    if bool(registry.run_manifest.get("phase_a_only", False)):
+        raise PermissionError(
+            "This protocol registry is Phase A audit-only. "
+            "STOP before evaluation_protocols until a Phase B frozen registry exists."
+        )
+    if not bool(registry.run_manifest.get("downstream_runners_unlocked", False)):
+        raise PermissionError(
+            "Protocol registry has not unlocked downstream runners. "
+            "The 7-day-primary migration must be completed before evaluation."
+        )
+    if str(registry.run_manifest.get("canonical_manifest_hash")) != file_sha256(config.manifest_path.resolve()):
+        raise ValueError("Protocol registry canonical-manifest hash does not match evaluation input.")
+    required = (
+        ("E1", "inspect_sensitive"),
+        ("E2", "inspect_sensitive"),
+        ("E3_TARGET_PREEXPOSED", "evaluate"),
+    )
+    denied = [
+        f"{environment_id}:{operation}"
+        for environment_id, operation in required
+        if not authorize_operation(registry, config.protocol_stage_id, environment_id, operation).allowed
+    ]
+    if denied:
+        raise PermissionError(
+            "Governed evaluation protocol is not authorized at "
+            f"{config.protocol_stage_id}: {', '.join(denied)}"
+        )

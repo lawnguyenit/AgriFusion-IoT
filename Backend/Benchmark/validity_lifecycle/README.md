@@ -6,6 +6,10 @@ links the corresponding `model_suite` outputs, and re-expresses the
 benchmark sample universe as lifecycle-ready evidence for E1, E2, and
 E3.
 
+Governed runs also require the exact upstream `protocol_registry` linked by
+the evaluation run. Local default environment specs remain only for historical
+artifact/test compatibility and are not authority for new runs.
+
 ## Responsibilities
 
 - lock explicit E1/E2/E3 environment boundaries;
@@ -63,6 +67,9 @@ Primary tranche-0 outputs include:
 ```powershell
 python Backend/Benchmark/validity_lifecycle/main.py --evaluation-protocol-run-dir <protocol_run_dir>
 ```
+
+Add `--protocol-registry-run-dir <registry_run_dir>` for governed execution.
+Phase A registries intentionally fail at the STOP gate.
 
 If `--evaluation-protocol-run-dir` is omitted, the latest available
 `evaluation_protocols` run is used. The implementation also resolves the

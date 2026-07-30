@@ -33,6 +33,7 @@ from Backend.Benchmark.weak_labels.reporting import (
     build_label_examples,
     build_label_overlap_matrix,
     build_label_registry,
+    build_persistent_low_k_support,
     build_run_manifest,
 )
 from Backend.Benchmark.weak_labels.reporting.tranche0_contracts import build_tranche0_audit_artifacts
@@ -89,11 +90,16 @@ def build_weak_labels(config: WeakLabelsConfig) -> WeakLabelsResult:
         how="left",
     )
     continuity_df = enrich_point_continuity_features(continuity_df)
-    threshold_context = build_threshold_context(continuity_df, threshold_mode=config.threshold_mode)
+    threshold_context = build_threshold_context(
+        continuity_df,
+        threshold_mode=config.threshold_mode,
+        persistent_low_run_min_steps=config.persistent_low_run_min_steps,
+    )
     point_artifacts = build_point_label_artifacts(continuity_df, threshold_context=threshold_context)
     v2_artifacts = build_v2_label_artifacts(
         point_artifacts.enriched_df,
         segment_manifest=segment_manifest,
+        persistent_low_run_min_steps=config.persistent_low_run_min_steps,
     )
 
     bundle = LabelArtifactBundle(
@@ -121,6 +127,11 @@ def build_weak_labels(config: WeakLabelsConfig) -> WeakLabelsResult:
             v2_artifacts.temporal_labels_8h,
         ),
         threshold_sensitivity=threshold_context.sensitivity_df,
+        persistent_low_k_support=build_persistent_low_k_support(
+            temporal_evidence_3h=v2_artifacts.temporal_evidence_3h,
+            temporal_evidence_8h=v2_artifacts.temporal_evidence_8h,
+            default_k=config.persistent_low_run_min_steps,
+        ),
         excluded_samples_audit=build_excluded_samples_audit(
             point_artifacts.point_labels_detailed,
             point_artifacts.point_labels_train,
@@ -147,6 +158,7 @@ def build_weak_labels(config: WeakLabelsConfig) -> WeakLabelsResult:
         v2_temporal_evidence_8h=v2_artifacts.temporal_evidence_8h,
         threshold_records=threshold_context.threshold_records,
         weak_labels_repo_root=Path(__file__).resolve().parents[4],
+        persistent_low_run_min_steps=config.persistent_low_run_min_steps,
     )
     bundle.label_assignment = tranche0_audits["label_assignment"]
     bundle.rule_firings = tranche0_audits["rule_firings"]
@@ -193,6 +205,7 @@ def _write_bundle(bundle: LabelArtifactBundle, *, output_dir: Path, layout, parq
     write_csv(bundle.label_distribution, layout.audits / "label_distribution.csv")
     write_csv(bundle.label_overlap_matrix, layout.audits / "label_overlap_matrix.csv")
     write_csv(bundle.threshold_sensitivity, layout.threshold_diagnostics / "threshold_sensitivity.csv")
+    write_csv(bundle.persistent_low_k_support, layout.threshold_diagnostics / "persistent_low_k_support.csv")
     write_csv(bundle.excluded_samples_audit, layout.audits / "excluded_samples_audit.csv")
     write_csv(bundle.label_examples, layout.audits / "label_examples.csv")
     write_yaml_file(layout.registries / "label_registry.yaml", bundle.label_registry)
@@ -222,6 +235,7 @@ def _config_to_dict(config: WeakLabelsConfig) -> dict[str, object]:
         "base_split_strategy": config.base_split_strategy,
         "run_profile": config.run_profile,
         "threshold_mode": config.threshold_mode,
+        "persistent_low_run_min_steps": config.persistent_low_run_min_steps,
         "split_gap_minutes_override": config.split_gap_minutes_override,
         "random_seed": config.random_seed,
     }

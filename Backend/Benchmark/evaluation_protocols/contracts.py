@@ -6,6 +6,8 @@ from pathlib import Path
 
 @dataclass(frozen=True)
 class EvaluationProtocolConfig:
+    protocol_registry_run_dir: Path
+    protocol_stage_id: str
     canonical_history_path: Path
     feature_catalog_path: Path
     manifest_path: Path

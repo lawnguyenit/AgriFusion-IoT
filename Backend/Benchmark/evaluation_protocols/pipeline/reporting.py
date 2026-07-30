@@ -30,7 +30,7 @@ def write_benchmark_readiness_report(
         f"- Protocol run: `{protocol_run_dir.name}`",
         f"- Primary threshold: frozen `q10 = {threshold_value}` from initial P1 train",
         f"- Primary folds: `{', '.join(str(fold) for fold in selected_folds)}`",
-        "- P2 policy: untouched target holdout with no train or validation assignment",
+        "- P2/E3 policy: protocol-locked re-evaluation on a previously exposed target; no train or validation assignment",
         "",
         "## Scope",
         "",

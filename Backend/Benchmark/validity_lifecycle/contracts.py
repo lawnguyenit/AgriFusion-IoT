@@ -25,6 +25,7 @@ class ValidityLifecycleConfig:
     evaluation_protocol_run_dir: Path
     output_root: Path
     environment_specs: tuple[EnvironmentSpec, ...]
+    protocol_registry_run_dir: Path | None = None
     model_suite_run_dir: Path | None = None
     support_min_samples: int = 5
     support_min_days: int = 2

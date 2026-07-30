@@ -214,6 +214,60 @@ def build_label_examples(*frames: pd.DataFrame, sample_size: int = 5) -> pd.Data
     return pd.concat(examples, ignore_index=True).convert_dtypes()
 
 
+def build_persistent_low_k_support(
+    *,
+    temporal_evidence_3h: pd.DataFrame,
+    temporal_evidence_8h: pd.DataFrame,
+    default_k: int,
+) -> pd.DataFrame:
+    frames = [
+        temporal_evidence_3h.assign(task_id="v2_temporal_3h", horizon_name="3h"),
+        temporal_evidence_8h.assign(task_id="v2_temporal_8h", horizon_name="8h"),
+    ]
+    rows: list[dict[str, object]] = []
+    for frame in frames:
+        if frame.empty:
+            continue
+        eligible = frame.loc[frame["intrinsic_eligibility"].fillna(False).astype(bool)].copy()
+        point_low = eligible.loc[eligible["point_train_label_name"].astype("string") == "low_relative_moisture_point"].copy()
+        if point_low.empty:
+            rows.append(
+                {
+                    "task_id": str(frame["task_id"].iloc[0]),
+                    "horizon_name": str(frame["horizon_name"].iloc[0]),
+                    "k_value": default_k,
+                    "is_default_k": True,
+                    "eligible_row_count": int(len(eligible)),
+                    "eligible_point_low_count": 0,
+                    "exact_run_length_count": 0,
+                    "persistent_row_count": 0,
+                    "insufficient_persistence_count": 0,
+                    "max_observed_run_length": 0,
+                }
+            )
+            continue
+        run_lengths = point_low["low_run_length_ending_at_point"].fillna(0).astype(int)
+        max_k = max(default_k, int(run_lengths.max()))
+        task_id = str(frame["task_id"].iloc[0])
+        horizon_name = str(frame["horizon_name"].iloc[0])
+        for k_value in range(1, max_k + 1):
+            rows.append(
+                {
+                    "task_id": task_id,
+                    "horizon_name": horizon_name,
+                    "k_value": k_value,
+                    "is_default_k": k_value == default_k,
+                    "eligible_row_count": int(len(eligible)),
+                    "eligible_point_low_count": int(len(point_low)),
+                    "exact_run_length_count": int((run_lengths == k_value).sum()),
+                    "persistent_row_count": int((run_lengths >= k_value).sum()),
+                    "insufficient_persistence_count": int((run_lengths < k_value).sum()),
+                    "max_observed_run_length": int(run_lengths.max()),
+                }
+            )
+    return pd.DataFrame(rows).convert_dtypes()
+
+
 def build_run_manifest(
     *,
     config_dict: dict[str, object],

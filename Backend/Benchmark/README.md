@@ -38,6 +38,23 @@ Responsibilities:
 - separates evidence and exclusion states from train labels
 - versions rule sources, proxy dependencies, and audits
 
+The audit-only `weak_labels/readiness` sub-lane consumes the upstream
+`protocol_registry`, evaluates E1 candidate evidence, structurally seals
+E2/E3, and stops before changing labels.
+
+### `protocol_registry/`
+
+Upstream protocol-governance lane.
+
+Responsibilities:
+
+- owns immutable E1/E2/E3 environment facts;
+- owns stage visibility and experiment-arm permissions;
+- registers 7-day primary and 5-day diagnostic fold policy;
+- registers the independent E1 threshold-fit cohort and future E4 activation
+  policy;
+- authorizes or denies downstream operations without importing later lanes.
+
 ### `evaluation_protocols/`
 
 Independent protocol-definition lane.
@@ -88,12 +105,14 @@ Reusable benchmark infrastructure used by the active forward lanes.
 ## Data Flow
 
 1. Layer1 freezes canonical telemetry and segment metadata.
-2. `dataset_views` materializes feature views from canonical rows.
-3. `weak_labels` materializes auditable label artifacts from the same
+2. `protocol_registry` freezes environment/protocol authority.
+3. `weak_labels/readiness` performs Phase A candidate audits and stops.
+4. `dataset_views` materializes feature views from canonical rows.
+5. `weak_labels` materializes auditable label artifacts from the same
    canonical source.
-4. `evaluation_protocols` combines dataset views and weak labels into
+6. `evaluation_protocols` combines dataset views and weak labels into
    source/target benchmark assignments and diagnostics.
-5. `validity_lifecycle` re-audits the frozen benchmark contract as
+7. `validity_lifecycle` re-audits the frozen benchmark contract as
    lifecycle-ready evidence before later train or falsification work.
 
 For the implemented end-to-end handoff from benchmark lanes into
@@ -112,6 +131,7 @@ Read these when you need implemented control flow instead of only lane
 boundaries:
 
 - [Dataset Views Flow](dataset_views/FLOW.md)
+- [Protocol Registry Flow](protocol_registry/FLOW.md)
 - [Weak Labels Flow](weak_labels/FLOW.md)
 - [Evaluation Protocols Flow](evaluation_protocols/FLOW.md)
 - [Validity Lifecycle Flow](validity_lifecycle/FLOW.md)

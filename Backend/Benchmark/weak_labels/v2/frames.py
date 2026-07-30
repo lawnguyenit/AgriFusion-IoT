@@ -3,6 +3,7 @@ from __future__ import annotations
 import pandas as pd
 
 from Backend.Benchmark.weak_labels.shared.configs import (
+    DEFAULT_PERSISTENT_LOW_RUN_MIN_STEPS,
     LABEL_STATUS_EXCLUDED_WINDOW,
     LABEL_STATUS_LABELED,
     POINT_LABELS,
@@ -50,13 +51,21 @@ def build_same_y_frame(audit_df: pd.DataFrame, *, task_id: str) -> pd.DataFrame:
     return same_y_df
 
 
-def build_temporal_labels(audit_df: pd.DataFrame, *, task_id: str) -> pd.DataFrame:
+def build_temporal_labels(
+    audit_df: pd.DataFrame,
+    *,
+    task_id: str,
+    persistent_low_run_min_steps: int = DEFAULT_PERSISTENT_LOW_RUN_MIN_STEPS,
+) -> pd.DataFrame:
     rows: list[dict[str, object]] = []
     for row in audit_df.to_dict(orient="records"):
         if not bool(row["intrinsic_eligibility"]):
             label_name = V2_TEMPORAL_EXCLUDED_LABEL
             label_status = LABEL_STATUS_EXCLUDED_WINDOW
-        elif row["point_train_label_name"] == POINT_LABELS[1] and int(row["low_run_length_ending_at_point"]) >= 3:
+        elif (
+            row["point_train_label_name"] == POINT_LABELS[1]
+            and int(row["low_run_length_ending_at_point"]) >= persistent_low_run_min_steps
+        ):
             label_name = V2_TEMPORAL_LABELS[1]
             label_status = LABEL_STATUS_LABELED
         elif row["point_train_label_name"] == POINT_LABELS[2] or int(row["positive_environmental_evidence_count"]) > 0:
@@ -75,7 +84,11 @@ def build_temporal_labels(audit_df: pd.DataFrame, *, task_id: str) -> pd.DataFra
                 "label_status": label_status,
                 "intrinsic_eligibility": row["intrinsic_eligibility"],
                 "intrinsic_exclusion_reason": row["intrinsic_exclusion_reason"],
-                "primary_rule_id": "LOW_RUN_ENDING_AT_ANCHOR_GE_3" if label_name == V2_TEMPORAL_LABELS[1] else "POINT_LABEL_TRANSFER",
+                "primary_rule_id": (
+                    f"LOW_RUN_ENDING_AT_ANCHOR_GE_{persistent_low_run_min_steps}"
+                    if label_name == V2_TEMPORAL_LABELS[1]
+                    else "POINT_LABEL_TRANSFER"
+                ),
                 "rule_version": WEAK_LABELS_VERSION,
             }
         )

@@ -11,11 +11,13 @@ It is intentionally separate from:
 Its responsibilities are:
 
 - define deployment domains such as `P1_SOURCE` and `P2_TARGET`;
-- define the primary 5-day source-only protocol and its matched-cohort
-  runner contract;
-- define secondary diagnostic rolling source-only folds such as 7-day
-  comparisons;
-- define untouched target holdouts;
+- consume environment and stage authority from an explicit upstream
+  `protocol_registry` run;
+- preserve historical 5-day-primary artifacts as legacy compatibility
+  evidence while the upstream Phase A registry locks 7-day primary and
+  5-day diagnostic policy;
+- describe E3 only as protocol-locked re-evaluation on a previously exposed
+  target;
 - freeze source-fitted threshold policy for later transport analysis;
 - emit split manifests, fold diagnostics, runner manifests, and
   transport-shift reports.
@@ -28,12 +30,11 @@ Current output layout distinguishes:
 - `domain_manifests/`: deployment-domain ownership and protocol framing;
 - `validity_diagnostics/`: benchmark-validity audits for representation
   and estimability that sit above the raw runner manifests;
-- `primary_protocol/`: the authoritative 5-day Fold 01-03 artifacts,
+- `primary_protocol/`: historical 5-day Fold 01-03 compatibility artifacts,
   split into `folds/`, `cohorts/`, `lineage/`, and `runner/`;
 - `temporal_diagnostics/support_5day/`: non-primary 5-day support
   diagnostics and full assignment audits;
-- `temporal_diagnostics/secondary_7day/`: secondary 7-day diagnostics
-  kept for audit and comparison, not as the primary training protocol;
+- `temporal_diagnostics/secondary_7day/`: historical 7-day diagnostics;
 - `transport_diagnostics/`: feature-shift and frozen-label transport
   reports;
 - `threshold_diagnostics/`: frozen q10 policy and Q05/Q10/Q15/Q20
@@ -57,6 +58,11 @@ Code layout is responsibility-first:
 It may consume outputs from `weak_labels`, but it must not be nested
 inside `weak_labels` because protocol framing is a separate benchmark
 concern from label construction.
+
+Governed execution now requires `--protocol-registry-run-dir`. A Phase A
+registry has `phase_a_only=true`, so this lane fails closed until Phase B
+publishes a frozen registry. This prevents the historical runner contract from
+silently overriding the corrected 7-day/5-day policy.
 
 It also consumes an explicit `dataset_views` artifact run as the
 feature authority. The runner contract must pin resolved feature

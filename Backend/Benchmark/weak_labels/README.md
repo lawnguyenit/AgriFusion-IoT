@@ -12,6 +12,32 @@ different contracts:
 It does **not** own train/validation/test protocol boundaries, fold
 purge, environment assignment, or final runner trainability.
 
+## Audit-only Phase A readiness
+
+`weak_labels/readiness` is a separate audit path, not an alternate label
+engine. It consumes an explicit upstream `protocol_registry` run, audits E1
+candidate evidence, writes only structural commitments for E2/E3, and stops
+before label materialization or model training.
+
+Its outputs live under:
+
+```text
+Backend/Benchmark/weak_labels/readiness/artifacts/<run_id>/
+```
+
+`candidate_resolution/`, `evidence_inventory/`, and
+`threshold_diagnostics/` are candidate evidence only and must never be
+consumed by `build_point_label_artifacts()`.
+
+Run it explicitly:
+
+```powershell
+python Backend\Benchmark\weak_labels\readiness\main.py `
+  --protocol-registry-run-dir <registry_run_dir> `
+  --baseline-weak-label-run-dir Backend\Benchmark\weak_labels\artifacts\weak_labels_20260730_125309 `
+  --baseline-weak-label-run-dir Backend\Benchmark\weak_labels\artifacts\weak_labels_20260730_125309_001
+```
+
 ## Current Scope
 
 Current benchmark-primary weak-label scope:
@@ -45,6 +71,7 @@ Important:
   - `base_split_strategy`
   - `run_profile`
   - `threshold_mode`
+  - `persistent_low_run_min_steps`
 
 It does not read `dataset_views` outputs directly.
 
@@ -56,6 +83,8 @@ Main responsibilities:
 
 - build point weak labels used by `v0` and `v1`
 - build V2 same-Y and temporal weak labels for `3h` and `8h`
+- keep the benchmark-default persistence threshold at `k=3` while
+  allowing explicit exploratory overrides recorded in the run manifest
 - keep technical invalidity separate from environmental label states
 - keep intrinsic label eligibility separate from downstream protocol
   exclusions
@@ -130,8 +159,9 @@ The folder groups are:
     - `label_source_dependency.csv`
 - `threshold_diagnostics/`
   - threshold sensitivity diagnostics
-  - key file:
+  - key files:
     - `threshold_sensitivity.csv`
+    - `persistent_low_k_support.csv`
 
 Run-level guide:
 
@@ -175,6 +205,12 @@ Example with explicit threshold mode:
 
 ```powershell
 python Backend\Benchmark\weak_labels\main.py --threshold-mode TRAIN_FITTED_GLOBAL
+```
+
+Example with exploratory temporal persistence override:
+
+```powershell
+python Backend\Benchmark\weak_labels\main.py --persistent-low-run-min-steps 4
 ```
 
 ## Flow

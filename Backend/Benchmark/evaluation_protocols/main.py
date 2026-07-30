@@ -34,6 +34,13 @@ def parse_args() -> argparse.Namespace:
         description="Build simplified P1/P2 evaluation-protocol artifacts from canonical telemetry and a weak-label authority run."
     )
     parser.add_argument("--canonical-history", type=Path, default=BACKEND_PATHS.layer1_dir / "canonical" / "telemetry_history.csv")
+    parser.add_argument("--protocol-registry-run-dir", type=Path, required=True)
+    parser.add_argument(
+        "--protocol-stage-id",
+        type=str,
+        default="RQ2B_E3_REEVALUATION_BATCH",
+        help="Governed stage authorizing the evaluation artifacts built by this legacy-compatible runner.",
+    )
     parser.add_argument("--feature-catalog", type=Path, default=BACKEND_PATHS.layer1_dir / "canonical" / "feature_catalog.csv")
     parser.add_argument("--layer1-manifest", type=Path, default=BACKEND_PATHS.layer1_dir / "manifest.json")
     parser.add_argument("--segment-manifest", type=Path, default=None)
@@ -53,6 +60,8 @@ def main() -> None:
     weak_labels_run_dir = args.weak_labels_run_dir.resolve() if args.weak_labels_run_dir is not None else _default_latest_weak_labels_run().resolve()
     result = build_evaluation_protocols(
         EvaluationProtocolConfig(
+            protocol_registry_run_dir=args.protocol_registry_run_dir.resolve(),
+            protocol_stage_id=args.protocol_stage_id,
             canonical_history_path=args.canonical_history.resolve(),
             feature_catalog_path=args.feature_catalog.resolve(),
             manifest_path=args.layer1_manifest.resolve(),
