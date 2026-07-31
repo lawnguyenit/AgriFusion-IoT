@@ -213,6 +213,20 @@ Example with exploratory temporal persistence override:
 python Backend\Benchmark\weak_labels\main.py --persistent-low-run-min-steps 4
 ```
 
+## Phase C native engine
+
+The contract-gated native engine is a separate additive lane:
+
+```powershell
+python Backend\Benchmark\weak_labels\native_engine\main.py --help
+```
+
+It requires a complete reviewed Phase B2 contract, reads sensitive evidence
+only for authorized E1 records, and writes task-oriented native artifacts.
+The legacy command above remains the default and is not modified by a native
+run. Feature-view admissibility and train-ready publication are deferred to
+Phase D.
+
 ## Flow
 
 For the short layer contract, see [FLOW.md](FLOW.md).

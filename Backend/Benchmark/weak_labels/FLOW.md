@@ -74,6 +74,38 @@ Phase B is a separate lane under `weak_labels/semantic_contract`.
 Phase B does not call the label builder, materialize labels, modify canonical
 data, train models, or publish dataset views.
 
+## Phase C Native Engine Path
+
+The Phase C native lane is contract-gated and additive. It requires a reviewed
+Phase B2 frozen contract containing the operationalization, derived-evidence,
+compatibility, continuity, and complete window registries. It authorizes E1
+payloads before loading evidence and rejects E2/E3 sensitive rows at the input
+boundary.
+
+The native order is:
+
+```text
+canonical validation
+  → deployment/strict adjacency
+  → derived evidence
+  → RuleFiring
+  → point Resolution/Assignment
+  → observed runs
+  → window eligibility
+  → temporal Resolution/Assignment
+  → Same-Y transfer projection
+  → semantic fold projection
+  → differential audit
+  → atomic publication
+```
+
+Native artifacts are task-oriented (`point`, `same_y`, `temporal_anchor`) and
+are materialized only from first-class assignments. Same-Y is a source-label
+transfer projection. Feature-view admissibility and train-ready cohorts remain
+Phase D responsibilities. Legacy weak-label runs are regression references,
+not scientific oracles. Phase C ends at `NATIVE_ENGINE_IMPLEMENTED` with
+`downstream_runners_unlocked=false`.
+
 ## Output
 
 - point label artifacts

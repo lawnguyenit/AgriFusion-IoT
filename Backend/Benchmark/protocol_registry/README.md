@@ -59,3 +59,13 @@ freeze timestamp, and canonical record-set commitment. It does not unlock
 evaluation or validity runners and does not materialize labels. E3 remains a
 pre-exposed protocol-locked re-evaluation target; E4 remains a policy until
 post-freeze governed snapshots provide eligible records.
+
+## Phase C native-engine registry
+
+After a successful same-filesystem native-engine publication and verified
+success marker, an additive child registry may transition to
+`NATIVE_ENGINE_IMPLEMENTED`. It retains `semantic_contract_frozen=true`, sets
+`native_engine_implemented=true`, and keeps
+`benchmark_release_published=false` and `downstream_runners_unlocked=false`.
+A child registry cannot be created from a staging directory or a failed native
+run.
