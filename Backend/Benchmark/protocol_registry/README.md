@@ -43,3 +43,19 @@ Phase A registries contain `phase_a_only=true`. Evaluation and validity
 consumers fail closed against such a registry and cannot pass the STOP gate.
 They also contain `downstream_runners_unlocked=false`, so changing only the
 stage flag cannot bypass the pending 7-day-primary runner migration.
+
+## Phase B frozen registry
+
+Phase B creates an additive `CONTRACT_FROZEN` registry linked to a reviewed
+semantic-contract run. Such a registry has:
+
+- `phase_a_only=false`;
+- `semantic_contract_frozen=true`;
+- `native_engine_implemented=false`;
+- `downstream_runners_unlocked=false`.
+
+The frozen registry records the semantic-contract hash, review decision hash,
+freeze timestamp, and canonical record-set commitment. It does not unlock
+evaluation or validity runners and does not materialize labels. E3 remains a
+pre-exposed protocol-locked re-evaluation target; E4 remains a policy until
+post-freeze governed snapshots provide eligible records.

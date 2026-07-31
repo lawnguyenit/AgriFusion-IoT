@@ -9,6 +9,8 @@ flowchart LR
     A --> D["protocol_registry"]
     D --> E["weak_labels.readiness"]
     E --> F["candidate evidence + STOP gate"]
+    F --> G["semantic_contract Phase B1 decision pack"]
+    G --> H["reviewed frozen contract + STOP before Phase C"]
 ```
 
 `weak_labels` and `weak_labels.readiness` are separate execution paths.
@@ -49,6 +51,28 @@ final trainability.
 - reconstructs Q diagnostics on `E1_DISCOVERY_TRAIN_V1`;
 - reports candidate ontology resolution and legacy inconsistencies;
 - stops at `STOP_NO_BENCHMARK_LABEL_CHANGES`.
+
+## Phase B Semantic Contract Path
+
+Phase B is a separate lane under `weak_labels/semantic_contract`.
+
+- reads only a PASS Phase A run, its parent protocol registry, and E1
+  canonical evidence;
+- separates observed auxiliary evidence from `point_context_incomplete`;
+- emits an exhaustive reachability-aware compatibility matrix;
+- scans Q05/Q10/Q15/Q20 across all data-supported K values;
+- classifies primary, local, breakpoint, moderate, strong, and extreme K
+  regimes without model scores;
+- stops at `PRIMARY_K_REVIEW_REQUIRED` until a reviewed decision artifact is
+  supplied;
+- after review, writes a frozen semantic contract and an additive
+  `CONTRACT_FROZEN` registry;
+- records a canonical freeze snapshot commitment for future-target governance;
+- keeps E2/E3 sealed and downstream runners locked until the native engine and
+  later release gates are complete.
+
+Phase B does not call the label builder, materialize labels, modify canonical
+data, train models, or publish dataset views.
 
 ## Output
 

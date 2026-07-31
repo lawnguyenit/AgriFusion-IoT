@@ -682,6 +682,10 @@ def _validate_protocol_registry_authority(config: EvaluationProtocolConfig, regi
             "Protocol registry has not unlocked downstream runners. "
             "The 7-day-primary migration must be completed before evaluation."
         )
+    if not bool(registry.run_manifest.get("semantic_contract_frozen", False)):
+        raise PermissionError("Evaluation requires a frozen Phase B semantic contract.")
+    if not bool(registry.run_manifest.get("native_engine_implemented", False)):
+        raise PermissionError("Evaluation remains locked until the Phase C native engine is implemented.")
     if str(registry.run_manifest.get("canonical_manifest_hash")) != file_sha256(config.manifest_path.resolve()):
         raise ValueError("Protocol registry canonical-manifest hash does not match evaluation input.")
     required = (

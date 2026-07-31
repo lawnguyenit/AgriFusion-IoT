@@ -175,6 +175,12 @@ def _validate_protocol_registry_link(config: ValidityLifecycleConfig, registry) 
             "This protocol registry is Phase A audit-only. "
             "STOP before validity_lifecycle until a Phase B frozen registry exists."
         )
+    if not bool(registry.run_manifest.get("semantic_contract_frozen", False)):
+        raise PermissionError("Validity lifecycle requires a frozen Phase B semantic contract.")
+    if not bool(registry.run_manifest.get("native_engine_implemented", False)):
+        raise PermissionError("Validity lifecycle remains locked until the Phase C native engine is implemented.")
+    if not bool(registry.run_manifest.get("downstream_runners_unlocked", False)):
+        raise PermissionError("Validity lifecycle downstream runners are still locked by protocol governance.")
     evaluation_manifest_path = (
         config.evaluation_protocol_run_dir.resolve() / "run_metadata" / "run_manifest.json"
     )
