@@ -2,6 +2,25 @@
 
 `weak_labels` is the label-authority lane for Benchmark.
 
+## Package organization
+
+New code uses explicit lifecycle and responsibility namespaces:
+
+```text
+weak_labels.contracts
+weak_labels.lifecycle.phase_a_readiness
+weak_labels.lifecycle.phase_b_contract
+weak_labels.lifecycle.phase_c_native
+weak_labels.semantic
+weak_labels.provenance
+weak_labels.infrastructure
+```
+
+The historical `runtime`, `point`, `v2`, and `partitions` packages remain
+importable through compatibility surfaces. They are not authorities for new
+semantic contracts or implicit latest-run selection. Existing artifact runs
+and baseline hashes remain unchanged.
+
 If `dataset_views` prepares `X`, then `weak_labels` prepares `y`.
 Both read the same frozen Layer1 canonical evidence, but they own
 different contracts:
@@ -14,7 +33,7 @@ purge, environment assignment, or final runner trainability.
 
 ## Audit-only Phase A readiness
 
-`weak_labels/readiness` is a separate audit path, not an alternate label
+`weak_labels/lifecycle/phase_a_readiness` is a separate audit path, not an alternate label
 engine. It consumes an explicit upstream `protocol_registry` run, audits E1
 candidate evidence, writes only structural commitments for E2/E3, and stops
 before label materialization or model training.
@@ -22,7 +41,7 @@ before label materialization or model training.
 Its outputs live under:
 
 ```text
-Backend/Benchmark/weak_labels/readiness/artifacts/<run_id>/
+Backend/Benchmark/weak_labels/artifacts/phase_a/<run_id>/
 ```
 
 `candidate_resolution/`, `evidence_inventory/`, and
@@ -32,7 +51,7 @@ consumed by `build_point_label_artifacts()`.
 Run it explicitly:
 
 ```powershell
-python Backend\Benchmark\weak_labels\readiness\main.py `
+python Backend\Benchmark\weak_labels\lifecycle\phase_a_readiness\main.py `
   --protocol-registry-run-dir <registry_run_dir> `
   --baseline-weak-label-run-dir Backend\Benchmark\weak_labels\artifacts\weak_labels_20260730_125309 `
   --baseline-weak-label-run-dir Backend\Benchmark\weak_labels\artifacts\weak_labels_20260730_125309_001
@@ -218,7 +237,7 @@ python Backend\Benchmark\weak_labels\main.py --persistent-low-run-min-steps 4
 The contract-gated native engine is a separate additive lane:
 
 ```powershell
-python Backend\Benchmark\weak_labels\native_engine\main.py --help
+python Backend\Benchmark\weak_labels\lifecycle\phase_c_native\main.py --help
 ```
 
 It requires a complete reviewed Phase B2 contract, reads sensitive evidence

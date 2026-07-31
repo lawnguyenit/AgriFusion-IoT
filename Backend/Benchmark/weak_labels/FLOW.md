@@ -1,5 +1,22 @@
 # Weak Labels Flow
 
+## W1 package boundaries
+
+The authority path is organized by lifecycle and responsibility:
+
+```text
+contracts
+  → lifecycle/phase_a_readiness
+  → lifecycle/phase_b_contract
+  → semantic evidence/continuity/point/temporal
+  → lifecycle/phase_c_native
+  → provenance and task artifacts
+```
+
+`compatibility/` contains the former flattened `runtime`, `point`, `v2`, and
+partition entry points. They remain importable for existing callers but are
+not authorities for Phase A, B, or C. Historical artifacts remain immutable.
+
 ## Layer Contract
 
 ```mermaid
@@ -7,13 +24,14 @@ flowchart LR
     A["Layer1 canonical data"] --> B["weak_labels"]
     B --> C["weak-label artifacts + rule traces"]
     A --> D["protocol_registry"]
-    D --> E["weak_labels.readiness"]
+    D --> E["weak_labels.lifecycle.phase_a_readiness"]
     E --> F["candidate evidence + STOP gate"]
     F --> G["semantic_contract Phase B1 decision pack"]
     G --> H["reviewed frozen contract + STOP before Phase C"]
 ```
 
-`weak_labels` and `weak_labels.readiness` are separate execution paths.
+`weak_labels` lifecycle lanes and legacy compatibility are separate execution
+paths.
 Readiness never calls the label builder and its candidate outputs are not
 label authority.
 
@@ -54,7 +72,7 @@ final trainability.
 
 ## Phase B Semantic Contract Path
 
-Phase B is a separate lane under `weak_labels/semantic_contract`.
+Phase B is a separate lane under `weak_labels/lifecycle/phase_b_contract`.
 
 - reads only a PASS Phase A run, its parent protocol registry, and E1
   canonical evidence;
