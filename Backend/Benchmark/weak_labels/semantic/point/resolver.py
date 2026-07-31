@@ -107,7 +107,7 @@ def resolve_point_assignments(
                 "resolver_contract_id": "POINT_RESOLUTION_V1",
                 "continuity_contract_id": "STRICT_15M_PM2_V1",
                 "assignment_schema_version": "native.assignment.v1",
-                "input_record_hash": str(row.get("record.id")),
+                "input_record_hash": str(row.get("canonical_record_hash", row.get("record.id"))),
                 "label": label,
                 "resolution_instance_id": resolution_instance_id,
                 "resolution_code": code,
@@ -141,4 +141,3 @@ def _diagnostic_tags(low: str, auxiliary: list[str]) -> list[str]:
     if low == "POSITIVE" and "POSITIVE" in auxiliary[1:]:
         tags.extend(["recovery_or_transition_candidate", "boundary_sensitive"])
     return tags
-

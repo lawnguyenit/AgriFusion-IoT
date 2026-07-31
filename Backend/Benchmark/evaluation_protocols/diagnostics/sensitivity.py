@@ -5,10 +5,6 @@ import json
 
 import pandas as pd
 
-from Backend.Benchmark.evaluation_protocols.lineage import build_protocol_assignment_artifacts
-from Backend.Benchmark.shared.weak_rules import LowRelativeMoistureThresholds
-from Backend.Benchmark.weak_labels.point import ThresholdContext, build_point_label_artifacts
-from Backend.Benchmark.weak_labels.v2 import build_v2_label_artifacts
 
 
 @dataclass(frozen=True)
@@ -19,63 +15,26 @@ class ThresholdSensitivityArtifacts:
 
 def build_threshold_sensitivity_transport(
     *,
-    working: pd.DataFrame,
-    base_threshold_context: ThresholdContext,
-    fold_specs,
-    segment_manifest: dict[str, object],
-    expected_interval_sec: int,
+    label_frames: dict[str, pd.DataFrame],
+    view_assignments: pd.DataFrame,
     q_values: dict[str, float],
 ) -> ThresholdSensitivityArtifacts:
+    """Summarize already-materialized native labels.
+
+    Evaluation is not allowed to refit thresholds or rerun label builders.
+    The variants are therefore provenance-only projections of the native
+    release, not newly generated labels.
+    """
     summary_rows: list[dict[str, object]] = []
     distribution_rows: list[dict[str, object]] = []
-    record_domain_lookup = working.set_index("record.id")["deployment_domain_name"].astype("string").to_dict()
     for threshold_id, threshold_value in q_values.items():
-        threshold_context = ThresholdContext(
-            threshold_mode=base_threshold_context.threshold_mode,
-            low_moisture_global=LowRelativeMoistureThresholds(
-                q10=float(threshold_value),
-                q15=base_threshold_context.low_moisture_global.q15,
-                fit_value_count=base_threshold_context.low_moisture_global.fit_value_count,
-                scope_key=threshold_id,
-            ),
-            low_moisture_by_segment={},
-            ec_shift_abs_delta_q95=base_threshold_context.ec_shift_abs_delta_q95,
-            threshold_records=base_threshold_context.threshold_records,
-            sensitivity_df=base_threshold_context.sensitivity_df,
-        )
-        point_artifacts = build_point_label_artifacts(working, threshold_context=threshold_context)
-        v2_artifacts = build_v2_label_artifacts(
-            point_artifacts.enriched_df,
-            segment_manifest=segment_manifest,
-        )
-        point_labels = point_artifacts.point_labels_train.loc[
-            point_artifacts.point_labels_train["task_id"] == "v0_point_train"
-        ].copy()
-        point_labels["deployment_domain_name"] = point_labels["sample_id"].astype("string").map(record_domain_lookup)
-        v2_temporal_3h = v2_artifacts.temporal_labels_3h.copy()
-        v2_temporal_3h["deployment_domain_name"] = v2_temporal_3h["sample_id"].astype("string").map(record_domain_lookup)
-        v2_temporal_8h = v2_artifacts.temporal_labels_8h.copy()
-        v2_temporal_8h["deployment_domain_name"] = v2_temporal_8h["sample_id"].astype("string").map(record_domain_lookup)
-        v2_same_y = v2_artifacts.same_y_labels.copy()
-        v2_same_y["deployment_domain_name"] = v2_same_y["sample_id"].astype("string").map(record_domain_lookup)
-        assignment_artifacts = build_protocol_assignment_artifacts(
-            fold_specs=fold_specs,
-            point_labels=point_labels,
-            v2_same_y=v2_same_y,
-            v2_temporal_3h=v2_temporal_3h,
-            v2_temporal_8h=v2_temporal_8h,
-            v2_evidence_3h=v2_artifacts.temporal_evidence_3h,
-            v2_evidence_8h=v2_artifacts.temporal_evidence_8h,
-            working=working,
-            expected_interval_sec=expected_interval_sec,
-        )
         summary_variant, distributions_variant = _summarize_threshold_variant(
             threshold_id=threshold_id,
             threshold_value=float(threshold_value),
-            point_labels=point_labels,
-            v2_temporal_3h=v2_temporal_3h,
-            v2_temporal_8h=v2_temporal_8h,
-            view_assignments=assignment_artifacts.view_split_assignments,
+            point_labels=label_frames["v0_point_train"],
+            v2_temporal_3h=label_frames["v2_temporal_3h"],
+            v2_temporal_8h=label_frames["v2_temporal_8h"],
+            view_assignments=view_assignments,
         )
         summary_rows.extend(summary_variant)
         distribution_rows.extend(distributions_variant)
@@ -122,7 +81,7 @@ def _summarize_threshold_variant(
                 float(max(label_counts.values()) / eligible_count) if label_counts and eligible_count > 0 else pd.NA
             )
             collapse_indicator = bool(pd.notna(majority_prevalence) and float(majority_prevalence) >= 0.90)
-            persistent_window_count = int(label_counts.get("persistent_low_relative_moisture_window", 0))
+            persistent_window_count = int(label_counts.get("persistent_low_relative_moisture_at_anchor", 0))
             summary_rows.append(
                 {
                     "threshold_id": threshold_id,

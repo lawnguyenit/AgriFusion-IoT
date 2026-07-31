@@ -16,10 +16,10 @@ weak_labels.provenance
 weak_labels.infrastructure
 ```
 
-The historical `runtime`, `point`, `v2`, and `partitions` packages remain
-importable through compatibility surfaces. They are not authorities for new
-semantic contracts or implicit latest-run selection. Existing artifact runs
-and baseline hashes remain unchanged.
+Historical label source files are no longer part of the executable package.
+Only immutable historical artifacts and differential fixtures remain outside
+the native implementation. Existing artifact runs and baseline hashes remain
+unchanged.
 
 If `dataset_views` prepares `X`, then `weak_labels` prepares `y`.
 Both read the same frozen Layer1 canonical evidence, but they own
@@ -46,7 +46,7 @@ Backend/Benchmark/weak_labels/artifacts/phase_a/<run_id>/
 
 `candidate_resolution/`, `evidence_inventory/`, and
 `threshold_diagnostics/` are candidate evidence only and must never be
-consumed by `build_point_label_artifacts()`.
+consumed by the native engine.
 
 Run it explicitly:
 
@@ -57,40 +57,26 @@ python Backend\Benchmark\weak_labels\lifecycle\phase_a_readiness\main.py `
   --baseline-weak-label-run-dir Backend\Benchmark\weak_labels\artifacts\weak_labels_20260730_125309_001
 ```
 
-## Current Scope
+## Native public tasks
 
-Current benchmark-primary weak-label scope:
+The native release publishes these task families:
 
-- `v0_point_train`
-- `v1_point_train`
-- `v2_same_y_3h`
-- `v2_temporal_3h`
+- `point`
+- `same_y/horizon_3h` and `same_y/horizon_8h` (transfer projections)
+- `temporal/horizon_3h` and `temporal/horizon_8h`
 
-Optional explicit outputs still produced by the lane:
-
-- `v2_same_y_8h`
-- `v2_temporal_8h`
-
-Important:
-
-- `weak_labels` does not consume `dataset_views` outputs
-- both lanes read the same frozen Layer1 canonical source
-- `evaluation_protocols` is the later layer that pairs feature views
-  with label tasks under a registered protocol contract
+`weak_labels` does not consume `dataset_views` outputs. Both lanes read the
+same frozen Layer1 canonical source; `evaluation_protocols` later joins the
+native labels to feature views and applies fold/purge/train-readiness rules.
 
 ## Input
 
-`weak_labels` reads:
+The native lifecycle reads:
 
 - frozen Layer1 canonical history
-- frozen Layer1 feature catalog
-- Layer1 manifest
-- segment manifest for continuity-aware label logic
-- weak-label runtime config such as:
-  - `base_split_strategy`
-  - `run_profile`
-  - `threshold_mode`
-  - `persistent_low_run_min_steps`
+- Layer1 manifest and canonical evidence schema
+- segment manifest and sensor dependency registry
+- an explicit frozen Phase B semantic contract
 
 It does not read `dataset_views` outputs directly.
 
@@ -101,9 +87,9 @@ It does not read `dataset_views` outputs directly.
 Main responsibilities:
 
 - build point weak labels used by `v0` and `v1`
-- build V2 same-Y and temporal weak labels for `3h` and `8h`
-- keep the benchmark-default persistence threshold at `k=3` while
-  allowing explicit exploratory overrides recorded in the run manifest
+- build native Same-Y transfer and Temporal labels for `3h` and `8h`
+- apply the frozen persistence contract without refitting or exploratory
+  overrides during release
 - keep technical invalidity separate from environmental label states
 - keep intrinsic label eligibility separate from downstream protocol
   exclusions
@@ -122,65 +108,20 @@ In short:
 
 ## Output
 
-Each run creates:
+Each native run is published under the requested output root as:
 
-- `Backend/Benchmark/weak_labels/artifacts/<run_id>/`
+```text
+tasks/point/{assignments,evidence}.parquet
+tasks/same_y/horizon_{3h,8h}/assignments.parquet
+tasks/temporal/horizon_{3h,8h}/{assignments,evidence}.parquet
+cohorts/{intrinsic_eligibility,semantic_fold_projection_manifest}.parquet
+audit/{rule_firings,resolutions,assignments,continuity_registry}.parquet
+run_metadata/label_release_manifest.json
+run_metadata/artifact_catalog.csv
+```
 
-The folder groups are:
-
-- `run_metadata/`
-  - run provenance and artifact index
-  - key files:
-    - `run_manifest.json`
-    - `artifact_catalog.csv`
-    - `current_scope_summary.json`
-- `registries/`
-  - label ontology and label-dependency contracts
-  - key files:
-    - `label_registry.yaml`
-    - `label_dependency_registry.csv`
-- `point/`
-  - point evidence and point weak labels for `v0` / `v1`
-  - key files:
-    - `point_evidence_flags.parquet`
-    - `point_labels_detailed.parquet`
-    - `point_labels_train.parquet`
-    - `technical_labels_audit.parquet`
-- `v2/`
-  - V2 same-Y and temporal weak labels
-  - key files:
-    - `v2_same_y_labels.parquet`
-    - `v2_temporal_evidence_3h.parquet`
-    - `v2_temporal_labels_3h.parquet`
-    - `v2_temporal_evidence_8h.parquet`
-    - `v2_temporal_labels_8h.parquet`
-    - `matched_cohort_manifest.parquet`
-    - `v2_label_agreement_3h_8h.csv`
-- `audits/`
-  - high-level label summaries and example/exclusion tables
-  - key files:
-    - `label_distribution.csv`
-    - `label_overlap_matrix.csv`
-    - `excluded_samples_audit.csv`
-    - `label_examples.csv`
-- `audit/`
-  - tranche-0 scientific trace artifacts
-  - key files:
-    - `label_assignment.parquet`
-      - authoritative assignment provenance including
-        `fired_rule_ids`, `primary_fired_rule_id`, `resolution_id`,
-        `assignment_mode`, and transfer lineage fields
-    - `rule_firings.parquet`
-      - condition-level rule and gate evaluation only; same-Y transfer
-        does not appear here as a synthetic rule firing
-    - `rule_registry.csv`
-    - `threshold_registry.csv`
-    - `label_source_dependency.csv`
-- `threshold_diagnostics/`
-  - threshold sensitivity diagnostics
-  - key files:
-    - `threshold_sensitivity.csv`
-    - `persistent_low_k_support.csv`
+Only the Assignment-derived files in `tasks/` are public label authority;
+the `audit/` files provide their RuleFiring/Resolution lineage.
 
 Run-level guide:
 
@@ -214,27 +155,9 @@ Typical downstream use:
 
 ## Commands
 
-Default run:
+## Native label release
 
-```powershell
-python Backend\Benchmark\weak_labels\main.py
-```
-
-Example with explicit threshold mode:
-
-```powershell
-python Backend\Benchmark\weak_labels\main.py --threshold-mode TRAIN_FITTED_GLOBAL
-```
-
-Example with exploratory temporal persistence override:
-
-```powershell
-python Backend\Benchmark\weak_labels\main.py --persistent-low-run-min-steps 4
-```
-
-## Phase C native engine
-
-The contract-gated native engine is a separate additive lane:
+The contract-gated native engine is the only label-generation lane:
 
 ```powershell
 python Backend\Benchmark\weak_labels\lifecycle\phase_c_native\main.py --help
@@ -242,9 +165,10 @@ python Backend\Benchmark\weak_labels\lifecycle\phase_c_native\main.py --help
 
 It requires a complete reviewed Phase B2 contract, reads sensitive evidence
 only for authorized E1 records, and writes task-oriented native artifacts.
-The legacy command above remains the default and is not modified by a native
-run. Feature-view admissibility and train-ready publication are deferred to
-Phase D.
+It publishes Point, Same-Y, and Temporal Assignment artifacts plus a
+`run_metadata/label_release_manifest.json`. `evaluation_protocols` consumes
+that manifest explicitly. Feature-view admissibility and train-ready
+publication remain evaluation responsibilities.
 
 ## Flow
 

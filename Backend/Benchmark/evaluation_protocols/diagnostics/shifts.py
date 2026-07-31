@@ -119,7 +119,7 @@ def build_cross_position_label_transport(
         transport_summary = _build_transport_summary(
             frame=frame,
             excluded_label_names={"<NA>", "excluded_technical_invalid", "insufficient_window_context", "insufficient_coverage_block"},
-            reference_label_names={"normal_point"},
+            reference_label_names={"reference_context_point"},
         )
         rows.append(
             {
@@ -143,7 +143,7 @@ def build_cross_position_label_transport(
             transport_summary = _build_transport_summary(
                 frame=domain_frame,
                 excluded_label_names={"insufficient_window_context"},
-                reference_label_names={"normal_window_context"},
+                reference_label_names={"reference_context_at_anchor"},
             )
             rows.append(
                 {

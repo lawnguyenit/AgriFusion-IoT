@@ -22,10 +22,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="Path to an evaluation_protocols artifact run.",
     )
     parser.add_argument(
-        "--weak-labels-run-dir",
+        "--native-label-release-dir",
         type=Path,
         required=True,
-        help="Path to a weak_labels artifact run.",
+        help="Path to a native label release.",
     )
     parser.add_argument("--train-ratio", type=float, default=0.70)
     parser.add_argument("--validation-ratio", type=float, default=0.15)
@@ -44,7 +44,7 @@ def main() -> None:
     args = build_parser().parse_args()
     result = build_e1e2_split_audit(
         protocol_run_dir=args.protocol_run_dir.resolve(),
-        weak_labels_run_dir=args.weak_labels_run_dir.resolve(),
+        native_label_release_dir=args.native_label_release_dir.resolve(),
         train_ratio=args.train_ratio,
         validation_ratio=args.validation_ratio,
         test_ratio=args.test_ratio,

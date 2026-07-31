@@ -29,7 +29,6 @@ class NativeEngineConfig:
     output_root: Path
     operationalization_id: str | None = None
     engine_mode: Literal["NATIVE", "SHADOW"] = "NATIVE"
-    legacy_assignment_path: Path | None = None
     expected_difference_contract_hash: str | None = None
 
 

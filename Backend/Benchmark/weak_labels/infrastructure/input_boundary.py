@@ -38,19 +38,31 @@ def load_e1_authorized_canonical(
     e1 = environment_rows.iloc[0]
     start = pd.Timestamp(e1["start_time"], tz="UTC")
     end = pd.Timestamp(e1["end_time"], tz="UTC")
-    usecols = _resolve_allowlisted_columns(canonical_evidence_schema_path, canonical_history_path)
-    chunks: list[pd.DataFrame] = []
-    for chunk in pd.read_csv(canonical_history_path.resolve(), usecols=usecols, low_memory=False, chunksize=25_000):
-        sample = pd.to_datetime(chunk["record.sample_time_local"], errors="coerce", utc=True)
-        e1_mask = (sample >= start) & (sample < end)
-        e1_chunk = chunk.loc[e1_mask].copy()
-        if not e1_chunk.empty:
-            e1_chunk["sample_time_utc"] = sample.loc[e1_chunk.index]
-            e1_chunk["environment_id"] = "E1"
-            chunks.append(e1_chunk)
-    if not chunks:
+    canonical_path = canonical_history_path.resolve()
+    usecols = _resolve_allowlisted_columns(canonical_evidence_schema_path, canonical_path)
+    # First pass reads structural membership only.  The second pass asks the
+    # CSV reader to materialize payload rows only for the authorized E1 row
+    # numbers, so E2/E3 sensor payload never enters the native-engine frame.
+    structural = pd.read_csv(
+        canonical_path,
+        usecols=["record.id", "record.segment_id", "record.sample_time_local"],
+        low_memory=False,
+    )
+    structural_sample = pd.to_datetime(structural["record.sample_time_local"], errors="coerce", utc=True)
+    authorized_positions = structural.index[(structural_sample >= start) & (structural_sample < end)].tolist()
+    if not authorized_positions:
         raise NativeContractError("No E1 canonical records are available for native execution.")
-    frame = pd.concat(chunks, ignore_index=True).convert_dtypes()
+    authorized_file_rows = {int(position) + 1 for position in authorized_positions}
+    payload = pd.read_csv(
+        canonical_path,
+        usecols=usecols,
+        low_memory=False,
+        skiprows=lambda row_number: row_number != 0 and row_number not in authorized_file_rows,
+    ).convert_dtypes()
+    sample = pd.to_datetime(payload["record.sample_time_local"], errors="coerce", utc=True)
+    payload["sample_time_utc"] = sample
+    payload["environment_id"] = "E1"
+    frame = payload
     missing = [column for column in CANONICAL_REQUIRED_COLUMNS if column not in frame.columns]
     if missing:
         raise NativeContractError(f"Canonical evidence input is missing required fields: {missing}")
@@ -87,4 +99,3 @@ def _resolve_allowlisted_columns(schema_path: Path, canonical_path: Path) -> lis
     if missing:
         raise NativeContractError(f"Canonical evidence schema references missing columns: {missing}")
     return required
-

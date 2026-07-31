@@ -7,9 +7,9 @@ import pandas as pd
 
 
 POINT_LABELS: tuple[str, ...] = (
-    "normal_point",
+    "reference_context_point",
     "low_relative_moisture_point",
-    "unknown_environment_point",
+    "unresolved_environmental_evidence_point",
 )
 
 

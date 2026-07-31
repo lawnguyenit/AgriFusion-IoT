@@ -9,9 +9,9 @@ import pandas as pd
 from Backend.Benchmark.evaluation_protocols.scope import PRIMARY_COMPARISON_IDS, PRIMARY_FEATURE_VIEW_IDS, PRIMARY_FOLD_IDS
 
 
-PRIMARY_PROTOCOL_ID = "P1_SOURCE_PRIMARY_5DAY_FOLD_01_03"
+PRIMARY_PROTOCOL_ID = "P1_SOURCE_PRIMARY_7DAY_FOLD_01"
 PRIMARY_PROTOCOL_VERSION = "2026-07-16.eval-protocol.v2"
-PRIMARY_BLOCK_DAYS = 5
+PRIMARY_BLOCK_DAYS = 7
 PRIMARY_PARTITIONS: tuple[str, ...] = ("train", "validation", "test")
 
 
@@ -28,13 +28,13 @@ class PrimaryProtocolArtifacts:
 
 def build_primary_protocol_artifacts(
     *,
-    five_day_fold_manifest: pd.DataFrame,
+    primary_fold_manifest: pd.DataFrame,
     base_split_assignments: pd.DataFrame,
     view_split_assignments: pd.DataFrame,
     matched_cohort_manifests: dict[str, pd.DataFrame],
     matched_cohort_validation: pd.DataFrame,
 ) -> PrimaryProtocolArtifacts:
-    fold_manifest = _select_primary_folds(five_day_fold_manifest)
+    fold_manifest = _select_primary_folds(primary_fold_manifest)
     filtered_base = base_split_assignments.loc[
         base_split_assignments["fold_id"].astype("string").isin(set(PRIMARY_FOLD_IDS) | {"p2_target_holdout"})
     ].copy()
@@ -73,20 +73,20 @@ def build_primary_protocol_artifacts(
     )
 
 
-def _select_primary_folds(five_day_fold_manifest: pd.DataFrame) -> pd.DataFrame:
-    selected = five_day_fold_manifest.loc[
-        five_day_fold_manifest["fold_id"].astype("string").isin(PRIMARY_FOLD_IDS)
-        & five_day_fold_manifest["partition"].astype("string").isin(PRIMARY_PARTITIONS)
+def _select_primary_folds(primary_fold_manifest: pd.DataFrame) -> pd.DataFrame:
+    selected = primary_fold_manifest.loc[
+        primary_fold_manifest["fold_id"].astype("string").isin(PRIMARY_FOLD_IDS)
+        & primary_fold_manifest["partition"].astype("string").isin(PRIMARY_PARTITIONS)
     ].copy()
     expected_rows = len(PRIMARY_FOLD_IDS) * len(PRIMARY_PARTITIONS)
     if len(selected) != expected_rows:
         raise ValueError(
-            f"Primary protocol requires {expected_rows} rows for 5-day folds {PRIMARY_FOLD_IDS}, found {len(selected)}."
+            f"Primary protocol requires {expected_rows} rows for 7-day folds {PRIMARY_FOLD_IDS}, found {len(selected)}."
         )
     ineligible = selected.loc[~selected["primary_benchmark_eligible"].astype(bool)].copy()
     if not ineligible.empty:
         raise ValueError(
-            "Primary 5-day fold lock failed because some partitions are not primary-benchmark eligible: "
+            "Primary 7-day fold lock failed because some partitions are not primary-benchmark eligible: "
             f"{ineligible.loc[:, ['fold_id', 'partition', 'failed_criteria']].to_dict(orient='records')}"
         )
     selected["protocol_id"] = PRIMARY_PROTOCOL_ID

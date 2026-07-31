@@ -13,7 +13,7 @@ class EvaluationProtocolConfig:
     manifest_path: Path
     segment_manifest_path: Path | None
     dataset_views_run_dir: Path
-    weak_labels_run_dir: Path
+    native_label_release_dir: Path
     output_root: Path
     rolling_block_days: int = 7
     initial_train_blocks: int = 3

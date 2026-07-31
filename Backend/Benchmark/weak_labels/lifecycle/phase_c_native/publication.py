@@ -67,6 +67,7 @@ def copy_registry_with_native_stage(parent_registry_dir: Path, target_registry_d
             "semantic_contract_frozen": True,
             "native_engine_implemented": True,
             "benchmark_release_published": False,
+            "evaluation_protocols_unlocked": True,
             "downstream_runners_unlocked": False,
             "native_engine_run_dir": str(native_run_dir),
             "native_engine_run_hash": native_manifest["native_engine_run_hash"],
@@ -75,4 +76,3 @@ def copy_registry_with_native_stage(parent_registry_dir: Path, target_registry_d
     )
     manifest_path.write_text(json.dumps(payload, ensure_ascii=True, sort_keys=True, indent=2), encoding="utf-8")
     return target_registry_dir
-

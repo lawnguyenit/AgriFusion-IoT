@@ -23,6 +23,10 @@ from Backend.Benchmark.weak_labels.provenance.materialize import (
     build_semantic_fold_projection,
     materialize_from_assignments,
 )
+from Backend.Benchmark.weak_labels.provenance.release import (
+    build_label_release_manifest,
+    materialize_label_release_frame,
+)
 from Backend.Benchmark.weak_labels.semantic.point.resolver import resolve_point_assignments
 from Backend.Benchmark.weak_labels.provenance.engine_lineage import (
     build_label_source_dependency,
@@ -170,18 +174,42 @@ def _validate_supporting_inputs(config: NativeEngineConfig) -> None:
 
 def _write_artifacts(*, staging: Path, frame: pd.DataFrame, rule_firings: pd.DataFrame, point_resolutions: pd.DataFrame, point_assignments: pd.DataFrame, all_resolutions: pd.DataFrame, all_assignments: pd.DataFrame, intrinsic: pd.DataFrame, fold_projection: pd.DataFrame, windows: dict[str, pd.DataFrame], temporal_outputs: dict[str, tuple[pd.DataFrame, pd.DataFrame]], same_y_outputs: dict[str, pd.DataFrame], contract: NativeContract, operationalization: pd.Series, expected_difference_hash: str, input_metadata: dict[str, object], integrity: dict[str, int], config: NativeEngineConfig) -> None:
     (staging / "tasks" / "point").mkdir(parents=True, exist_ok=True)
-    for directory in ("same_y", "temporal_anchor", "cohorts", "audit", "run_metadata"):
+    for directory in ("tasks", "cohorts", "audit", "run_metadata"):
         (staging / directory).mkdir(parents=True, exist_ok=True)
     point_evidence = rule_firings.merge(frame[["record.id", "sample_time_utc", "environment_id"]], left_on="sample_id", right_on="record.id", how="left", validate="many_to_one")
     point_evidence.to_parquet(staging / "tasks" / "point" / "evidence.parquet", index=False)
     materialize_from_assignments(point_assignments).to_parquet(staging / "tasks" / "point" / "assignments_detailed.parquet", index=False)
+    point_release = materialize_label_release_frame(
+        point_assignments,
+        task_kind="POINT",
+        task_id="point",
+        horizon_id="NONE",
+    )
+    point_release.to_parquet(staging / "tasks" / "point" / "assignments.parquet", index=False)
     intrinsic.to_parquet(staging / "tasks" / "point" / "assignments_intrinsic_candidate.parquet", index=False)
+    task_paths: dict[str, Path] = {"point": staging / "tasks" / "point" / "assignments.parquet"}
     for horizon, projection in windows.items():
-        (staging / "temporal_anchor" / f"horizon_{horizon}").mkdir(parents=True, exist_ok=True)
-        projection.to_parquet(staging / "temporal_anchor" / f"horizon_{horizon}" / "evidence.parquet", index=False)
-        temporal_outputs[horizon][1].to_parquet(staging / "temporal_anchor" / f"horizon_{horizon}" / "assignments.parquet", index=False)
-        (staging / "same_y" / f"horizon_{horizon}").mkdir(parents=True, exist_ok=True)
-        same_y_outputs[horizon].to_parquet(staging / "same_y" / f"horizon_{horizon}" / "label_transfer_projection.parquet", index=False)
+        (staging / "tasks" / "temporal" / f"horizon_{horizon}").mkdir(parents=True, exist_ok=True)
+        projection.to_parquet(staging / "tasks" / "temporal" / f"horizon_{horizon}" / "evidence.parquet", index=False)
+        temporal_release = materialize_label_release_frame(
+            temporal_outputs[horizon][1],
+            task_kind="TEMPORAL",
+            task_id="temporal",
+            horizon_id=horizon,
+        )
+        temporal_path = staging / "tasks" / "temporal" / f"horizon_{horizon}" / "assignments.parquet"
+        temporal_release.to_parquet(temporal_path, index=False)
+        task_paths[f"temporal/{horizon}"] = temporal_path
+        (staging / "tasks" / "same_y" / f"horizon_{horizon}").mkdir(parents=True, exist_ok=True)
+        same_y_release = materialize_label_release_frame(
+            same_y_outputs[horizon],
+            task_kind="SAME_Y",
+            task_id="same_y",
+            horizon_id=horizon,
+        )
+        same_y_path = staging / "tasks" / "same_y" / f"horizon_{horizon}" / "assignments.parquet"
+        same_y_release.to_parquet(same_y_path, index=False)
+        task_paths[f"same_y/{horizon}"] = same_y_path
     intrinsic.to_parquet(staging / "cohorts" / "intrinsic_eligibility.parquet", index=False)
     fold_projection.to_parquet(staging / "cohorts" / "semantic_fold_projection_manifest.parquet", index=False)
     rule_firings.to_parquet(staging / "audit" / "rule_firings.parquet", index=False)
@@ -191,6 +219,17 @@ def _write_artifacts(*, staging: Path, frame: pd.DataFrame, rule_firings: pd.Dat
     build_rule_registry(rule_firings).to_csv(staging / "audit" / "rule_registry.csv", index=False)
     build_threshold_registry(rule_firings).to_csv(staging / "audit" / "threshold_registry.csv", index=False)
     build_label_source_dependency(contract).to_csv(staging / "audit" / "label_source_dependency.csv", index=False)
+    release_manifest = build_label_release_manifest(
+        staging,
+        semantic_contract_id=contract.semantic_contract_id,
+        semantic_contract_hash=contract.semantic_contract_hash,
+        operationalization_id=str(operationalization["operationalization_id"]),
+        task_paths=task_paths,
+    )
+    (staging / "run_metadata" / "label_release_manifest.json").write_text(
+        json.dumps(release_manifest, indent=2, ensure_ascii=True, sort_keys=True),
+        encoding="utf-8",
+    )
     metadata = {
         "pipeline": "weak_labels_native_engine",
         "phase": "PHASE_C_NATIVE_ENGINE",
@@ -203,6 +242,7 @@ def _write_artifacts(*, staging: Path, frame: pd.DataFrame, rule_firings: pd.Dat
         "e2_sensitive_rows_loaded": 0,
         "e3_sensitive_rows_loaded": 0,
         "model_training_performed": False,
+        "evaluation_protocols_unlocked": False,
         "downstream_runners_unlocked": False,
         "engine_mode": config.engine_mode,
     }

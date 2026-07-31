@@ -17,9 +17,9 @@ PRIMARY_VIEW_IDS: tuple[str, ...] = (
     "v2_same_y_full_3h",
 )
 POINT_TARGET_MAP: dict[str, str] = {
-    "normal_point": "NRM",
+    "reference_context_point": "REF",
     "low_relative_moisture_point": "LRM",
-    "unknown_environment_point": "UNK",
+    "unresolved_environmental_evidence_point": "UNRES",
 }
 
 

@@ -71,6 +71,7 @@ def resolve_temporal_assignments(
                 "required_k": k,
                 "rule_firing_set_hash": firing_hash,
                 "semantic_contract_hash": contract.semantic_contract_hash,
+                "input_record_hash": str(row.get("canonical_record_hash", row.get("record.id"))),
             }
         )
         assignment_id = deterministic_id(
@@ -117,4 +118,3 @@ def _selected_k(contract: NativeContract, operationalization: pd.Series) -> int:
     if len(rows) != 1:
         raise ValueError(f"Persistence contract is not unique: {contract_id}")
     return int(rows.iloc[0]["selected_k"])
-

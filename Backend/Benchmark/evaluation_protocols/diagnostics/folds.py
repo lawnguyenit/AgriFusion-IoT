@@ -27,6 +27,7 @@ class RollingFoldSpec:
     test_start: pd.Timestamp
     test_end: pd.Timestamp
     fold_status: str
+    fold_policy_id: str = "UNSPECIFIED"
 
 
 def build_calendar_blocks(
@@ -71,6 +72,7 @@ def build_p1_rolling_fold_specs(
     initial_train_blocks: int,
     validation_blocks: int,
     test_blocks: int,
+    fold_policy_id: str = "UNSPECIFIED",
 ) -> list[RollingFoldSpec]:
     specs: list[RollingFoldSpec] = []
     total_blocks_needed = initial_train_blocks + validation_blocks + test_blocks
@@ -103,6 +105,7 @@ def build_p1_rolling_fold_specs(
                 test_start=test_start,
                 test_end=test_end,
                 fold_status=fold_status,
+                fold_policy_id=fold_policy_id,
             )
         )
         fold_number += 1

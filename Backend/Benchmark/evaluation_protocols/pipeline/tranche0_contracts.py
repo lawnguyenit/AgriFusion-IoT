@@ -11,6 +11,34 @@ from Backend.Benchmark.evaluation_protocols.diagnostics.folds import RollingFold
 from Backend.Benchmark.evaluation_protocols.scope import PRIMARY_FOLD_IDS
 
 
+_NATIVE_LABEL_RENAMES = {
+    "normal_point": "reference_context_point",
+    "unknown_environment_point": "unresolved_environmental_evidence_point",
+    "normal_window_context": "reference_context_at_anchor",
+    "unknown_environment_window": "unresolved_environmental_evidence_at_anchor",
+}
+
+
+def _native_label_contract(value: object) -> object:
+    if isinstance(value, str):
+        return _NATIVE_LABEL_RENAMES.get(value, value)
+    if isinstance(value, list):
+        return [_native_label_contract(item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(_native_label_contract(item) for item in value)
+    if isinstance(value, dict):
+        return {key: _native_label_contract(item) for key, item in value.items()}
+    return value
+
+
+def _native_label_frame(frame: pd.DataFrame) -> pd.DataFrame:
+    result = frame.copy()
+    for column in ("required_class_support", "label_name", "target"):
+        if column in result.columns:
+            result[column] = result[column].map(_native_label_contract)
+    return result
+
+
 SENSITIVITY_ONLY_COMPARISON_IDS: frozenset[str] = frozenset(
     {
         "CMP_HISTORY_MINI_8H",
@@ -663,7 +691,7 @@ def build_claim_registry(repo_root: Path) -> dict[str, object]:
             ]
         },
     }
-    return registry
+    return _native_label_contract(registry)
 
 
 def build_comparison_registry() -> pd.DataFrame:
@@ -676,7 +704,7 @@ def build_comparison_registry() -> pd.DataFrame:
                 "analysis_status": "SENSITIVITY_ONLY" if comparison_id in SENSITIVITY_ONLY_COMPARISON_IDS else "PRIMARY_LOCKED",
             }
         )
-    return pd.DataFrame(rows).convert_dtypes()
+    return _native_label_frame(pd.DataFrame(rows).convert_dtypes())
 
 
 def build_experiment_registry() -> pd.DataFrame:
@@ -959,13 +987,13 @@ def metric_contract_for_environment(environment_id: str) -> dict[str, object]:
     if environment_id in {"E1", "E2"}:
         return {
             "metric_id": "macro_f1_3class",
-            "required_classes": ["normal_point", "low_relative_moisture_point", "unknown_environment_point"],
+            "required_classes": ["reference_context_point", "low_relative_moisture_point", "unresolved_environmental_evidence_point"],
             "comparison_allowed": True,
         }
     return {
         "metric_id": "observed_support_metrics",
-        "estimable_classes": ["low_relative_moisture_point", "unknown_environment_point"],
-        "non_estimable_classes": ["normal_point"],
+        "estimable_classes": ["low_relative_moisture_point", "unresolved_environmental_evidence_point"],
+        "non_estimable_classes": ["reference_context_point"],
         "cross_environment_score_delta_allowed": False,
     }
 

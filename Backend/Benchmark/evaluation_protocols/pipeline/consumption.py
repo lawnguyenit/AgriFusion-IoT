@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from Backend.Benchmark.weak_labels.shared.helpers import file_sha256
+from Backend.Benchmark.weak_labels.infrastructure.hashing import file_sha256
 
 
 FORBIDDEN_LABEL_COLUMNS = {
@@ -26,7 +26,6 @@ REGISTRY_SPECS: tuple[dict[str, object], ...] = (
         "sample_unit": "record",
         "feature_join_key": "record.id",
         "label_join_key": "sample_id",
-        "label_relative_path": "point/point_labels_train.parquet",
         "scientific_blocker": "",
     },
     {
@@ -38,7 +37,6 @@ REGISTRY_SPECS: tuple[dict[str, object], ...] = (
         "sample_unit": "record",
         "feature_join_key": "record.id",
         "label_join_key": "sample_id",
-        "label_relative_path": "point/point_labels_train.parquet",
         "scientific_blocker": "",
     },
     {
@@ -50,7 +48,6 @@ REGISTRY_SPECS: tuple[dict[str, object], ...] = (
         "sample_unit": "record",
         "feature_join_key": "record.id",
         "label_join_key": "sample_id",
-        "label_relative_path": "v2/v2_same_y_labels.parquet",
         "scientific_blocker": "",
     },
     {
@@ -62,7 +59,6 @@ REGISTRY_SPECS: tuple[dict[str, object], ...] = (
         "sample_unit": "record",
         "feature_join_key": "record.id",
         "label_join_key": "sample_id",
-        "label_relative_path": "v2/v2_same_y_labels.parquet",
         "scientific_blocker": "",
     },
     {
@@ -74,7 +70,6 @@ REGISTRY_SPECS: tuple[dict[str, object], ...] = (
         "sample_unit": "record",
         "feature_join_key": "record.id",
         "label_join_key": "sample_id",
-        "label_relative_path": "v2/v2_temporal_labels_3h.parquet",
         "scientific_blocker": "",
     },
     {
@@ -86,7 +81,6 @@ REGISTRY_SPECS: tuple[dict[str, object], ...] = (
         "sample_unit": "record",
         "feature_join_key": "record.id",
         "label_join_key": "sample_id",
-        "label_relative_path": "v2/v2_temporal_labels_3h.parquet",
         "scientific_blocker": "",
     },
     {
@@ -98,7 +92,6 @@ REGISTRY_SPECS: tuple[dict[str, object], ...] = (
         "sample_unit": "record",
         "feature_join_key": "record.id",
         "label_join_key": "sample_id",
-        "label_relative_path": "v2/v2_same_y_labels.parquet",
         "scientific_blocker": "",
     },
     {
@@ -110,7 +103,6 @@ REGISTRY_SPECS: tuple[dict[str, object], ...] = (
         "sample_unit": "record",
         "feature_join_key": "record.id",
         "label_join_key": "sample_id",
-        "label_relative_path": "v2/v2_same_y_labels.parquet",
         "scientific_blocker": "",
     },
     {
@@ -122,7 +114,6 @@ REGISTRY_SPECS: tuple[dict[str, object], ...] = (
         "sample_unit": "record",
         "feature_join_key": "record.id",
         "label_join_key": "sample_id",
-        "label_relative_path": "v2/v2_temporal_labels_8h.parquet",
         "scientific_blocker": "",
     },
     {
@@ -134,7 +125,6 @@ REGISTRY_SPECS: tuple[dict[str, object], ...] = (
         "sample_unit": "record",
         "feature_join_key": "record.id",
         "label_join_key": "sample_id",
-        "label_relative_path": "v2/v2_temporal_labels_8h.parquet",
         "scientific_blocker": "",
     },
 )
@@ -148,7 +138,7 @@ COMPARISON_TO_FEATURE_VIEWS: dict[str, tuple[str, str]] = {
 
 
 @dataclass(frozen=True)
-class WeakLabelSources:
+class NativeLabelSources:
     point_labels_train: pd.DataFrame
     point_labels_detailed: pd.DataFrame
     point_evidence_flags: pd.DataFrame
@@ -185,31 +175,96 @@ class ResolvedFeatureArtifact:
     sample_ids: frozenset[str]
 
 
-def load_weak_label_sources(run_dir: Path) -> WeakLabelSources:
+def load_native_label_sources(run_dir: Path) -> NativeLabelSources:
+    """Load the published native label release.
+
+    This is the only weak-label consumer entrypoint used by the evaluation
+    protocol.  The small task-id projections preserve the benchmark's public
+    task names while the source of truth remains the native Assignment rows.
+    """
+
+    run_dir = run_dir.resolve()
+    manifest_path = run_dir / "run_metadata" / "label_release_manifest.json"
+    if not manifest_path.exists():
+        raise FileNotFoundError(f"Native label release manifest is missing: {manifest_path}")
+    manifest = _load_json_file(manifest_path)
+    release_hash = file_sha256(manifest_path)
+    tasks = manifest.get("tasks")
+    if not isinstance(tasks, dict) or "point" not in tasks:
+        raise ValueError("Native label release manifest must declare a point task.")
+
+    def read_task(key: str) -> pd.DataFrame:
+        entry = tasks.get(key)
+        if not isinstance(entry, dict) or not str(entry.get("relative_path", "")):
+            raise ValueError(f"Native label release is missing task {key!r}.")
+        path = (run_dir / str(entry["relative_path"])).resolve()
+        if not path.exists():
+            raise FileNotFoundError(path)
+        if str(entry.get("sha256", "")) != file_sha256(path):
+            raise ValueError(f"Native label release hash mismatch for {key}.")
+        return pd.read_parquet(path).convert_dtypes()
+
+    point = read_task("point")
+    point["label_task_id"] = point["task_id"] = "v0_point_train"
+    point_v1 = point.copy()
+    point_v1["label_task_id"] = point_v1["task_id"] = "v1_point_train"
+    point_train = pd.concat([point, point_v1], ignore_index=True).convert_dtypes()
+    point_detailed = point_train.copy()
+
+    evidence_path = run_dir / "tasks" / "point" / "evidence.parquet"
+    point_evidence = pd.read_parquet(evidence_path).convert_dtypes() if evidence_path.exists() else pd.DataFrame()
+
+    same_y_frames: list[pd.DataFrame] = []
+    temporal_frames: dict[str, pd.DataFrame] = {}
+    temporal_evidence: dict[str, pd.DataFrame] = {}
+    for horizon in ("3h", "8h"):
+        same = read_task(f"same_y/{horizon}")
+        same["label_task_id"] = same["task_id"] = f"v2_same_y_{horizon}"
+        same_y_frames.append(same)
+        temporal = read_task(f"temporal/{horizon}")
+        temporal["label_task_id"] = temporal["task_id"] = f"v2_temporal_{horizon}"
+        temporal_frames[horizon] = temporal
+        evidence_path = run_dir / "tasks" / "temporal" / f"horizon_{horizon}" / "evidence.parquet"
+        temporal_evidence[horizon] = pd.read_parquet(evidence_path).convert_dtypes() if evidence_path.exists() else pd.DataFrame()
+
+    # Carry release-level provenance into every consumer frame.  Evaluation
+    # may project these rows into folds, but it must never lose the native
+    # release identity that produced the semantic assignment.
+    for label_frame in [point_train, point_detailed, *same_y_frames, *temporal_frames.values()]:
+        label_frame["native_label_release_hash"] = release_hash
+        label_frame["semantic_contract_id"] = manifest.get("semantic_contract_id", pd.NA)
+        label_frame["semantic_contract_hash"] = manifest.get("semantic_contract_hash", pd.NA)
+
     paths = {
-        "point_labels_train": _resolve_artifact(run_dir, "point/point_labels_train.parquet", "point_labels_train.parquet"),
-        "point_labels_detailed": _resolve_artifact(run_dir, "point/point_labels_detailed.parquet", "point_labels_detailed.parquet"),
-        "point_evidence_flags": _resolve_artifact(run_dir, "point/point_evidence_flags.parquet", "point_evidence_flags.parquet"),
-        "v2_same_y_labels": _resolve_artifact(run_dir, "v2/v2_same_y_labels.parquet", "v2_same_y_labels.parquet"),
-        "v2_temporal_evidence_3h": _resolve_artifact(run_dir, "v2/v2_temporal_evidence_3h.parquet", "v2_temporal_evidence_3h.parquet"),
-        "v2_temporal_evidence_8h": _resolve_artifact(run_dir, "v2/v2_temporal_evidence_8h.parquet", "v2_temporal_evidence_8h.parquet"),
-        "v2_temporal_labels_3h": _resolve_artifact(run_dir, "v2/v2_temporal_labels_3h.parquet", "v2_temporal_labels_3h.parquet"),
-        "v2_temporal_labels_8h": _resolve_artifact(run_dir, "v2/v2_temporal_labels_8h.parquet", "v2_temporal_labels_8h.parquet"),
+        "point_labels_train": run_dir / "tasks" / "point" / "assignments.parquet",
+        "point_labels_detailed": run_dir / "tasks" / "point" / "assignments.parquet",
+        "point_evidence_flags": run_dir / "tasks" / "point" / "evidence.parquet",
+        "v2_same_y_labels": run_dir / "tasks" / "same_y" / "horizon_3h" / "assignments.parquet",
+        "v2_temporal_evidence_3h": run_dir / "tasks" / "temporal" / "horizon_3h" / "evidence.parquet",
+        "v2_temporal_evidence_8h": run_dir / "tasks" / "temporal" / "horizon_8h" / "evidence.parquet",
+        "v2_temporal_labels_3h": run_dir / "tasks" / "temporal" / "horizon_3h" / "assignments.parquet",
+        "v2_temporal_labels_8h": run_dir / "tasks" / "temporal" / "horizon_8h" / "assignments.parquet",
     }
-    frames = {name: pd.read_parquet(path).convert_dtypes() for name, path in paths.items()}
-    for name, frame in frames.items():
+    hashes = {name: file_sha256(path) for name, path in paths.items() if path.exists()}
+    frames_for_validation = {
+        "point_labels_train": point_train,
+        "point_labels_detailed": point_detailed,
+        "v2_same_y_labels": pd.concat(same_y_frames, ignore_index=True),
+        "v2_temporal_labels_3h": temporal_frames["3h"],
+        "v2_temporal_labels_8h": temporal_frames["8h"],
+    }
+    for name, frame in frames_for_validation.items():
         assert_no_forbidden_protocol_columns(frame, artifact_name=name)
-    _assert_unique_label_keys(frames)
-    hashes = {name: file_sha256(path) for name, path in paths.items()}
-    return WeakLabelSources(
-        point_labels_train=frames["point_labels_train"],
-        point_labels_detailed=frames["point_labels_detailed"],
-        point_evidence_flags=frames["point_evidence_flags"],
-        v2_same_y_labels=frames["v2_same_y_labels"],
-        v2_temporal_evidence_3h=frames["v2_temporal_evidence_3h"],
-        v2_temporal_evidence_8h=frames["v2_temporal_evidence_8h"],
-        v2_temporal_labels_3h=frames["v2_temporal_labels_3h"],
-        v2_temporal_labels_8h=frames["v2_temporal_labels_8h"],
+    _assert_unique_label_keys(frames_for_validation)
+    return NativeLabelSources(
+        point_labels_train=point_train,
+        point_labels_detailed=point_detailed,
+        point_evidence_flags=point_evidence,
+        v2_same_y_labels=frames_for_validation["v2_same_y_labels"].convert_dtypes(),
+        v2_temporal_evidence_3h=temporal_evidence["3h"],
+        v2_temporal_evidence_8h=temporal_evidence["8h"],
+        v2_temporal_labels_3h=temporal_frames["3h"],
+        v2_temporal_labels_8h=temporal_frames["8h"],
         paths=paths,
         hashes=hashes,
     )
@@ -302,20 +357,27 @@ def load_dataset_view_feature_artifacts(
 
 def build_task_view_registry(
     *,
-    weak_labels_run_dir: Path,
+    native_label_release_dir: Path,
     dataset_views_run_dir: Path,
     split_artifact_path: Path,
     feature_artifacts: dict[str, ResolvedFeatureArtifact],
     feature_view_ids: tuple[str, ...] | None = None,
 ) -> pd.DataFrame:
+    release_manifest = _load_json_file(
+        native_label_release_dir.resolve() / "run_metadata" / "label_release_manifest.json"
+    )
+    task_entries = release_manifest.get("tasks", {})
+    if not isinstance(task_entries, dict):
+        raise ValueError("Native label release manifest has no task registry.")
     allowed_feature_views = set(feature_view_ids) if feature_view_ids is not None else None
     rows = [
         _registry_row(
             spec=spec,
-            weak_labels_run_dir=weak_labels_run_dir,
+            native_label_release_dir=native_label_release_dir,
             dataset_views_run_dir=dataset_views_run_dir,
             split_artifact_path=split_artifact_path,
             resolved_feature=feature_artifacts.get(str(spec["feature_source_view_id"])),
+            task_entries=task_entries,
         )
         for spec in REGISTRY_SPECS
         if allowed_feature_views is None or str(spec["feature_view_id"]) in allowed_feature_views
@@ -403,6 +465,10 @@ def build_task_training_manifest(
                     "effective_partition": partition,
                     "label_name": row.get("label_name", pd.NA),
                     "label_status": row.get("label_status", pd.NA),
+                    "native_assignment_id": row.get("native_assignment_id", row.get("assignment_id", pd.NA)),
+                    "native_label_release_hash": row.get("native_label_release_hash", pd.NA),
+                    "semantic_contract_id": row.get("semantic_contract_id", pd.NA),
+                    "semantic_contract_hash": row.get("semantic_contract_hash", pd.NA),
                     "primary_rule_id": row.get("primary_rule_id", pd.NA),
                     "rule_version": row.get("rule_version", pd.NA),
                     "source_task_id": row.get("source_task_id", pd.NA),
@@ -631,13 +697,18 @@ def _assert_unique_label_keys(frames: dict[str, pd.DataFrame]) -> None:
 def _registry_row(
     *,
     spec: dict[str, object],
-    weak_labels_run_dir: Path,
+    native_label_release_dir: Path,
     dataset_views_run_dir: Path,
     split_artifact_path: Path,
     resolved_feature: ResolvedFeatureArtifact | None,
+    task_entries: dict[str, object],
 ) -> dict[str, object]:
     feature_artifact_status = str(spec.get("feature_artifact_status", "resolved" if resolved_feature is not None else "missing"))
     scientific_blocker = str(spec.get("scientific_blocker", ""))
+    task_key = _native_task_key(str(spec["label_task_id"]))
+    task_entry = task_entries.get(task_key)
+    if not isinstance(task_entry, dict) or not str(task_entry.get("relative_path", "")):
+        raise ValueError(f"Native label release does not declare task {task_key!r}.")
     row = {
         "experiment_id": str(spec["experiment_id"]),
         "feature_view_id": str(spec["feature_view_id"]),
@@ -647,7 +718,7 @@ def _registry_row(
         "sample_unit": str(spec["sample_unit"]),
         "feature_join_key": str(spec["feature_join_key"]),
         "label_join_key": str(spec["label_join_key"]),
-        "label_artifact_path": str((weak_labels_run_dir / str(spec["label_relative_path"])).resolve()),
+        "label_artifact_path": str((native_label_release_dir / str(task_entry["relative_path"])).resolve()),
         "split_artifact_path": str(split_artifact_path.resolve()),
         "dataset_views_run_dir": str(dataset_views_run_dir.resolve()),
         "feature_artifact_status": feature_artifact_status,
@@ -705,14 +776,14 @@ def _registry_row(
     return row
 
 
-def _resolve_artifact(run_dir: Path, nested_relative: str, legacy_name: str) -> Path:
-    nested = run_dir / nested_relative
-    if nested.exists():
-        return nested
-    legacy = run_dir / legacy_name
-    if legacy.exists():
-        return legacy
-    raise FileNotFoundError(f"Unable to resolve artifact {nested_relative} or legacy {legacy_name} under {run_dir}.")
+def _native_task_key(label_task_id: str) -> str:
+    if label_task_id in {"v0_point_train", "v1_point_train"}:
+        return "point"
+    if label_task_id.startswith("v2_same_y_"):
+        return f"same_y/{label_task_id.removeprefix('v2_same_y_')}"
+    if label_task_id.startswith("v2_temporal_"):
+        return f"temporal/{label_task_id.removeprefix('v2_temporal_')}"
+    raise ValueError(f"Unsupported native label task id: {label_task_id}")
 
 
 def _build_matched_cohort_lookup(cohort_manifests: dict[str, pd.DataFrame]) -> dict[tuple[str, str, str, str, str], str]:

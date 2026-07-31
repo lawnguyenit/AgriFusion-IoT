@@ -18,14 +18,19 @@ def build_window_projections(frame: pd.DataFrame, point_assignments: pd.DataFram
 def _build_horizon(frame: pd.DataFrame, horizon: str, contract: NativeContract, operationalization: pd.Series) -> pd.DataFrame:
     window = contract.window_contracts
     hours = int(horizon[:-1])
-    left_closed = str(window["window_interval"].get("left_boundary", "CLOSED")) == "CLOSED"
-    right_closed = str(window["window_interval"].get("right_boundary", "CLOSED")) == "CLOSED"
-    cadence = float(window["nominal_cadence_minutes"])
-    expected_formula = str(window["expected_slot_formula"].get("formula", "NOMINAL_SLOTS_PLUS_ANCHOR"))
-    include_anchor = bool(window["anchor_inclusion"])
-    tolerance = float(window["slot_assignment"].get("tolerance_minutes", 2.0))
-    min_coverage = float(window["coverage"].get("minimum_ratio", window["coverage"].get("ratio", 0.75)))
-    max_gap = float(window["max_internal_gap"].get("minutes", 30.0))
+    interval = _required_mapping(window, "window_interval")
+    slot_formula = _required_mapping(window, "expected_slot_formula")
+    slot_assignment = _required_mapping(window, "slot_assignment")
+    coverage_contract = _required_mapping(window, "coverage")
+    gap_contract = _required_mapping(window, "max_internal_gap")
+    left_closed = str(_required_value(interval, "left_boundary")) == "CLOSED"
+    right_closed = str(_required_value(interval, "right_boundary")) == "CLOSED"
+    cadence = float(_required_value(window, "nominal_cadence_minutes"))
+    expected_formula = str(_required_value(slot_formula, "formula"))
+    include_anchor = bool(_required_value(window, "anchor_inclusion"))
+    tolerance = float(_required_value(slot_assignment, "tolerance_minutes"))
+    min_coverage = float(_required_value(coverage_contract, "minimum_ratio"))
+    max_gap = float(_required_value(gap_contract, "minutes"))
     rows: list[dict[str, object]] = []
     for record in frame.to_dict(orient="records"):
         anchor = pd.Timestamp(record["sample_time_utc"])
@@ -101,3 +106,16 @@ def _max_gap(frame: pd.DataFrame) -> float:
         return float("nan")
     times = pd.to_datetime(frame["sample_time_utc"], utc=True).sort_values()
     return float(times.diff().dt.total_seconds().div(60).max())
+
+
+def _required_mapping(payload: dict[str, object], key: str) -> dict[str, object]:
+    value = payload.get(key)
+    if not isinstance(value, dict):
+        raise ValueError(f"Frozen window contract field {key!r} must be an object.")
+    return value
+
+
+def _required_value(payload: dict[str, object], key: str) -> object:
+    if key not in payload or payload[key] is None:
+        raise ValueError(f"Frozen window contract field {key!r} is missing.")
+    return payload[key]

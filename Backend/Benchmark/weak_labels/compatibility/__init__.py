@@ -1,2 +1,1 @@
-"""Legacy adapters and differential-audit boundaries."""
-
+"""Historical differential-audit boundaries only."""

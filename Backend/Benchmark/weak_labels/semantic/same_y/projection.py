@@ -33,10 +33,14 @@ def build_same_y_transfer_projection(
         rows.append(
             {
                 "same_y_transfer_id": transfer_id,
+                "assignment_id": transfer_id,
                 "sample_id": sample_id,
                 "task_id": "SAME_Y",
                 "horizon_id": horizon_id,
                 "source_assignment_id": source_assignment_id,
+                "resolution_instance_id": row.get("resolution_instance_id"),
+                "input_record_hash": row.get("input_record_hash", row.get("sample_id")),
+                "semantic_contract_id": contract.semantic_contract_id,
                 "source_label": row["label"],
                 "transferred_label": row["label"],
                 "representation_history_status": "ELIGIBLE" if eligible else "INELIGIBLE",
@@ -46,4 +50,3 @@ def build_same_y_transfer_projection(
             }
         )
     return pd.DataFrame(rows).convert_dtypes()
-

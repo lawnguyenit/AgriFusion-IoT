@@ -28,8 +28,8 @@ from Backend.Benchmark.evaluation_protocols.diagnostics import (
 from Backend.Benchmark.evaluation_protocols.domains import (
     DEPLOYMENT_DOMAIN_MAP,
     build_deployment_domain_frame,
-    build_initial_source_threshold_context,
     build_protocol_config_hash,
+    load_native_thresholds,
 )
 from Backend.Benchmark.evaluation_protocols.lineage import (
     build_explicit_matched_cohort_artifacts,
@@ -61,12 +61,12 @@ from Backend.Benchmark.evaluation_protocols.pipeline.consumption import (
     load_dataset_view_feature_artifacts,
     build_task_training_manifest,
     build_task_view_registry,
-    load_weak_label_sources,
+    load_native_label_sources,
 )
 from Backend.Benchmark.evaluation_protocols.pipeline.frozen_target import build_frozen_target_manifest
 from Backend.Benchmark.evaluation_protocols.scope import PRIMARY_FEATURE_SOURCE_VIEW_IDS, PRIMARY_FEATURE_VIEW_IDS
 from Backend.Benchmark.shared.artifacts import create_run_directory
-from Backend.Benchmark.weak_labels.io import (
+from Backend.Benchmark.weak_labels.infrastructure.io import (
     load_canonical_history,
     load_feature_catalog,
     load_json_payload,
@@ -76,11 +76,7 @@ from Backend.Benchmark.weak_labels.io import (
     write_parquet,
     write_yaml_file,
 )
-from Backend.Benchmark.weak_labels.point import (
-    build_applicability_frame,
-    enrich_point_continuity_features,
-)
-from Backend.Benchmark.weak_labels.shared.helpers import file_sha256
+from Backend.Benchmark.weak_labels.infrastructure.hashing import file_sha256
 
 
 def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationProtocolResult:
@@ -109,17 +105,6 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
         boundary_columns=("record.segment_boundary_before",),
         threshold_multiplier=2.5,
     )
-    applicability_df = build_applicability_frame(working)
-    working = working.merge(
-        applicability_df.drop(
-            columns=["record.ts_sample", "record.segment_id", "record.node_id", "npk.valid", "sht.valid"],
-            errors="ignore",
-        ),
-        on="record.id",
-        how="left",
-    )
-    working = enrich_point_continuity_features(working)
-
     deployment_domains = build_deployment_domain_frame(
         working,
         segment_manifest=segment_manifest,
@@ -145,6 +130,7 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
         initial_train_blocks=config.initial_train_blocks,
         validation_blocks=config.validation_blocks,
         test_blocks=config.test_blocks,
+        fold_policy_id="E1_DIAGNOSTIC_5D_V1",
     )
     blocks7_df = build_calendar_blocks(p1_df, block_days=config.rolling_block_days, expected_interval_sec=expected_interval_sec)
     fold_specs = build_p1_rolling_fold_specs(
@@ -152,19 +138,24 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
         initial_train_blocks=config.initial_train_blocks,
         validation_blocks=config.validation_blocks,
         test_blocks=config.test_blocks,
+        fold_policy_id="E1_PRIMARY_7D_V1",
     )
-    threshold_context, sensitivity_df, threshold_manifest = build_initial_source_threshold_context(
-        working,
-        initial_train_start=fold_specs_5day[0].train_start,
-        initial_train_end=fold_specs_5day[0].train_end,
-    )
-    threshold_manifest["code_commit"] = resolve_code_commit(Path(__file__).resolve().parents[4])
+    native_thresholds = load_native_thresholds(config.native_label_release_dir)
+    sensitivity_df = native_thresholds.sensitivity_df
+    threshold_manifest = {
+        "threshold_id": "native_frozen_q10",
+        "policy": "READ_NATIVE_RELEASE_ONLY",
+        "threshold_value": native_thresholds.q10,
+        "native_label_release_dir": str(config.native_label_release_dir.resolve()),
+        "native_label_release_manifest": native_thresholds.manifest,
+        "code_commit": resolve_code_commit(Path(__file__).resolve().parents[4]),
+    }
     threshold_manifest["config_hash"] = build_protocol_config_hash(_config_to_dict(config))
     write_csv(pd.DataFrame([threshold_manifest]).convert_dtypes(), layout.threshold_policy / "primary_frozen_initial_source.csv")
     write_csv(sensitivity_df, layout.threshold_policy / "threshold_sensitivity_diagnostic.csv")
     threshold_manifest_hash = stable_hash_object(threshold_manifest)
 
-    weak_sources = load_weak_label_sources(config.weak_labels_run_dir.resolve())
+    weak_sources = load_native_label_sources(config.native_label_release_dir.resolve())
     feature_artifacts = load_dataset_view_feature_artifacts(
         config.dataset_views_run_dir.resolve(),
         required_view_ids=PRIMARY_FEATURE_SOURCE_VIEW_IDS,
@@ -232,7 +223,7 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
             "v2_temporal_3h": v2_temporal_3h.copy(),
             "v2_temporal_8h": v2_temporal_8h.copy(),
         },
-        view_assignments=assignment_artifacts_5day.view_split_assignments,
+        view_assignments=assignment_artifacts_7day.view_split_assignments,
         boundary_event_audit=None,
         block_days=5,
         validity_column="core_environment_fully_evaluable",
@@ -257,6 +248,10 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
         fold_quality_5day,
         assignment_artifacts_5day.unsupported_class_audit,
     )
+    fold_quality_7day = annotate_core_fold_status(
+        fold_quality_7day,
+        assignment_artifacts_7day.unsupported_class_audit,
+    )
     write_csv(fold_quality_5day, layout.support_5day / "fold_manifest.csv")
     write_csv(support_5day_df, layout.support_5day / "fold_support_manifest.csv")
     write_parquet(assignment_artifacts_5day.base_split_assignments, layout.support_5day / "base_split_assignments.parquet", engine=parquet_engine)
@@ -275,15 +270,15 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
     (layout.v2_coverage / "v2_coverage_report.md").write_text(v2_coverage.markdown_report, encoding="utf-8")
 
     cohort_artifacts = build_explicit_matched_cohort_artifacts(
-        view_assignments=assignment_artifacts_5day.view_split_assignments,
+        view_assignments=assignment_artifacts_7day.view_split_assignments,
         point_labels=point_labels,
         same_y_labels=v2_same_y,
         record_time_lookup=working.set_index("record.id")["timestamp_local"].to_dict(),
     )
     primary_artifacts = build_primary_protocol_artifacts(
-        five_day_fold_manifest=fold_quality_5day,
-        base_split_assignments=assignment_artifacts_5day.base_split_assignments,
-        view_split_assignments=assignment_artifacts_5day.view_split_assignments,
+        primary_fold_manifest=fold_quality_7day,
+        base_split_assignments=assignment_artifacts_7day.base_split_assignments,
+        view_split_assignments=assignment_artifacts_7day.view_split_assignments,
         matched_cohort_manifests=cohort_artifacts.manifests,
         matched_cohort_validation=cohort_artifacts.validation,
     )
@@ -294,12 +289,12 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
     write_csv(primary_artifacts.validation, layout.primary_runner / "runner_assertion_validation.csv")
     write_json_file(layout.primary_runner / "runner_contract.json", primary_artifacts.runner_contract)
     e1_fold_registry = build_e1_fold_registry(
-        fold_specs=fold_specs_5day,
+        fold_specs=fold_specs,
         threshold_fit_manifest_hash=threshold_manifest_hash,
         preprocessing_fit_manifest_hash=stable_hash_object(
             {
                 "policy": "TRAIN_ONLY_PREPROCESSING_POLICY",
-                "fold_ids": [spec.fold_id for spec in fold_specs_5day],
+                "fold_ids": [spec.fold_id for spec in fold_specs],
                 "maximum_history_horizon": 8,
             }
         ),
@@ -307,11 +302,11 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
     write_csv(e1_fold_registry, layout.domain_manifests / "e1_fold_registry.csv")
     for name, frame in primary_artifacts.matched_cohort_manifests.items():
         write_csv(frame, layout.primary_cohorts / name)
-    write_csv(assignment_artifacts_5day.unsupported_class_audit, layout.primary_folds / "unsupported_class_audit.csv")
+    write_csv(assignment_artifacts_7day.unsupported_class_audit, layout.primary_folds / "unsupported_class_audit.csv")
 
     protocol_view_assignments_path = layout.primary_folds / "view_effective_split_assignments.parquet"
     task_view_registry = build_task_view_registry(
-        weak_labels_run_dir=config.weak_labels_run_dir.resolve(),
+        native_label_release_dir=config.native_label_release_dir.resolve(),
         dataset_views_run_dir=config.dataset_views_run_dir.resolve(),
         split_artifact_path=protocol_view_assignments_path,
         feature_artifacts=feature_artifacts,
@@ -478,17 +473,15 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
     write_csv(label_shift, layout.transport_label_shift / "cross_position_label_transport.csv")
 
     q_values = {
-        "q05": float(sensitivity_df.loc[0, "q05"]),
         "q10": float(sensitivity_df.loc[0, "q10"]),
-        "q15": float(sensitivity_df.loc[0, "q15"]),
-        "q20": float(sensitivity_df.loc[0, "q20"]),
     }
     threshold_artifacts = build_threshold_sensitivity_transport(
-        working=working,
-        base_threshold_context=threshold_context,
-        fold_specs=fold_specs_5day,
-        segment_manifest=segment_manifest,
-        expected_interval_sec=expected_interval_sec,
+        label_frames={
+            "v0_point_train": point_labels.loc[point_labels["task_id"] == "v0_point_train"].copy(),
+            "v2_temporal_3h": v2_temporal_3h.copy(),
+            "v2_temporal_8h": v2_temporal_8h.copy(),
+        },
+        view_assignments=assignment_artifacts_5day.view_split_assignments,
         q_values=q_values,
     )
     write_csv(threshold_artifacts.summary, layout.threshold_transport / "threshold_sensitivity_transport.csv")
@@ -500,8 +493,8 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
     write_csv(dependency_artifacts.proxy_reduced, layout.dependency_manifests / "proxy_reduced_features.csv")
 
     primary_fold_summary = (
-        fold_quality_5day.groupby("fold_id", dropna=False, sort=False)["primary_benchmark_eligible"].all().to_dict()
-        if not fold_quality_5day.empty
+        fold_quality_7day.groupby("fold_id", dropna=False, sort=False)["primary_benchmark_eligible"].all().to_dict()
+        if not fold_quality_7day.empty
         else {}
     )
     stress_fold_summary = (
@@ -509,21 +502,15 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
         if not fold_quality_5day.empty
         else {}
     )
-    fold_statuses_7day = (
-        fold_quality_7day.groupby("fold_id", dropna=False, sort=False)["primary_benchmark_eligible"].all().to_dict()
-        if not fold_quality_7day.empty
-        else {}
-    )
-
     validation_report = {
-        "protocol_name": "P1_SOURCE__P2_TARGET_PRIMARY_5DAY",
+        "protocol_name": "P1_SOURCE__P2_TARGET_PRIMARY_7DAY",
         "protocol_version": "2026-07-16.eval-protocol.v2",
         "p2_has_train_assignment": False,
         "p2_has_validation_assignment": False,
         "primary_protocol": {
-            "block_days": 5,
-            "selected_fold_ids": ["fold_01", "fold_02", "fold_03"],
-            "all_fold_statuses_5day": primary_fold_summary,
+            "block_days": 7,
+            "selected_fold_ids": ["fold_01"],
+            "all_fold_statuses_7day": primary_fold_summary,
             "stress_eligible_folds_5day": [fold_id for fold_id, eligible in stress_fold_summary.items() if eligible],
             "artifact_dir": str(layout.primary_protocol),
             "runner_contract_path": str(layout.primary_runner / "runner_contract.json"),
@@ -533,11 +520,14 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
             "comparison_training_manifest_path": str(layout.primary_runner / "comparison_training_manifest.parquet"),
             "frozen_target_manifest_path": str(layout.primary_runner / "frozen_target_manifest.parquet"),
         },
-        "diagnostic_protocol_7day": {
-            "fold_count_7day": int(len(fold_specs)),
-            "fold_ids_7day": [spec.fold_id for spec in fold_specs],
-            "primary_eligible_statuses_7day": fold_statuses_7day,
-            "artifact_dir": str(layout.support_7day),
+        "diagnostic_protocol_5day": {
+            "fold_count_5day": int(len(fold_specs_5day)),
+            "fold_ids_5day": [spec.fold_id for spec in fold_specs_5day],
+            "diagnostic_eligible_statuses_5day": {
+                str(fold_id): bool(value)
+                for fold_id, value in stress_fold_summary.items()
+            },
+            "artifact_dir": str(layout.support_5day),
         },
         "primary_threshold_policy": "FROZEN_INITIAL_SOURCE",
         "primary_threshold_value_q10": float(threshold_manifest["threshold_value"]),
@@ -551,7 +541,7 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
             "runner_contract_v2_path": str((layout.primary_runner / "runner_contract_v2.json").resolve()),
             "legacy_to_v2_equivalence_report_path": str((layout.run_metadata / "legacy_to_v2_equivalence_report.csv").resolve()),
         },
-        "sensitivity_quantiles_reported": ["q05", "q10", "q15", "q20"],
+        "sensitivity_quantiles_reported": ["q10"],
         "threshold_sensitivity_distribution_path": str(layout.threshold_transport / "threshold_sensitivity_distributions.csv"),
         "p2_interpretation_note": "Absence of normal labels in P2 does not prove agronomic normal conditions are absent there.",
         "v2_coverage_diagnostics": {
@@ -567,7 +557,7 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
         },
         "validation_gates": {
             "matched_cohort_manifests_generated": True,
-            "primary_protocol_locked_to_5day_fold_01_03": True,
+            "primary_protocol_locked_to_7day_fold_01": True,
             "runner_contract_generated": True,
             "runner_assertions_passed": True,
             "task_view_registry_generated": True,
@@ -592,7 +582,7 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
         },
         "training_deferred": True,
         "model_outputs_present": False,
-        "weak_labels_run_dir": str(config.weak_labels_run_dir),
+        "native_label_release_dir": str(config.native_label_release_dir),
     }
     write_json_file(layout.run_metadata / "protocol_validation_report.json", validation_report)
 
@@ -611,14 +601,18 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
             "feature_catalog": str(config.feature_catalog_path.resolve()),
             "segment_manifest": str(segment_manifest_path.resolve()),
             "linked_dataset_views_run_dir": str(config.dataset_views_run_dir.resolve()),
-            "linked_weak_labels_run_dir": str(config.weak_labels_run_dir.resolve()),
+            "dataset_views_run_hash": _optional_manifest_hash(config.dataset_views_run_dir),
+            "linked_native_label_release_dir": str(config.native_label_release_dir.resolve()),
+            "native_label_release_hash": file_sha256(
+                config.native_label_release_dir.resolve() / "run_metadata" / "label_release_manifest.json"
+            ),
         },
         "linked_dataset_view_outputs": sorted(
             str(path.relative_to(config.dataset_views_run_dir))
             for path in config.dataset_views_run_dir.rglob("*")
             if path.is_file()
         ),
-        "linked_weak_label_outputs": sorted(str(path.relative_to(config.weak_labels_run_dir)) for path in config.weak_labels_run_dir.rglob("*") if path.is_file()),
+        "linked_native_label_outputs": sorted(str(path.relative_to(config.native_label_release_dir)) for path in config.native_label_release_dir.rglob("*") if path.is_file()),
         "training_deferred": True,
         "artifact_layout_version": "evaluation_protocols.layout.v2",
         "primary_protocol_dir": str(layout.primary_protocol),
@@ -659,7 +653,7 @@ def _config_to_dict(config: EvaluationProtocolConfig) -> dict[str, object]:
         "manifest_path": str(config.manifest_path),
         "segment_manifest_path": str(config.segment_manifest_path) if config.segment_manifest_path is not None else None,
         "dataset_views_run_dir": str(config.dataset_views_run_dir),
-        "weak_labels_run_dir": str(config.weak_labels_run_dir),
+        "native_label_release_dir": str(config.native_label_release_dir),
         "output_root": str(config.output_root),
         "rolling_block_days": config.rolling_block_days,
         "initial_train_blocks": config.initial_train_blocks,
@@ -671,16 +665,21 @@ def _config_to_dict(config: EvaluationProtocolConfig) -> dict[str, object]:
     }
 
 
+def _optional_manifest_hash(run_dir: Path) -> str | None:
+    manifest = run_dir.resolve() / "run_metadata" / "run_manifest.json"
+    return file_sha256(manifest) if manifest.exists() else None
+
+
 def _validate_protocol_registry_authority(config: EvaluationProtocolConfig, registry) -> None:
     if bool(registry.run_manifest.get("phase_a_only", False)):
         raise PermissionError(
             "This protocol registry is Phase A audit-only. "
             "STOP before evaluation_protocols until a Phase B frozen registry exists."
         )
-    if not bool(registry.run_manifest.get("downstream_runners_unlocked", False)):
+    if not bool(registry.run_manifest.get("evaluation_protocols_unlocked", False)):
         raise PermissionError(
-            "Protocol registry has not unlocked downstream runners. "
-            "The 7-day-primary migration must be completed before evaluation."
+            "Protocol registry has not unlocked evaluation_protocols. "
+            "The native label release must be completed before evaluation."
         )
     if not bool(registry.run_manifest.get("semantic_contract_frozen", False)):
         raise PermissionError("Evaluation requires a frozen Phase B semantic contract.")

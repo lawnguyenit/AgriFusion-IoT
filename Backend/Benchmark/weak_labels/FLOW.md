@@ -13,9 +13,9 @@ contracts
   → provenance and task artifacts
 ```
 
-`compatibility/` contains the former flattened `runtime`, `point`, `v2`, and
-partition entry points. They remain importable for existing callers but are
-not authorities for Phase A, B, or C. Historical artifacts remain immutable.
+`compatibility/differential/` contains only comparison tooling for immutable
+historical outputs. Former runtime, point, V2, and partition source modules
+are removed from the executable package.
 
 ## Layer Contract
 
@@ -30,30 +30,25 @@ flowchart LR
     G --> H["reviewed frozen contract + STOP before Phase C"]
 ```
 
-`weak_labels` lifecycle lanes and legacy compatibility are separate execution
-paths.
-Readiness never calls the label builder and its candidate outputs are not
-label authority.
+Readiness never calls the label engine and its candidate outputs are not label
+authority. There is one executable label path: the native lifecycle.
 
 ## Input
 
 - Layer1 canonical history
-- Layer1 feature catalog
 - Layer1/segment manifest context
-- weak-label configuration such as threshold mode, base split mode,
-  and exploratory persistence threshold `k`
+- frozen Phase B semantic contract and protocol authorization
 
 ## This Layer Does
 
-- generate the weak-label targets for point and V2 tasks
-- keep the current primary public scope centered on point labels and
-  `v2-3h`, while still allowing explicit `8h` outputs
+- generate native Point, Same-Y transfer, and Temporal targets
+- keep public task identity in the native release manifest, independent of
+  historical `V2` directory naming
 - keep intrinsic eligibility and exclusion separate from downstream
   protocol decisions
 - publish condition-level rule traces and threshold provenance for
   tranche-0 auditability
-- emit explicit support counts for persistent-low threshold sweeps so
-  nearby `k` values can be inspected before downstream training
+- emit explicit RuleFiring, Resolution, continuity, and Assignment provenance
 - separate semantic fired rules, gate outcomes, resolution IDs, and
   label-transfer provenance inside the tranche-0 audit contract
 
@@ -94,7 +89,7 @@ data, train models, or publish dataset views.
 
 ## Phase C Native Engine Path
 
-The Phase C native lane is contract-gated and additive. It requires a reviewed
+The Phase C native lane is contract-gated and authoritative. It requires a reviewed
 Phase B2 frozen contract containing the operationalization, derived-evidence,
 compatibility, continuity, and complete window registries. It authorizes E1
 payloads before loading evidence and rejects E2/E3 sensitive rows at the input
@@ -117,40 +112,35 @@ canonical validation
   → atomic publication
 ```
 
-Native artifacts are task-oriented (`point`, `same_y`, `temporal_anchor`) and
-are materialized only from first-class assignments. Same-Y is a source-label
+Native artifacts are task-oriented (`point`, `same_y`, `temporal`) and are
+materialized only from first-class assignments. Same-Y is a source-label
 transfer projection. Feature-view admissibility and train-ready cohorts remain
-Phase D responsibilities. Legacy weak-label runs are regression references,
-not scientific oracles. Phase C ends at `NATIVE_ENGINE_IMPLEMENTED` with
-`downstream_runners_unlocked=false`.
+evaluation responsibilities. Historical weak-label runs are regression
+fixtures, not runtime inputs. Phase C ends with a native label-release
+manifest and `NATIVE_ENGINE_IMPLEMENTED` while downstream runners remain
+locked.
 
 ## Output
 
-- point label artifacts
-  - `point/point_evidence_flags.parquet`
-  - `point/point_labels_detailed.parquet`
-  - `point/point_labels_train.parquet`
-- V2 label artifacts
-  - `v2/v2_same_y_labels.parquet`
-  - `v2/v2_temporal_labels_3h.parquet`
-  - `v2/v2_temporal_labels_8h.parquet`
+- native label release
+  - `tasks/point/assignments.parquet`
+  - `tasks/same_y/horizon_3h/assignments.parquet`
+  - `tasks/same_y/horizon_8h/assignments.parquet`
+  - `tasks/temporal/horizon_3h/assignments.parquet`
+  - `tasks/temporal/horizon_8h/assignments.parquet`
+  - `run_metadata/label_release_manifest.json`
 - tranche-0 audit artifacts
-  - `audit/label_assignment.parquet`
-    - authoritative assignment provenance with `fired_rule_ids`,
-      `primary_fired_rule_id`, `resolution_id`, `assignment_mode`, and
-      transfer lineage fields
+  - `audit/assignments.parquet`
+    - authoritative Assignment provenance with resolution and transfer fields
   - `audit/rule_firings.parquet`
     - condition-level rule and gate evaluation only; same-Y transfer is
       not represented as a synthetic environmental firing
   - `audit/rule_registry.csv`
   - `audit/threshold_registry.csv`
   - `audit/label_source_dependency.csv`
-- run-level scope aids
-  - `run_metadata/current_scope_summary.json`
-  - `ARTIFACT_GUIDE.md`
-- threshold-support aids
-  - `threshold_diagnostics/persistent_low_k_support.csv`
-- supporting audits and registries
+- run-level metadata
+  - `run_metadata/native_engine_validation.yaml`
+  - `run_metadata/artifact_catalog.csv`
 
 ## Main Handoff
 

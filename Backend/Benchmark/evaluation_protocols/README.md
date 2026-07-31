@@ -13,8 +13,7 @@ Its responsibilities are:
 - define deployment domains such as `P1_SOURCE` and `P2_TARGET`;
 - consume environment and stage authority from an explicit upstream
   `protocol_registry` run;
-- preserve historical 5-day-primary artifacts as legacy compatibility
-  evidence while the upstream Phase A registry locks 7-day primary and
+- consume the upstream Phase A fold contract with 7-day primary and
   5-day diagnostic policy;
 - describe E3 only as protocol-locked re-evaluation on a previously exposed
   target;
@@ -30,11 +29,11 @@ Current output layout distinguishes:
 - `domain_manifests/`: deployment-domain ownership and protocol framing;
 - `validity_diagnostics/`: benchmark-validity audits for representation
   and estimability that sit above the raw runner manifests;
-- `primary_protocol/`: historical 5-day Fold 01-03 compatibility artifacts,
+- `primary_protocol/`: the locked 7-day primary Fold 01 artifact,
   split into `folds/`, `cohorts/`, `lineage/`, and `runner/`;
 - `temporal_diagnostics/support_5day/`: non-primary 5-day support
   diagnostics and full assignment audits;
-- `temporal_diagnostics/secondary_7day/`: historical 7-day diagnostics;
+- `temporal_diagnostics/secondary_7day/`: 7-day fold diagnostics;
 - `transport_diagnostics/`: feature-shift and frozen-label transport
   reports;
 - `threshold_diagnostics/`: frozen q10 policy and Q05/Q10/Q15/Q20

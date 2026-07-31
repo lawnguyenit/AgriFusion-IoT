@@ -18,44 +18,47 @@ class AuditTaskSpec:
     label_status_value: str
     required_classes: tuple[str, ...]
     public_scope: str
+    horizon_id: str | None = None
 
 
 TASK_SPECS: tuple[AuditTaskSpec, ...] = (
     AuditTaskSpec(
         audit_task_id="v0_v1_point_train",
-        label_path="point/point_labels_train.parquet",
-        label_task_id="v0_point_train",
+        label_path="tasks/point/assignments.parquet",
+        label_task_id="point",
         label_status_value="LABELED",
         required_classes=(
-            "normal_point",
+            "reference_context_point",
             "low_relative_moisture_point",
-            "unknown_environment_point",
+            "unresolved_environmental_evidence_point",
         ),
         public_scope="V0 and V1 shared point target",
     ),
     AuditTaskSpec(
         audit_task_id="v2_same_y_3h",
-        label_path="v2/v2_same_y_labels.parquet",
-        label_task_id="v2_same_y_3h",
+        label_path="tasks/same_y/horizon_3h/assignments.parquet",
+        label_task_id="same_y",
         label_status_value="LABELED",
         required_classes=(
-            "normal_point",
+            "reference_context_point",
             "low_relative_moisture_point",
-            "unknown_environment_point",
+            "unresolved_environmental_evidence_point",
         ),
         public_scope="V2 same-Y 3h primary target",
+        horizon_id="3h",
     ),
     AuditTaskSpec(
         audit_task_id="v2_same_y_8h",
-        label_path="v2/v2_same_y_labels.parquet",
-        label_task_id="v2_same_y_8h",
+        label_path="tasks/same_y/horizon_8h/assignments.parquet",
+        label_task_id="same_y",
         label_status_value="LABELED",
         required_classes=(
-            "normal_point",
+            "reference_context_point",
             "low_relative_moisture_point",
-            "unknown_environment_point",
+            "unresolved_environmental_evidence_point",
         ),
         public_scope="Optional 8h sensitivity target",
+        horizon_id="8h",
     ),
 )
 
@@ -63,7 +66,7 @@ TASK_SPECS: tuple[AuditTaskSpec, ...] = (
 def build_e1e2_split_audit(
     *,
     protocol_run_dir: Path,
-    weak_labels_run_dir: Path,
+    native_label_release_dir: Path,
     train_ratio: float = 0.70,
     validation_ratio: float = 0.15,
     test_ratio: float = 0.15,
@@ -79,7 +82,7 @@ def build_e1e2_split_audit(
 
     for task_spec in TASK_SPECS:
         merged = _load_task_frame(
-            weak_labels_run_dir=weak_labels_run_dir,
+            native_label_release_dir=native_label_release_dir,
             env_frame=env_frame,
             task_spec=task_spec,
         )
@@ -120,7 +123,7 @@ def build_e1e2_split_audit(
         {
             "run_id": run_id,
             "protocol_run_dir": str(protocol_run_dir.resolve()),
-            "weak_labels_run_dir": str(weak_labels_run_dir.resolve()),
+            "native_label_release_dir": str(native_label_release_dir.resolve()),
             "train_ratio": train_ratio,
             "validation_ratio": validation_ratio,
             "test_ratio": test_ratio,
@@ -149,15 +152,17 @@ def _load_environment_frame(protocol_run_dir: Path) -> pd.DataFrame:
 
 def _load_task_frame(
     *,
-    weak_labels_run_dir: Path,
+    native_label_release_dir: Path,
     env_frame: pd.DataFrame,
     task_spec: AuditTaskSpec,
 ) -> pd.DataFrame:
-    label_frame = pd.read_parquet(weak_labels_run_dir / task_spec.label_path).convert_dtypes()
+    label_frame = pd.read_parquet(native_label_release_dir / task_spec.label_path).convert_dtypes()
     task_frame = label_frame.loc[
         (label_frame["label_task_id"].astype("string") == task_spec.label_task_id)
         & (label_frame["label_status"].astype("string") == task_spec.label_status_value)
     ].copy()
+    if task_spec.horizon_id is not None and "horizon_id" in label_frame.columns:
+        task_frame = task_frame.loc[task_frame["horizon_id"].astype("string") == task_spec.horizon_id].copy()
     merged = env_frame.merge(
         task_frame[["sample_id", "label_name"]],
         on="sample_id",

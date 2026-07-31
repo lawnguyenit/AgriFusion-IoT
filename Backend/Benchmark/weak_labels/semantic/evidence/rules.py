@@ -9,27 +9,27 @@ from Backend.Benchmark.weak_labels.contracts.native import NativeContract, deter
 
 RULES = (
     ("LOW_RELATIVE_MOISTURE", "low_moisture_applicability", "npk.soil_moisture_pct", "LOW_MOISTURE_Q10"),
-    ("THERMAL_CONTEXT", "thermal_applicability", "derived.vpd_kpa", "THERMAL_VPD_2_5_LEGACY_CONTEXT"),
-    ("MOISTURE_RISE", "rise_applicability", "moisture_rise_delta", "MOISTURE_RISE_5PP_LEGACY_CONTEXT"),
-    ("EC_SHIFT", "ec_shift_applicability", "ec_shift_delta_abs", "EC_SHIFT_Q95_6_DISCOVERY"),
+    ("THERMAL_CONTEXT", "thermal_applicability", "derived.vpd_kpa", "THERMAL_VPD_CONTEXT_V1"),
+    ("MOISTURE_RISE", "rise_applicability", "moisture_rise_delta", "MOISTURE_RISE_CONTEXT_V1"),
+    ("EC_SHIFT", "ec_shift_applicability", "ec_shift_delta_abs", "EC_SHIFT_Q95_DISCOVERY_V1"),
 )
 
 
 def evaluate_point_rules(frame: pd.DataFrame, contract: NativeContract, operationalization: pd.Series) -> tuple[pd.DataFrame, pd.DataFrame]:
     q_contract = str(operationalization["q_contract_id"])
     q_threshold = _resolve_q_threshold(contract, q_contract)
-    vpd_threshold = _resolve_threshold(contract, "THERMAL_VPD_2_5_LEGACY_CONTEXT", fallback=2.5)
-    rise_threshold = _resolve_threshold(contract, "MOISTURE_RISE_5PP_LEGACY_CONTEXT", fallback=5.0)
-    ec_threshold = _resolve_threshold(contract, "EC_SHIFT_Q95_6_DISCOVERY", fallback=6.0)
+    vpd_threshold = _resolve_threshold(contract, "THERMAL_VPD_CONTEXT_V1")
+    rise_threshold = _resolve_threshold(contract, "MOISTURE_RISE_CONTEXT_V1")
+    ec_threshold = _resolve_threshold(contract, "EC_SHIFT_Q95_DISCOVERY_V1")
     rows: list[dict[str, object]] = []
     evidence_rows: list[dict[str, object]] = []
     for row in frame.to_dict(orient="records"):
         sample_id = str(row["record.id"])
         values = {
             "LOW_RELATIVE_MOISTURE": (row.get("npk.soil_moisture_pct"), q_threshold, "<=", "LOW_MOISTURE_Q10"),
-            "THERMAL_CONTEXT": (row.get("derived.vpd_kpa"), vpd_threshold, ">=", "THERMAL_VPD_2_5_LEGACY_CONTEXT"),
-            "MOISTURE_RISE": (row.get("moisture_rise_delta"), rise_threshold, ">=", "MOISTURE_RISE_5PP_LEGACY_CONTEXT"),
-            "EC_SHIFT": (row.get("ec_shift_delta_abs"), ec_threshold, ">=", "EC_SHIFT_Q95_6_DISCOVERY"),
+            "THERMAL_CONTEXT": (row.get("derived.vpd_kpa"), vpd_threshold, ">=", "THERMAL_VPD_CONTEXT_V1"),
+            "MOISTURE_RISE": (row.get("moisture_rise_delta"), rise_threshold, ">=", "MOISTURE_RISE_CONTEXT_V1"),
+            "EC_SHIFT": (row.get("ec_shift_delta_abs"), ec_threshold, ">=", "EC_SHIFT_Q95_DISCOVERY_V1"),
         }
         for rule_id, applicability_column, evidence_field, threshold_id in RULES:
             value, threshold, operator, _ = values[rule_id]
@@ -109,7 +109,8 @@ def _resolve_q_threshold(contract: NativeContract, q_contract: str) -> float:
     raise ValueError(f"No unique frozen threshold found for {q_contract}.")
 
 
-def _resolve_threshold(contract: NativeContract, threshold_id: str, *, fallback: float) -> float:
+def _resolve_threshold(contract: NativeContract, threshold_id: str) -> float:
     rows = contract.q_registry.loc[contract.q_registry["threshold_id"].astype("string") == threshold_id]
-    return fallback if len(rows) == 0 else float(rows.iloc[0]["threshold_value"])
-
+    if len(rows) != 1:
+        raise ValueError(f"Frozen threshold is not unique: {threshold_id}")
+    return float(rows.iloc[0]["threshold_value"])

@@ -37,7 +37,7 @@ class ValidityLifecycleConfig:
 class ProtocolLifecycleInputs:
     evaluation_protocol_run_dir: Path
     dataset_views_run_dir: Path
-    weak_labels_run_dir: Path
+    native_label_release_dir: Path
     canonical_history_path: Path
     feature_catalog_path: Path
     segment_manifest_path: Path

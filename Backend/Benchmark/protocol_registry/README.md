@@ -66,6 +66,8 @@ After a successful same-filesystem native-engine publication and verified
 success marker, an additive child registry may transition to
 `NATIVE_ENGINE_IMPLEMENTED`. It retains `semantic_contract_frozen=true`, sets
 `native_engine_implemented=true`, and keeps
-`benchmark_release_published=false` and `downstream_runners_unlocked=false`.
+`benchmark_release_published=false`, sets
+`evaluation_protocols_unlocked=true`, and keeps
+`downstream_runners_unlocked=false` for model/validity runners.
 A child registry cannot be created from a staging directory or a failed native
 run.

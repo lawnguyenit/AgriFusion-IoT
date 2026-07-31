@@ -240,8 +240,8 @@ def _write_frozen_contract(output_dir, decision_pack_dir, review_path, phase_a, 
     pd.DataFrame(
         [
             {"evidence_id": "low_flag", "role": "TARGET_DEFINING_DIRECT", "scientific_status": "DISCOVERY_FIXED"},
-            {"evidence_id": "thermal_flag", "role": "AUXILIARY_CONTEXT", "scientific_status": "LEGACY_CONTEXT_HEURISTIC"},
-            {"evidence_id": "moisture_rise_flag", "role": "AUXILIARY_TRANSITION", "scientific_status": "LEGACY_CONTEXT_HEURISTIC"},
+            {"evidence_id": "thermal_flag", "role": "AUXILIARY_CONTEXT", "scientific_status": "FIXED_CONTEXT_HEURISTIC"},
+            {"evidence_id": "moisture_rise_flag", "role": "AUXILIARY_TRANSITION", "scientific_status": "FIXED_CONTEXT_HEURISTIC"},
             {"evidence_id": "ec_shift_flag", "role": "AUXILIARY_PROXY", "scientific_status": "TELEMETRY_PROXY"},
         ]
     ).to_csv(output_dir / "evidence" / "evidence_role_registry.csv", index=False)
@@ -256,9 +256,9 @@ def _write_frozen_contract(output_dir, decision_pack_dir, review_path, phase_a, 
         [{"threshold_id": q_id, "threshold_value": value, "quantile_level": float(q_id[1:]) / 100, "fit_cohort_id": "E1_DISCOVERY_TRAIN_V1", "fit_environment_id": "E1", "fit_mode": "DISCOVERY_FIXED", "comparator": "<=", "apply_environment_ids": "E1|E2|E3_TARGET_PREEXPOSED|E4_FUTURE_TARGET"} for q_id, value in config.q_values]
         + [
             {"threshold_id": "LEGACY_REFERENCE_Q10_60_3", "threshold_value": 60.3, "quantile_level": 0.10, "fit_cohort_id": "LEGACY_WEAK_LABEL_70PCT_TRAIN", "fit_environment_id": "MIXED_LEGACY", "fit_mode": "LEGACY_REFERENCE_ONLY", "comparator": "<=", "apply_environment_ids": "LEGACY_ONLY"},
-            {"threshold_id": "THERMAL_VPD_2_5_LEGACY_CONTEXT", "threshold_value": 2.5, "quantile_level": pd.NA, "fit_cohort_id": "NONE", "fit_environment_id": "NONE", "fit_mode": "LEGACY_FIXED_REFERENCE", "comparator": ">=", "apply_environment_ids": "E1|E2|E3_TARGET_PREEXPOSED|E4_FUTURE_TARGET"},
-            {"threshold_id": "MOISTURE_RISE_5PP_LEGACY_CONTEXT", "threshold_value": 5.0, "quantile_level": pd.NA, "fit_cohort_id": "NONE", "fit_environment_id": "NONE", "fit_mode": "LEGACY_FIXED_REFERENCE", "comparator": ">=", "apply_environment_ids": "E1|E2|E3_TARGET_PREEXPOSED|E4_FUTURE_TARGET"},
-            {"threshold_id": "EC_SHIFT_Q95_6_DISCOVERY", "threshold_value": 6.0, "quantile_level": 0.95, "fit_cohort_id": "E1_DISCOVERY_TRAIN_V1", "fit_environment_id": "E1", "fit_mode": "DISCOVERY_FIXED", "comparator": ">=", "apply_environment_ids": "E1|E2|E3_TARGET_PREEXPOSED|E4_FUTURE_TARGET"},
+            {"threshold_id": "THERMAL_VPD_CONTEXT_V1", "threshold_value": 2.5, "quantile_level": pd.NA, "fit_cohort_id": "NONE", "fit_environment_id": "NONE", "fit_mode": "FIXED_REFERENCE", "comparator": ">=", "apply_environment_ids": "E1|E2|E3_TARGET_PREEXPOSED|E4_FUTURE_TARGET"},
+            {"threshold_id": "MOISTURE_RISE_CONTEXT_V1", "threshold_value": 5.0, "quantile_level": pd.NA, "fit_cohort_id": "NONE", "fit_environment_id": "NONE", "fit_mode": "FIXED_REFERENCE", "comparator": ">=", "apply_environment_ids": "E1|E2|E3_TARGET_PREEXPOSED|E4_FUTURE_TARGET"},
+            {"threshold_id": "EC_SHIFT_Q95_DISCOVERY_V1", "threshold_value": 6.0, "quantile_level": 0.95, "fit_cohort_id": "E1_DISCOVERY_TRAIN_V1", "fit_environment_id": "E1", "fit_mode": "DISCOVERY_FIXED", "comparator": ">=", "apply_environment_ids": "E1|E2|E3_TARGET_PREEXPOSED|E4_FUTURE_TARGET"},
         ]
     )
     q_registry.to_csv(output_dir / "thresholds" / "frozen_threshold_registry.csv", index=False)

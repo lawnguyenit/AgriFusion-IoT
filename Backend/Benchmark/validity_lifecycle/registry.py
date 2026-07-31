@@ -7,7 +7,7 @@ import pandas as pd
 
 from Backend.Benchmark.validity_lifecycle.contracts import EnvironmentSpec, ProtocolLifecycleInputs
 from Backend.Benchmark.validity_lifecycle.defaults import POINT_TARGET_MAP
-from Backend.Benchmark.weak_labels.shared.helpers import coerce_boolean_series, resolve_local_timestamp_series
+from Backend.Benchmark.weak_labels.infrastructure.shared import coerce_boolean_series, resolve_local_timestamp_series
 
 
 POINT_VIEW_IDS = ("v0_point", "v1_point")

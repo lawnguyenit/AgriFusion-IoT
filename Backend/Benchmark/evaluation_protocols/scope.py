@@ -28,7 +28,7 @@ PRIMARY_COMPARISON_IDS: tuple[str, ...] = (
     "v1_vs_v2_full_3h",
 )
 
-PRIMARY_FOLD_IDS: tuple[str, ...] = ("fold_01", "fold_02", "fold_03")
+PRIMARY_FOLD_IDS: tuple[str, ...] = ("fold_01",)
 PRIMARY_EVAL_PARTITIONS: tuple[str, ...] = ("validation", "test")
 FINAL_TARGET_FOLD_ID = "source_final_fit__p2_target_holdout"
 FINAL_TARGET_STAGE_ID = "frozen_target_holdout"

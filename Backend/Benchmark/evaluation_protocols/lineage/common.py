@@ -5,34 +5,34 @@ import pandas as pd
 
 EXPECTED_LABELS_BY_VIEW: dict[str, tuple[str, ...]] = {
     "v0_point_train": (
-        "normal_point",
+        "reference_context_point",
         "low_relative_moisture_point",
-        "unknown_environment_point",
+        "unresolved_environmental_evidence_point",
     ),
     "v1_point_train": (
-        "normal_point",
+        "reference_context_point",
         "low_relative_moisture_point",
-        "unknown_environment_point",
+        "unresolved_environmental_evidence_point",
     ),
     "v2_same_y_3h": (
-        "normal_point",
+        "reference_context_point",
         "low_relative_moisture_point",
-        "unknown_environment_point",
+        "unresolved_environmental_evidence_point",
     ),
     "v2_same_y_8h": (
-        "normal_point",
+        "reference_context_point",
         "low_relative_moisture_point",
-        "unknown_environment_point",
+        "unresolved_environmental_evidence_point",
     ),
     "v2_temporal_3h": (
-        "normal_window_context",
-        "persistent_low_relative_moisture_window",
-        "unknown_environment_window",
+        "reference_context_at_anchor",
+        "persistent_low_relative_moisture_at_anchor",
+        "unresolved_environmental_evidence_at_anchor",
     ),
     "v2_temporal_8h": (
-        "normal_window_context",
-        "persistent_low_relative_moisture_window",
-        "unknown_environment_window",
+        "reference_context_at_anchor",
+        "persistent_low_relative_moisture_at_anchor",
+        "unresolved_environmental_evidence_at_anchor",
     ),
 }
 

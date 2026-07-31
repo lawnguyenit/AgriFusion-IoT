@@ -30,7 +30,8 @@ from Backend.Benchmark.validity_lifecycle.tranche0 import (
     load_model_suite_outputs,
     resolve_latest_model_suite_run,
 )
-from Backend.Benchmark.weak_labels.io import write_csv, write_json_file, write_parquet
+from Backend.Benchmark.weak_labels.infrastructure.hashing import file_sha256
+from Backend.Benchmark.weak_labels.infrastructure.io import write_csv, write_json_file, write_parquet
 
 
 def build_validity_lifecycle(config: ValidityLifecycleConfig) -> ValidityLifecycleResult:
@@ -150,8 +151,15 @@ def build_validity_lifecycle(config: ValidityLifecycleConfig) -> ValidityLifecyc
             "protocol_registry_run_dir": str(protocol_registry.run_dir),
             "protocol_registry_contract_hash": protocol_registry.run_manifest["registry_contract_hash"],
             "evaluation_protocol_run_dir": str(config.evaluation_protocol_run_dir.resolve()),
+            "evaluation_protocol_run_hash": file_sha256(
+                config.evaluation_protocol_run_dir.resolve() / "run_metadata" / "run_manifest.json"
+            ),
             "linked_dataset_views_run_dir": str(inputs.dataset_views_run_dir),
-            "linked_weak_labels_run_dir": str(inputs.weak_labels_run_dir),
+            "linked_dataset_views_run_hash": _optional_manifest_hash(inputs.dataset_views_run_dir),
+            "linked_native_label_release_dir": str(inputs.native_label_release_dir),
+            "native_label_release_hash": file_sha256(
+                inputs.native_label_release_dir / "run_metadata" / "label_release_manifest.json"
+            ),
             "linked_canonical_history_path": str(inputs.canonical_history_path),
             "linked_model_suite_run_dir": str(model_suite_run_dir),
             "environment_ids": [spec.environment_id for spec in config.environment_specs],
@@ -167,6 +175,11 @@ def build_validity_lifecycle(config: ValidityLifecycleConfig) -> ValidityLifecyc
         overall_status=str(validation_payload["overall_status"]),
         observation_count=int(len(observation_artifacts.observation_registry)),
     )
+
+
+def _optional_manifest_hash(run_dir: Path) -> str | None:
+    manifest = run_dir.resolve() / "run_metadata" / "run_manifest.json"
+    return file_sha256(manifest) if manifest.exists() else None
 
 
 def _validate_protocol_registry_link(config: ValidityLifecycleConfig, registry) -> None:
@@ -185,6 +198,15 @@ def _validate_protocol_registry_link(config: ValidityLifecycleConfig, registry) 
         config.evaluation_protocol_run_dir.resolve() / "run_metadata" / "run_manifest.json"
     )
     evaluation_manifest = json.loads(evaluation_manifest_path.read_text(encoding="utf-8"))
+    evaluation_inputs = evaluation_manifest.get("input_hashes", {})
+    if str(evaluation_inputs.get("native_label_release_hash", "")) != str(
+        file_sha256(
+            Path(str(evaluation_manifest.get("config", {}).get("native_label_release_dir", ""))).resolve()
+            / "run_metadata"
+            / "label_release_manifest.json"
+        )
+    ):
+        raise ValueError("Evaluation run is not linked to the current native label release manifest.")
     linked = evaluation_manifest.get("protocol_registry", {})
     if str(linked.get("registry_contract_hash")) != str(
         registry.run_manifest.get("registry_contract_hash")

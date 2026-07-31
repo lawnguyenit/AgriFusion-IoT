@@ -20,7 +20,7 @@ def build_derived_evidence(frame: pd.DataFrame, contract: NativeContract) -> pd.
 
     temperature = pd.to_numeric(working.get("sht.temp_c"), errors="coerce")
     humidity = pd.to_numeric(working.get("sht.humidity_pct"), errors="coerce")
-    humidity_policy = str(specs["VPD_MAGNUS_V1"].get("clipping_policy", "FAIL"))
+    humidity_policy = _required_policy(specs["VPD_MAGNUS_V1"], "clipping_policy")
     if humidity_policy == "CLIP_0_100":
         humidity_for_formula = humidity.clip(lower=0, upper=100)
     else:
@@ -62,3 +62,10 @@ def _assert_formula(row: dict[str, object], expected_token: str) -> None:
         )
     if not str(row.get("source_units", "")).strip() or not str(row.get("output_unit", "")).strip():
         raise NativeContractError("Derived-evidence contract must declare source and output units.")
+
+
+def _required_policy(row: dict[str, object], key: str) -> str:
+    value = row.get(key)
+    if value is None or not str(value).strip():
+        raise NativeContractError(f"Derived-evidence contract must declare {key}.")
+    return str(value)
