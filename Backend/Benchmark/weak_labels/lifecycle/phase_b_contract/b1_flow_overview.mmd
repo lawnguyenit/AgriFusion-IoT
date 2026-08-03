@@ -1,0 +1,20 @@
+flowchart LR
+    A["Phase A PASS\nCandidate evidence + integrity audits"] --> B["B1 input gate\nE1 only + discovery cohort"]
+    B --> C["Replay primitive evidence\nlow / thermal / rise / EC"]
+    C --> D["Compatibility matrix\n3-state evidence combinations"]
+    B --> E["Q geometry\nQ05 / Q10 / Q15 / Q20"]
+    B --> F["K geometry + fold support\nK candidates + 7-day/5-day policies"]
+    D --> G["Reachability and resolution audit\nobserved / unobserved / unreachable"]
+    E --> H["Kill criteria and risk report"]
+    F --> H
+    G --> H
+    H --> I["B1 Decision Pack\nrecommendations + open decisions"]
+    I --> J{"Human semantic review"}
+    J -->|amend| K["Contract amendment\nrerun B1"]
+    J -->|approve| L["B2 Contract Freeze"]
+
+    classDef audit fill:#dbeafe,stroke:#2563eb,color:#111827;
+    classDef decision fill:#fef3c7,stroke:#d97706,color:#111827;
+    classDef stop fill:#fee2e2,stroke:#dc2626,color:#111827;
+    class A,B,C,D,E,F,G,H audit;
+    class I,J,K,L decision;

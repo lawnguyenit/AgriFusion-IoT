@@ -1,0 +1,19 @@
+flowchart TD
+    A["Phase A artifacts\napplicability, evidence, thresholds, continuity"] --> B["Load PASS gate\nreject non-PASS or wrong parent registry"]
+    R["E1 canonical history"] --> C["Candidate Q/K population"]
+    B --> C
+    C --> D["Point contract replay\nLOW / REFERENCE / UNRESOLVED_ENVIRONMENTAL /\nPOINT_CONTEXT_INCOMPLETE / POINT_NOT_EVALUABLE"]
+    D --> E["Compatibility matrix\nlow × thermal × rise × EC\nPOSITIVE / NEGATIVE / NOT_EVALUABLE"]
+    C --> F["Q geometry\nQ05=58.65, Q10=59.96, Q15=61.127, Q20=62.03"]
+    F --> G["K geometry\nrun survival, event loss, anchor count\nK=observation count"]
+    G --> H["Fold support\nE1_PRIMARY_7D_V1\nE1_DIAGNOSTIC_5D_V1"]
+    E --> I["Kill criteria + candidate report"]
+    H --> I
+    I --> J{ "Review decision" }
+    J -->|Reject / amend| K["New B1 candidate pack"]
+    K --> C
+    J -->|Approve selected K| L["Hash-verified review YAML"]
+    L --> M["Freeze exact semantic contract\nformulas; thresholds; windows; resolver; IDs"]
+    M --> N["Freeze canonical snapshot\nfreeze timestamp + record-set hash"]
+    N --> O["CONTRACT_FROZEN registry"]
+    O --> P["Native engine preflight"]

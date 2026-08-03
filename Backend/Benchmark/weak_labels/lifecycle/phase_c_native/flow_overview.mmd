@@ -1,0 +1,14 @@
+flowchart TD
+    A["Frozen Phase B contract"] --> B["Authorized E1 input"]
+    B --> C["Continuity + derived evidence"]
+    C --> D["RuleFiring"]
+    D --> E["Point Resolution"]
+    E --> F["Point Assignment"]
+    F --> G["Temporal windows + persistence"]
+    G --> H["Temporal Assignment"]
+    F --> I["Same-Y transfer projection"]
+    H --> J["Intrinsic task artifacts"]
+    I --> J
+    J --> K["Integrity + replay + differential"]
+    K --> L["Atomic native release"]
+    L --> M["Evaluation consumer"]

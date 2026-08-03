@@ -1,0 +1,34 @@
+flowchart TB
+    A["Inputs\nPhase A PASS run\nE1 canonical evidence\nE1_DISCOVERY_TRAIN_V1\nfold policy registry"] --> B["B1 scope gate\nE1 sensitive analysis allowed\nE2/E3 tuning forbidden\nno model score"]
+
+    B --> C1["Evidence replay"]
+    C1 --> C2["Read primitive states\nPOSITIVE / NEGATIVE / NOT_EVALUABLE"]
+    C2 --> C3["Apply candidate point precedence\nlow first; auxiliary context next"]
+    C3 --> C4["Candidate point resolutions\nLOW / REFERENCE / UNRESOLVED\nCONTEXT_INCOMPLETE / NOT_EVALUABLE"]
+
+    B --> D1["Compatibility analysis"]
+    D1 --> D2["Enumerate 3^4 = 81 combinations\nlow × thermal × rise × EC"]
+    D2 --> D3["Reachability classification\nobserved / unobserved / structurally unreachable"]
+    D3 --> D4["Record support, counterexamples\nand missing-evidence patterns"]
+
+    B --> E1["Threshold geometry"]
+    E1 --> E2["LOW threshold candidates\nQ05=58.65 / Q10=59.96\nQ15=61.127 / Q20=62.03\nE1 discovery, linear quantile"]
+    E1 --> E4["AUXILIARY reference thresholds\nVPD >= 2.5 kPa\nmoisture rise >= 5 percentage points\nfixed reference, not fitted"]
+    E1 --> E5["EC shift candidate\nabs(delta EC) >= Q95 = 6.0\nE1 discovery; 87.2% zero mass"]
+    E2 --> E3["Compare coverage, prevalence\nand evidence sensitivity"]
+    E4 --> E3
+    E5 --> E3
+
+    B --> F1["Persistence geometry"]
+    F1 --> F2["Scan K candidates\nobservation-count semantics"]
+    F2 --> F3["Project support to folds\nE1 primary 7-day\nE1 diagnostic 5-day"]
+    F3 --> F4["Check anchor counts, class support\nand zero-support folds"]
+
+    C4 --> G["Decision diagnostics"]
+    D4 --> G
+    E3 --> G
+    F4 --> G
+    G --> H["Kill criteria report\nEC degeneracy\ninsufficient K support\ncompatibility gaps\ncontext eligibility questions"]
+    H --> I["B1 outputs\nDecision Pack\nno benchmark labels\nno frozen authority"]
+    I --> J["Human review decides\nQ/K + resolver + policies"]
+    J --> K["B2 only: freeze contract"]

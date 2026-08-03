@@ -1,0 +1,12 @@
+flowchart TD
+    A["Phase A PASS"] --> B["B1 Decision Pack"]
+    B --> C["Point replay + 81-state compatibility"]
+    B --> D["Q/K geometry + fold support"]
+    C --> E["Candidate semantic report"]
+    D --> E
+    E --> F{ "Human review" }
+    F -->|Amend| B
+    F -->|Approve + hash match| G["B2 Contract Freeze"]
+    G --> H["Frozen semantic contract"]
+    H --> I["Frozen Protocol Registry"]
+    I --> J["Phase C"]

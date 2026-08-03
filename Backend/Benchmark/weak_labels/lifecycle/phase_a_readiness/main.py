@@ -26,7 +26,13 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         default=BACKEND_PATHS.layer1_dir / "manifest.json",
     )
-    parser.add_argument("--baseline-weak-label-run-dir", type=Path, action="append", required=True)
+    parser.add_argument(
+        "--legacy-reference-run-dir",
+        type=Path,
+        action="append",
+        default=(),
+        help="Optional historical weak-label run for differential/hash audit; never required for Phase A PASS.",
+    )
     parser.add_argument("--output-root", type=Path, default=WEAK_LABELS_ROOT / "artifacts" / "phase_a")
     return parser.parse_args()
 
@@ -38,8 +44,8 @@ def main() -> None:
             protocol_registry_run_dir=args.protocol_registry_run_dir.resolve(),
             canonical_history_path=args.canonical_history.resolve(),
             canonical_manifest_path=args.layer1_manifest.resolve(),
-            baseline_weak_label_run_dirs=tuple(path.resolve() for path in args.baseline_weak_label_run_dir),
             output_root=args.output_root.resolve(),
+            legacy_reference_run_dirs=tuple(path.resolve() for path in args.legacy_reference_run_dir),
         )
     )
     print("Phase A readiness audit complete")

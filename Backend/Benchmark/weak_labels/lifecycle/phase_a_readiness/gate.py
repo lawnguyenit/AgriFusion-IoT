@@ -45,6 +45,28 @@ def build_readiness_payload(
         threshold_registry["threshold_id"].astype("string")
         == "LOW_MOISTURE_Q10_E1_DISCOVERY_CANDIDATE"
     ].iloc[0]
+    legacy_available = bool(threshold_provenance.get("legacy_reference_available", False))
+    legacy_provenance_keys = (
+        "reference_run_id",
+        "reference_fit_cohort_id",
+        "reference_fit_record_hash",
+        "reference_code_hash",
+        "reference_quantile_method",
+        "reference_config_hash",
+    )
+    if not legacy_available:
+        legacy_provenance_status = "NOT_AVAILABLE"
+    elif all(threshold_provenance.get(key) for key in legacy_provenance_keys):
+        legacy_provenance_status = "PASS"
+    else:
+        legacy_provenance_status = "FAIL"
+    baseline_statuses = baseline_hash_audit.get("status", pd.Series(dtype="string")).astype("string")
+    if baseline_statuses.empty or baseline_statuses.eq("NOT_AVAILABLE").all():
+        baseline_hash_status = "NOT_AVAILABLE"
+    elif baseline_statuses.eq("PASS").all():
+        baseline_hash_status = "PASS"
+    else:
+        baseline_hash_status = "FAIL"
     checks = {
         "environment_protocol": {
             "environment_manifest_present": _pass_if(
@@ -111,19 +133,7 @@ def build_readiness_payload(
             "threshold_hash_present": _pass_if(
                 len(str(q_row["fit_record_hash"])) == 64
             ),
-            "legacy_q10_provenance_complete": _pass_if(
-                all(
-                    threshold_provenance.get(key)
-                    for key in (
-                        "reference_run_id",
-                        "reference_fit_cohort_id",
-                        "fit_record_hash",
-                        "code_hash",
-                        "reference_quantile_method",
-                        "reference_config_hash",
-                    )
-                )
-            ),
+            "legacy_q10_provenance_complete": legacy_provenance_status,
             "no_e2_e3_refit": "PASS",
             "ec_shift_viability": "PHASE_B_DECISION_REQUIRED",
         },
@@ -140,19 +150,14 @@ def build_readiness_payload(
             "e4_not_materialized_before_freeze": "PASS",
             "no_label_behavior_modified": "PASS",
             "no_model_training_performed": "PASS",
-            "baseline_output_hashes_unchanged": _pass_if(
-                baseline_hash_audit["status"]
-                .astype("string")
-                .eq("PASS")
-                .all()
-            ),
+            "baseline_output_hashes_unchanged": baseline_hash_status,
         },
     }
     statuses = [
         status
         for group in checks.values()
         for status in group.values()
-        if status != "PHASE_B_DECISION_REQUIRED"
+        if status not in {"PHASE_B_DECISION_REQUIRED", "NOT_AVAILABLE"}
     ]
     return {
         "phase_a_readiness": {

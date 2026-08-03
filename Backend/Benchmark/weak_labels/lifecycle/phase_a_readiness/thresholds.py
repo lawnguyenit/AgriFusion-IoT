@@ -13,8 +13,8 @@ def build_threshold_diagnostics(
     e1_df: pd.DataFrame,
     registry: ProtocolRegistry,
     *,
-    baseline_run_dir: Path,
-) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, dict[str, float]]:
+    legacy_reference_run_dir: Path | None = None,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, dict[str, object]]:
     cohort = registry.threshold_fit_cohort_manifest.loc[
         registry.threshold_fit_cohort_manifest["threshold_fit_cohort_id"].astype("string")
         == "E1_DISCOVERY_TRAIN_V1"
@@ -24,12 +24,28 @@ def build_threshold_diagnostics(
     moisture = pd.to_numeric(e1_df["npk.soil_moisture_pct"], errors="coerce")
     npk_valid = _bool_series(e1_df["npk.valid"])
     cohort_mask = e1_df["sample_time"].ge(start) & e1_df["sample_time"].lt(end) & npk_valid & moisture.notna()
-    cohort_records = e1_df.loc[cohort_mask, ["record.id", "sample_time"]].copy()
+    cohort_records = e1_df.loc[
+        cohort_mask,
+        [
+            "record.id",
+            "sample_time",
+            "derived_vpd_kpa",
+            "moisture_delta_strict",
+            "ec_delta_abs_strict",
+        ],
+    ].copy()
     cohort_records["npk.soil_moisture_pct"] = moisture.loc[cohort_mask].astype(float)
     cohort_records = cohort_records.rename(columns={"record.id": "record_id"}).sort_values("record_id", kind="stable")
     cohort_hash = dataframe_digest(
         cohort_records,
-        columns=["record_id", "sample_time", "npk.soil_moisture_pct"],
+        columns=[
+            "record_id",
+            "sample_time",
+            "npk.soil_moisture_pct",
+            "derived_vpd_kpa",
+            "moisture_delta_strict",
+            "ec_delta_abs_strict",
+        ],
         sort_columns=["record_id"],
     )
     values = cohort_records["npk.soil_moisture_pct"]
@@ -40,47 +56,101 @@ def build_threshold_diagnostics(
     ec_values = pd.to_numeric(e1_df.loc[cohort_mask, "ec_delta_abs_strict"], errors="coerce").dropna()
     ec_q95 = float(ec_values.quantile(0.95, interpolation="linear")) if not ec_values.empty else float("nan")
     ec_zero_fraction = float(ec_values.eq(0).mean()) if not ec_values.empty else float("nan")
-    legacy = _load_legacy_reference(baseline_run_dir)
+    legacy = _load_legacy_reference(legacy_reference_run_dir) if legacy_reference_run_dir is not None else None
     candidate_code_hash = file_sha256(Path(__file__))
 
-    threshold_registry = pd.DataFrame(
+    threshold_rows = [
+        {
+            "threshold_id": f"LOW_MOISTURE_Q{q:02d}_E1_DISCOVERY_CANDIDATE",
+            "threshold_role": "PHASE_A_CANDIDATE",
+            "threshold_value": quantiles[f"q{q:02d}"],
+            "threshold_unit": "percent",
+            "comparator": "<=",
+            "fit_mode": "DISCOVERY_QUANTILE",
+            "fit_environment_id": "E1",
+            "fit_protocol_role": "SOURCE_DISCOVERY",
+            "fit_cohort_id": "E1_DISCOVERY_TRAIN_V1",
+            "apply_environment_ids": "E1|E2|E3_TARGET_PREEXPOSED|E4_FUTURE_TARGET",
+            "contract_freeze_id": pd.NA,
+            "contract_hash": pd.NA,
+            "frozen_from_run_id": pd.NA,
+            "quantile_method": "PANDAS_LINEAR",
+            "quantile_level": float(q) / 100,
+            "fit_record_count": len(cohort_records),
+            "fit_record_hash": cohort_hash,
+            "code_hash": candidate_code_hash,
+        }
+        for q in (5, 10, 15, 20)
+    ]
+    threshold_rows.extend(
         [
-            {
-                "threshold_id": "LOW_MOISTURE_Q10_E1_DISCOVERY_CANDIDATE",
-                "threshold_role": "PHASE_A_CANDIDATE",
-                "threshold_value": quantiles["q10"],
-                "fit_environment_id": "E1",
-                "fit_protocol_role": "SOURCE_DISCOVERY",
-                "fit_cohort_id": "E1_DISCOVERY_TRAIN_V1",
-                "apply_environment_ids": "E1|E2|E3_TARGET_PREEXPOSED|E4_FUTURE_TARGET",
-                "contract_freeze_id": pd.NA,
-                "contract_hash": pd.NA,
-                "frozen_from_run_id": pd.NA,
-                "quantile_method": "PANDAS_LINEAR",
-                "fit_record_count": len(cohort_records),
-                "fit_record_hash": cohort_hash,
-                "code_hash": candidate_code_hash,
-            },
             {
                 "threshold_id": "LEGACY_REFERENCE_Q10_60_3",
                 "threshold_role": "LEGACY_REFERENCE_ONLY",
-                "threshold_value": legacy["threshold_value"],
+                "threshold_value": legacy["threshold_value"] if legacy is not None else pd.NA,
+                "threshold_unit": "percent",
+                "comparator": "<=",
+                "fit_mode": "LEGACY_REFERENCE_ONLY",
                 "fit_environment_id": "MIXED_LEGACY_CHRONOLOGICAL_PREFIX",
                 "fit_protocol_role": "PRE_PROTOCOL_REGISTRY",
                 "fit_cohort_id": "LEGACY_WEAK_LABEL_70PCT_TRAIN",
                 "apply_environment_ids": "LEGACY_ALL",
                 "contract_freeze_id": pd.NA,
                 "contract_hash": pd.NA,
-                "frozen_from_run_id": legacy["reference_run_id"],
+                "frozen_from_run_id": legacy["reference_run_id"] if legacy is not None else pd.NA,
                 "quantile_method": "PANDAS_LINEAR",
-                "fit_record_count": legacy["fit_record_count"],
-                "fit_record_hash": legacy["fit_record_hash"],
-                "code_hash": legacy["code_hash"],
+                "quantile_level": 0.10,
+                "fit_record_count": legacy["fit_record_count"] if legacy is not None else pd.NA,
+                "fit_record_hash": legacy["fit_record_hash"] if legacy is not None else pd.NA,
+                "code_hash": legacy["code_hash"] if legacy is not None else pd.NA,
+            },
+            {
+                "threshold_id": "THERMAL_VPD_FIXED_2_5_REFERENCE",
+                "threshold_role": "PHASE_A_REFERENCE_CANDIDATE",
+                "threshold_value": 2.5,
+                "threshold_unit": "kPa",
+                "comparator": ">=",
+                "fit_mode": "FIXED_REFERENCE",
+                "fit_environment_id": "NONE",
+                "fit_protocol_role": "REFERENCE_ONLY",
+                "fit_cohort_id": "NONE",
+                "apply_environment_ids": "E1|E2|E3_TARGET_PREEXPOSED|E4_FUTURE_TARGET",
+                "contract_freeze_id": pd.NA,
+                "contract_hash": pd.NA,
+                "frozen_from_run_id": pd.NA,
+                "quantile_method": pd.NA,
+                "quantile_level": pd.NA,
+                "fit_record_count": pd.NA,
+                "fit_record_hash": pd.NA,
+                "code_hash": candidate_code_hash,
+            },
+            {
+                "threshold_id": "MOISTURE_RISE_FIXED_5PP_REFERENCE",
+                "threshold_role": "PHASE_A_REFERENCE_CANDIDATE",
+                "threshold_value": 5.0,
+                "threshold_unit": "percentage_points",
+                "comparator": ">=",
+                "fit_mode": "FIXED_REFERENCE",
+                "fit_environment_id": "NONE",
+                "fit_protocol_role": "REFERENCE_ONLY",
+                "fit_cohort_id": "NONE",
+                "apply_environment_ids": "E1|E2|E3_TARGET_PREEXPOSED|E4_FUTURE_TARGET",
+                "contract_freeze_id": pd.NA,
+                "contract_hash": pd.NA,
+                "frozen_from_run_id": pd.NA,
+                "quantile_method": pd.NA,
+                "quantile_level": pd.NA,
+                "fit_record_count": pd.NA,
+                "fit_record_hash": pd.NA,
+                "code_hash": candidate_code_hash,
             },
             {
                 "threshold_id": "EC_SHIFT_Q95_E1_DISCOVERY_CANDIDATE",
                 "threshold_role": "PHASE_A_CANDIDATE",
                 "threshold_value": ec_q95,
+                "threshold_unit": "canonical_ec_unit_required",
+                "comparator": ">=",
+                "fit_mode": "DISCOVERY_QUANTILE",
                 "fit_environment_id": "E1",
                 "fit_protocol_role": "SOURCE_DISCOVERY",
                 "fit_cohort_id": "E1_DISCOVERY_TRAIN_V1",
@@ -89,6 +159,7 @@ def build_threshold_diagnostics(
                 "contract_hash": pd.NA,
                 "frozen_from_run_id": pd.NA,
                 "quantile_method": "PANDAS_LINEAR",
+                "quantile_level": 0.95,
                 "fit_record_count": len(ec_values),
                 "fit_record_hash": dataframe_digest(
                     e1_df.loc[cohort_mask & e1_df["ec_delta_abs_strict"].notna(), ["record.id", "ec_delta_abs_strict"]]
@@ -101,7 +172,8 @@ def build_threshold_diagnostics(
                 "code_hash": candidate_code_hash,
             },
         ]
-    ).convert_dtypes()
+    )
+    threshold_registry = pd.DataFrame(threshold_rows).convert_dtypes()
     sensitivity = pd.DataFrame(
         [
             {
@@ -109,11 +181,13 @@ def build_threshold_diagnostics(
                 "fit_cohort_id": "E1_DISCOVERY_TRAIN_V1",
                 "fit_record_count": len(values),
                 **quantiles,
-                "legacy_reference_q10": legacy["threshold_value"],
-                "q10_delta_from_legacy": quantiles["q10"] - float(legacy["threshold_value"]),
-                "comparison_status": "EXPECTED_COHORT_DIFFERENCE"
-                if quantiles["q10"] != float(legacy["threshold_value"])
-                else "EXACT_MATCH",
+                "legacy_reference_q10": legacy["threshold_value"] if legacy is not None else pd.NA,
+                "q10_delta_from_legacy": quantiles["q10"] - float(legacy["threshold_value"]) if legacy is not None else pd.NA,
+                "comparison_status": (
+                    "EXPECTED_COHORT_DIFFERENCE"
+                    if legacy is not None and quantiles["q10"] != float(legacy["threshold_value"])
+                    else "EXACT_MATCH" if legacy is not None else "LEGACY_REFERENCE_NOT_AVAILABLE"
+                ),
             },
             {
                 "threshold_family": "EC_SHIFT_ABS_DELTA",
@@ -132,10 +206,20 @@ def build_threshold_diagnostics(
         ]
     ).convert_dtypes()
     provenance = {
-        **legacy,
-        "reference_fit_cohort_id": "LEGACY_WEAK_LABEL_70PCT_TRAIN",
+        **(legacy or {
+            "legacy_reference_available": False,
+            "reference_run_id": None,
+            "reference_fit_cohort_id": None,
+            "reference_fit_record_hash": None,
+            "reference_fit_record_count": None,
+            "reference_code_hash": None,
+            "reference_config_hash": None,
+        }),
+        "reference_fit_cohort_id": (
+            "LEGACY_WEAK_LABEL_70PCT_TRAIN" if legacy is not None else None
+        ),
         "reference_quantile_method": "PANDAS_LINEAR",
-        "reference_config_hash": legacy["config_hash"],
+        "reference_config_hash": legacy["config_hash"] if legacy is not None else None,
         "candidate_fit_cohort_id": "E1_DISCOVERY_TRAIN_V1",
         "candidate_fit_record_hash": cohort_hash,
         "candidate_fit_record_count": len(cohort_records),
@@ -155,6 +239,7 @@ def _load_legacy_reference(baseline_run_dir: Path) -> dict[str, object]:
     ].iloc[0]
     run_manifest = json.loads((baseline_run_dir / "run_metadata" / "run_manifest.json").read_text(encoding="utf-8"))
     return {
+        "legacy_reference_available": True,
         "reference_run_id": baseline_run_dir.name,
         "threshold_value": float(row["threshold_value"]),
         "fit_record_count": int(row["fit_record_count"]),

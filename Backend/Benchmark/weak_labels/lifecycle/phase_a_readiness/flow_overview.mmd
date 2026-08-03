@@ -1,0 +1,12 @@
+flowchart LR
+    A["Layer1 canonical"] --> B["Protocol Registry"]
+    B --> C["Canonical + environment audit"]
+    C --> D["Continuity audit"]
+    D --> E["Technical applicability"]
+    E --> F["E1 threshold diagnostics"]
+    F --> G["Primitive evidence + candidate inventory"]
+    G --> H{ "Readiness" }
+    H -->|PASS| I["Phase B input"]
+    H -->|FAIL| J["Stop and repair"]
+    L["Optional legacy reference"] -.-> F
+    L -.-> G

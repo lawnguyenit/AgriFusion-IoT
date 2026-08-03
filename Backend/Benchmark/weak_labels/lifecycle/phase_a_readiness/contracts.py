@@ -9,8 +9,8 @@ class PhaseAReadinessConfig:
     protocol_registry_run_dir: Path
     canonical_history_path: Path
     canonical_manifest_path: Path
-    baseline_weak_label_run_dirs: tuple[Path, ...]
     output_root: Path
+    legacy_reference_run_dirs: tuple[Path, ...] = ()
     protocol_stage_id: str = "PHASE_A_AUDIT"
     strict_min_gap_minutes: float = 13.0
     strict_max_gap_minutes: float = 17.0

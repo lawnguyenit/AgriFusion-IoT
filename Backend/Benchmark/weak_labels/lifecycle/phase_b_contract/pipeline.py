@@ -14,34 +14,59 @@ from Backend.Benchmark.shared.artifacts import create_run_directory, write_json,
 from Backend.Benchmark.weak_labels.lifecycle.phase_b_contract.contracts import PhaseBConfig, PhaseBResult
 from Backend.Benchmark.weak_labels.lifecycle.phase_b_contract.geometry import build_qk_geometry
 from Backend.Benchmark.weak_labels.lifecycle.phase_b_contract.resolution import build_point_contract_replay
+from Backend.Benchmark.weak_labels.lifecycle.phase_b_contract.threshold_audit import (
+    build_candidate_threshold_audit,
+    load_phase_a_threshold_inputs,
+)
 
 
 def build_phase_b_decision_pack(config: PhaseBConfig) -> PhaseBResult:
     phase_a = config.phase_a_run_dir.resolve()
     registry = load_protocol_registry(config.protocol_registry_run_dir.resolve())
     _validate_phase_a_inputs(phase_a, registry)
+    threshold_inputs = load_phase_a_threshold_inputs(phase_a)
     output_root = config.output_root.resolve()
     run_id, output_dir = create_run_directory(output_root, prefix="phase_b_decision_pack")
     applicability = pd.read_parquet(phase_a / "technical_applicability" / "rule_applicability.parquet")
     primitive = pd.read_parquet(phase_a / "evidence_inventory" / "e1_primitive_evidence.parquet")
     replay, matrix, counts = build_point_contract_replay(applicability, primitive)
+    threshold_audit, boundary_cases, threshold_status = build_candidate_threshold_audit(
+        primitive, applicability, threshold_inputs
+    )
     geometry, support = build_qk_geometry(
         config.canonical_history_path.resolve(),
         phase_a,
-        config.q_values,
+        threshold_inputs.q_values,
         protocol_registry_run_dir=config.protocol_registry_run_dir.resolve(),
-        primary_candidate_k=config.primary_candidate_k,
     )
-    _write_decision_pack(output_dir, replay, matrix, counts, geometry, support, phase_a, registry, config)
-    status = "PRIMARY_K_REVIEW_REQUIRED"
+    _write_decision_pack(
+        output_dir,
+        replay,
+        matrix,
+        counts,
+        geometry,
+        support,
+        threshold_audit,
+        boundary_cases,
+        threshold_status,
+        threshold_inputs,
+        phase_a,
+        registry,
+        config,
+    )
+    status = "SEMANTIC_REVIEW_REQUIRED"
     write_yaml(
         output_dir / "phase_b1_status.yaml",
         {
             "phase": "PHASE_B1_DECISION_PACK",
             "status": status,
-            "primary_k_review_required": True,
+            "primary_selection_status": "REVIEW_REQUIRED",
+            "selected_primary_operationalization": None,
+            "authority_status": "CANDIDATE_ONLY",
+            "review_required": True,
             "model_scores_used": False,
             "labels_materialized": False,
+            "frozen_contract_created": False,
             "model_training_performed": False,
         },
     )
@@ -60,20 +85,37 @@ def freeze_semantic_contract(
         raise PermissionError("Phase B2 requires decision_status=APPROVED.")
     if str(decision.get("reviewed_decision_pack_hash")) != str(decision_manifest["decision_pack_hash"]):
         raise ValueError("Semantic review decision does not match the decision pack hash.")
+    phase_a = config.phase_a_run_dir.resolve()
     selected_k = int(decision.get("selected_primary_k"))
+    selected_q = str(decision.get("selected_primary_q", "")).strip()
+    if not selected_q:
+        raise ValueError("Phase B2 review decision must select_primary_q explicitly.")
+    threshold_inputs = load_phase_a_threshold_inputs(phase_a)
+    if selected_q not in {q_id for q_id, _ in threshold_inputs.q_values}:
+        raise ValueError(f"Selected primary Q is absent from Phase A candidates: {selected_q}")
     geometry = pd.read_csv(decision_pack_dir / "operationalization" / "k_regime_registry.csv")
     primary_rows = geometry.loc[
-        (geometry["q_contract_id"] == "Q10")
+        (geometry["q_contract_id"] == selected_q)
         & (geometry["k"].astype("Int64") == selected_k)
     ]
     if primary_rows.empty:
         raise ValueError("Selected primary K is absent from the data-supported geometry scan.")
-    phase_a = config.phase_a_run_dir.resolve()
     registry = load_protocol_registry(config.protocol_registry_run_dir.resolve())
     _validate_phase_a_inputs(phase_a, registry)
     run_id, output_dir = create_run_directory(config.output_root.resolve(), prefix="semantic_contract")
     freeze_timestamp = datetime.now(timezone.utc).isoformat()
-    _write_frozen_contract(output_dir, decision_pack_dir, review_decision_path, phase_a, registry, config, selected_k, freeze_timestamp)
+    _write_frozen_contract(
+        output_dir,
+        decision_pack_dir,
+        review_decision_path,
+        phase_a,
+        registry,
+        config,
+        selected_q,
+        selected_k,
+        threshold_inputs,
+        freeze_timestamp,
+    )
     _write_frozen_registry(registry.run_dir, output_dir, config, freeze_timestamp, run_id)
     return PhaseBResult(run_id, output_dir, "CONTRACT_FROZEN", False)
 
@@ -112,6 +154,9 @@ def _validate_phase_a_inputs(phase_a: Path, registry) -> None:
     required = [
         phase_a / "technical_applicability" / "rule_applicability.parquet",
         phase_a / "evidence_inventory" / "e1_primitive_evidence.parquet",
+        phase_a / "threshold_diagnostics" / "threshold_registry.csv",
+        phase_a / "threshold_diagnostics" / "threshold_sensitivity.csv",
+        phase_a / "threshold_diagnostics" / "threshold_fit_cohort_records.parquet",
         phase_a / "run_metadata" / "run_manifest.json",
     ]
     missing = [str(path) for path in required if not path.exists()]
@@ -119,7 +164,21 @@ def _validate_phase_a_inputs(phase_a: Path, registry) -> None:
         raise FileNotFoundError(f"Phase A artifacts missing: {missing}")
 
 
-def _write_decision_pack(output_dir, replay, matrix, counts, geometry, support, phase_a, registry, config) -> None:
+def _write_decision_pack(
+    output_dir,
+    replay,
+    matrix,
+    counts,
+    geometry,
+    support,
+    threshold_audit,
+    boundary_cases,
+    threshold_status,
+    threshold_inputs,
+    phase_a,
+    registry,
+    config,
+) -> None:
     for directory in ("resolution", "operationalization", "thresholds", "run_metadata"):
         (output_dir / directory).mkdir(parents=True, exist_ok=True)
     paths = {
@@ -136,22 +195,33 @@ def _write_decision_pack(output_dir, replay, matrix, counts, geometry, support, 
     geometry.to_parquet(paths["k_geometry"], index=False)
     _build_k_registry(geometry).to_csv(paths["k_registry"], index=False)
     support.to_csv(paths["fold_support"], index=False)
-    threshold_ties = pd.DataFrame(
-        [{"threshold_id": "EC_SHIFT_Q95_E1_DISCOVERY_CANDIDATE", "count_lt_threshold": 1351, "count_eq_threshold": 18, "count_gt_threshold": 72, "realized_positive_count": 90, "realized_positive_rate": 90 / 1441, "tie_policy": "INCLUDE_EQUAL"}]
+    threshold_audit.to_csv(output_dir / "thresholds" / "candidate_threshold_audit.csv", index=False)
+    boundary_cases.to_parquet(output_dir / "thresholds" / "threshold_boundary_cases.parquet", index=False)
+    write_yaml(
+        output_dir / "thresholds" / "threshold_provenance_check.yaml",
+        {
+            **threshold_status,
+            "threshold_registry_hash": threshold_inputs.threshold_registry_hash,
+            "threshold_sensitivity_hash": threshold_inputs.threshold_sensitivity_hash,
+            "fit_cohort_hash": threshold_inputs.fit_cohort_hash,
+            "fit_cohort_id": threshold_inputs.fit_cohort_id,
+            "authority_status": "CANDIDATE_ONLY",
+        },
     )
-    threshold_ties.to_csv(output_dir / "thresholds" / "threshold_tie_audit.csv", index=False)
     write_yaml(
         output_dir / "kill_criteria_report.yaml",
         {
-            "q10_candidate": "ADMISSIBLE_CANDIDATE_REQUIRES_REVIEW",
-            "nonzero_support_across_usable_splits": True,
-            "threshold_degeneracy": "EC_DEGENERACY_REPORTED",
+            "candidate_operationalizations": sorted(
+                set(geometry.loc[geometry["operationalization_id"].notna(), "operationalization_id"].astype(str))
+            ),
+            "primary_selection_status": "REVIEW_REQUIRED",
+            "threshold_degeneracy": threshold_status["ec_shift_viability"],
             "compatibility_unhandled_states": 0,
             "compatibility_structurally_unreachable_states": int((matrix["reachability_status"] == "STRUCTURALLY_UNREACHABLE").sum()),
             "compatibility_unobserved_states": int((matrix["reachability_status"] == "UNOBSERVED_IN_E1").sum()),
             "continuity_sensitivity_documented": True,
             "model_scores_used": False,
-            "primary_k_selection": "REVIEW_REQUIRED",
+            "authority_status": "CANDIDATE_ONLY",
         },
     )
     phase_a_manifest = json.loads((phase_a / "run_metadata" / "run_manifest.json").read_text(encoding="utf-8"))
@@ -177,9 +247,18 @@ def _write_decision_pack(output_dir, replay, matrix, counts, geometry, support, 
             "canonical_history_path": str(config.canonical_history_path.resolve()),
             "canonical_history_hash": file_sha256(config.canonical_history_path.resolve()),
             "decision_pack_hash": decision_pack_hash,
-            "primary_candidate": "Q10-K3",
-            "primary_k_review_required": True,
+            "phase_a_threshold_registry_hash": threshold_inputs.threshold_registry_hash,
+            "phase_a_threshold_sensitivity_hash": threshold_inputs.threshold_sensitivity_hash,
+            "phase_a_fit_cohort_hash": threshold_inputs.fit_cohort_hash,
+            "phase_a_fit_cohort_id": threshold_inputs.fit_cohort_id,
+            "candidate_operationalizations": sorted(
+                set(geometry.loc[geometry["operationalization_id"].notna(), "operationalization_id"].astype(str))
+            ),
+            "primary_selection_status": "REVIEW_REQUIRED",
+            "selected_primary_operationalization": None,
+            "authority_status": "CANDIDATE_ONLY",
             "labels_materialized": False,
+            "frozen_contract_created": False,
             "model_training_performed": False,
         },
     )
@@ -199,7 +278,7 @@ def _build_k_registry(geometry: pd.DataFrame) -> pd.DataFrame:
     return result
 
 
-def _write_frozen_contract(output_dir, decision_pack_dir, review_path, phase_a, registry, config, selected_k, freeze_timestamp):
+def _write_frozen_contract(output_dir, decision_pack_dir, review_path, phase_a, registry, config, selected_q, selected_k, threshold_inputs, freeze_timestamp):
     for directory in ("ontology", "evidence", "thresholds", "continuity", "operationalization", "resolution", "compatibility", "provenance", "run_metadata"):
         (output_dir / directory).mkdir(parents=True, exist_ok=True)
     decision_manifest = json.loads((decision_pack_dir / "run_metadata" / "run_manifest.json").read_text(encoding="utf-8"))
@@ -223,10 +302,10 @@ def _write_frozen_contract(output_dir, decision_pack_dir, review_path, phase_a, 
     snapshot_hash = dataframe_digest(commitment, columns=list(commitment.columns), sort_columns=["record_id"])
     id_hash = population_digest(commitment["record_id"])
     semantic_payload = {
-        "q_primary": "Q10",
-        "q_primary_value": dict(config.q_values)["Q10"],
+        "q_primary": selected_q,
+        "q_primary_value": dict(threshold_inputs.q_values)[selected_q],
         "k_primary": selected_k,
-        "q_family": ["Q05", "Q10", "Q15", "Q20"],
+        "q_family": [q_id for q_id, _ in threshold_inputs.q_values],
         "point_resolution": "CONTEXT_INCOMPLETE_OUTSIDE_PRIMARY_TRAIN",
         "temporal_semantics": "ANCHOR_CONDITIONED",
         "strict_policy": "STRICT_15M_PM2_V1",
@@ -252,30 +331,23 @@ def _write_frozen_contract(output_dir, decision_pack_dir, review_path, phase_a, 
             {"source_id": "moisture_rise_flag", "depends_on": "ec_shift_flag", "dependency_type": "CORRELATED_PROXY"},
         ]
     ).to_csv(output_dir / "evidence" / "evidence_dependency_registry.csv", index=False)
-    q_registry = pd.DataFrame(
-        [{"threshold_id": q_id, "threshold_value": value, "quantile_level": float(q_id[1:]) / 100, "fit_cohort_id": "E1_DISCOVERY_TRAIN_V1", "fit_environment_id": "E1", "fit_mode": "DISCOVERY_FIXED", "comparator": "<=", "apply_environment_ids": "E1|E2|E3_TARGET_PREEXPOSED|E4_FUTURE_TARGET"} for q_id, value in config.q_values]
-        + [
-            {"threshold_id": "LEGACY_REFERENCE_Q10_60_3", "threshold_value": 60.3, "quantile_level": 0.10, "fit_cohort_id": "LEGACY_WEAK_LABEL_70PCT_TRAIN", "fit_environment_id": "MIXED_LEGACY", "fit_mode": "LEGACY_REFERENCE_ONLY", "comparator": "<=", "apply_environment_ids": "LEGACY_ONLY"},
-            {"threshold_id": "THERMAL_VPD_CONTEXT_V1", "threshold_value": 2.5, "quantile_level": pd.NA, "fit_cohort_id": "NONE", "fit_environment_id": "NONE", "fit_mode": "FIXED_REFERENCE", "comparator": ">=", "apply_environment_ids": "E1|E2|E3_TARGET_PREEXPOSED|E4_FUTURE_TARGET"},
-            {"threshold_id": "MOISTURE_RISE_CONTEXT_V1", "threshold_value": 5.0, "quantile_level": pd.NA, "fit_cohort_id": "NONE", "fit_environment_id": "NONE", "fit_mode": "FIXED_REFERENCE", "comparator": ">=", "apply_environment_ids": "E1|E2|E3_TARGET_PREEXPOSED|E4_FUTURE_TARGET"},
-            {"threshold_id": "EC_SHIFT_Q95_DISCOVERY_V1", "threshold_value": 6.0, "quantile_level": 0.95, "fit_cohort_id": "E1_DISCOVERY_TRAIN_V1", "fit_environment_id": "E1", "fit_mode": "DISCOVERY_FIXED", "comparator": ">=", "apply_environment_ids": "E1|E2|E3_TARGET_PREEXPOSED|E4_FUTURE_TARGET"},
-        ]
-    )
+    q_registry = threshold_inputs.registry.copy()
+    q_registry["contract_freeze_id"] = output_dir.name
     q_registry.to_csv(output_dir / "thresholds" / "frozen_threshold_registry.csv", index=False)
-    pd.DataFrame([{"q_contract_id": q_id, "q_value": value, "role": "PRIMARY" if q_id == "Q10" else "SENSITIVITY"} for q_id, value in config.q_values]).to_csv(output_dir / "operationalization" / "q_operationalization_registry.csv", index=False)
+    pd.DataFrame([{"q_contract_id": q_id, "q_value": value, "role": "PRIMARY" if q_id == selected_q else "SENSITIVITY"} for q_id, value in threshold_inputs.q_values]).to_csv(output_dir / "operationalization" / "q_operationalization_registry.csv", index=False)
     pd.DataFrame([{"contract_id": "K_PRIMARY", "selected_k": selected_k, "semantics": "OBSERVATION_COUNT", "elapsed_time_audit_only": True}, {"contract_id": "K_GEOMETRY_SCAN", "selected_k": "DATA_SUPPORTED", "semantics": "EVENT_SURVIVAL_DIAGNOSTIC", "elapsed_time_audit_only": True}]).to_csv(output_dir / "operationalization" / "persistence_operationalization_registry.csv", index=False)
     write_yaml(output_dir / "continuity" / "strict_continuity_contract.yaml", {"policy_id": "STRICT_15M_PM2_V1", "allowed_gap_minutes": [13, 17], "elapsed_time_audit_only": True})
     write_yaml(output_dir / "continuity" / "window_continuity_contract.yaml", {"coverage_ratio": 0.75, "max_internal_gap_minutes": 30, "full_history_span_available_required": True})
     write_yaml(output_dir / "continuity" / "deployment_continuity_contract.yaml", {"hard_boundary": True, "cross_deployment_windows": False, "future_observed_run_state_used_for_eligibility": False})
-    write_yaml(output_dir / "operationalization" / "primary_contract.yaml", {"q_contract_id": "Q10", "q_value": dict(config.q_values)["Q10"], "k_primary": selected_k, "model_score_used_for_selection": False})
+    write_yaml(output_dir / "operationalization" / "primary_contract.yaml", {"q_contract_id": selected_q, "q_value": dict(threshold_inputs.q_values)[selected_q], "k_primary": selected_k, "model_score_used_for_selection": False})
     write_yaml(output_dir / "resolution" / "point_resolution_contract.yaml", {"context_incomplete_outside_primary_train": True, "low_precedence": "LOW_WINS_AND_PRESERVES_TAGS", "unresolved_requires_observed_auxiliary_positive": True})
     write_yaml(output_dir / "resolution" / "temporal_anchor_resolution_contract.yaml", {"anchor_conditioned": True, "window_is_evidence_domain": True, "point_context_incomplete_transfer_outside_train": True})
     pd.DataFrame([{"legacy_label": "normal_point", "contract_label": "reference_context_point"}, {"legacy_label": "low_relative_moisture_point", "contract_label": "low_relative_moisture_point"}, {"legacy_label": "unknown_environment_point", "contract_label": "unresolved_environmental_evidence_point"}]).to_csv(output_dir / "compatibility" / "legacy_label_mapping.csv", index=False)
     shutil.copy2(decision_pack_dir / "resolution" / "point_compatibility_matrix.csv", output_dir / "resolution" / "point_compatibility_matrix.csv")
     shutil.copy2(decision_pack_dir / "operationalization" / "k_regime_registry.csv", output_dir / "operationalization" / "frozen_k_regime_registry.csv")
     write_json(output_dir / "provenance" / "freeze_activity.json", {"freeze_timestamp_utc": freeze_timestamp, "freeze_canonical_snapshot_hash": snapshot_hash, "freeze_record_id_set_hash": id_hash, "freeze_record_count": int(len(commitment)), "freeze_max_sample_time": str(sample.max()), "freeze_max_upload_time": str(commitment["upload_time_utc"].max()), "review_decision_path": str(review_path.resolve())})
-    write_json(output_dir / "run_metadata" / "run_manifest.json", {"pipeline": "weak_labels_semantic_contract", "run_id": output_dir.name, "phase": "PHASE_B2_CONTRACT_FROZEN", "semantic_contract_hash": contract_hash, "decision_pack_hash": decision_hash, "parent_protocol_registry_contract_hash": registry.run_manifest["registry_contract_hash"], "freeze_timestamp_utc": freeze_timestamp, "freeze_record_id_set_hash": id_hash, "freeze_canonical_snapshot_hash": snapshot_hash, "primary_q": "Q10", "primary_k": selected_k, "labels_materialized": False, "model_training_performed": False, "downstream_runners_unlocked": False})
-    write_yaml(output_dir / "phase_b_freeze.yaml", {"overall_status": "PASS", "semantic_contract_hash": contract_hash, "primary_q": "Q10", "primary_k": selected_k, "e2_e3_sealed": True, "e3_claim": "PROTOCOL_LOCKED_TRANSPORT_REEVALUATION", "e4_materialized": False})
+    write_json(output_dir / "run_metadata" / "run_manifest.json", {"pipeline": "weak_labels_semantic_contract", "run_id": output_dir.name, "phase": "PHASE_B2_CONTRACT_FROZEN", "semantic_contract_hash": contract_hash, "decision_pack_hash": decision_hash, "parent_protocol_registry_contract_hash": registry.run_manifest["registry_contract_hash"], "freeze_timestamp_utc": freeze_timestamp, "freeze_record_id_set_hash": id_hash, "freeze_canonical_snapshot_hash": snapshot_hash, "primary_q": selected_q, "primary_k": selected_k, "labels_materialized": False, "model_training_performed": False, "downstream_runners_unlocked": False})
+    write_yaml(output_dir / "phase_b_freeze.yaml", {"overall_status": "PASS", "semantic_contract_hash": contract_hash, "primary_q": selected_q, "primary_k": selected_k, "e2_e3_sealed": True, "e3_claim": "PROTOCOL_LOCKED_TRANSPORT_REEVALUATION", "e4_materialized": False})
     _write_artifact_catalog(output_dir)
 
 

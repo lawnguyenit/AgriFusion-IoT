@@ -11,7 +11,6 @@ def build_qk_geometry(
     q_values: tuple[tuple[str, float], ...],
     *,
     protocol_registry_run_dir: Path,
-    primary_candidate_k: int = 3,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     canonical = pd.read_csv(canonical_history_path, low_memory=False)
     applicability = pd.read_parquet(
@@ -99,38 +98,30 @@ def build_qk_geometry(
                     "persistent_anchor_count": int((surviving["run_length"] - k + 1).clip(lower=0).sum()),
                     "boundary_anchor_loss": int(surviving["run_length"].clip(upper=max(k - 1, 0)).sum()),
                     "max_run_length": max_k,
-                    "primary_candidate": q_id == "Q10" and k == primary_candidate_k,
+                    "operationalization_id": f"{q_id}-K{k}",
+                    "candidate_status": "CANDIDATE_ONLY",
                 }
             )
-        if primary_candidate_k in event_sets and event_sets[primary_candidate_k]:
-            primary_count = len(event_sets[primary_candidate_k])
-            for row in all_rows:
-                if row["q_contract_id"] == q_id:
-                    row["event_survival_from_primary"] = row["event_count"] / primary_count
-                    row["event_loss_from_primary"] = 1.0 - row["event_count"] / primary_count
         if max_k:
-            all_rows.extend(_role_rows(q_id, all_rows, primary_candidate_k, max_k))
+            all_rows.extend(_role_rows(q_id, all_rows, max_k))
     return pd.DataFrame(all_rows).convert_dtypes(), pd.DataFrame(support_rows).convert_dtypes()
 
 
-def _role_rows(q_id: str, rows: list[dict[str, object]], primary_k: int, max_k: int) -> list[dict[str, object]]:
+def _role_rows(q_id: str, rows: list[dict[str, object]], max_k: int) -> list[dict[str, object]]:
     subset = [row for row in rows if row["q_contract_id"] == q_id]
     by_k = {int(row["k"]): row for row in subset}
     roles: list[dict[str, object]] = []
-    for role, selected in (
-        ("PRIMARY_K", primary_k if primary_k in by_k else None),
-        ("LOCAL_LOWER_K", primary_k - 1 if primary_k - 1 >= 2 and primary_k - 1 in by_k else None),
-    ):
+    for role in ("K_SELECTION_REVIEW_REQUIRED", "LOCAL_K_REVIEW_REQUIRED"):
         roles.append(
             {
                 "q_contract_id": q_id,
-                "k": selected if selected is not None else pd.NA,
+                "k": pd.NA,
                 "regime_role": role,
-                "support_status": "AVAILABLE" if selected is not None else "NO_ADMISSIBLE_K_FOR_ROLE",
-                "selection_reason": "PRESPECIFIED_NEIGHBORHOOD",
+                "support_status": "REVIEW_REQUIRED",
+                "selection_reason": "NO_PRIMARY_K_IS_SELECTED_IN_B1",
             }
         )
-    upper = primary_k
+    upper = 1
     while upper + 1 <= max_k and by_k[upper + 1]["event_count"] == by_k[upper]["event_count"]:
         upper += 1
     roles.append(
@@ -152,9 +143,7 @@ def _role_rows(q_id: str, rows: list[dict[str, object]], primary_k: int, max_k: 
         if role == "FIRST_EVENT_DEATH_K":
             selected = first_death
         else:
-            selected = next((k for k in range(max(2, primary_k + 1), max_k + 1) if predicate(
-                float(by_k[k]["event_loss_from_primary"])
-            )), None)
+            selected = next((k for k in range(2, max_k + 1) if predicate(float(by_k[k]["event_loss_from_k1"]))), None)
         roles.append(
             {
                 "q_contract_id": q_id,

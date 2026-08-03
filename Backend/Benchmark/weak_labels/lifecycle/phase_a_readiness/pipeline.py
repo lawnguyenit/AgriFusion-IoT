@@ -62,7 +62,9 @@ def build_phase_a_readiness(config: PhaseAReadinessConfig) -> PhaseAReadinessRes
         build_threshold_diagnostics(
             applicability,
             registry,
-            baseline_run_dir=config.baseline_weak_label_run_dirs[0],
+            legacy_reference_run_dir=config.legacy_reference_run_dirs[0]
+            if config.legacy_reference_run_dirs
+            else None,
         )
     )
     evidence = attach_observed_low_runs(
@@ -86,11 +88,11 @@ def build_phase_a_readiness(config: PhaseAReadinessConfig) -> PhaseAReadinessRes
         evidence, registry, dependency_audit
     )
     candidate_report = build_candidate_resolution_report(evidence)
-    baseline_hash_audit = _build_baseline_hash_audit(
-        config.baseline_weak_label_run_dirs
-    )
-    legacy_findings = _build_legacy_findings(
-        config.baseline_weak_label_run_dirs[0]
+    baseline_hash_audit = _build_baseline_hash_audit(config.legacy_reference_run_dirs)
+    legacy_findings = (
+        _build_legacy_findings(config.legacy_reference_run_dirs[0])
+        if config.legacy_reference_run_dirs
+        else _empty_legacy_findings()
     )
 
     run_id, output_dir = create_run_directory(
@@ -151,13 +153,9 @@ def build_phase_a_readiness(config: PhaseAReadinessConfig) -> PhaseAReadinessRes
 def _validate_config(config: PhaseAReadinessConfig) -> None:
     if config.protocol_stage_id != "PHASE_A_AUDIT":
         raise ValueError("Phase A readiness only accepts protocol_stage_id=PHASE_A_AUDIT.")
-    baseline_ids = {path.resolve().name for path in config.baseline_weak_label_run_dirs}
-    required = {"weak_labels_20260730_125309", "weak_labels_20260730_125309_001"}
-    if not required.issubset(baseline_ids):
-        raise ValueError(
-            "Phase A readiness requires both locked weak-label baseline runs: "
-            f"{sorted(required)}"
-        )
+    for path in config.legacy_reference_run_dirs:
+        if not path.resolve().exists():
+            raise FileNotFoundError(f"Optional legacy reference run does not exist: {path}")
 
 
 def _assert_e2_e3_sealed(authorization_audit: pd.DataFrame) -> None:
@@ -208,6 +206,10 @@ def _build_authorization_audit(registry, stage_id: str) -> pd.DataFrame:
 
 
 def _build_baseline_hash_audit(run_dirs: tuple[Path, ...]) -> pd.DataFrame:
+    if not run_dirs:
+        return pd.DataFrame(
+            [{"baseline_run_id": pd.NA, "relative_path": pd.NA, "expected_hash": pd.NA, "actual_hash": pd.NA, "status": "NOT_AVAILABLE"}]
+        ).convert_dtypes()
     rows: list[dict[str, object]] = []
     for run_dir in run_dirs:
         resolved = run_dir.resolve()
@@ -281,6 +283,19 @@ def _build_legacy_findings(baseline_run_dir: Path) -> pd.DataFrame:
     ).convert_dtypes()
 
 
+def _empty_legacy_findings() -> pd.DataFrame:
+    return pd.DataFrame(
+        [{
+            "finding_id": "LEGACY_REFERENCE_NOT_AVAILABLE",
+            "status": "NOT_AVAILABLE",
+            "baseline_run_id": pd.NA,
+            "affected_record_count": pd.NA,
+            "observed_contract": "No historical weak-label reference run was supplied.",
+            "phase_a_action": "CORE_READINESS_NOT_BLOCKED",
+        }]
+    ).convert_dtypes()
+
+
 def _run_manifest(config, registry, run_id: str) -> dict[str, object]:
     return {
         "pipeline": "weak_labels_phase_a_readiness",
@@ -294,9 +309,11 @@ def _run_manifest(config, registry, run_id: str) -> dict[str, object]:
         "canonical_history_hash": file_sha256(
             config.canonical_history_path.resolve()
         ),
-        "baseline_weak_label_run_dirs": [
-            str(path.resolve()) for path in config.baseline_weak_label_run_dirs
+        "legacy_reference_run_dirs": [
+            str(path.resolve()) for path in config.legacy_reference_run_dirs
         ],
+        "legacy_reference_required_for_phase_a_pass": False,
+        "legacy_reference_role": "OPTIONAL_DIFFERENTIAL_AND_HASH_AUDIT",
         "strict_policy": {
             "policy_id": "STRICT_15M_PM2_V1",
             "min_gap_minutes": config.strict_min_gap_minutes,

@@ -80,6 +80,10 @@ def build_candidate_evidence(
     working["ec_shift_flag"] = _nullable_flag(
         working["ec_shift_rule_applicability"], ec_delta.ge(ec_q95)
     )
+    working["low_evidence_value"] = moisture
+    working["thermal_evidence_value"] = vpd
+    working["moisture_rise_evidence_value"] = rise
+    working["ec_shift_evidence_value"] = ec_delta
     working["candidate_resolution"] = working.apply(_candidate_resolution, axis=1).astype("string")
     working["candidate_resolution_policy_id"] = "FULL_CONTEXT_V1"
     working["evidence_contract_id"] = "E1_DISCOVERY_Q10_FULL_CONTEXT_V1"

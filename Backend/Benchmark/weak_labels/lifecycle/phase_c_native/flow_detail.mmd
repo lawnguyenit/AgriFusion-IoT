@@ -1,0 +1,26 @@
+flowchart TD
+    A["Phase B2 semantic contract\nsemantic hash; primary operationalization;\nthresholds; formulas; windows; compatibility; resolver"] --> B{ "Preflight complete?" }
+    B -->|No| X["FAIL CLOSED\nContract amendment required"]
+    B -->|Yes| C["Protocol authorization\nPHASE_C / E1 sensitive allowed"]
+    R["Registry membership + E1 allowlist"] --> C
+    H["Canonical history\nonly allowlisted E1 payload"] --> D["Canonical validation\nID, timestamp, duplicate time, schema"]
+    C --> D
+    D --> E["Deployment boundaries\nsegment/position/interruption"]
+    E --> F["Strict previous linkage\n13–17 minute rule from contract"]
+    F --> G["Derived evidence\nVPD; moisture delta; EC abs delta"]
+    G --> I["Rule evaluation\nLOW / thermal / rise / EC"]
+    I --> J["RuleFiring objects\nstate + value + threshold + interval"]
+    J --> K["Point resolver\ncompatibility row + precedence"]
+    K --> L["Point Resolution + Assignment\ndeterministic IDs"]
+    L --> M["Observed low runs\nsupport depth; right-censor audit only"]
+    M --> N["Window projections\n3h/8h coverage and dependency"]
+    N --> O["Temporal resolver + Assignment"]
+    L --> P["Same-Y transfer\nsource assignment label unchanged"]
+    O --> Q["Intrinsic task artifacts"]
+    P --> Q
+    Q --> S["Semantic fold projection\nno feature eligibility here"]
+    S --> T["Referential integrity + deterministic replay"]
+    T --> U["Expected-difference differential audit"]
+    U --> V["Staging validation + hashes"]
+    V --> W["Atomic rename + success marker"]
+    W --> Z["NATIVE_ENGINE_IMPLEMENTED\nSTOP before benchmark release"]

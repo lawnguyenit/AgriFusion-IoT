@@ -41,7 +41,7 @@ def build_point_contract_replay(
     frame = pd.concat([frame.reset_index(drop=True), states], axis=1)
     resolutions: list[str] = []
     reasons: list[str] = []
-    train_eligible: list[bool] = []
+    candidate_train_eligible: list[bool] = []
     for row in frame.itertuples(index=False):
         low_eligible = bool(getattr(row, "low_target_eligibility", False))
         low_state = getattr(row, "low_flag_state")
@@ -62,10 +62,12 @@ def build_point_contract_replay(
             resolution, reason, eligible = "REFERENCE", "ALL_REQUIRED_EVIDENCE_NEGATIVE", True
         resolutions.append(resolution)
         reasons.append(reason)
-        train_eligible.append(eligible)
+        candidate_train_eligible.append(eligible)
     frame["point_resolution"] = pd.Series(resolutions, dtype="string")
     frame["primary_resolution_reason"] = pd.Series(reasons, dtype="string")
-    frame["primary_train_eligible"] = pd.Series(train_eligible, dtype="boolean")
+    frame["candidate_train_eligibility"] = pd.Series(candidate_train_eligible, dtype="boolean")
+    frame["authority_status"] = "CANDIDATE_ONLY"
+    frame["review_required"] = True
     snapshot = (
         frame["point_resolution"]
         .value_counts(dropna=False)
@@ -117,8 +119,9 @@ def build_compatibility_matrix(frame: pd.DataFrame) -> pd.DataFrame:
                 "resolution_id": resolution,
                 "primary_resolution_reason": reason,
                 "evidence_tags_preserved": True,
-                "primary_train_eligible": eligible,
+                "candidate_train_eligibility": eligible,
+                "authority_status": "CANDIDATE_ONLY",
+                "review_required": True,
             }
         )
     return pd.DataFrame(rows).convert_dtypes()
-

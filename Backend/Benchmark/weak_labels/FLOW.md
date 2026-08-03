@@ -21,14 +21,27 @@ are removed from the executable package.
 
 ```mermaid
 flowchart LR
-    A["Layer1 canonical data"] --> B["weak_labels"]
-    B --> C["weak-label artifacts + rule traces"]
-    A --> D["protocol_registry"]
-    D --> E["weak_labels.lifecycle.phase_a_readiness"]
-    E --> F["candidate evidence + STOP gate"]
-    F --> G["semantic_contract Phase B1 decision pack"]
-    G --> H["reviewed frozen contract + STOP before Phase C"]
+    A["Layer1 canonical data"] --> B["Protocol Registry"]
+    B --> C["Phase A\nReadiness Audit"]
+    C --> D["Phase B1\nDecision Pack"]
+    D --> E["Phase B2\nReviewed Contract Freeze"]
+    E --> F["Phase C\nNative Label Release"]
+    F --> G["Point + Same-Y + Temporal\nAssignment artifacts"]
 ```
+
+## Lifecycle reports and diagrams
+
+The phase folders contain the human-readable report and two data-flow views:
+
+| Lifecycle unit | Report | Overview | Detail |
+|---|---|---|---|
+| Phase A Readiness | [`phase_a_readiness/REPORT.md`](lifecycle/phase_a_readiness/REPORT.md) | [`flow_overview.mmd`](lifecycle/phase_a_readiness/flow_overview.mmd) | [`flow_detail.mmd`](lifecycle/phase_a_readiness/flow_detail.mmd) |
+| Phase B Contract | [`phase_b_contract/REPORT.md`](lifecycle/phase_b_contract/REPORT.md) | [`flow_overview.mmd`](lifecycle/phase_b_contract/flow_overview.mmd) | [`flow_detail.mmd`](lifecycle/phase_b_contract/flow_detail.mmd) |
+| Phase C Native | [`phase_c_native/REPORT.md`](lifecycle/phase_c_native/REPORT.md) | [`flow_overview.mmd`](lifecycle/phase_c_native/flow_overview.mmd) | [`flow_detail.mmd`](lifecycle/phase_c_native/flow_detail.mmd) |
+
+The diagrams describe data entering a meaningful processing block, the rules
+and parameters applied there, and the artifact leaving it. They are not a
+function call graph.
 
 Readiness never calls the label engine and its candidate outputs are not label
 authority. There is one executable label path: the native lifecycle.
@@ -62,7 +75,8 @@ final trainability.
 - emits structural commitments only for sealed E2/E3;
 - separates deployment, strict, window, and causal evaluation continuity;
 - reconstructs Q diagnostics on `E1_DISCOVERY_TRAIN_V1`;
-- reports candidate ontology resolution and legacy inconsistencies;
+- reports candidate ontology resolution; legacy inconsistencies are an
+  optional differential branch and never a Phase A prerequisite;
 - stops at `STOP_NO_BENCHMARK_LABEL_CHANGES`.
 
 ## Phase B Semantic Contract Path
@@ -76,7 +90,7 @@ Phase B is a separate lane under `weak_labels/lifecycle/phase_b_contract`.
 - scans Q05/Q10/Q15/Q20 across all data-supported K values;
 - classifies primary, local, breakpoint, moderate, strong, and extreme K
   regimes without model scores;
-- stops at `PRIMARY_K_REVIEW_REQUIRED` until a reviewed decision artifact is
+- stops at `PRIMARY_SELECTION_REVIEW_REQUIRED` until a reviewed decision artifact is
   supplied;
 - after review, writes a frozen semantic contract and an additive
   `CONTRACT_FROZEN` registry;

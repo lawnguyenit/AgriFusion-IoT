@@ -48,14 +48,26 @@ Backend/Benchmark/weak_labels/artifacts/phase_a/<run_id>/
 `threshold_diagnostics/` are candidate evidence only and must never be
 consumed by the native engine.
 
+Phase lifecycle documentation:
+
+- [Phase A Data Audit](lifecycle/phase_a_readiness/README.md)
+- [Phase B Semantic Contract](lifecycle/phase_b_contract/REPORT.md)
+- [Phase C Native Label Release](lifecycle/phase_c_native/REPORT.md)
+
 Run it explicitly:
 
 ```powershell
 python Backend\Benchmark\weak_labels\lifecycle\phase_a_readiness\main.py `
   --protocol-registry-run-dir <registry_run_dir> `
-  --baseline-weak-label-run-dir Backend\Benchmark\weak_labels\artifacts\weak_labels_20260730_125309 `
-  --baseline-weak-label-run-dir Backend\Benchmark\weak_labels\artifacts\weak_labels_20260730_125309_001
+  --canonical-history Backend\Output_data\Layer1\canonical\telemetry_history.csv `
+  --layer1-manifest Backend\Output_data\Layer1\manifest.json `
+  --output-root Backend\Benchmark\weak_labels\artifacts\phase_a
 ```
+
+Phase A core readiness does not require historical weak-label output. If a
+legacy run is available, it may be added with one or more optional
+`--legacy-reference-run-dir` arguments for differential/hash reporting only;
+its absence is recorded as `NOT_AVAILABLE` and does not block the core gate.
 
 ## Native public tasks
 

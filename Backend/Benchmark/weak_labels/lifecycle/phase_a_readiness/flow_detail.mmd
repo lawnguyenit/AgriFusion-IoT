@@ -1,0 +1,22 @@
+flowchart TD
+    A["Canonical history\nrecord.id, sample_time, upload_time, source locator, sensor payload"] --> B["Identity validation\nunique ID; parse timestamps; verify source hash"]
+    M["Layer1 manifest\ncanonical schema + source manifest"] --> B
+    R["Protocol Registry\nE1/E2/E3 membership; visibility; fold policies"] --> C
+    B --> C["Environment partition\nE1 sensitive payload allowed\nE2/E3 structural columns only"]
+    C --> D["Deployment continuity\nsegment / position / interruption boundaries"]
+    D --> E["Strict adjacency\nprevious row only when 13–17 minutes\nand no missing-slot violation"]
+    E --> F["Window metrics\n3h/8h coverage, occupied slots, gaps"]
+    E --> G["Rule applicability\nsoil moisture, VPD, rise delta, EC delta"]
+    G --> H["E1 discovery cohort\n2026-04-01 inclusive → 2026-04-22 exclusive"]
+    H --> I["Candidate thresholds\nQ05/Q10/Q15/Q20; EC Q95\nPANDAS_LINEAR; no E2/E3 refit"]
+    E --> J["Derived candidate values\nVPD; current−strict_previous moisture;\nabs(current−strict_previous) EC"]
+    I --> K["Primitive flags\nLOW ≤ Q; thermal ≥ VPD threshold;\nrise ≥ rise threshold; EC ≥ EC threshold"]
+    J --> K
+    K --> L["Candidate resolution\nREFERENCE / LOW / UNRESOLVED / NOT_EVALUABLE"]
+    L --> N["Unique-record inventory\nexactly one row per eligible record"]
+    L --> O["Fold-projection inventory\nmay repeat records across folds"]
+    N --> P{ "Readiness gate" }
+    O --> P
+    P --> Q["Candidate artifacts + STOP"]
+    X["Optional legacy run\nQ10/hash/differential only"] -.-> I
+    X -.-> P
