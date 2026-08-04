@@ -73,53 +73,6 @@ def build_phase_b_decision_pack(config: PhaseBConfig) -> PhaseBResult:
     return PhaseBResult(run_id, output_dir, status, True)
 
 
-def freeze_semantic_contract(
-    decision_pack_dir: Path,
-    review_decision_path: Path,
-    config: PhaseBConfig,
-) -> PhaseBResult:
-    decision_pack_dir = decision_pack_dir.resolve()
-    decision_manifest = json.loads((decision_pack_dir / "run_metadata" / "run_manifest.json").read_text(encoding="utf-8"))
-    decision = yaml.safe_load(review_decision_path.resolve().read_text(encoding="utf-8"))
-    if not isinstance(decision, dict) or decision.get("decision_status") != "APPROVED":
-        raise PermissionError("Phase B2 requires decision_status=APPROVED.")
-    if str(decision.get("reviewed_decision_pack_hash")) != str(decision_manifest["decision_pack_hash"]):
-        raise ValueError("Semantic review decision does not match the decision pack hash.")
-    phase_a = config.phase_a_run_dir.resolve()
-    selected_k = int(decision.get("selected_primary_k"))
-    selected_q = str(decision.get("selected_primary_q", "")).strip()
-    if not selected_q:
-        raise ValueError("Phase B2 review decision must select_primary_q explicitly.")
-    threshold_inputs = load_phase_a_threshold_inputs(phase_a)
-    if selected_q not in {q_id for q_id, _ in threshold_inputs.q_values}:
-        raise ValueError(f"Selected primary Q is absent from Phase A candidates: {selected_q}")
-    geometry = pd.read_csv(decision_pack_dir / "operationalization" / "k_regime_registry.csv")
-    primary_rows = geometry.loc[
-        (geometry["q_contract_id"] == selected_q)
-        & (geometry["k"].astype("Int64") == selected_k)
-    ]
-    if primary_rows.empty:
-        raise ValueError("Selected primary K is absent from the data-supported geometry scan.")
-    registry = load_protocol_registry(config.protocol_registry_run_dir.resolve())
-    _validate_phase_a_inputs(phase_a, registry)
-    run_id, output_dir = create_run_directory(config.output_root.resolve(), prefix="semantic_contract")
-    freeze_timestamp = datetime.now(timezone.utc).isoformat()
-    _write_frozen_contract(
-        output_dir,
-        decision_pack_dir,
-        review_decision_path,
-        phase_a,
-        registry,
-        config,
-        selected_q,
-        selected_k,
-        threshold_inputs,
-        freeze_timestamp,
-    )
-    _write_frozen_registry(registry.run_dir, output_dir, config, freeze_timestamp, run_id)
-    return PhaseBResult(run_id, output_dir, "CONTRACT_FROZEN", False)
-
-
 def build_frozen_protocol_registry(base_registry_run_dir: Path, semantic_contract_run_dir: Path) -> Path:
     """Create an additive CONTRACT_FROZEN registry from a frozen contract."""
     contract_manifest = load_semantic_contract(semantic_contract_run_dir)
@@ -279,6 +232,7 @@ def _build_k_registry(geometry: pd.DataFrame) -> pd.DataFrame:
 
 
 def _write_frozen_contract(output_dir, decision_pack_dir, review_path, phase_a, registry, config, selected_q, selected_k, threshold_inputs, freeze_timestamp):
+    raise RuntimeError("The old hard-coded freeze writer is removed from the active B2 path; use freeze_phase_b_contract.")
     for directory in ("ontology", "evidence", "thresholds", "continuity", "operationalization", "resolution", "compatibility", "provenance", "run_metadata"):
         (output_dir / directory).mkdir(parents=True, exist_ok=True)
     decision_manifest = json.loads((decision_pack_dir / "run_metadata" / "run_manifest.json").read_text(encoding="utf-8"))

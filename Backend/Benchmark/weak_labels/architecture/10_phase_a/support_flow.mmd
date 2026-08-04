@@ -1,0 +1,11 @@
+flowchart TD
+    A["Phase A core records"] --> B["Identity và timestamp audit"]
+    A --> C["Duplicate/source-hash audit"]
+    A --> D["Sensor/rule applicability audit"]
+    A --> E["Strict/window/dependency audit"]
+    A --> F["Fold và distribution diagnostics"]
+    B --> G["Readiness report"]
+    C --> G
+    D --> G
+    E --> G
+    F --> G

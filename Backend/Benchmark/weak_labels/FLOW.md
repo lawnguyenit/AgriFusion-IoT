@@ -1,5 +1,9 @@
 # Weak Labels Flow
 
+Sơ đồ chi tiết theo từng phase nằm tại
+[`architecture/README.md`](architecture/README.md). File này chỉ giữ lifecycle
+tổng quát; các phase không được đọc như một function call graph.
+
 ## W1 package boundaries
 
 The authority path is organized by lifecycle and responsibility:

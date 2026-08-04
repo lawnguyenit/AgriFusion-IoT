@@ -1,0 +1,11 @@
+flowchart TD
+    A["Core assignments"] --> B["RuleFiring lineage"]
+    A --> C["Resolution lineage"]
+    A --> D["Assignment replay"]
+    A --> E["Legacy differential audit"]
+    A --> F["Artifact catalog + atomic publication"]
+    B --> G["Native label release manifest"]
+    C --> G
+    D --> G
+    E --> G
+    F --> G

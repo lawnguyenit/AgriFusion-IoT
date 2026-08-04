@@ -1,0 +1,7 @@
+flowchart TD
+    A["Phase A Q candidates + E1 evidence"] --> B["Áp dụng Q05/Q10/Q15/Q20"]
+    B --> C["Tạo LOW flags"]
+    C --> D["Gom low runs theo strict continuity"]
+    D --> E["Quét K observation-count candidates"]
+    E --> F["Tính Q×K geometry\nevent survival + anchors"]
+    F --> G["B1 Decision Pack\nreview required"]

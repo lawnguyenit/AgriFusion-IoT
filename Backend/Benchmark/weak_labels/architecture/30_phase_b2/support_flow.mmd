@@ -1,0 +1,10 @@
+flowchart TD
+    A["B1 + review inputs"] --> B["Lineage/hash validation"]
+    A --> C["Anchor/purge safety gate"]
+    A --> D["Distribution/support gate"]
+    A --> E["Phase C schema compatibility"]
+    B --> F["Atomic publication"]
+    C --> F
+    D --> F
+    E --> F
+    F --> G["Frozen child Protocol Registry"]

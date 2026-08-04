@@ -4,6 +4,12 @@
 
 ## Package organization
 
+## Architecture map
+
+Để đọc lifecycle theo mục đích xử lý thay vì theo module code, xem
+[`architecture/README.md`](architecture/README.md). Tài liệu này tách mỗi phase
+thành `core flow`, `support flow`, inputs/outputs và artifact authority.
+
 New code uses explicit lifecycle and responsibility namespaces:
 
 ```text
@@ -166,6 +172,34 @@ Typical downstream use:
     ambiguity review
 
 ## Commands
+
+## Phase B2 contract freeze
+
+Phase B2 is a separate, fail-closed review gate. It requires an explicit B1
+review decision plus anchor-safety, distribution, derived-evidence,
+continuity, window, and expected-difference contracts. Missing inputs do not
+receive defaults and cannot produce a frozen contract.
+
+```powershell
+python Backend\Benchmark\weak_labels\lifecycle\phase_b_contract\main.py freeze `
+  --phase-a-run-dir <phase_a_run_dir> `
+  --phase-b1-run-dir <phase_b1_run_dir> `
+  --protocol-registry-run-dir <phase_a_registry_run_dir> `
+  --review-decision <review_decision.yaml> `
+  --anchor-safety-audit <anchor_safety.parquet> `
+  --distribution-audit <distribution.parquet> `
+  --derived-evidence-contract <derived_evidence.csv> `
+  --continuity-contract <continuity.yaml> `
+  --window-contract <window.yaml> `
+  --expected-difference-contract <expected_difference.csv> `
+  --canonical-history Backend\Output_data\Layer1\canonical\telemetry_history.csv `
+  --output-root Backend\Benchmark\weak_labels\artifacts\phase_b
+```
+
+The command publishes `CONTRACT_FROZEN` only after `NativeContract.load()`
+passes and the final manifest is reverified. Otherwise it records
+`CONTRACT_FREEZE_BLOCKED` under `.staging` and does not create a child
+protocol registry.
 
 ## Native label release
 
