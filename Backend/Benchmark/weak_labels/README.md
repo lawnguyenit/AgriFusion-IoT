@@ -192,6 +192,7 @@ python Backend\Benchmark\weak_labels\lifecycle\phase_b_contract\main.py freeze `
   --continuity-contract <continuity.yaml> `
   --window-contract <window.yaml> `
   --expected-difference-contract <expected_difference.csv> `
+  --selection-config Backend\Benchmark\weak_labels\lifecycle\phase_b_contract\config\q10_k3_primary_diagnostics.yaml `
   --canonical-history Backend\Output_data\Layer1\canonical\telemetry_history.csv `
   --output-root Backend\Benchmark\weak_labels\artifacts\phase_b
 ```

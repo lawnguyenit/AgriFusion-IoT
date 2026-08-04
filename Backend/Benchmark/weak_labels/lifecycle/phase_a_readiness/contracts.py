@@ -15,7 +15,9 @@ class PhaseAReadinessConfig:
     strict_min_gap_minutes: float = 13.0
     strict_max_gap_minutes: float = 17.0
     window_horizons_hours: tuple[int, ...] = (3, 8)
-    persistence_candidates: tuple[int, ...] = (3, 4)
+    # Phase A audits all persistence candidates that B1/B2 may review. The
+    # selected primary is still a B2 decision; these values are not labels.
+    persistence_candidates: tuple[int, ...] = (2, 3, 4, 6)
 
 
 @dataclass(frozen=True)

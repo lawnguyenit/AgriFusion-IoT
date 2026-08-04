@@ -19,7 +19,7 @@ Mỗi phase có `README.md`, `core_flow.mmd`, `support_flow.mmd`,
 
 ```yaml
 architecture_status: DOCUMENTED
-runtime_changed: false
+runtime_changed: true
 label_authority_changed: false
 ```
 

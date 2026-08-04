@@ -4,6 +4,11 @@ from pathlib import Path
 
 import pandas as pd
 
+from Backend.Benchmark.weak_labels.lifecycle.phase_b_contract.candidate_runs import (
+    build_candidate_low_frame,
+    load_e1_geometry_frame,
+)
+
 
 def build_qk_geometry(
     canonical_history_path: Path,
@@ -12,55 +17,16 @@ def build_qk_geometry(
     *,
     protocol_registry_run_dir: Path,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    canonical = pd.read_csv(canonical_history_path, low_memory=False)
-    applicability = pd.read_parquet(
-        phase_a_run_dir / "technical_applicability" / "rule_applicability.parquet"
-    )[["record.id", "low_target_eligibility"]]
-    strict = pd.read_parquet(
-        phase_a_run_dir / "continuity" / "strict_continuity_audit.parquet"
-    )[["record.id", "strict_continuity_id"]]
-    required = ["record.id", "record.sample_time_local", "npk.soil_moisture_pct"]
-    missing = [column for column in required if column not in canonical.columns]
-    if missing:
-        raise KeyError(f"Canonical history is missing geometry columns: {missing}")
-    frame = canonical[required].merge(applicability, on="record.id", validate="one_to_one").merge(
-        strict, on="record.id", validate="one_to_one"
+    frame = load_e1_geometry_frame(
+        canonical_history_path, phase_a_run_dir, protocol_registry_run_dir
     )
-    frame["sample_time"] = pd.to_datetime(frame["record.sample_time_local"], errors="coerce", utc=True)
-    environment_manifest = pd.read_csv(protocol_registry_run_dir / "environment" / "environment_manifest.csv")
-    e1 = environment_manifest.loc[environment_manifest["environment_id"].astype(str) == "E1"].iloc[0]
-    e1_start = pd.to_datetime(e1["start_time"], utc=True)
-    e1_end = pd.to_datetime(e1["end_time"], utc=True)
-    frame = frame.loc[
-        frame["sample_time"].notna()
-        & (frame["sample_time"] >= e1_start)
-        & (frame["sample_time"] < e1_end)
-    ].sort_values("sample_time")
     all_rows: list[dict[str, object]] = []
     support_rows: list[dict[str, object]] = []
     folds_path = protocol_registry_run_dir / "folds" / "e1_fold_registry.parquet"
     folds = pd.read_parquet(folds_path) if folds_path.exists() else pd.DataFrame()
     for q_id, threshold in q_values:
-        working = frame.copy()
-        working["low"] = working["low_target_eligibility"].fillna(False).astype(bool) & (
-            pd.to_numeric(working["npk.soil_moisture_pct"], errors="coerce") <= threshold
-        )
-        working["non_low_block"] = working.groupby("strict_continuity_id")["low"].transform(
-            lambda values: (~values).cumsum()
-        )
-        runs = (
-            working.loc[working["low"]]
-            .groupby(["strict_continuity_id", "non_low_block"], dropna=False)
-            .agg(
-                run_length=("record.id", "size"),
-                start_time=("sample_time", "min"),
-                end_time=("sample_time", "max"),
-            )
-            .reset_index()
-        )
-        runs["event_id"] = runs.apply(
-            lambda row: f"{q_id}:{row['strict_continuity_id']}:{int(row['non_low_block'])}", axis=1
-        )
+        _, runs = build_candidate_low_frame(frame, q_id, threshold)
+        runs["event_id"] = runs["observed_low_run_id"]
         max_k = int(runs["run_length"].max()) if not runs.empty else 0
         event_sets: dict[int, set[str]] = {}
         for k in range(1, max_k + 1):
@@ -96,7 +62,13 @@ def build_qk_geometry(
                     "event_loss_from_primary": pd.NA,
                     "new_event_deaths": int(loss_from_previous),
                     "persistent_anchor_count": int((surviving["run_length"] - k + 1).clip(lower=0).sum()),
+                    # Kept for schema compatibility. This is persistence
+                    # startup loss, not split-boundary loss; the new anchor
+                    # safety artifact owns boundary/purge accounting.
                     "boundary_anchor_loss": int(surviving["run_length"].clip(upper=max(k - 1, 0)).sum()),
+                    "persistence_startup_anchor_loss": int(
+                        surviving["run_length"].clip(upper=max(k - 1, 0)).sum()
+                    ),
                     "max_run_length": max_k,
                     "operationalization_id": f"{q_id}-K{k}",
                     "candidate_status": "CANDIDATE_ONLY",

@@ -12,6 +12,13 @@ from Backend.Benchmark.common.digests import dataframe_digest, file_sha256, popu
 from Backend.Benchmark.protocol_registry import load_protocol_registry
 from Backend.Benchmark.shared.artifacts import create_run_directory, write_json, write_yaml
 from Backend.Benchmark.weak_labels.lifecycle.phase_b_contract.contracts import PhaseBConfig, PhaseBResult
+from Backend.Benchmark.weak_labels.lifecycle.phase_b_contract.anchor_audit import (
+    aggregate_fold_support_for_b2,
+    build_qk_anchor_safety_audits,
+)
+from Backend.Benchmark.weak_labels.lifecycle.phase_b_contract.distribution_audit import (
+    build_qk_distribution_audit,
+)
 from Backend.Benchmark.weak_labels.lifecycle.phase_b_contract.geometry import build_qk_geometry
 from Backend.Benchmark.weak_labels.lifecycle.phase_b_contract.resolution import build_point_contract_replay
 from Backend.Benchmark.weak_labels.lifecycle.phase_b_contract.threshold_audit import (
@@ -33,11 +40,25 @@ def build_phase_b_decision_pack(config: PhaseBConfig) -> PhaseBResult:
     threshold_audit, boundary_cases, threshold_status = build_candidate_threshold_audit(
         primitive, applicability, threshold_inputs
     )
-    geometry, support = build_qk_geometry(
+    geometry, _raw_support = build_qk_geometry(
         config.canonical_history_path.resolve(),
         phase_a,
         threshold_inputs.q_values,
         protocol_registry_run_dir=config.protocol_registry_run_dir.resolve(),
+    )
+    anchor_safety, anchor_detail, boundary_audit = build_qk_anchor_safety_audits(
+        config.canonical_history_path.resolve(),
+        phase_a,
+        config.protocol_registry_run_dir.resolve(),
+        threshold_inputs.q_values,
+    )
+    fold_support = aggregate_fold_support_for_b2(anchor_safety)
+    distribution_audit = build_qk_distribution_audit(
+        config.canonical_history_path.resolve(),
+        phase_a,
+        config.protocol_registry_run_dir.resolve(),
+        threshold_inputs.q_values,
+        anchor_detail,
     )
     _write_decision_pack(
         output_dir,
@@ -45,7 +66,11 @@ def build_phase_b_decision_pack(config: PhaseBConfig) -> PhaseBResult:
         matrix,
         counts,
         geometry,
-        support,
+        fold_support,
+        anchor_safety,
+        anchor_detail,
+        boundary_audit,
+        distribution_audit,
         threshold_audit,
         boundary_cases,
         threshold_status,
@@ -68,6 +93,13 @@ def build_phase_b_decision_pack(config: PhaseBConfig) -> PhaseBResult:
             "labels_materialized": False,
             "frozen_contract_created": False,
             "model_training_performed": False,
+            "candidate_pack_completeness": "COMPLETE",
+            "anchor_safety_audit_present": True,
+            "distribution_audit_present": True,
+            "boundary_adjustment": "AUDIT_ONLY_REVIEW_REQUIRED",
+            "boundary_changes_applied": False,
+            "material_boundary_shift_threshold_percent": 4.0,
+            "ready_for_b2_review": True,
         },
     )
     return PhaseBResult(run_id, output_dir, status, True)
@@ -123,7 +155,11 @@ def _write_decision_pack(
     matrix,
     counts,
     geometry,
-    support,
+    fold_support,
+    anchor_safety,
+    anchor_detail,
+    boundary_audit,
+    distribution_audit,
     threshold_audit,
     boundary_cases,
     threshold_status,
@@ -141,13 +177,23 @@ def _write_decision_pack(
         "k_geometry": output_dir / "operationalization" / "qk_geometry.parquet",
         "k_registry": output_dir / "operationalization" / "k_regime_registry.csv",
         "fold_support": output_dir / "operationalization" / "qk_fold_support.csv",
+        "anchor_safety": output_dir / "operationalization" / "qk_anchor_safety_audit.parquet",
+        "anchor_detail": output_dir / "operationalization" / "anchor_dependency_audit.parquet",
+        "boundary_audit": output_dir / "operationalization" / "qk_boundary_audit.parquet",
+        "distribution_audit": output_dir / "operationalization" / "qk_distribution_audit.parquet",
     }
     replay.to_parquet(paths["point_contract_replay"], index=False)
     matrix.to_csv(paths["compatibility_matrix"], index=False)
     counts.to_csv(paths["resolution_counts"], index=False)
     geometry.to_parquet(paths["k_geometry"], index=False)
     _build_k_registry(geometry).to_csv(paths["k_registry"], index=False)
-    support.to_csv(paths["fold_support"], index=False)
+    # qk_fold_support is now interval-safe support. The old run-end projection
+    # is intentionally not published as an authority artifact.
+    fold_support.to_csv(paths["fold_support"], index=False)
+    anchor_safety.to_parquet(paths["anchor_safety"], index=False)
+    anchor_detail.to_parquet(paths["anchor_detail"], index=False)
+    boundary_audit.to_parquet(paths["boundary_audit"], index=False)
+    distribution_audit.to_parquet(paths["distribution_audit"], index=False)
     threshold_audit.to_csv(output_dir / "thresholds" / "candidate_threshold_audit.csv", index=False)
     boundary_cases.to_parquet(output_dir / "thresholds" / "threshold_boundary_cases.parquet", index=False)
     write_yaml(
@@ -173,6 +219,11 @@ def _write_decision_pack(
             "compatibility_structurally_unreachable_states": int((matrix["reachability_status"] == "STRUCTURALLY_UNREACHABLE").sum()),
             "compatibility_unobserved_states": int((matrix["reachability_status"] == "UNOBSERVED_IN_E1").sum()),
             "continuity_sensitivity_documented": True,
+            "anchor_safety_complete": True,
+            "distribution_audit_complete": True,
+            "boundary_adjustment_status": "AUDIT_ONLY_REVIEW_REQUIRED",
+            "boundary_changes_applied": False,
+            "material_boundary_shift_threshold_percent": 4.0,
             "model_scores_used": False,
             "authority_status": "CANDIDATE_ONLY",
         },
@@ -185,6 +236,10 @@ def _write_decision_pack(
             "registry_contract_hash": registry.run_manifest["registry_contract_hash"],
             "point_counts": counts.to_dict(orient="records"),
             "k_geometry": geometry.to_dict(orient="records"),
+            "fold_support": fold_support.to_dict(orient="records"),
+            "anchor_safety": anchor_safety.to_dict(orient="records"),
+            "boundary_audit": boundary_audit.to_dict(orient="records"),
+            "distribution_audit": distribution_audit.to_dict(orient="records"),
         }
     )
     write_json(
@@ -204,12 +259,59 @@ def _write_decision_pack(
             "phase_a_threshold_sensitivity_hash": threshold_inputs.threshold_sensitivity_hash,
             "phase_a_fit_cohort_hash": threshold_inputs.fit_cohort_hash,
             "phase_a_fit_cohort_id": threshold_inputs.fit_cohort_id,
+            "anchor_safety_hash": dataframe_digest(
+                anchor_safety,
+                columns=list(anchor_safety.columns),
+                sort_columns=[
+                    "q_contract_id",
+                    "persistence_k",
+                    "fold_policy_id",
+                    "fold_id",
+                    "split_role",
+                    "window_horizon_hours",
+                ],
+            ),
+            "fold_support_hash": dataframe_digest(
+                fold_support,
+                columns=list(fold_support.columns),
+                sort_columns=[
+                    "q_contract_id",
+                    "persistence_k",
+                    "fold_policy_id",
+                    "fold_id",
+                    "split_role",
+                ],
+            ),
+            "boundary_audit_hash": dataframe_digest(
+                boundary_audit,
+                columns=list(boundary_audit.columns),
+                sort_columns=["q_contract_id", "fold_policy_id", "fold_id", "boundary_name"],
+            ),
+            "distribution_audit_hash": dataframe_digest(
+                distribution_audit,
+                columns=list(distribution_audit.columns),
+                sort_columns=[
+                    "q_contract_id",
+                    "task_id",
+                    "fold_policy_id",
+                    "fold_id",
+                    "split_role",
+                    "class_name",
+                ],
+            ),
             "candidate_operationalizations": sorted(
                 set(geometry.loc[geometry["operationalization_id"].notna(), "operationalization_id"].astype(str))
             ),
             "primary_selection_status": "REVIEW_REQUIRED",
             "selected_primary_operationalization": None,
             "authority_status": "CANDIDATE_ONLY",
+            "candidate_pack_completeness": "COMPLETE",
+            "anchor_safety_audit_present": True,
+            "distribution_audit_present": True,
+            "boundary_adjustment": "AUDIT_ONLY_REVIEW_REQUIRED",
+            "boundary_changes_applied": False,
+            "material_boundary_shift_threshold_percent": 4.0,
+            "ready_for_b2_review": True,
             "labels_materialized": False,
             "frozen_contract_created": False,
             "model_training_performed": False,

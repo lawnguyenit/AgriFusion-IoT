@@ -94,6 +94,7 @@ def _preflight(config: PhaseB2Config) -> dict[str, Any]:
 
     decision = _read_yaml(config.review_decision_path.resolve())
     _validate_review_decision(decision, b1_manifest, config.expected_difference_contract_path)
+    selection = _load_selection(config.selection_config_path, decision)
 
     required_b1 = {
         "geometry": b1 / "operationalization" / "qk_geometry.parquet",
@@ -115,6 +116,8 @@ def _preflight(config: PhaseB2Config) -> dict[str, Any]:
     q_values = _load_q_values(threshold_registry)
     selected_q = str(decision["selected_primary_q"])
     selected_k = int(decision["selected_primary_k"])
+    if selected_q != selection["primary"]["q"] or selected_k != int(selection["primary"]["k"]):
+        raise PhaseB2Error("Selection profile primary Q×K does not match review decision.")
     if selected_q not in q_values:
         raise PhaseB2Error(f"Selected Q is absent from Phase A threshold registry: {selected_q}")
     selected_rows = geometry.loc[
@@ -126,13 +129,16 @@ def _preflight(config: PhaseB2Config) -> dict[str, Any]:
     if not (
         fold_support.get("q_contract_id", pd.Series(dtype=object)).astype(str).eq(selected_q)
         & fold_support.get("k", pd.Series(dtype=object)).astype("Int64").eq(selected_k)
+        & fold_support.get("fold_policy_id", pd.Series(dtype=object)).astype(str).eq(selection["primary"]["fold_policy_id"])
     ).any():
-        raise PhaseB2Error("Selected Q×K is absent from B1 fold support.")
+        raise PhaseB2Error("Selected Q×K×primary-fold is absent from B1 fold support.")
+
+    _validate_candidate_selection(geometry, fold_support, selection)
 
     anchor = _read_table(config.anchor_safety_audit_path)
     distribution = _read_table(config.distribution_audit_path)
-    _validate_anchor_safety(anchor, selected_q, selected_k)
-    _validate_distribution(distribution, decision, selected_q, selected_k)
+    _validate_anchor_safety(anchor, selected_q, selected_k, selection["primary"]["fold_policy_id"])
+    _validate_distribution(distribution, decision, selected_q, selected_k, selection["primary"]["fold_policy_id"])
 
     derived = _read_table(config.derived_evidence_contract_path)
     _validate_derived_contract(derived)
@@ -156,6 +162,7 @@ def _preflight(config: PhaseB2Config) -> dict[str, Any]:
         "window": window,
         "selected_q": selected_q,
         "selected_k": selected_k,
+        "selection": selection,
         "anchor_hash": file_sha256(config.anchor_safety_audit_path.resolve()),
         "distribution_hash": file_sha256(config.distribution_audit_path.resolve()),
     }
@@ -178,6 +185,7 @@ def _write_contract(staging: Path, config: PhaseB2Config, inputs: dict[str, Any]
     decision = inputs["decision"]
     selected_q = inputs["selected_q"]
     selected_k = inputs["selected_k"]
+    selection = inputs["selection"]
     q_values = inputs["q_values"]
     decision_hash = file_sha256(config.review_decision_path.resolve())
     input_hashes = {
@@ -192,6 +200,8 @@ def _write_contract(staging: Path, config: PhaseB2Config, inputs: dict[str, Any]
         "expected_difference": file_sha256(config.expected_difference_contract_path.resolve()),
         "review_decision": decision_hash,
     }
+    if config.selection_config_path is not None:
+        input_hashes["selection_config"] = file_sha256(config.selection_config_path.resolve())
     semantic_payload = {
         "schema_version": "phase_b2.semantic_contract.v1",
         "selected_primary_q": selected_q,
@@ -201,6 +211,7 @@ def _write_contract(staging: Path, config: PhaseB2Config, inputs: dict[str, Any]
         "resolver_policy": decision["resolver_policy"],
         "temporal_resolution_policy": decision["temporal_resolution_policy"],
         "same_y_policy": decision["same_y_policy"],
+        "selection": selection,
         "input_hashes": input_hashes,
     }
     semantic_hash = stable_digest(semantic_payload)
@@ -224,16 +235,20 @@ def _write_contract(staging: Path, config: PhaseB2Config, inputs: dict[str, Any]
     pd.DataFrame(q_rows).to_csv(staging / "operationalization" / "q_operationalization_registry.csv", index=False)
 
     geometry = inputs["geometry"]
+    selected_specs = [selection["primary"], *selection["diagnostics"]]
     op_rows = []
-    for row in geometry.dropna(subset=["q_contract_id", "k"]).drop_duplicates(["q_contract_id", "k"]).to_dict("records"):
-        q_id = str(row["q_contract_id"])
-        k = int(row["k"])
+    for spec in selected_specs:
+        q_id = str(spec["q"])
+        k = int(spec["k"])
+        fold_policy_id = str(spec["fold_policy_id"])
         op_rows.append({
             "operationalization_id": f"{q_id}-K{k}",
             "q_contract_id": q_id,
             "persistence_contract_id": f"K_{k}",
             "selected_k": k,
-            "authority_status": "PRIMARY_INTERNAL_AUTHORITY" if q_id == selected_q and k == selected_k else "RQ1_DIAGNOSTIC_ONLY",
+            "fold_policy_id": fold_policy_id,
+            "selection_role": "PRIMARY" if spec is selection["primary"] else "DIAGNOSTIC",
+            "authority_status": "PRIMARY_INTERNAL_AUTHORITY" if spec is selection["primary"] else "RQ1_DIAGNOSTIC_ONLY",
         })
     pd.DataFrame(op_rows).to_csv(staging / "operationalization" / "operationalization_registry.csv", index=False)
     k_rows = [{"contract_id": f"K_{k}", "selected_k": k, "semantics": "OBSERVATION_COUNT", "elapsed_time_audit_only": True} for k in sorted({int(v) for v in geometry["k"].dropna()})]
@@ -284,6 +299,11 @@ def _write_contract(staging: Path, config: PhaseB2Config, inputs: dict[str, Any]
         "model_training_performed": False,
         "current_stage": "CONTRACT_FROZEN",
         "primary_operationalization_id": f"{selected_q}-K{selected_k}",
+        "primary_fold_policy_id": selection["primary"]["fold_policy_id"],
+        "diagnostic_operationalizations": [
+            {"operationalization_id": f"{item['q']}-K{int(item['k'])}", "fold_policy_id": item["fold_policy_id"]}
+            for item in selection["diagnostics"]
+        ],
         "primary_q": selected_q,
         "primary_k": selected_k,
         "decision_pack_hash": inputs["b1_manifest"]["decision_pack_hash"],
@@ -300,6 +320,11 @@ def _write_contract(staging: Path, config: PhaseB2Config, inputs: dict[str, Any]
         "semantic_contract_id": semantic_id,
         "semantic_contract_hash": semantic_hash,
         "primary_operationalization_id": f"{selected_q}-K{selected_k}",
+        "primary_fold_policy_id": selection["primary"]["fold_policy_id"],
+        "diagnostic_operationalizations": [
+            {"operationalization_id": f"{item['q']}-K{int(item['k'])}", "fold_policy_id": item["fold_policy_id"]}
+            for item in selection["diagnostics"]
+        ],
         "e3_claim": decision.get("e3_evaluation_claim", "PROTOCOL_LOCKED_TRANSPORT_REEVALUATION"),
         "e4_materialized": False,
     })
@@ -386,7 +411,77 @@ def _validate_review_decision(decision: dict[str, Any], b1_manifest: dict[str, A
         raise PhaseB2Error("Support gate must declare reviewer-owned minimum thresholds.")
 
 
-def _validate_anchor_safety(frame: pd.DataFrame, selected_q: str, selected_k: int) -> None:
+def _load_selection(path: Path | None, decision: dict[str, Any]) -> dict[str, Any]:
+    """Load one explicit Q×K×fold profile for this B2 run.
+
+    A profile is deliberately a small, reviewable YAML. It does not contain
+    semantic policy; it only selects which candidate geometry is primary and
+    which candidates are retained as diagnostics. This makes repeated thesis
+    or reviewer runs reproducible without changing engine code.
+    """
+    if path is not None:
+        payload = _read_yaml(path.resolve())
+    else:
+        payload = decision.get("selection")
+    if not isinstance(payload, dict):
+        raise PhaseB2Error("B2 requires an explicit selection profile YAML or review_decision.selection.")
+    primary = payload.get("primary")
+    diagnostics = payload.get("diagnostics")
+    if not isinstance(primary, dict) or not isinstance(diagnostics, list):
+        raise PhaseB2Error("Selection profile must contain primary mapping and diagnostics list.")
+    normalized_primary = _normalize_selection_item(primary, "primary")
+    normalized_diagnostics = [_normalize_selection_item(item, f"diagnostic[{idx}]") for idx, item in enumerate(diagnostics)]
+    keys = {(item["q"], int(item["k"])) for item in [normalized_primary, *normalized_diagnostics]}
+    if len(keys) != len(normalized_diagnostics) + 1:
+        raise PhaseB2Error("Selection profile contains duplicate Q×K operationalizations.")
+    if any(item["q"] == normalized_primary["q"] and int(item["k"]) == int(normalized_primary["k"]) for item in normalized_diagnostics):
+        raise PhaseB2Error("Primary Q×K must not also be listed as diagnostic.")
+    return {"primary": normalized_primary, "diagnostics": normalized_diagnostics}
+
+
+def _normalize_selection_item(item: Any, label: str) -> dict[str, Any]:
+    if not isinstance(item, dict):
+        raise PhaseB2Error(f"Selection {label} must be a mapping.")
+    required = {"q", "k", "fold_policy_id"}
+    missing = sorted(required - set(item))
+    if missing:
+        raise PhaseB2Error(f"Selection {label} is missing: {missing}")
+    q = str(item["q"])
+    if q not in {"Q05", "Q10", "Q15", "Q20"}:
+        raise PhaseB2Error(f"Selection {label} has unsupported Q: {q}")
+    try:
+        k = int(item["k"])
+    except (TypeError, ValueError) as exc:
+        raise PhaseB2Error(f"Selection {label} has invalid K: {item['k']!r}") from exc
+    if k < 1:
+        raise PhaseB2Error(f"Selection {label} requires K >= 1.")
+    fold_policy_id = str(item["fold_policy_id"])
+    if not fold_policy_id:
+        raise PhaseB2Error(f"Selection {label} requires fold_policy_id.")
+    return {"q": q, "k": k, "fold_policy_id": fold_policy_id}
+
+
+def _validate_candidate_selection(geometry: pd.DataFrame, fold_support: pd.DataFrame, selection: dict[str, Any]) -> None:
+    """Ensure every selected primary/diagnostic item exists in B1 evidence."""
+    for role, item in [("primary", selection["primary"]), *[("diagnostic", value) for value in selection["diagnostics"]]]:
+        q = item["q"]
+        k = int(item["k"])
+        geometry_rows = geometry.loc[
+            geometry["q_contract_id"].astype(str).eq(q)
+            & geometry["k"].astype("Int64").eq(k)
+        ]
+        if geometry_rows.empty:
+            raise PhaseB2Error(f"Selected {role} Q×K is absent from B1 geometry: {q}-K{k}.")
+        support_rows = fold_support.loc[
+            fold_support["q_contract_id"].astype(str).eq(q)
+            & fold_support["k"].astype("Int64").eq(k)
+            & fold_support["fold_policy_id"].astype(str).eq(item["fold_policy_id"])
+        ]
+        if support_rows.empty:
+            raise PhaseB2Error(f"Selected {role} Q×K×fold is absent from B1 fold support: {q}-K{k}/{item['fold_policy_id']}.")
+
+
+def _validate_anchor_safety(frame: pd.DataFrame, selected_q: str, selected_k: int, fold_policy_id: str | None = None) -> None:
     required = {
         "q_contract_id", "k", "fold_policy_id", "fold_id", "split_role",
         "unique_anchor_count", "dependency_admissible_anchor_count",
@@ -397,6 +492,8 @@ def _validate_anchor_safety(frame: pd.DataFrame, selected_q: str, selected_k: in
     if missing:
         raise PhaseB2Error(f"Anchor safety audit is incomplete: {missing}")
     selected = frame.loc[frame["q_contract_id"].astype(str).eq(selected_q) & frame["k"].astype("Int64").eq(selected_k)]
+    if fold_policy_id is not None and "fold_policy_id" in frame.columns:
+        selected = selected.loc[selected["fold_policy_id"].astype(str).eq(fold_policy_id)]
     if selected.empty:
         raise PhaseB2Error("Anchor safety audit has no selected Q×K rows.")
     key = ["q_contract_id", "k", "fold_policy_id", "fold_id", "split_role"]
@@ -411,12 +508,14 @@ def _validate_anchor_safety(frame: pd.DataFrame, selected_q: str, selected_k: in
         raise PhaseB2Error("Invalid dependency-admissible anchor count.")
 
 
-def _validate_distribution(frame: pd.DataFrame, decision: dict[str, Any], selected_q: str, selected_k: int) -> None:
+def _validate_distribution(frame: pd.DataFrame, decision: dict[str, Any], selected_q: str, selected_k: int, fold_policy_id: str | None = None) -> None:
     required = {"q_contract_id", "k", "task_id", "fold_policy_id", "fold_id", "split_role", "class_label", "class_count", "event_count", "unique_cluster_count"}
     missing = sorted(required - set(frame.columns))
     if missing:
         raise PhaseB2Error(f"Distribution audit is incomplete: {missing}")
     selected = frame.loc[frame["q_contract_id"].astype(str).eq(selected_q) & frame["k"].astype("Int64").eq(selected_k)]
+    if fold_policy_id is not None and "fold_policy_id" in frame.columns:
+        selected = selected.loc[selected["fold_policy_id"].astype(str).eq(fold_policy_id)]
     if selected.empty:
         raise PhaseB2Error("Distribution audit has no selected Q×K rows.")
     gate = decision["support_gate"]

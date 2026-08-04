@@ -8,7 +8,8 @@ Phase A → B1
 candidate evidence + Q threshold candidates + continuity diagnostics
 
 B1 → B2
-Q×K geometry + fold/support audits + compatibility candidates
+Q×K geometry + interval-safe anchor/purge audit + boundary audit
++ post-admissibility distribution + compatibility candidates
 
 B2 → Phase C
 one frozen semantic contract

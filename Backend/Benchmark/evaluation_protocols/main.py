@@ -8,17 +8,9 @@ ROOT_DIR = Path(__file__).resolve().parents[3]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from Backend.Benchmark.common.paths import DATASET_VIEWS_ROOT, EVALUATION_PROTOCOLS_ROOT
+from Backend.Benchmark.common.paths import EVALUATION_PROTOCOLS_ROOT
 from Backend.Benchmark.evaluation_protocols import EvaluationProtocolConfig, build_evaluation_protocols
 from Backend.Config.paths import BACKEND_PATHS
-
-
-def _default_latest_dataset_views_run() -> Path:
-    artifacts_root = DATASET_VIEWS_ROOT / "artifacts"
-    candidates = [path for path in artifacts_root.iterdir() if path.is_dir()] if artifacts_root.exists() else []
-    if not candidates:
-        raise FileNotFoundError("No dataset_views artifact runs were found under Backend/Benchmark/dataset_views/artifacts.")
-    return max(candidates, key=lambda path: path.stat().st_mtime)
 
 
 def parse_args() -> argparse.Namespace:
@@ -36,7 +28,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--feature-catalog", type=Path, default=BACKEND_PATHS.layer1_dir / "canonical" / "feature_catalog.csv")
     parser.add_argument("--layer1-manifest", type=Path, default=BACKEND_PATHS.layer1_dir / "manifest.json")
     parser.add_argument("--segment-manifest", type=Path, default=None)
-    parser.add_argument("--dataset-views-run-dir", type=Path, default=None)
+    parser.add_argument("--dataset-views-run-dir", type=Path, required=True)
     parser.add_argument("--native-label-release-dir", type=Path, required=True)
     parser.add_argument("--output-root", type=Path, default=EVALUATION_PROTOCOLS_ROOT / "artifacts")
     return parser.parse_args()
@@ -44,11 +36,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    dataset_views_run_dir = (
-        args.dataset_views_run_dir.resolve()
-        if args.dataset_views_run_dir is not None
-        else _default_latest_dataset_views_run().resolve()
-    )
+    dataset_views_run_dir = args.dataset_views_run_dir.resolve()
     result = build_evaluation_protocols(
         EvaluationProtocolConfig(
             protocol_registry_run_dir=args.protocol_registry_run_dir.resolve(),

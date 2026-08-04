@@ -21,13 +21,15 @@ flowchart TB
 
     B --> F1["Persistence geometry"]
     F1 --> F2["Scan K candidates\nobservation-count semantics"]
-    F2 --> F3["Project support to folds\nE1 primary 7-day\nE1 diagnostic 5-day"]
-    F3 --> F4["Check anchor counts, class support\nand zero-support folds"]
+    F2 --> F3["Build dependency intervals\nfeature/persistence interval\nno future run-state exclusion"]
+    F3 --> F4["Project anchors to folds\napply split + purge + deployment checks"]
+    F4 --> F5["Audit crossing events\nleft/right boundary shift\nmaterial shift >= 4% review"]
+    F5 --> F6["Distribution after admissibility\npoint/temporal/same-Y\nclass/event/cluster support"]
 
     C4 --> G["Decision diagnostics"]
     D4 --> G
     E3 --> G
-    F4 --> G
+    F6 --> G
     G --> H["Kill criteria report\nEC degeneracy\ninsufficient K support\ncompatibility gaps\ncontext eligibility questions"]
     H --> I["B1 outputs\nDecision Pack\nno benchmark labels\nno frozen authority"]
     I --> J["Human review decides\nQ/K + resolver + policies"]

@@ -42,6 +42,10 @@ class PhaseB2Config:
     expected_difference_contract_path: Path
     canonical_history_path: Path
     output_root: Path
+    # Explicit Q×K×fold selection profile. Keeping this separate from the
+    # reviewer decision lets the same semantic review be replayed with a
+    # different, predeclared diagnostic matrix.
+    selection_config_path: Path | None = None
 
 
 @dataclass(frozen=True)

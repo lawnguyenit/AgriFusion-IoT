@@ -35,6 +35,12 @@ def _build_parser() -> argparse.ArgumentParser:
         ("output-root", True),
     ):
         freeze.add_argument(f"--{name}", type=Path, required=required)
+    freeze.add_argument(
+        "--selection-config",
+        type=Path,
+        required=False,
+        help="YAML declaring primary Q×K×fold and the explicit diagnostic matrix.",
+    )
     return parser
 
 
@@ -56,6 +62,7 @@ def main() -> None:
                 expected_difference_contract_path=args.expected_difference_contract,
                 canonical_history_path=args.canonical_history,
                 output_root=args.output_root,
+                selection_config_path=args.selection_config,
             )
         )
         print(f"Phase B2 status: {result.status}")

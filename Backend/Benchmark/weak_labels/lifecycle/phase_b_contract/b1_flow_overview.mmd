@@ -3,10 +3,13 @@ flowchart LR
     B --> C["Replay primitive evidence\nlow / thermal / rise / EC"]
     C --> D["Compatibility matrix\n3-state evidence combinations"]
     B --> E["Q geometry\nQ05 / Q10 / Q15 / Q20"]
-    B --> F["K geometry + fold support\nK candidates + 7-day/5-day policies"]
+    B --> F["K geometry\nK candidates + intrinsic survival"]
+    F --> F2["Anchor dependency + purge safety\nper-anchor split admissibility"]
+    F2 --> F3["Boundary audit\nleft/right shift or purge simulation"]
+    F3 --> F4["Q×K×fold distribution\nclass/event/cluster support"]
     D --> G["Reachability and resolution audit\nobserved / unobserved / unreachable"]
     E --> H["Kill criteria and risk report"]
-    F --> H
+    F4 --> H
     G --> H
     H --> I["B1 Decision Pack\nrecommendations + open decisions"]
     I --> J{"Human semantic review"}

@@ -133,11 +133,20 @@ thresholds/threshold_boundary_cases.parquet
 operationalization/qk_geometry.parquet
 operationalization/k_regime_registry.csv
 operationalization/qk_fold_support.csv
+operationalization/qk_anchor_safety_audit.parquet
+operationalization/anchor_dependency_audit.parquet
+operationalization/qk_boundary_audit.parquet
+operationalization/qk_distribution_audit.parquet
 kill_criteria_report.yaml
 phase_b1_status.yaml
 ```
 
 B1 **không** tạo benchmark labels.
+
+`qk_geometry.parquet` là hình học intrinsic của toàn E1. `qk_fold_support.csv`
+chỉ là support admissible sau khi dependency interval, deployment boundary và
+purge được kiểm tra. `qk_boundary_audit.parquet` chỉ mô phỏng các phương án
+giữ event ở bên trái/bên phải hoặc purge; B1 không tự dịch fold policy.
 
 ## B2 — Contract Freeze
 
