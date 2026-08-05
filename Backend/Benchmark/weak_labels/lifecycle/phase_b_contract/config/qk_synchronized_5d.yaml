@@ -1,14 +1,15 @@
-# One B2 selection profile. Run B2 once per profile; do not edit the engine
-# to change Q, K, or fold policy.
-profile_id: Q10_K3_PRIMARY_WITH_QK_DIAGNOSTICS_V1
+# Synchronized QxK comparison on the 5-day fold policy.
+# This is a candidate profile, not an automatic fallback.
+profile_id: QK_SYNCHRONIZED_5D_V1
 description: >-
-  Primary Q10-K3 on the 7-day E1 protocol, with prespecified Q and K
-  diagnostics on the 5-day protocol.
+  The complete prespecified QxK matrix is evaluated on
+  E1_DIAGNOSTIC_5D_V1 to test whether shorter folds provide safer and more
+  stable support than the 7-day policy.
 
 primary:
   q: Q10
   k: 3
-  fold_policy_id: E1_PRIMARY_7D_V1
+  fold_policy_id: E1_DIAGNOSTIC_5D_V1
 
 diagnostics:
   - q: Q05

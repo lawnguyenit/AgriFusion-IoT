@@ -173,6 +173,25 @@ Typical downstream use:
 
 ## Commands
 
+Create a reviewer-owned B2 template from the B1 evidence first:
+
+```powershell
+python Backend\Benchmark\weak_labels\lifecycle\phase_b_contract\main.py template `
+  --phase-b1-run-dir <phase_b1_run_dir> `
+  --selection-config Backend\Benchmark\weak_labels\lifecycle\phase_b_contract\config\qk_synchronized_7d.yaml `
+  --output <review_decision.yaml>
+```
+
+Compare the synchronized fold policies before selecting the B2 profile:
+
+```powershell
+python Backend\Benchmark\weak_labels\lifecycle\phase_b_contract\main.py compare-folds `
+  --phase-b1-run-dir <phase_b1_run_dir> `
+  --seven-day-profile Backend\Benchmark\weak_labels\lifecycle\phase_b_contract\config\qk_synchronized_7d.yaml `
+  --five-day-profile Backend\Benchmark\weak_labels\lifecycle\phase_b_contract\config\qk_synchronized_5d.yaml `
+  --output <fold_comparison_dir>
+```
+
 ## Phase B2 contract freeze
 
 Phase B2 is a separate, fail-closed review gate. It requires an explicit B1
@@ -192,7 +211,7 @@ python Backend\Benchmark\weak_labels\lifecycle\phase_b_contract\main.py freeze `
   --continuity-contract <continuity.yaml> `
   --window-contract <window.yaml> `
   --expected-difference-contract <expected_difference.csv> `
-  --selection-config Backend\Benchmark\weak_labels\lifecycle\phase_b_contract\config\q10_k3_primary_diagnostics.yaml `
+  --selection-config <selected_fold_profile.yaml> `
   --canonical-history Backend\Output_data\Layer1\canonical\telemetry_history.csv `
   --output-root Backend\Benchmark\weak_labels\artifacts\phase_b
 ```

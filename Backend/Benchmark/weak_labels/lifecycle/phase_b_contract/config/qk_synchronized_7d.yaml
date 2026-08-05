@@ -1,0 +1,31 @@
+# Synchronized QxK comparison on the 7-day fold policy.
+# B2 still requires an APPROVED review decision before freezing.
+profile_id: QK_SYNCHRONIZED_7D_V1
+description: >-
+  The complete prespecified QxK matrix is evaluated on E1_PRIMARY_7D_V1 so
+  differences are attributable to Q or K rather than a mixed fold policy.
+
+primary:
+  q: Q10
+  k: 3
+  fold_policy_id: E1_PRIMARY_7D_V1
+
+diagnostics:
+  - q: Q05
+    k: 3
+    fold_policy_id: E1_PRIMARY_7D_V1
+  - q: Q15
+    k: 3
+    fold_policy_id: E1_PRIMARY_7D_V1
+  - q: Q20
+    k: 3
+    fold_policy_id: E1_PRIMARY_7D_V1
+  - q: Q10
+    k: 2
+    fold_policy_id: E1_PRIMARY_7D_V1
+  - q: Q10
+    k: 4
+    fold_policy_id: E1_PRIMARY_7D_V1
+  - q: Q10
+    k: 6
+    fold_policy_id: E1_PRIMARY_7D_V1

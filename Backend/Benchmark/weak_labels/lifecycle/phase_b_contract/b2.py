@@ -95,6 +95,12 @@ def _preflight(config: PhaseB2Config) -> dict[str, Any]:
     decision = _read_yaml(config.review_decision_path.resolve())
     _validate_review_decision(decision, b1_manifest, config.expected_difference_contract_path)
     selection = _load_selection(config.selection_config_path, decision)
+    declared_selection_hash = decision.get("selection_profile_hash")
+    if not declared_selection_hash:
+        raise PhaseB2Error("Review decision must record selection_profile_hash.")
+    actual_selection_hash = file_sha256(config.selection_config_path.resolve())
+    if str(declared_selection_hash) != actual_selection_hash:
+        raise PhaseB2Error("Selection profile hash mismatch.")
 
     required_b1 = {
         "geometry": b1 / "operationalization" / "qk_geometry.parquet",
@@ -138,7 +144,13 @@ def _preflight(config: PhaseB2Config) -> dict[str, Any]:
     anchor = _read_table(config.anchor_safety_audit_path)
     distribution = _read_table(config.distribution_audit_path)
     _validate_anchor_safety(anchor, selected_q, selected_k, selection["primary"]["fold_policy_id"])
-    _validate_distribution(distribution, decision, selected_q, selected_k, selection["primary"]["fold_policy_id"])
+    _validate_distribution_task_specific(
+        distribution,
+        decision,
+        selected_q,
+        selected_k,
+        selection["primary"]["fold_policy_id"],
+    )
 
     derived = _read_table(config.derived_evidence_contract_path)
     _validate_derived_contract(derived)
@@ -270,9 +282,7 @@ def _write_contract(staging: Path, config: PhaseB2Config, inputs: dict[str, Any]
         "outside_primary_train": ["POINT_CONTEXT_INCOMPLETE", "POINT_NOT_EVALUABLE"],
         "policy": decision["point_ontology_policy"],
     })
-    _write_yaml(staging / "ontology" / "temporal_anchor_ontology.yaml", decision.get("temporal_ontology", {
-        "classes": ["TEMPORAL_REFERENCE_CONTEXT", "TEMPORAL_PERSISTENT_LOW", "TEMPORAL_UNRESOLVED"],
-    }))
+    _write_yaml(staging / "ontology" / "temporal_anchor_ontology.yaml", decision["temporal_ontology"])
     _write_yaml(staging / "ontology" / "same_y_contract.yaml", decision["same_y_policy"])
     shutil.copy2(config.expected_difference_contract_path.resolve(), staging / "compatibility" / "expected_difference_contract.csv")
 
@@ -298,6 +308,7 @@ def _write_contract(staging: Path, config: PhaseB2Config, inputs: dict[str, Any]
         "labels_materialized": False,
         "model_training_performed": False,
         "current_stage": "CONTRACT_FROZEN",
+        "selection_profile_id": selection["profile_id"],
         "primary_operationalization_id": f"{selected_q}-K{selected_k}",
         "primary_fold_policy_id": selection["primary"]["fold_policy_id"],
         "diagnostic_operationalizations": [
@@ -319,6 +330,7 @@ def _write_contract(staging: Path, config: PhaseB2Config, inputs: dict[str, Any]
         "overall_status": "PASS",
         "semantic_contract_id": semantic_id,
         "semantic_contract_hash": semantic_hash,
+        "selection_profile_id": selection["profile_id"],
         "primary_operationalization_id": f"{selected_q}-K{selected_k}",
         "primary_fold_policy_id": selection["primary"]["fold_policy_id"],
         "diagnostic_operationalizations": [
@@ -384,8 +396,9 @@ def _validate_review_decision(decision: dict[str, Any], b1_manifest: dict[str, A
         "selected_primary_operationalization_id", "point_ontology_policy", "support_gate",
         "approved_continuity_contract_id", "approved_window_contract_id",
         "approved_derived_evidence_contract_id", "resolver_policy",
-        "temporal_resolution_policy", "same_y_policy", "evidence_role_registry",
-        "evidence_dependency_registry",
+        "temporal_resolution_policy", "temporal_ontology", "same_y_policy",
+        "evidence_role_registry", "evidence_dependency_registry",
+        "expected_difference_contract_hash", "e3_evaluation_claim",
     }
     missing = sorted(required - set(decision))
     if missing:
@@ -399,19 +412,49 @@ def _validate_review_decision(decision: dict[str, Any], b1_manifest: dict[str, A
         raise PhaseB2Error("selected_primary_operationalization_id does not match selected Q×K.")
     expected_hash = file_sha256(expected_path.resolve())
     declared = decision.get("expected_difference_contract_hash")
-    if declared is not None and str(declared) != expected_hash:
+    if str(declared) != expected_hash:
         raise PhaseB2Error("Expected-difference contract hash mismatch.")
     gate = decision["support_gate"]
-    required_gate = {
-        "policy", "min_train_class_count", "min_validation_class_count",
-        "min_test_class_count", "min_train_event_count", "min_validation_event_count",
-        "min_test_event_count", "min_unique_cluster_count",
+    if not isinstance(gate, dict) or not isinstance(gate.get("task_support"), dict):
+        raise PhaseB2Error("Support gate must declare task-specific reviewer-owned thresholds.")
+    _validate_task_support_gate(gate["task_support"])
+    for name in ("point_ontology_policy", "temporal_ontology"):
+        policy = decision[name]
+        if not isinstance(policy, dict) or not policy.get("primary_train_eligible"):
+            raise PhaseB2Error(f"{name} must declare primary_train_eligible classes.")
+        if not isinstance(policy.get("outside_primary_train"), list):
+            raise PhaseB2Error(f"{name} must declare outside_primary_train classes.")
+
+
+def _validate_task_support_gate(task_support: dict[str, Any]) -> None:
+    required_tasks = {"POINT", "TEMPORAL", "SAME_Y"}
+    if set(task_support) != required_tasks:
+        raise PhaseB2Error(
+            f"Support gate must declare exactly POINT, TEMPORAL and SAME_Y; got {sorted(task_support)}."
+        )
+    required_by_task = {
+        "POINT": {"min_train_class_count", "min_validation_class_count", "min_test_class_count"},
+        "TEMPORAL": {
+            "min_train_class_count", "min_validation_class_count", "min_test_class_count",
+            "min_train_event_count", "min_validation_event_count", "min_test_event_count",
+            "min_unique_cluster_count",
+        },
+        "SAME_Y": {
+            "min_train_class_count", "min_validation_class_count", "min_test_class_count",
+            "min_unique_cluster_count",
+        },
     }
-    if not required_gate.issubset(gate):
-        raise PhaseB2Error("Support gate must declare reviewer-owned minimum thresholds.")
+    for task, required in required_by_task.items():
+        gate = task_support[task]
+        if not isinstance(gate, dict) or not required.issubset(gate):
+            raise PhaseB2Error(f"Support gate is incomplete for {task}: {sorted(required - set(gate or {}))}")
+        for name in required:
+            value = gate[name]
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or int(value) < 0:
+                raise PhaseB2Error(f"Support threshold {task}.{name} must be a non-negative number.")
 
 
-def _load_selection(path: Path | None, decision: dict[str, Any]) -> dict[str, Any]:
+def _load_selection(path: Path, decision: dict[str, Any]) -> dict[str, Any]:
     """Load one explicit Q×K×fold profile for this B2 run.
 
     A profile is deliberately a small, reviewable YAML. It does not contain
@@ -419,14 +462,16 @@ def _load_selection(path: Path | None, decision: dict[str, Any]) -> dict[str, An
     which candidates are retained as diagnostics. This makes repeated thesis
     or reviewer runs reproducible without changing engine code.
     """
-    if path is not None:
-        payload = _read_yaml(path.resolve())
-    else:
-        payload = decision.get("selection")
+    if path is None:
+        raise PhaseB2Error("B2 requires a separate selection profile YAML.")
+    payload = _read_yaml(path.resolve())
     if not isinstance(payload, dict):
         raise PhaseB2Error("B2 requires an explicit selection profile YAML or review_decision.selection.")
     primary = payload.get("primary")
     diagnostics = payload.get("diagnostics")
+    profile_id = str(payload.get("profile_id", ""))
+    if not profile_id:
+        raise PhaseB2Error("Selection profile must declare profile_id.")
     if not isinstance(primary, dict) or not isinstance(diagnostics, list):
         raise PhaseB2Error("Selection profile must contain primary mapping and diagnostics list.")
     normalized_primary = _normalize_selection_item(primary, "primary")
@@ -436,7 +481,7 @@ def _load_selection(path: Path | None, decision: dict[str, Any]) -> dict[str, An
         raise PhaseB2Error("Selection profile contains duplicate Q×K operationalizations.")
     if any(item["q"] == normalized_primary["q"] and int(item["k"]) == int(normalized_primary["k"]) for item in normalized_diagnostics):
         raise PhaseB2Error("Primary Q×K must not also be listed as diagnostic.")
-    return {"primary": normalized_primary, "diagnostics": normalized_diagnostics}
+    return {"profile_id": profile_id, "primary": normalized_primary, "diagnostics": normalized_diagnostics}
 
 
 def _normalize_selection_item(item: Any, label: str) -> dict[str, Any]:
@@ -508,7 +553,8 @@ def _validate_anchor_safety(frame: pd.DataFrame, selected_q: str, selected_k: in
         raise PhaseB2Error("Invalid dependency-admissible anchor count.")
 
 
-def _validate_distribution(frame: pd.DataFrame, decision: dict[str, Any], selected_q: str, selected_k: int, fold_policy_id: str | None = None) -> None:
+def _validate_distribution_legacy(frame: pd.DataFrame, decision: dict[str, Any], selected_q: str, selected_k: int, fold_policy_id: str | None = None) -> None:
+    """Retained only for historical test compatibility; never used by B2."""
     required = {"q_contract_id", "k", "task_id", "fold_policy_id", "fold_id", "split_role", "class_label", "class_count", "event_count", "unique_cluster_count"}
     missing = sorted(required - set(frame.columns))
     if missing:
@@ -529,6 +575,74 @@ def _validate_distribution(frame: pd.DataFrame, decision: dict[str, Any], select
             raise PhaseB2Error(f"Event support gate failed for {split}.")
     if (pd.to_numeric(selected["unique_cluster_count"], errors="coerce") < int(gate["min_unique_cluster_count"])).any():
         raise PhaseB2Error("Unique-cluster support gate failed.")
+
+
+def _validate_distribution_task_specific(
+    frame: pd.DataFrame,
+    decision: dict[str, Any],
+    selected_q: str,
+    selected_k: int,
+    fold_policy_id: str,
+) -> None:
+    """Validate primary support independently for Point, Temporal and Same-Y."""
+    required = {
+        "q_contract_id", "k", "task_id", "horizon_id", "fold_policy_id", "fold_id",
+        "split_role", "class_label", "class_count", "event_count", "unique_cluster_count",
+    }
+    missing = sorted(required - set(frame.columns))
+    if missing:
+        raise PhaseB2Error(f"Distribution audit is incomplete: {missing}")
+
+    task = frame["task_id"].astype(str).str.upper()
+    k_values = pd.to_numeric(frame["k"], errors="coerce").astype("Int64")
+    selected = frame.loc[
+        frame["q_contract_id"].astype(str).eq(selected_q)
+        & frame["fold_policy_id"].astype(str).eq(fold_policy_id)
+        & (
+            ((task == "POINT") & k_values.isna())
+            | ((task != "POINT") & k_values.eq(selected_k))
+        )
+    ]
+    if selected.empty:
+        raise PhaseB2Error("Distribution audit has no selected primary rows.")
+    duplicate_key = ["task_id", "horizon_id", "fold_id", "split_role", "class_label"]
+    if selected.duplicated(duplicate_key).any():
+        raise PhaseB2Error("Distribution audit contains duplicate task/horizon/fold/class rows.")
+
+    task_gates = decision["support_gate"]["task_support"]
+    for task_name in ("POINT", "TEMPORAL", "SAME_Y"):
+        task_rows = selected.loc[selected["task_id"].astype(str).str.upper().eq(task_name)]
+        if task_rows.empty:
+            raise PhaseB2Error(f"Distribution audit has no primary rows for task {task_name}.")
+        if task_name == "POINT":
+            eligible = set(decision["point_ontology_policy"]["primary_train_eligible"])
+            task_rows = task_rows.loc[task_rows["class_label"].astype(str).isin(eligible)]
+        elif task_name == "TEMPORAL":
+            eligible = set(decision["temporal_ontology"]["primary_train_eligible"])
+            task_rows = task_rows.loc[task_rows["class_label"].astype(str).isin(eligible)]
+        if task_rows.empty:
+            raise PhaseB2Error(f"Distribution audit has no primary-eligible rows for task {task_name}.")
+        gate = task_gates[task_name]
+        for split, threshold_key in (
+            ("train", "min_train_class_count"),
+            ("validation", "min_validation_class_count"),
+            ("test", "min_test_class_count"),
+        ):
+            rows = task_rows.loc[task_rows["split_role"].astype(str).str.lower().eq(split)]
+            if rows.empty or (pd.to_numeric(rows["class_count"], errors="coerce") < int(gate[threshold_key])).any():
+                raise PhaseB2Error(f"{task_name} class support gate failed for {split}.")
+        if task_name == "TEMPORAL":
+            for split, threshold_key in (
+                ("train", "min_train_event_count"),
+                ("validation", "min_validation_event_count"),
+                ("test", "min_test_event_count"),
+            ):
+                rows = task_rows.loc[task_rows["split_role"].astype(str).str.lower().eq(split)]
+                if (pd.to_numeric(rows["event_count"], errors="coerce") < int(gate[threshold_key])).any():
+                    raise PhaseB2Error(f"TEMPORAL event support gate failed for {split}.")
+        if task_name != "POINT":
+            if (pd.to_numeric(task_rows["unique_cluster_count"], errors="coerce") < int(gate["min_unique_cluster_count"])).any():
+                raise PhaseB2Error(f"{task_name} unique-cluster support gate failed.")
 
 
 def _validate_derived_contract(frame: pd.DataFrame) -> None:

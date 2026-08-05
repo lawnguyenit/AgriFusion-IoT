@@ -7,6 +7,8 @@ from .pipeline import (
     build_phase_b_decision_pack,
     load_semantic_contract,
 )
+from .review_template import build_phase_b2_review_template
+from .fold_comparison import build_fold_policy_comparison
 
 __all__ = [
     "PhaseBConfig",
@@ -20,4 +22,6 @@ __all__ = [
     "freeze_phase_b_contract",
     "load_frozen_semantic_contract",
     "load_semantic_contract",
+    "build_phase_b2_review_template",
+    "build_fold_policy_comparison",
 ]

@@ -8,7 +8,7 @@ from pathlib import Path
 import pandas as pd
 import yaml
 
-from Backend.Benchmark.common.digests import dataframe_digest, file_sha256, population_digest, stable_digest
+from Backend.Benchmark.common.digests import dataframe_digest, file_sha256, stable_digest
 from Backend.Benchmark.protocol_registry import load_protocol_registry
 from Backend.Benchmark.shared.artifacts import create_run_directory, write_json, write_yaml
 from Backend.Benchmark.weak_labels.lifecycle.phase_b_contract.contracts import PhaseBConfig, PhaseBResult
@@ -331,80 +331,6 @@ def _build_k_registry(geometry: pd.DataFrame) -> pd.DataFrame:
     result = base.merge(role_map, on=["q_contract_id", "k"], how="left")
     result["support_status"] = result["regime_roles"].fillna("GEOMETRY_ONLY")
     return result
-
-
-def _write_frozen_contract(output_dir, decision_pack_dir, review_path, phase_a, registry, config, selected_q, selected_k, threshold_inputs, freeze_timestamp):
-    raise RuntimeError("The old hard-coded freeze writer is removed from the active B2 path; use freeze_phase_b_contract.")
-    for directory in ("ontology", "evidence", "thresholds", "continuity", "operationalization", "resolution", "compatibility", "provenance", "run_metadata"):
-        (output_dir / directory).mkdir(parents=True, exist_ok=True)
-    decision_manifest = json.loads((decision_pack_dir / "run_metadata" / "run_manifest.json").read_text(encoding="utf-8"))
-    decision_hash = decision_manifest["decision_pack_hash"]
-    canonical = pd.read_csv(config.canonical_history_path.resolve(), low_memory=False)
-    sample = pd.to_datetime(canonical["record.sample_time_local"], errors="coerce", utc=True)
-    environment = pd.Series("UNASSIGNED", index=canonical.index, dtype="string")
-    for environment_row in registry.environment_manifest.itertuples(index=False):
-        start = pd.to_datetime(environment_row.start_time, utc=True)
-        end = pd.to_datetime(environment_row.end_time, utc=True)
-        environment.loc[(sample >= start) & (sample < end)] = str(environment_row.environment_id)
-    commitment = pd.DataFrame({
-        "record_id": canonical["record.id"].astype("string"),
-        "environment_id": environment,
-        "sample_time_utc": sample,
-        "upload_time_utc": pd.to_datetime(canonical.get("record.upload_time_local"), errors="coerce", utc=True),
-        "source_path": canonical.get("record.source_path", pd.Series(pd.NA, index=canonical.index)).astype("string"),
-    }).convert_dtypes()
-    commitment["canonical_record_hash"] = commitment.apply(lambda row: stable_digest(row.to_dict()), axis=1)
-    commitment.to_parquet(output_dir / "provenance" / "freeze_record_commitment.parquet", index=False)
-    snapshot_hash = dataframe_digest(commitment, columns=list(commitment.columns), sort_columns=["record_id"])
-    id_hash = population_digest(commitment["record_id"])
-    semantic_payload = {
-        "q_primary": selected_q,
-        "q_primary_value": dict(threshold_inputs.q_values)[selected_q],
-        "k_primary": selected_k,
-        "q_family": [q_id for q_id, _ in threshold_inputs.q_values],
-        "point_resolution": "CONTEXT_INCOMPLETE_OUTSIDE_PRIMARY_TRAIN",
-        "temporal_semantics": "ANCHOR_CONDITIONED",
-        "strict_policy": "STRICT_15M_PM2_V1",
-        "window_policy": {"coverage": 0.75, "max_gap_minutes": 30},
-        "decision_pack_hash": decision_hash,
-    }
-    contract_hash = stable_digest(semantic_payload)
-    write_yaml(output_dir / "ontology" / "point_ontology.yaml", {"classes": ["reference_context_point", "low_relative_moisture_point", "unresolved_environmental_evidence_point"], "outside_train": ["point_not_evaluable", "point_context_incomplete"]})
-    write_yaml(output_dir / "ontology" / "temporal_anchor_ontology.yaml", {"classes": ["reference_context_at_anchor", "persistent_low_relative_moisture_at_anchor", "unresolved_environmental_evidence_at_anchor"], "outside_train": ["window_ineligible", "point_context_incomplete_transfer"]})
-    write_yaml(output_dir / "ontology" / "same_y_contract.yaml", {"representation_only": True, "target_source": "point_assignment", "new_ontology": False})
-    pd.DataFrame(
-        [
-            {"evidence_id": "low_flag", "role": "TARGET_DEFINING_DIRECT", "scientific_status": "DISCOVERY_FIXED"},
-            {"evidence_id": "thermal_flag", "role": "AUXILIARY_CONTEXT", "scientific_status": "FIXED_CONTEXT_HEURISTIC"},
-            {"evidence_id": "moisture_rise_flag", "role": "AUXILIARY_TRANSITION", "scientific_status": "FIXED_CONTEXT_HEURISTIC"},
-            {"evidence_id": "ec_shift_flag", "role": "AUXILIARY_PROXY", "scientific_status": "TELEMETRY_PROXY"},
-        ]
-    ).to_csv(output_dir / "evidence" / "evidence_role_registry.csv", index=False)
-    pd.DataFrame(
-        [
-            {"source_id": "moisture_rise_flag", "depends_on": "strict_previous_observation", "dependency_type": "APPLICABILITY"},
-            {"source_id": "ec_shift_flag", "depends_on": "strict_previous_observation", "dependency_type": "APPLICABILITY"},
-            {"source_id": "moisture_rise_flag", "depends_on": "ec_shift_flag", "dependency_type": "CORRELATED_PROXY"},
-        ]
-    ).to_csv(output_dir / "evidence" / "evidence_dependency_registry.csv", index=False)
-    q_registry = threshold_inputs.registry.copy()
-    q_registry["contract_freeze_id"] = output_dir.name
-    q_registry.to_csv(output_dir / "thresholds" / "frozen_threshold_registry.csv", index=False)
-    pd.DataFrame([{"q_contract_id": q_id, "q_value": value, "role": "PRIMARY" if q_id == selected_q else "SENSITIVITY"} for q_id, value in threshold_inputs.q_values]).to_csv(output_dir / "operationalization" / "q_operationalization_registry.csv", index=False)
-    pd.DataFrame([{"contract_id": "K_PRIMARY", "selected_k": selected_k, "semantics": "OBSERVATION_COUNT", "elapsed_time_audit_only": True}, {"contract_id": "K_GEOMETRY_SCAN", "selected_k": "DATA_SUPPORTED", "semantics": "EVENT_SURVIVAL_DIAGNOSTIC", "elapsed_time_audit_only": True}]).to_csv(output_dir / "operationalization" / "persistence_operationalization_registry.csv", index=False)
-    write_yaml(output_dir / "continuity" / "strict_continuity_contract.yaml", {"policy_id": "STRICT_15M_PM2_V1", "allowed_gap_minutes": [13, 17], "elapsed_time_audit_only": True})
-    write_yaml(output_dir / "continuity" / "window_continuity_contract.yaml", {"coverage_ratio": 0.75, "max_internal_gap_minutes": 30, "full_history_span_available_required": True})
-    write_yaml(output_dir / "continuity" / "deployment_continuity_contract.yaml", {"hard_boundary": True, "cross_deployment_windows": False, "future_observed_run_state_used_for_eligibility": False})
-    write_yaml(output_dir / "operationalization" / "primary_contract.yaml", {"q_contract_id": selected_q, "q_value": dict(threshold_inputs.q_values)[selected_q], "k_primary": selected_k, "model_score_used_for_selection": False})
-    write_yaml(output_dir / "resolution" / "point_resolution_contract.yaml", {"context_incomplete_outside_primary_train": True, "low_precedence": "LOW_WINS_AND_PRESERVES_TAGS", "unresolved_requires_observed_auxiliary_positive": True})
-    write_yaml(output_dir / "resolution" / "temporal_anchor_resolution_contract.yaml", {"anchor_conditioned": True, "window_is_evidence_domain": True, "point_context_incomplete_transfer_outside_train": True})
-    pd.DataFrame([{"legacy_label": "normal_point", "contract_label": "reference_context_point"}, {"legacy_label": "low_relative_moisture_point", "contract_label": "low_relative_moisture_point"}, {"legacy_label": "unknown_environment_point", "contract_label": "unresolved_environmental_evidence_point"}]).to_csv(output_dir / "compatibility" / "legacy_label_mapping.csv", index=False)
-    shutil.copy2(decision_pack_dir / "resolution" / "point_compatibility_matrix.csv", output_dir / "resolution" / "point_compatibility_matrix.csv")
-    shutil.copy2(decision_pack_dir / "operationalization" / "k_regime_registry.csv", output_dir / "operationalization" / "frozen_k_regime_registry.csv")
-    write_json(output_dir / "provenance" / "freeze_activity.json", {"freeze_timestamp_utc": freeze_timestamp, "freeze_canonical_snapshot_hash": snapshot_hash, "freeze_record_id_set_hash": id_hash, "freeze_record_count": int(len(commitment)), "freeze_max_sample_time": str(sample.max()), "freeze_max_upload_time": str(commitment["upload_time_utc"].max()), "review_decision_path": str(review_path.resolve())})
-    write_json(output_dir / "run_metadata" / "run_manifest.json", {"pipeline": "weak_labels_semantic_contract", "run_id": output_dir.name, "phase": "PHASE_B2_CONTRACT_FROZEN", "semantic_contract_hash": contract_hash, "decision_pack_hash": decision_hash, "parent_protocol_registry_contract_hash": registry.run_manifest["registry_contract_hash"], "freeze_timestamp_utc": freeze_timestamp, "freeze_record_id_set_hash": id_hash, "freeze_canonical_snapshot_hash": snapshot_hash, "primary_q": selected_q, "primary_k": selected_k, "labels_materialized": False, "model_training_performed": False, "downstream_runners_unlocked": False})
-    write_yaml(output_dir / "phase_b_freeze.yaml", {"overall_status": "PASS", "semantic_contract_hash": contract_hash, "primary_q": selected_q, "primary_k": selected_k, "e2_e3_sealed": True, "e3_claim": "PROTOCOL_LOCKED_TRANSPORT_REEVALUATION", "e4_materialized": False})
-    _write_artifact_catalog(output_dir)
 
 
 def _write_frozen_registry(parent_dir, contract_dir, config, freeze_timestamp, contract_run_id):

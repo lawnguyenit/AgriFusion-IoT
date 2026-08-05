@@ -45,7 +45,7 @@ class PhaseB2Config:
     # Explicit Q×K×fold selection profile. Keeping this separate from the
     # reviewer decision lets the same semantic review be replayed with a
     # different, predeclared diagnostic matrix.
-    selection_config_path: Path | None = None
+    selection_config_path: Path
 
 
 @dataclass(frozen=True)
