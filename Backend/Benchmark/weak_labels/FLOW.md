@@ -33,6 +33,12 @@ flowchart LR
     F --> G["Point + Same-Y + Temporal\nAssignment artifacts"]
 ```
 
+The Phase C assignment release is consumed by Evaluation through an explicit
+environment execution profile. For the current RQ1 run this is E1-only:
+Evaluation joins the native assignments with dataset views, applies fold and
+purge projection, and emits the train-candidate manifest. E2/E3 are separate
+future profiles and are not implicitly joined.
+
 ## Lifecycle reports and diagrams
 
 The phase folders contain the human-readable report and two data-flow views:

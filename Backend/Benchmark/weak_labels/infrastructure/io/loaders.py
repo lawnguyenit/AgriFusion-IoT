@@ -5,6 +5,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from Backend.Benchmark.weak_labels.infrastructure.shared.helpers import resolve_local_timestamp_series
+
 
 def load_canonical_history(path: Path) -> pd.DataFrame:
     dataframe = pd.read_csv(path).convert_dtypes()
@@ -12,6 +14,11 @@ def load_canonical_history(path: Path) -> pd.DataFrame:
     missing = [column for column in required if column not in dataframe.columns]
     if missing:
         raise ValueError("Canonical history is missing required weak-label columns: " + ", ".join(missing))
+    # Evaluation and weak-label code use one timestamp authority.  Layer1's
+    # canonical export may expose the local timestamp as either an explicit
+    # field or only as the UTC epoch `record.ts_sample`; resolve it through
+    # the shared helper instead of making each consumer infer timezone rules.
+    dataframe["timestamp_local"] = resolve_local_timestamp_series(dataframe)
     return dataframe
 
 

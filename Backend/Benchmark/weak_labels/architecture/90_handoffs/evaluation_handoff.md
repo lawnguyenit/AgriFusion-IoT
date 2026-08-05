@@ -34,3 +34,22 @@ train-ready manifest
 ```
 
 Evaluation không được gọi lại Q/K, resolver hoặc label builder.
+
+## Execution scope
+
+Evaluation consumes an explicit execution profile for each run. The profile
+declares the environments whose labels may be applied, used for training,
+evaluated, and treated as a target.
+
+The current RQ1 profile is E1-only:
+
+```text
+label_apply = [E1]
+train = [E1]
+evaluation = [E1]
+target = []
+```
+
+Therefore the current handoff produces an E1 train-candidate manifest only;
+it does not claim E2/E3 transport. RQ2A and RQ2B use separate profiles and
+require native label releases covering their requested environments.

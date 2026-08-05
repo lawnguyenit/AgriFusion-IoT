@@ -1,8 +1,8 @@
 # Phase B2 — Reviewed Semantic Contract Freeze
 
 ```yaml
-status: BLOCKED
-authority: CONTRACT_GATE
+status: IMPLEMENTED_FROZEN_BASELINE
+authority: FROZEN_SEMANTIC_CONTRACT
 next_consumer: Phase_C
 label_authority: false
 ```
@@ -26,5 +26,6 @@ labels và không tạo train-ready dataset.
 
 ## Trạng thái hiện tại
 
-Implementation của B2 đã có fail-closed gate, nhưng chưa freeze thành công vì
-thiếu review decision, anchor-safety audit và distribution audit.
+B2 đã freeze baseline contract SEMANTIC_CONTRACT_36280129f4ec1d40 với primary
+Q10-K3 và fold E1_PRIMARY_7D_V1. Các Q×K còn lại được giữ dưới dạng
+diagnostic. B2 không tạo label; contract này là đầu vào bắt buộc của Phase C.
