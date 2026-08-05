@@ -60,6 +60,7 @@ def build_phase_b_decision_pack(config: PhaseBConfig) -> PhaseBResult:
         threshold_inputs.q_values,
         anchor_detail,
     )
+    post_exclusion_support = _build_post_exclusion_support(anchor_safety, distribution_audit)
     _write_decision_pack(
         output_dir,
         replay,
@@ -71,6 +72,7 @@ def build_phase_b_decision_pack(config: PhaseBConfig) -> PhaseBResult:
         anchor_detail,
         boundary_audit,
         distribution_audit,
+        post_exclusion_support,
         threshold_audit,
         boundary_cases,
         threshold_status,
@@ -160,6 +162,7 @@ def _write_decision_pack(
     anchor_detail,
     boundary_audit,
     distribution_audit,
+    post_exclusion_support,
     threshold_audit,
     boundary_cases,
     threshold_status,
@@ -179,8 +182,10 @@ def _write_decision_pack(
         "fold_support": output_dir / "operationalization" / "qk_fold_support.csv",
         "anchor_safety": output_dir / "operationalization" / "qk_anchor_safety_audit.parquet",
         "anchor_detail": output_dir / "operationalization" / "anchor_dependency_audit.parquet",
+        "anchor_admissibility": output_dir / "operationalization" / "qk_anchor_admissibility.parquet",
         "boundary_audit": output_dir / "operationalization" / "qk_boundary_audit.parquet",
         "distribution_audit": output_dir / "operationalization" / "qk_distribution_audit.parquet",
+        "post_exclusion_support": output_dir / "operationalization" / "qk_post_exclusion_support.csv",
     }
     replay.to_parquet(paths["point_contract_replay"], index=False)
     matrix.to_csv(paths["compatibility_matrix"], index=False)
@@ -192,8 +197,21 @@ def _write_decision_pack(
     fold_support.to_csv(paths["fold_support"], index=False)
     anchor_safety.to_parquet(paths["anchor_safety"], index=False)
     anchor_detail.to_parquet(paths["anchor_detail"], index=False)
+    admissibility_columns = [
+        "record_id", "q_contract_id", "threshold_value", "persistence_k",
+        "fold_policy_id", "fold_id", "split_role", "window_horizon_hours",
+        "anchor_time", "observed_low_run_id", "dependency_type", "crossing_cause",
+        "feature_interval_crosses_nominal_split", "persistence_interval_crosses_nominal_split",
+        "dependency_crosses_deployment", "persistence_dependency_unavailable",
+        "semantic_assignment_admissible", "feature_history_admissible",
+        "anchor_dependency_admissible", "semantic_cross_split_anchor",
+        "semantic_cross_deployment_anchor", "exclusion_reason",
+    ]
+    available = [column for column in admissibility_columns if column in anchor_detail.columns]
+    anchor_detail[available].to_parquet(paths["anchor_admissibility"], index=False)
     boundary_audit.to_parquet(paths["boundary_audit"], index=False)
     distribution_audit.to_parquet(paths["distribution_audit"], index=False)
+    post_exclusion_support.to_csv(paths["post_exclusion_support"], index=False)
     threshold_audit.to_csv(output_dir / "thresholds" / "candidate_threshold_audit.csv", index=False)
     boundary_cases.to_parquet(output_dir / "thresholds" / "threshold_boundary_cases.parquet", index=False)
     write_yaml(
@@ -240,6 +258,7 @@ def _write_decision_pack(
             "anchor_safety": anchor_safety.to_dict(orient="records"),
             "boundary_audit": boundary_audit.to_dict(orient="records"),
             "distribution_audit": distribution_audit.to_dict(orient="records"),
+            "post_exclusion_support": post_exclusion_support.to_dict(orient="records"),
         }
     )
     write_json(
@@ -271,6 +290,11 @@ def _write_decision_pack(
                     "window_horizon_hours",
                 ],
             ),
+            "anchor_admissibility_hash": dataframe_digest(
+                anchor_detail,
+                columns=list(anchor_detail.columns),
+                sort_columns=[column for column in ["q_contract_id", "persistence_k", "fold_policy_id", "fold_id", "split_role", "record_id"] if column in anchor_detail.columns],
+            ),
             "fold_support_hash": dataframe_digest(
                 fold_support,
                 columns=list(fold_support.columns),
@@ -299,6 +323,11 @@ def _write_decision_pack(
                     "class_name",
                 ],
             ),
+            "post_exclusion_support_hash": dataframe_digest(
+                post_exclusion_support,
+                columns=list(post_exclusion_support.columns),
+                sort_columns=[column for column in ["q_contract_id", "persistence_k", "fold_policy_id", "fold_id", "split_role"] if column in post_exclusion_support.columns],
+            ),
             "candidate_operationalizations": sorted(
                 set(geometry.loc[geometry["operationalization_id"].notna(), "operationalization_id"].astype(str))
             ),
@@ -308,6 +337,8 @@ def _write_decision_pack(
             "candidate_pack_completeness": "COMPLETE",
             "anchor_safety_audit_present": True,
             "distribution_audit_present": True,
+            "anchor_admissibility_present": True,
+            "post_exclusion_support_present": True,
             "boundary_adjustment": "AUDIT_ONLY_REVIEW_REQUIRED",
             "boundary_changes_applied": False,
             "material_boundary_shift_threshold_percent": 4.0,
@@ -318,6 +349,52 @@ def _write_decision_pack(
         },
     )
     _write_artifact_catalog(output_dir)
+
+
+def _build_post_exclusion_support(
+    anchor_safety: pd.DataFrame,
+    distribution_audit: pd.DataFrame,
+) -> pd.DataFrame:
+    """Publish one compact support view after semantic exclusions.
+
+    This is a B1 diagnostic artifact.  Semantic admissibility is the support
+    used for candidate contract review; evaluation admissibility additionally
+    removes feature-history crossings and is retained only for downstream
+    evaluation diagnostics.
+    """
+    group_columns = [
+        "q_contract_id", "persistence_k", "fold_policy_id", "fold_id", "split_role",
+    ]
+    if anchor_safety.empty:
+        return pd.DataFrame(columns=group_columns)
+    rows = []
+    for keys, group in anchor_safety.groupby(group_columns, dropna=False):
+        row = dict(zip(group_columns, keys))
+        row.update({
+            "raw_anchor_count": int(group["raw_anchor_count"].max()),
+            "semantic_admissible_anchor_count": int(group["semantic_admissible_anchor_count"].min()),
+            "evaluation_admissible_anchor_count": int(group["evaluation_admissible_anchor_count"].min()),
+            "feature_history_excluded_count": int(
+                max(0, group["unique_anchor_count"].max() - group["feature_history_admissible_anchor_count"].min())
+            ),
+            "semantic_cross_split_anchor_count": int(group["semantic_cross_split_anchor_count"].max()),
+            "semantic_cross_deployment_anchor_count": int(group["semantic_cross_deployment_anchor_count"].max()),
+            "event_count": int(group["event_count"].min()),
+            "persistent_anchor_count": int(group["persistent_anchor_count"].min()),
+            "estimability_status": (
+                "OBSERVED_SUPPORT" if int(group["semantic_admissible_anchor_count"].min()) > 0 else "NON_ESTIMABLE"
+            ),
+            "authority_status": "CANDIDATE_ONLY",
+        })
+        rows.append(row)
+    result = pd.DataFrame(rows)
+    if not distribution_audit.empty:
+        distribution_summary = (
+            distribution_audit.groupby(group_columns, dropna=False, as_index=False)
+            .agg(task_count=("task_id", "nunique"), horizon_count=("horizon_id", "nunique"))
+        )
+        result = result.merge(distribution_summary, on=group_columns, how="left")
+    return result.convert_dtypes()
 
 
 def _build_k_registry(geometry: pd.DataFrame) -> pd.DataFrame:

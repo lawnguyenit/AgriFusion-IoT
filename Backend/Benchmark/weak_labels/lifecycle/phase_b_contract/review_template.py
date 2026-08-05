@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 from pathlib import Path
 from typing import Any
 
@@ -9,6 +10,9 @@ import pandas as pd
 import yaml
 
 from Backend.Benchmark.common.digests import file_sha256
+from Backend.Benchmark.weak_labels.lifecycle.phase_b_contract.candidate_contracts import (
+    build_candidate_contract_bundle,
+)
 
 
 def build_phase_b2_review_template(
@@ -42,6 +46,20 @@ def build_phase_b2_review_template(
 
     distribution_path = b1_dir / "operationalization" / "qk_distribution_audit.parquet"
     observed_support = _summarize_support(distribution_path, primary)
+    candidate_dir = b1_dir / "contracts" / "candidates"
+    phase_a_path = manifest.get("phase_a_run_dir")
+    if phase_a_path:
+        candidate_contracts = build_candidate_contract_bundle(
+            Path(str(phase_a_path)), b1_dir, candidate_dir
+        )
+        candidate_support = yaml.safe_load(
+            Path(candidate_contracts["paths"]["support_profiles"]).read_text(encoding="utf-8")
+        )
+    else:
+        # Synthetic/unit-test B1 fixtures may not carry lineage. Keep the
+        # template usable, but do not invent candidate contracts.
+        candidate_contracts = {"status": "MISSING_PHASE_A_LINEAGE", "paths": {}}
+        candidate_support = {}
     payload: dict[str, Any] = {
         "decision_status": "PENDING_REVIEW",
         "decision_id": None,
@@ -61,52 +79,57 @@ def build_phase_b2_review_template(
             }
             for item in diagnostics
         ],
+        "candidate_contracts": candidate_contracts,
+        "human_review": {
+            "selection_profile": "APPROVE_OR_EDIT_PRIMARY_AND_DIAGNOSTIC_QK",
+            "semantic_policy_bundle": "APPROVE_OR_REJECT_CANDIDATE_POLICY",
+            "support_profile": "APPROVE_OR_EDIT_OBSERVED_SUPPORT_FLOORS",
+            "expected_difference_contract": "SUPPLY_PRECOMMITTED_HASH",
+        },
         "point_ontology_policy": {
-            "primary_train_eligible": [
-                "REFERENCE",
-                "LOW",
-                "UNRESOLVED_ENVIRONMENTAL",
-            ],
-            "outside_primary_train": [
-                "POINT_CONTEXT_INCOMPLETE",
-                "POINT_NOT_EVALUABLE",
-            ],
-            "review_status": "REQUIRED_CONFIRMATION",
+            "candidate_policy_id": "POINT_ONTOLOGY_FULL_CONTEXT_V1",
+            "approval": "REQUIRED_CONFIRMATION",
+            "source": "candidate_contracts.semantic_policies",
         },
         "temporal_ontology": {
-            "primary_train_eligible": ["TEMPORAL_PERSISTENT_LOW"],
-            "outside_primary_train": [
-                "TEMPORAL_WINDOW_INELIGIBLE",
-                "TEMPORAL_POINT_UNRESOLVED_TRANSFER",
-                "TEMPORAL_POINT_CONTEXT_INCOMPLETE_TRANSFER",
-            ],
-            "review_status": "REQUIRED_CONFIRMATION",
+            "candidate_policy_id": "TEMPORAL_ONTOLOGY_PERSISTENCE_V1",
+            "approval": "REQUIRED_CONFIRMATION",
+            "source": "candidate_contracts.semantic_policies",
         },
         "support_gate": {
-            "policy": "REVIEWER_DECLARED_TASK_THRESHOLDS",
-            "task_support": {
-                "POINT": _empty_point_gate(),
-                "TEMPORAL": _empty_temporal_gate(),
-                "SAME_Y": _empty_same_y_gate(),
-            },
+            "profile_id": candidate_support.get("profile_id"),
+            "approval": "REQUIRED_CONFIRMATION",
+            "source": "candidate_contracts.support_profiles",
+            "overrides": None,
             "observed_primary_support": observed_support,
         },
-        "approved_continuity_contract_id": None,
-        "approved_window_contract_id": None,
-        "approved_derived_evidence_contract_id": None,
         "resolver_policy": {
-            "review_status": "REQUIRED_CONFIRMATION",
-            "low_positive": "LOW",
-            "low_negative_auxiliary_positive": "UNRESOLVED_ENVIRONMENTAL",
-            "low_negative_auxiliary_missing": "POINT_CONTEXT_INCOMPLETE",
-            "low_negative_all_required_negative": "REFERENCE",
+            "candidate_policy_id": "POINT_RESOLVER_FULL_CONTEXT_V1",
+            "approval": "REQUIRED_CONFIRMATION",
+            "source": "candidate_contracts.semantic_policies",
         },
-        "temporal_resolution_policy": {"review_status": "REQUIRED_CONFIRMATION"},
+        "temporal_resolution_policy": {
+            "candidate_policy_id": "TEMPORAL_RESOLVER_PERSISTENCE_V1",
+            "approval": "REQUIRED_CONFIRMATION",
+            "source": "candidate_contracts.semantic_policies",
+        },
         "same_y_policy": {
-            "representation_only": True,
-            "target_source": "point_assignment",
-            "review_status": "REQUIRED_CONFIRMATION",
+            "candidate_policy_id": "SAME_Y_TRANSFER_V1",
+            "approval": "REQUIRED_CONFIRMATION",
+            "source": "candidate_contracts.semantic_policies",
         },
+        # The following block is intentionally a compact reference.  The
+        # observed numbers remain queryable in the candidate support profile;
+        # they are not copied here as reviewer-owned literals.
+        "candidate_thresholds": copy.deepcopy(candidate_contracts.get("threshold_candidates", {})),
+        "candidate_support_profile": {
+            "profile_id": candidate_support.get("profile_id"),
+            "path": candidate_contracts.get("paths", {}).get("support_profiles"),
+            "authority_status": "CANDIDATE_ONLY",
+        },
+        "approved_continuity_contract_id": candidate_contracts.get("continuity_contract_id"),
+        "approved_window_contract_id": candidate_contracts.get("window_contract_id"),
+        "approved_derived_evidence_contract_id": candidate_contracts.get("derived_evidence_contract_id"),
         "evidence_role_registry": [],
         "evidence_dependency_registry": [],
         "expected_difference_contract_hash": None,
@@ -119,33 +142,108 @@ def build_phase_b2_review_template(
     return output
 
 
-def _empty_point_gate() -> dict[str, Any]:
-    return {
-        "min_train_class_count": None,
-        "min_validation_class_count": None,
-        "min_test_class_count": None,
+def build_phase_b2_review_package(
+    b1_decision_pack_dir: Path,
+    selection_config_path: Path,
+    output_dir: Path,
+) -> Path:
+    """Create the bounded, human-facing B2 review package.
+
+    The package deliberately has four files at most:
+    ``review_decision.yaml`` (human choices), ``selection_profile.yaml``
+    (Q/K/fold), ``candidate_inputs.yaml`` (Phase A/B1 references and observed
+    values), and ``README.md`` (how the pieces connect). The existing single
+    YAML builder remains available as a compatibility API.
+    """
+
+    package = output_dir.resolve()
+    package.mkdir(parents=True, exist_ok=True)
+    full_path = package / ".review_decision_full.yaml"
+    build_phase_b2_review_template(b1_decision_pack_dir, selection_config_path, full_path)
+    payload = yaml.safe_load(full_path.read_text(encoding="utf-8"))
+    selection = yaml.safe_load(Path(selection_config_path).resolve().read_text(encoding="utf-8"))
+    if not isinstance(payload, dict) or not isinstance(selection, dict):
+        raise ValueError("Generated review package inputs must be YAML mappings.")
+
+    review = dict(payload)
+    review["iteration_mode"] = "BASELINE_ITERATION"
+    review["decision_status"] = "BASELINE_APPROVED"
+    review["approval_source"] = "USER_BASELINE_CONFIGURATION"
+    review["expected_difference_contract_hash"] = None
+    candidate_contracts = dict(review.get("candidate_contracts", {}))
+    candidate_thresholds = review.pop("candidate_thresholds", {})
+    support_gate = dict(review.get("support_gate", {}))
+    observed_support = support_gate.pop("observed_primary_support", {})
+    review["support_gate"] = support_gate
+    review["package_layout"] = {
+        "candidate_inputs": "candidate_inputs.yaml",
+        "selection_profile": "selection_profile.yaml",
+        "human_decision": "review_decision.yaml",
     }
 
-
-def _empty_temporal_gate() -> dict[str, Any]:
-    return {
-        "min_train_class_count": None,
-        "min_validation_class_count": None,
-        "min_test_class_count": None,
-        "min_train_event_count": None,
-        "min_validation_event_count": None,
-        "min_test_event_count": None,
-        "min_unique_cluster_count": None,
+    selection_output = package / "selection_profile.yaml"
+    selection_payload = dict(selection)
+    selection_payload["source_path"] = str(Path(selection_config_path).resolve())
+    selection_payload["source_hash"] = file_sha256(Path(selection_config_path).resolve())
+    selection_payload["fold_usage"] = {
+        "primary": "Use the selected primary fold policy for authority checks.",
+        "diagnostics": "Use each diagnostic fold policy only for comparison; do not promote automatically.",
+        "boundary_policy": "FIXED; no automatic boundary shift in B2.",
     }
+    selection_output.write_text(
+        yaml.safe_dump(selection_payload, sort_keys=False, allow_unicode=True), encoding="utf-8"
+    )
 
-
-def _empty_same_y_gate() -> dict[str, Any]:
-    return {
-        "min_train_class_count": None,
-        "min_validation_class_count": None,
-        "min_test_class_count": None,
-        "min_unique_cluster_count": None,
+    candidate_inputs = {
+        "source_phase_a": {
+            "run_id": candidate_contracts.get("source_phase_a_run_id"),
+            "run_dir": candidate_contracts.get("source_phase_a_run_dir"),
+            "threshold_registry_hash": candidate_contracts.get("source_threshold_registry_hash"),
+        },
+        "source_b1": {
+            "run_id": candidate_contracts.get("source_b1_run_id"),
+            "run_dir": candidate_contracts.get("source_b1_run_dir"),
+            "distribution_hash": candidate_contracts.get("source_distribution_hash"),
+        },
+        "candidate_contract_manifest": {
+            "path": candidate_contracts.get("candidate_manifest_path"),
+            "sha256": candidate_contracts.get("candidate_manifest_hash"),
+        },
+        "candidate_contracts": {
+            "derived_evidence": candidate_contracts.get("paths", {}).get("derived_evidence"),
+            "continuity": candidate_contracts.get("paths", {}).get("continuity"),
+            "window": candidate_contracts.get("paths", {}).get("window"),
+            "support_profiles": candidate_contracts.get("paths", {}).get("support_profiles"),
+            "semantic_policies": candidate_contracts.get("paths", {}).get("semantic_policies"),
+        },
+        "threshold_candidates": candidate_thresholds,
+        "observed_primary_support": observed_support,
+        "authority_status": "CANDIDATE_ONLY",
     }
+    (package / "candidate_inputs.yaml").write_text(
+        yaml.safe_dump(candidate_inputs, sort_keys=False, allow_unicode=True), encoding="utf-8"
+    )
+
+    review["selection_profile_path"] = str(selection_output)
+    review["selection_profile_hash"] = file_sha256(selection_output)
+    (package / "review_decision.yaml").write_text(
+        yaml.safe_dump(review, sort_keys=False, allow_unicode=True), encoding="utf-8"
+    )
+    (package / "README.md").write_text(
+        """# Phase B2 review package
+
+- `review_decision.yaml`: human-owned approval, ontology/resolver choice, support approval, and expected-difference commitment.
+- `selection_profile.yaml`: primary and diagnostic Q-K-fold selections and fold-use rules.
+- `candidate_inputs.yaml`: generated Phase A/B1 paths, hashes, thresholds, and observed support for inspection.
+
+Candidate contracts remain in the B1 run. B2 reads them by the recorded path/hash and fails closed if they are missing or changed.
+
+The generated package is `BASELINE_ITERATION` for the currently approved first run. Use `support_gate.overrides` only when a deliberate deviation from the observed recommendation is required. A later reviewed/differential run can change the mode to `REVIEWED_FREEZE` and provide explicit approvals.
+""",
+        encoding="utf-8",
+    )
+    full_path.unlink(missing_ok=True)
+    return package
 
 
 def _summarize_support(path: Path, primary: dict[str, Any]) -> dict[str, Any]:
@@ -155,15 +253,32 @@ def _summarize_support(path: Path, primary: dict[str, Any]) -> dict[str, Any]:
     q = str(primary["q"])
     k = int(primary["k"])
     fold = str(primary["fold_policy_id"])
-    selected = frame.loc[
+    mask = (
         frame["q_contract_id"].astype(str).eq(q)
         & frame["fold_policy_id"].astype(str).eq(fold)
-        & (frame["k"].isna() | frame["k"].astype("Int64").eq(k))
-    ]
+    )
+    if "k" in frame.columns:
+        task_names = frame["task_id"].astype(str).str.upper()
+        mask &= (
+            (task_names.eq("POINT") & frame["k"].isna())
+            | (~task_names.eq("POINT") & frame["k"].astype("Int64").eq(k))
+        )
+    selected = frame.loc[mask]
     if selected.empty:
         return {"status": "NO_PRIMARY_ROWS", "path": str(path)}
     result: dict[str, Any] = {"status": "OBSERVED", "path": str(path), "rows": int(len(selected))}
     for (task, split), group in selected.groupby(["task_id", "split_role"], dropna=False):
+        task_name = str(task).upper()
+        if task_name == "POINT":
+            group = group.loc[group["class_label"].astype(str).isin(
+                ["REFERENCE", "LOW", "UNRESOLVED_ENVIRONMENTAL"]
+            )]
+        elif task_name == "TEMPORAL":
+            group = group.loc[group["class_label"].astype(str).eq("TEMPORAL_PERSISTENT_LOW")]
+        elif task_name == "SAME_Y":
+            group = group.loc[group["class_label"].astype(str).eq("ELIGIBLE")]
+        if group.empty:
+            continue
         key = f"{task}:{split}"
         result[key] = {
             "class_count_min": int(pd.to_numeric(group["class_count"], errors="coerce").min()),

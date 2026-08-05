@@ -105,6 +105,22 @@ Phase B is a separate lane under `weak_labels/lifecycle/phase_b_contract`.
 Phase B does not call the label builder, materialize labels, modify canonical
 data, train models, or publish dataset views.
 
+### B1 admissibility rule
+
+B1 publishes two separate audit notions for every Q×K×fold×split:
+
+- `semantic_assignment_admissible`: the anchor's persistence-label dependency
+  and deployment membership are valid. B2 uses this for semantic support and
+  contract safety.
+- `feature_history_admissible`: the feature history stays inside the nominal
+  split. This is diagnostic for evaluation and does not change the intrinsic
+  weak label.
+
+Therefore a feature-only boundary crossing is reported but is not a B2
+semantic failure. A persistence/deployment crossing remains blocking. Fixed
+fold boundaries are not moved by B1 or B2; the boundary experiment is
+non-authoritative and only reports what a shift would cost.
+
 ## Phase C Native Engine Path
 
 The Phase C native lane is contract-gated and authoritative. It requires a reviewed

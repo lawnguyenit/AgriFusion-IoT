@@ -53,14 +53,19 @@ def build_native_label_artifacts(config: NativeEngineConfig) -> NativeEngineResu
         config.canonical_evidence_schema_path,
         config.sensor_dependency_registry_path,
         config.segment_manifest_path,
-        config.expected_difference_contract_path,
     ):
         if not path.resolve().exists():
             raise NativeContractError(f"Native engine input is missing: {path}")
+    if config.expected_difference_contract_path is not None and not config.expected_difference_contract_path.resolve().exists():
+        raise NativeContractError(f"Native engine expected-difference input is missing: {config.expected_difference_contract_path}")
     _validate_supporting_inputs(config)
     parent_registry = load_protocol_registry(config.protocol_registry_run_dir.resolve())
     _validate_parent_registry(parent_registry.run_manifest, contract)
-    expected_hash = expected_difference_contract_hash(config.expected_difference_contract_path)
+    expected_hash = (
+        expected_difference_contract_hash(config.expected_difference_contract_path)
+        if config.expected_difference_contract_path is not None
+        else None
+    )
     if config.expected_difference_contract_hash is not None and expected_hash != config.expected_difference_contract_hash:
         raise NativeContractError("Expected-difference contract hash mismatch.")
     operationalization = contract.resolve_operationalization(config.operationalization_id)
@@ -164,15 +169,21 @@ def _validate_supporting_inputs(config: NativeEngineConfig) -> None:
     schema = pd.read_csv(config.canonical_evidence_schema_path.resolve())
     if schema.empty:
         raise NativeContractError("Canonical evidence schema cannot be empty.")
-    dependency = pd.read_csv(config.sensor_dependency_registry_path.resolve())
-    if dependency.empty:
-        raise NativeContractError("Sensor dependency registry cannot be empty.")
+    dependency_path = config.sensor_dependency_registry_path.resolve()
+    if dependency_path.suffix.lower() == ".json":
+        dependency_payload = json.loads(dependency_path.read_text(encoding="utf-8"))
+        if not isinstance(dependency_payload, (dict, list)) or not dependency_payload:
+            raise NativeContractError("Sensor dependency registry cannot be empty.")
+    else:
+        dependency = pd.read_csv(dependency_path)
+        if dependency.empty:
+            raise NativeContractError("Sensor dependency registry cannot be empty.")
     payload = json.loads(config.segment_manifest_path.resolve().read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
         raise NativeContractError("Segment manifest must contain a JSON object.")
 
 
-def _write_artifacts(*, staging: Path, frame: pd.DataFrame, rule_firings: pd.DataFrame, point_resolutions: pd.DataFrame, point_assignments: pd.DataFrame, all_resolutions: pd.DataFrame, all_assignments: pd.DataFrame, intrinsic: pd.DataFrame, fold_projection: pd.DataFrame, windows: dict[str, pd.DataFrame], temporal_outputs: dict[str, tuple[pd.DataFrame, pd.DataFrame]], same_y_outputs: dict[str, pd.DataFrame], contract: NativeContract, operationalization: pd.Series, expected_difference_hash: str, input_metadata: dict[str, object], integrity: dict[str, int], config: NativeEngineConfig) -> None:
+def _write_artifacts(*, staging: Path, frame: pd.DataFrame, rule_firings: pd.DataFrame, point_resolutions: pd.DataFrame, point_assignments: pd.DataFrame, all_resolutions: pd.DataFrame, all_assignments: pd.DataFrame, intrinsic: pd.DataFrame, fold_projection: pd.DataFrame, windows: dict[str, pd.DataFrame], temporal_outputs: dict[str, tuple[pd.DataFrame, pd.DataFrame]], same_y_outputs: dict[str, pd.DataFrame], contract: NativeContract, operationalization: pd.Series, expected_difference_hash: str | None, input_metadata: dict[str, object], integrity: dict[str, int], config: NativeEngineConfig) -> None:
     (staging / "tasks" / "point").mkdir(parents=True, exist_ok=True)
     for directory in ("tasks", "cohorts", "audit", "run_metadata"):
         (staging / directory).mkdir(parents=True, exist_ok=True)
@@ -250,7 +261,7 @@ def _write_artifacts(*, staging: Path, frame: pd.DataFrame, rule_firings: pd.Dat
     (staging / "run_metadata" / "run_manifest.json").write_text(json.dumps({**metadata, "native_engine_run_hash": stable_digest(metadata)}, indent=2, ensure_ascii=True), encoding="utf-8")
 
 
-def _write_manifest_hash(staging: Path, contract: NativeContract, operationalization: pd.Series, expected_hash: str) -> None:
+def _write_manifest_hash(staging: Path, contract: NativeContract, operationalization: pd.Series, expected_hash: str | None) -> None:
     manifest_path = staging / "run_metadata" / "run_manifest.json"
     payload = json.loads(manifest_path.read_text(encoding="utf-8"))
     payload["expected_difference_contract_hash"] = expected_hash

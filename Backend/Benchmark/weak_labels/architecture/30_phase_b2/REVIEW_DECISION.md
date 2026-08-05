@@ -1,6 +1,6 @@
 # B2 review decision
 
-The selection profile answers **which synchronized fold candidate** is being tested:
+The active B2 selection profile is the synchronized 7-day profile:
 
 ```text
 Q×K matrix / E1_PRIMARY_7D_V1
@@ -8,8 +8,9 @@ or
 Q×K matrix / E1_DIAGNOSTIC_5D_V1
 ```
 
-The same Q×K matrix must use one fold policy per profile. The fold comparison
-report is diagnostic; it does not move boundaries or select a primary silently.
+The 5-day profile remains comparison-only because its feature-history/evaluation
+support currently fails on one fold. The active B2 path uses one fold policy and
+does not move boundaries or select a primary silently.
 
 The review decision answers **whether the candidate is scientifically usable**:
 

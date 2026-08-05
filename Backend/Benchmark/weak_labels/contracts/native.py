@@ -25,7 +25,7 @@ class NativeEngineConfig:
     canonical_evidence_schema_path: Path
     sensor_dependency_registry_path: Path
     segment_manifest_path: Path
-    expected_difference_contract_path: Path
+    expected_difference_contract_path: Path | None
     output_root: Path
     operationalization_id: str | None = None
     engine_mode: Literal["NATIVE", "SHADOW"] = "NATIVE"

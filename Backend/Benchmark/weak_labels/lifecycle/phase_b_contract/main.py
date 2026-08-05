@@ -12,6 +12,7 @@ from Backend.Benchmark.weak_labels.lifecycle.phase_b_contract import (
     PhaseB2Config,
     PhaseBConfig,
     build_phase_b_decision_pack,
+    build_phase_b2_review_package,
     build_phase_b2_review_template,
     freeze_phase_b_contract,
 )
@@ -26,7 +27,9 @@ def _build_parser() -> argparse.ArgumentParser:
     template = subparsers.add_parser("template", help="Create a reviewer-owned B2 decision template.")
     template.add_argument("--phase-b1-run-dir", type=Path, required=True)
     template.add_argument("--selection-config", type=Path, required=True)
-    template.add_argument("--output", type=Path, required=True)
+    output_group = template.add_mutually_exclusive_group(required=True)
+    output_group.add_argument("--output", type=Path, help="Legacy single-file YAML output.")
+    output_group.add_argument("--output-dir", type=Path, help="Recommended bounded review package directory.")
     freeze = subparsers.add_parser("freeze", help="Validate review inputs and freeze Phase B2 contract.")
     for name, required in (
         ("phase-a-run-dir", True),
@@ -38,7 +41,7 @@ def _build_parser() -> argparse.ArgumentParser:
         ("derived-evidence-contract", True),
         ("continuity-contract", True),
         ("window-contract", True),
-        ("expected-difference-contract", True),
+        ("expected-difference-contract", False),
         ("canonical-history", True),
         ("output-root", True),
     ):
@@ -64,12 +67,18 @@ def main() -> None:
         return
     if argv and argv[0] == "template":
         args = _build_parser().parse_args(argv)
-        output = build_phase_b2_review_template(
-            args.phase_b1_run_dir,
-            args.selection_config,
-            args.output,
-        )
-        print(f"B2 review template: {output}")
+        if args.output_dir:
+            output = build_phase_b2_review_package(
+                args.phase_b1_run_dir, args.selection_config, args.output_dir
+            )
+            print(f"B2 review package: {output}")
+        else:
+            output = build_phase_b2_review_template(
+                args.phase_b1_run_dir,
+                args.selection_config,
+                args.output,
+            )
+            print(f"B2 review template: {output}")
         return
     if argv and argv[0] == "freeze":
         args = _build_parser().parse_args(argv)

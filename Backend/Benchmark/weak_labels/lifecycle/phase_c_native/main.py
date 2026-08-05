@@ -20,7 +20,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--canonical-evidence-schema", type=Path, required=True)
     parser.add_argument("--sensor-dependency-registry", type=Path, required=True)
     parser.add_argument("--segment-manifest", type=Path, required=True)
-    parser.add_argument("--expected-difference-contract", type=Path, required=True)
+    parser.add_argument("--expected-difference-contract", type=Path, required=False)
     parser.add_argument("--output-root", type=Path, required=True)
     parser.add_argument("--operationalization-id", default=None)
     parser.add_argument("--engine-mode", choices=("NATIVE", "SHADOW"), default="NATIVE")

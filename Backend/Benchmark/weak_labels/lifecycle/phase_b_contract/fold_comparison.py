@@ -80,6 +80,10 @@ def build_fold_policy_comparison(
             "synchronized": synchronized,
             "primary_safety_status": "PASS" if primary_safe else "FAIL",
             "candidate_matrix_safety_status": "PASS" if matrix_safe else "FAIL",
+            "primary_evaluation_safety_status": primary["evaluation_safety_status"],
+            "candidate_matrix_evaluation_safety_status": (
+                "PASS" if all(row["evaluation_safety_status"] == "PASS" for row in profile_rows) else "FAIL"
+            ),
             "distribution_review_status": "REVIEW_REQUIRED",
             "primary_operationalization_id": f"{primary['q']}-K{primary['k']}",
         })
@@ -157,17 +161,38 @@ def _summarize_item(
             "distribution_rows": int(len(distribution)),
             "safety_status": "FAIL",
             "failure_reason": "NO_SUPPORT_ROWS",
+            "evaluation_safety_status": "FAIL",
+            "evaluation_failure_reason": "NO_SUPPORT_ROWS",
+            "semantic_cross_split_anchor_count": None,
+            "semantic_cross_deployment_anchor_count": None,
+            "semantic_admissible_anchor_count": 0,
+            "evaluation_admissible_anchor_count": 0,
         }
     cross_split = int(pd.to_numeric(support["cross_split_anchor_count"], errors="coerce").fillna(-1).sum())
     cross_deployment = int(pd.to_numeric(support["cross_deployment_anchor_count"], errors="coerce").fillna(-1).sum())
+    semantic_cross_split = int(pd.to_numeric(
+        support.get("semantic_cross_split_anchor_count", support["cross_split_anchor_count"]), errors="coerce"
+    ).fillna(-1).sum())
+    semantic_cross_deployment = int(pd.to_numeric(
+        support.get("semantic_cross_deployment_anchor_count", support["cross_deployment_anchor_count"]), errors="coerce"
+    ).fillna(-1).sum())
     purge_applied = bool(support["purge_applied"].astype(bool).all())
     fold_count = int(support["fold_id"].nunique())
-    safe = fold_count > 0 and cross_split == 0 and cross_deployment == 0 and purge_applied
+    safe = fold_count > 0 and semantic_cross_split == 0 and semantic_cross_deployment == 0 and purge_applied
+    evaluation_safe = fold_count > 0 and cross_split == 0 and cross_deployment == 0 and purge_applied
     reason = "PASS" if safe else ";".join(
         reason for reason, failed in (
             ("NO_FOLDS", fold_count == 0),
-            ("CROSS_SPLIT", cross_split > 0),
-            ("CROSS_DEPLOYMENT", cross_deployment > 0),
+            ("SEMANTIC_CROSS_SPLIT", semantic_cross_split > 0),
+            ("SEMANTIC_CROSS_DEPLOYMENT", semantic_cross_deployment > 0),
+            ("PURGE_NOT_APPLIED", not purge_applied),
+        ) if failed
+    )
+    evaluation_reason = "PASS" if evaluation_safe else ";".join(
+        reason for reason, failed in (
+            ("NO_FOLDS", fold_count == 0),
+            ("FEATURE_OR_LABEL_CROSS_SPLIT", cross_split > 0),
+            ("FEATURE_OR_LABEL_CROSS_DEPLOYMENT", cross_deployment > 0),
             ("PURGE_NOT_APPLIED", not purge_applied),
         ) if failed
     )
@@ -181,9 +206,15 @@ def _summarize_item(
         "fold_count": fold_count,
         "cross_split_anchor_count": cross_split,
         "cross_deployment_anchor_count": cross_deployment,
+        "semantic_cross_split_anchor_count": semantic_cross_split,
+        "semantic_cross_deployment_anchor_count": semantic_cross_deployment,
         "purge_applied": purge_applied,
         "dependency_admissible_anchor_count": int(pd.to_numeric(support["dependency_admissible_anchor_count"], errors="coerce").fillna(0).sum()),
+        "semantic_admissible_anchor_count": int(pd.to_numeric(support.get("semantic_admissible_anchor_count", support["dependency_admissible_anchor_count"]), errors="coerce").fillna(0).sum()),
+        "evaluation_admissible_anchor_count": int(pd.to_numeric(support.get("evaluation_admissible_anchor_count", support["dependency_admissible_anchor_count"]), errors="coerce").fillna(0).sum()),
         "distribution_rows": int(len(distribution)),
         "safety_status": "PASS" if safe else "FAIL",
         "failure_reason": reason,
+        "evaluation_safety_status": "PASS" if evaluation_safe else "FAIL",
+        "evaluation_failure_reason": evaluation_reason,
     }

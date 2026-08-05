@@ -179,8 +179,24 @@ Create a reviewer-owned B2 template from the B1 evidence first:
 python Backend\Benchmark\weak_labels\lifecycle\phase_b_contract\main.py template `
   --phase-b1-run-dir <phase_b1_run_dir> `
   --selection-config Backend\Benchmark\weak_labels\lifecycle\phase_b_contract\config\qk_synchronized_7d.yaml `
-  --output <review_decision.yaml>
+  --output-dir <review_package_dir>
 ```
+
+The template is intentionally a compact review file. Phase A/B1 populate the
+candidate threshold values, observed support counts, formulas, continuity and
+window contracts under `<phase_b1_run_dir>/contracts/candidates/`. The reviewer
+approves or rejects those candidate IDs (and may choose Q/K/fold or support
+floors through the optional `support_gate.overrides` block); they do not retype measured values. B2 expands only explicitly
+approved references and fails closed when a referenced candidate artifact is
+missing or changed.
+
+The generated package is marked `BASELINE_ITERATION` for the currently
+approved first run. It can freeze B2 directly after validation; a later
+`REVIEWED_FREEZE`/differential run can require explicit reviewer approvals.
+
+The package contains only `review_decision.yaml`, `selection_profile.yaml`,
+`candidate_inputs.yaml`, and `README.md`. The old `--output <file.yaml>` form
+remains available only as a migration compatibility mode.
 
 Compare the synchronized fold policies before selecting the B2 profile:
 

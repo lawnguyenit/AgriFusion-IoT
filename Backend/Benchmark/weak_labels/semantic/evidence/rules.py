@@ -17,22 +17,28 @@ RULES = (
 
 def evaluate_point_rules(frame: pd.DataFrame, contract: NativeContract, operationalization: pd.Series) -> tuple[pd.DataFrame, pd.DataFrame]:
     q_contract = str(operationalization["q_contract_id"])
-    q_threshold = _resolve_q_threshold(contract, q_contract)
-    vpd_threshold = _resolve_threshold(contract, "THERMAL_VPD_CONTEXT_V1")
-    rise_threshold = _resolve_threshold(contract, "MOISTURE_RISE_CONTEXT_V1")
-    ec_threshold = _resolve_threshold(contract, "EC_SHIFT_Q95_DISCOVERY_V1")
+    q_threshold_id, q_threshold = _resolve_q_threshold(contract, q_contract)
+    vpd_threshold_id, vpd_threshold = _resolve_threshold(
+        contract, "THERMAL_VPD_CONTEXT_V1", "THERMAL_VPD_FIXED_2_5_REFERENCE"
+    )
+    rise_threshold_id, rise_threshold = _resolve_threshold(
+        contract, "MOISTURE_RISE_CONTEXT_V1", "MOISTURE_RISE_FIXED_5PP_REFERENCE"
+    )
+    ec_threshold_id, ec_threshold = _resolve_threshold(
+        contract, "EC_SHIFT_Q95_DISCOVERY_V1", "EC_SHIFT_Q95_E1_DISCOVERY_CANDIDATE"
+    )
     rows: list[dict[str, object]] = []
     evidence_rows: list[dict[str, object]] = []
     for row in frame.to_dict(orient="records"):
         sample_id = str(row["record.id"])
         values = {
-            "LOW_RELATIVE_MOISTURE": (row.get("npk.soil_moisture_pct"), q_threshold, "<=", "LOW_MOISTURE_Q10"),
-            "THERMAL_CONTEXT": (row.get("derived.vpd_kpa"), vpd_threshold, ">=", "THERMAL_VPD_CONTEXT_V1"),
-            "MOISTURE_RISE": (row.get("moisture_rise_delta"), rise_threshold, ">=", "MOISTURE_RISE_CONTEXT_V1"),
-            "EC_SHIFT": (row.get("ec_shift_delta_abs"), ec_threshold, ">=", "EC_SHIFT_Q95_DISCOVERY_V1"),
+            "LOW_RELATIVE_MOISTURE": (row.get("npk.soil_moisture_pct"), q_threshold, "<=", q_threshold_id),
+            "THERMAL_CONTEXT": (row.get("derived.vpd_kpa"), vpd_threshold, ">=", vpd_threshold_id),
+            "MOISTURE_RISE": (row.get("moisture_rise_delta"), rise_threshold, ">=", rise_threshold_id),
+            "EC_SHIFT": (row.get("ec_shift_delta_abs"), ec_threshold, ">=", ec_threshold_id),
         }
         for rule_id, applicability_column, evidence_field, threshold_id in RULES:
-            value, threshold, operator, _ = values[rule_id]
+            value, threshold, operator, threshold_id = values[rule_id]
             applicable = _rule_applicable(row, rule_id)
             state = "NOT_EVALUABLE" if applicable and pd.isna(value) else "NOT_APPLICABLE" if not applicable else "NEGATIVE"
             result = False
@@ -97,20 +103,21 @@ def _state(rows: list[dict[str, object]], sample_id: str, rule_id: str) -> str:
     return "NOT_EVALUABLE"
 
 
-def _resolve_q_threshold(contract: NativeContract, q_contract: str) -> float:
-    candidates = [f"{q_contract}_DISCOVERY", q_contract, "LOW_MOISTURE_Q10"]
+def _resolve_q_threshold(contract: NativeContract, q_contract: str) -> tuple[str, float]:
+    candidates = [f"LOW_MOISTURE_{q_contract}_E1_DISCOVERY_CANDIDATE", f"{q_contract}_DISCOVERY", q_contract]
     for candidate in candidates:
         rows = contract.q_registry.loc[contract.q_registry["threshold_id"].astype("string") == candidate]
         if len(rows) == 1:
-            return float(rows.iloc[0]["threshold_value"])
+            return candidate, float(rows.iloc[0]["threshold_value"])
     q_rows = contract.q_registry.loc[contract.q_registry["threshold_id"].astype("string").str.contains(q_contract, na=False)]
     if len(q_rows) == 1:
-        return float(q_rows.iloc[0]["threshold_value"])
+        return str(q_rows.iloc[0]["threshold_id"]), float(q_rows.iloc[0]["threshold_value"])
     raise ValueError(f"No unique frozen threshold found for {q_contract}.")
 
 
-def _resolve_threshold(contract: NativeContract, threshold_id: str) -> float:
-    rows = contract.q_registry.loc[contract.q_registry["threshold_id"].astype("string") == threshold_id]
-    if len(rows) != 1:
-        raise ValueError(f"Frozen threshold is not unique: {threshold_id}")
-    return float(rows.iloc[0]["threshold_value"])
+def _resolve_threshold(contract: NativeContract, *threshold_ids: str) -> tuple[str, float]:
+    for threshold_id in threshold_ids:
+        rows = contract.q_registry.loc[contract.q_registry["threshold_id"].astype("string") == threshold_id]
+        if len(rows) == 1:
+            return threshold_id, float(rows.iloc[0]["threshold_value"])
+    raise ValueError(f"Frozen threshold is not unique: {threshold_ids}")

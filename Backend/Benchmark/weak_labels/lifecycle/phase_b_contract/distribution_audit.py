@@ -152,6 +152,7 @@ def _build_point_distribution(
 
 def _build_temporal_distribution(detail: pd.DataFrame) -> pd.DataFrame:
     working = detail.copy()
+    semantic_column = _semantic_admissibility_column(working)
     working["temporal_resolution"] = working.apply(_temporal_resolution, axis=1)
     rows: list[dict[str, object]] = []
     group_columns = [
@@ -168,14 +169,17 @@ def _build_temporal_distribution(detail: pd.DataFrame) -> pd.DataFrame:
         values.update({"task_id": "TEMPORAL", "horizon_id": f"{keys[-1]}H"})
         values["support_scope"] = "DEPENDENCY_ADMISSIBLE_ANCHORS"
         values["raw_anchor_count"] = int(len(group))
-        values["admissible_anchor_count"] = int(group["anchor_dependency_admissible"].sum())
-        rows.extend(_class_rows_from_group(group, values, "temporal_resolution", "observed_low_run_id"))
+        values["admissible_anchor_count"] = int(group[semantic_column].sum())
+        values["evaluation_admissible_anchor_count"] = int(group["anchor_dependency_admissible"].sum())
+        values["feature_history_excluded_count"] = int((~group["feature_history_admissible"]).sum()) if "feature_history_admissible" in group else 0
+        rows.extend(_class_rows_from_group(group, values, "temporal_resolution", "observed_low_run_id", semantic_column))
     return pd.DataFrame(rows)
 
 
 def _build_same_y_distribution(detail: pd.DataFrame) -> pd.DataFrame:
     working = detail.copy()
-    working["same_y_status"] = working["anchor_dependency_admissible"].map(
+    semantic_column = _semantic_admissibility_column(working)
+    working["same_y_status"] = working[semantic_column].map(
         {True: "ELIGIBLE", False: "INELIGIBLE"}
     )
     group_columns = [
@@ -196,10 +200,12 @@ def _build_same_y_distribution(detail: pd.DataFrame) -> pd.DataFrame:
                 "horizon_id": f"{keys[-1]}H",
                 "support_scope": "DEPENDENCY_ADMISSIBLE_ANCHORS",
                 "raw_anchor_count": int(len(group)),
-                "admissible_anchor_count": int(group["anchor_dependency_admissible"].sum()),
+                "admissible_anchor_count": int(group[semantic_column].sum()),
+                "evaluation_admissible_anchor_count": int(group["anchor_dependency_admissible"].sum()),
+                "feature_history_excluded_count": int((~group["feature_history_admissible"]).sum()) if "feature_history_admissible" in group else 0,
             }
         )
-        rows.extend(_class_rows_from_group(group, values, "same_y_status", None))
+        rows.extend(_class_rows_from_group(group, values, "same_y_status", None, semantic_column))
     return pd.DataFrame(rows)
 
 
@@ -247,10 +253,11 @@ def _class_rows_from_group(
     context: dict[str, object],
     label_column: str,
     event_column: str | None,
+    admissible_column: str = "anchor_dependency_admissible",
 ) -> list[dict[str, object]]:
     rows: list[dict[str, object]] = []
     for label, label_group in group.groupby(label_column, dropna=False):
-        eligible = label_group.loc[label_group["anchor_dependency_admissible"]]
+        eligible = label_group.loc[label_group[admissible_column].fillna(False).astype(bool)]
         row = dict(context)
         row.update(
             {
@@ -282,8 +289,9 @@ def _class_rows_from_group(
 
 
 def _temporal_resolution(row: pd.Series) -> str:
-    if not bool(row["anchor_dependency_admissible"]):
-        return "TEMPORAL_WINDOW_INELIGIBLE"
+    semantic_column = _semantic_admissibility_column(row)
+    if not bool(row[semantic_column]):
+        return "TEMPORAL_SEMANTIC_NOT_EVALUABLE"
     point = str(row["point_resolution"])
     if point == "LOW":
         return (
@@ -298,3 +306,9 @@ def _temporal_resolution(row: pd.Series) -> str:
     if point == "REFERENCE":
         return "TEMPORAL_REFERENCE_CONTEXT"
     return "TEMPORAL_POINT_NOT_EVALUABLE"
+
+
+def _semantic_admissibility_column(frame: pd.DataFrame | pd.Series) -> str:
+    if isinstance(frame, pd.Series):
+        return "semantic_assignment_admissible" if "semantic_assignment_admissible" in frame.index else "anchor_dependency_admissible"
+    return "semantic_assignment_admissible" if "semantic_assignment_admissible" in frame.columns else "anchor_dependency_admissible"

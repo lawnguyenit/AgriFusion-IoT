@@ -42,6 +42,8 @@ def resolve_temporal_assignments(
             code, label, inclusion = "TEMPORAL_POINT_CONTEXT_INCOMPLETE_TRANSFER", "point_context_incomplete_transfer", "EXCLUDED"
         elif point_label == "reference_context_point":
             code, label, inclusion = "TEMPORAL_REFERENCE_CONTEXT", "reference_context_at_anchor", "INCLUDED"
+        elif point_label == "point_not_evaluable":
+            code, label, inclusion = "TEMPORAL_POINT_NOT_EVALUABLE", "point_not_evaluable", "EXCLUDED"
         else:
             raise ValueError(f"Unhandled temporal point state: {point_label}")
         firing_hash = dataframe_set_hash(pd.DataFrame([{"sample_id": sample_id, "horizon_id": horizon_id}]), ["sample_id", "horizon_id"])

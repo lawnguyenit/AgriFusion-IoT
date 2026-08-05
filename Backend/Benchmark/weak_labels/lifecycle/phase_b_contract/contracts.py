@@ -39,7 +39,7 @@ class PhaseB2Config:
     derived_evidence_contract_path: Path
     continuity_contract_path: Path
     window_contract_path: Path
-    expected_difference_contract_path: Path
+    expected_difference_contract_path: Path | None
     canonical_history_path: Path
     output_root: Path
     # Explicit Q×K×fold selection profile. Keeping this separate from the

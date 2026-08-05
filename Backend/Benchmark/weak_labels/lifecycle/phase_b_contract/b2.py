@@ -93,6 +93,7 @@ def _preflight(config: PhaseB2Config) -> dict[str, Any]:
         raise PhaseB2Error("B1 must not contain materialized labels.")
 
     decision = _read_yaml(config.review_decision_path.resolve())
+    decision = _expand_candidate_review_decision(decision, config)
     _validate_review_decision(decision, b1_manifest, config.expected_difference_contract_path)
     selection = _load_selection(config.selection_config_path, decision)
     declared_selection_hash = decision.get("selection_profile_hash")
@@ -180,6 +181,170 @@ def _preflight(config: PhaseB2Config) -> dict[str, Any]:
     }
 
 
+def _expand_candidate_review_decision(
+    decision: dict[str, Any], config: PhaseB2Config
+) -> dict[str, Any]:
+    """Resolve compact review references into the candidate values they name.
+
+    The review YAML is intentionally small: Phase A/B1 own measured values and
+    candidate policies, while the reviewer approves or rejects those candidates.
+    B2 expands the references in memory and freezes the expanded values; it
+    never invents a fallback when the referenced artifact is missing.
+    """
+
+    expanded = dict(decision)
+    candidates = expanded.get("candidate_contracts")
+    if not isinstance(candidates, dict):
+        return expanded
+
+    paths = candidates.get("paths")
+    if not isinstance(paths, dict):
+        return expanded
+
+    # Accept an already-expanded decision from the migration period. New
+    # templates use references; older reviewed files may already contain the
+    # resolved policy bodies and task thresholds.
+    if (
+        isinstance(expanded.get("support_gate"), dict)
+        and isinstance(expanded["support_gate"].get("task_support"), dict)
+        and isinstance(expanded.get("point_ontology_policy"), dict)
+        and "primary_train_eligible" in expanded["point_ontology_policy"]
+    ):
+        return expanded
+
+    candidate_manifest_path = Path(str(candidates.get("candidate_manifest_path", ""))).resolve()
+    if candidate_manifest_path.exists():
+        declared_manifest_hash = candidates.get("candidate_manifest_hash")
+        if declared_manifest_hash and str(declared_manifest_hash) != file_sha256(candidate_manifest_path):
+            raise PhaseB2Error("Candidate contract manifest hash mismatch.")
+        candidate_manifest = _read_yaml(candidate_manifest_path)
+        if candidate_manifest.get("source_b1_run_id") != config.phase_b1_decision_pack_dir.resolve().name:
+            raise PhaseB2Error("Candidate contracts do not belong to the supplied B1 decision pack.")
+        if candidate_manifest.get("source_phase_a_run_id"):
+            phase_a_manifest = _read_json(config.phase_a_run_dir.resolve() / "run_metadata" / "run_manifest.json")
+            if candidate_manifest["source_phase_a_run_id"] != phase_a_manifest.get("run_id"):
+                raise PhaseB2Error("Candidate contracts do not belong to the supplied Phase A run.")
+
+    semantic_path = Path(str(paths.get("semantic_policies", ""))).resolve()
+    support_path = Path(str(paths.get("support_profiles", ""))).resolve()
+    if not semantic_path.exists() or not support_path.exists():
+        raise PhaseB2Error("Compact review references missing candidate contract artifacts.")
+
+    semantic = _read_yaml(semantic_path)
+    support = _read_yaml(support_path)
+    if not isinstance(semantic, dict) or semantic.get("authority_status") != "CANDIDATE_ONLY":
+        raise PhaseB2Error("Semantic candidate bundle is not a candidate-only artifact.")
+    if not isinstance(support, dict) or support.get("authority_status") != "CANDIDATE_ONLY":
+        raise PhaseB2Error("Support candidate bundle is not a candidate-only artifact.")
+
+    # A compact policy reference must be explicitly approved; otherwise a
+    # reviewer could accidentally freeze a candidate by omission.
+    baseline_mode = str(expanded.get("iteration_mode", "")) == "BASELINE_ITERATION"
+    policy_map = {
+        "point_ontology_policy": ("point_ontology_policy_id", "point_ontology_policy"),
+        "temporal_ontology": ("temporal_ontology_policy_id", "temporal_ontology"),
+        "resolver_policy": ("resolver_policy_id", "resolver_policy"),
+        "temporal_resolution_policy": ("temporal_resolution_policy_id", "temporal_resolution_policy"),
+        "same_y_policy": ("same_y_policy_id", "same_y_policy"),
+    }
+    for field, (id_field, body_field) in policy_map.items():
+        current = expanded.get(field)
+        if not isinstance(current, dict):
+            raise PhaseB2Error(f"Compact review is missing {field}.")
+        if current.get("approval") != "APPROVE_CANDIDATE" and not (
+            baseline_mode and current.get("approval") == "REQUIRED_CONFIRMATION"
+        ):
+            raise PhaseB2Error(f"Reviewer must explicitly approve candidate {field}.")
+        policy_id = current.get("candidate_policy_id")
+        if policy_id != semantic.get(id_field):
+            raise PhaseB2Error(f"{field} references an unknown candidate policy.")
+        body = semantic.get(body_field)
+        if not isinstance(body, dict):
+            raise PhaseB2Error(f"Candidate semantic policy body is missing: {body_field}.")
+        expanded[field] = {
+            **body,
+            "policy_id": policy_id,
+            "approval": "APPROVE_CANDIDATE" if baseline_mode else current["approval"],
+        }
+
+    support_gate = expanded.get("support_gate")
+    if not isinstance(support_gate, dict):
+        raise PhaseB2Error("Compact review is missing support_gate.")
+    if support_gate.get("approval") != "APPROVE_CANDIDATE" and not (
+        baseline_mode and support_gate.get("approval") == "REQUIRED_CONFIRMATION"
+    ):
+        raise PhaseB2Error("Reviewer must explicitly approve the candidate support profile.")
+    if support_gate.get("profile_id") != support.get("profile_id"):
+        raise PhaseB2Error("Support profile reference does not match its candidate artifact.")
+    observed = support.get("support")
+    if not isinstance(observed, dict):
+        raise PhaseB2Error("Support candidate artifact has no support measurements.")
+    task_support = _support_thresholds_from_candidate(observed)
+    overrides = support_gate.get("overrides")
+    if overrides is not None:
+        if not isinstance(overrides, dict):
+            raise PhaseB2Error("Support-gate overrides must be a task mapping or null.")
+        for task_name, values in overrides.items():
+            if task_name not in task_support or not isinstance(values, dict):
+                raise PhaseB2Error(f"Unsupported support-gate override task: {task_name}")
+            for field, value in values.items():
+                if field not in task_support[task_name] or isinstance(value, bool):
+                    raise PhaseB2Error(f"Unsupported support-gate override: {task_name}.{field}")
+                try:
+                    numeric = int(value)
+                except (TypeError, ValueError) as exc:
+                    raise PhaseB2Error(f"Support-gate override must be numeric: {task_name}.{field}") from exc
+                if numeric < 0:
+                    raise PhaseB2Error(f"Support-gate override must be non-negative: {task_name}.{field}")
+                task_support[task_name][field] = numeric
+    expanded["support_gate"] = {
+        "policy": "REVIEWER_APPROVED_B1_CANDIDATE_PROFILE",
+        "profile_id": support_gate["profile_id"],
+        "task_support": task_support,
+        "observed_primary_support": support_gate.get("observed_primary_support", {}),
+    }
+    return expanded
+
+
+def _support_thresholds_from_candidate(support: dict[str, Any]) -> dict[str, dict[str, int]]:
+    """Translate B1's observed candidate floors to the internal B2 gate shape."""
+
+    point = support.get("POINT", {})
+    temporal = support.get("TEMPORAL", {})
+    same_y = support.get("SAME_Y", {})
+    try:
+        point_floor = int(point["recommended_floor"])
+        temporal_class = int(temporal["recommended_floor_class_count"])
+        temporal_event = int(temporal["recommended_floor_event_count"])
+        temporal_cluster = int(temporal["recommended_floor_cluster_count"])
+        same_y_class = int(same_y["recommended_floor_class_count"])
+        same_y_cluster = int(same_y["recommended_floor_cluster_count"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise PhaseB2Error("Candidate support profile lacks recommended floors.") from exc
+    return {
+        "POINT": {
+            "min_train_class_count": point_floor,
+            "min_validation_class_count": point_floor,
+            "min_test_class_count": point_floor,
+        },
+        "TEMPORAL": {
+            "min_train_class_count": temporal_class,
+            "min_validation_class_count": temporal_class,
+            "min_test_class_count": temporal_class,
+            "min_train_event_count": temporal_event,
+            "min_validation_event_count": temporal_event,
+            "min_test_event_count": temporal_event,
+            "min_unique_cluster_count": temporal_cluster,
+        },
+        "SAME_Y": {
+            "min_train_class_count": same_y_class,
+            "min_validation_class_count": same_y_class,
+            "min_test_class_count": same_y_class,
+            "min_unique_cluster_count": same_y_cluster,
+        },
+    }
+
+
 def _write_contract(staging: Path, config: PhaseB2Config, inputs: dict[str, Any], run_id: str) -> None:
     for directory in (
         "ontology",
@@ -209,7 +374,12 @@ def _write_contract(staging: Path, config: PhaseB2Config, inputs: dict[str, Any]
         "derived_evidence": file_sha256(config.derived_evidence_contract_path.resolve()),
         "continuity": file_sha256(config.continuity_contract_path.resolve()),
         "window": file_sha256(config.window_contract_path.resolve()),
-        "expected_difference": file_sha256(config.expected_difference_contract_path.resolve()),
+        "expected_difference": (
+            file_sha256(config.expected_difference_contract_path.resolve())
+            if config.expected_difference_contract_path is not None
+            and config.expected_difference_contract_path.resolve().exists()
+            else None
+        ),
         "review_decision": decision_hash,
     }
     if config.selection_config_path is not None:
@@ -284,7 +454,11 @@ def _write_contract(staging: Path, config: PhaseB2Config, inputs: dict[str, Any]
     })
     _write_yaml(staging / "ontology" / "temporal_anchor_ontology.yaml", decision["temporal_ontology"])
     _write_yaml(staging / "ontology" / "same_y_contract.yaml", decision["same_y_policy"])
-    shutil.copy2(config.expected_difference_contract_path.resolve(), staging / "compatibility" / "expected_difference_contract.csv")
+    if config.expected_difference_contract_path is not None and config.expected_difference_contract_path.resolve().exists():
+        shutil.copy2(
+            config.expected_difference_contract_path.resolve(),
+            staging / "compatibility" / "expected_difference_contract.csv",
+        )
 
     commitment = _build_freeze_commitment(config.canonical_history_path.resolve())
     commitment.to_parquet(staging / "provenance" / "freeze_record_commitment.parquet", index=False)
@@ -320,7 +494,12 @@ def _write_contract(staging: Path, config: PhaseB2Config, inputs: dict[str, Any]
         "decision_pack_hash": inputs["b1_manifest"]["decision_pack_hash"],
         "anchor_safety_audit_hash": inputs["anchor_hash"],
         "distribution_audit_hash": inputs["distribution_hash"],
-        "expected_difference_contract_hash": file_sha256(config.expected_difference_contract_path.resolve()),
+        "expected_difference_contract_hash": (
+            file_sha256(config.expected_difference_contract_path.resolve())
+            if config.expected_difference_contract_path is not None
+            and config.expected_difference_contract_path.resolve().exists()
+            else None
+        ),
         "freeze_timestamp_utc": freeze_timestamp,
         "parent_protocol_registry_contract_hash": inputs["registry"].run_manifest["registry_contract_hash"],
         "input_hashes": input_hashes,
@@ -389,7 +568,9 @@ def _write_b2_artifact_catalog(run_dir: Path) -> pd.DataFrame:
     return catalog
 
 
-def _validate_review_decision(decision: dict[str, Any], b1_manifest: dict[str, Any], expected_path: Path) -> None:
+def _validate_review_decision(
+    decision: dict[str, Any], b1_manifest: dict[str, Any], expected_path: Path | None
+) -> None:
     required = {
         "decision_status", "decision_id", "reviewer_ids", "reviewed_at_utc",
         "reviewed_decision_pack_hash", "selected_primary_q", "selected_primary_k",
@@ -403,17 +584,27 @@ def _validate_review_decision(decision: dict[str, Any], b1_manifest: dict[str, A
     missing = sorted(required - set(decision))
     if missing:
         raise PhaseB2Error(f"Review decision is missing required fields: {missing}")
-    if decision["decision_status"] != "APPROVED":
+    iteration_mode = str(decision.get("iteration_mode", "REVIEWED_FREEZE"))
+    if iteration_mode == "BASELINE_ITERATION":
+        if decision["decision_status"] not in {"BASELINE_APPROVED", "APPROVED"}:
+            raise PhaseB2Error(
+                "BASELINE_ITERATION requires decision_status=BASELINE_APPROVED or APPROVED."
+            )
+    elif decision["decision_status"] != "APPROVED":
         raise PhaseB2Error("B2 requires decision_status=APPROVED.")
     if str(decision["reviewed_decision_pack_hash"]) != str(b1_manifest.get("decision_pack_hash")):
         raise PhaseB2Error("Review decision hash does not match B1 decision pack.")
     expected_op = f"{decision['selected_primary_q']}-K{int(decision['selected_primary_k'])}"
     if str(decision["selected_primary_operationalization_id"]) != expected_op:
         raise PhaseB2Error("selected_primary_operationalization_id does not match selected Q×K.")
-    expected_hash = file_sha256(expected_path.resolve())
     declared = decision.get("expected_difference_contract_hash")
-    if str(declared) != expected_hash:
-        raise PhaseB2Error("Expected-difference contract hash mismatch.")
+    if expected_path is None or not expected_path.resolve().exists():
+        if iteration_mode != "BASELINE_ITERATION" or declared not in (None, ""):
+            raise PhaseB2Error("Expected-difference contract is required for this B2 mode.")
+    else:
+        expected_hash = file_sha256(expected_path.resolve())
+        if str(declared) != expected_hash:
+            raise PhaseB2Error("Expected-difference contract hash mismatch.")
     gate = decision["support_gate"]
     if not isinstance(gate, dict) or not isinstance(gate.get("task_support"), dict):
         raise PhaseB2Error("Support gate must declare task-specific reviewer-owned thresholds.")
@@ -531,7 +722,10 @@ def _validate_anchor_safety(frame: pd.DataFrame, selected_q: str, selected_k: in
         "q_contract_id", "k", "fold_policy_id", "fold_id", "split_role",
         "unique_anchor_count", "dependency_admissible_anchor_count",
         "purge_excluded_count", "boundary_excluded_count",
-        "cross_split_anchor_count", "cross_deployment_anchor_count", "purge_applied",
+        "cross_split_anchor_count", "cross_deployment_anchor_count",
+        "semantic_cross_split_anchor_count", "semantic_cross_deployment_anchor_count",
+        "semantic_admissible_anchor_count", "evaluation_admissible_anchor_count",
+        "purge_applied",
     }
     missing = sorted(required - set(frame.columns))
     if missing:
@@ -542,13 +736,29 @@ def _validate_anchor_safety(frame: pd.DataFrame, selected_q: str, selected_k: in
     if selected.empty:
         raise PhaseB2Error("Anchor safety audit has no selected Q×K rows.")
     key = ["q_contract_id", "k", "fold_policy_id", "fold_id", "split_role"]
+    if "window_horizon_hours" in selected.columns:
+        # The audit legitimately has one row per temporal horizon. A duplicate
+        # means the same Q-K-fold-split-horizon was emitted twice, not that 3h
+        # and 8h should be merged.
+        key.append("window_horizon_hours")
     if selected.duplicated(key).any():
         raise PhaseB2Error("Anchor safety audit contains duplicate Q×K×fold×split rows.")
     if not selected["purge_applied"].astype(bool).all():
         raise PhaseB2Error("Anchor safety audit does not prove purge was applied.")
-    for column in ("cross_split_anchor_count", "cross_deployment_anchor_count"):
+    # Feature-history crossings are diagnostic for downstream evaluation and
+    # must not invalidate the semantic label contract.  B2 blocks only label
+    # dependency crossings (persistence/deployment), which can change the
+    # meaning of an anchor or leak label evidence across a split.
+    for column in ("semantic_cross_split_anchor_count", "semantic_cross_deployment_anchor_count"):
         if (pd.to_numeric(selected[column], errors="coerce").fillna(-1) > 0).any():
             raise PhaseB2Error(f"Anchor safety violation in {column}.")
+    semantic_count = pd.to_numeric(selected["semantic_admissible_anchor_count"], errors="coerce")
+    unique_count = pd.to_numeric(selected["unique_anchor_count"], errors="coerce")
+    if semantic_count.isna().any() or (semantic_count < 0).any() or (semantic_count > unique_count).any():
+        raise PhaseB2Error("Invalid semantic-admissible anchor count.")
+    evaluation_count = pd.to_numeric(selected["evaluation_admissible_anchor_count"], errors="coerce")
+    if evaluation_count.isna().any() or (evaluation_count < 0).any() or (evaluation_count > unique_count).any():
+        raise PhaseB2Error("Invalid evaluation-admissible anchor count.")
     if (pd.to_numeric(selected["dependency_admissible_anchor_count"], errors="coerce") < 0).any():
         raise PhaseB2Error("Invalid dependency-admissible anchor count.")
 
@@ -670,7 +880,12 @@ def _validate_approved_contract_ids(
     if window_id != decision["approved_window_contract_id"]:
         raise PhaseB2Error("Approved window contract ID does not match its artifact.")
     approved_derived = str(decision["approved_derived_evidence_contract_id"])
-    if approved_derived not in set(derived["derived_evidence_id"].astype(str)):
+    derived_ids = (
+        set(derived["contract_id"].astype(str))
+        if "contract_id" in derived.columns
+        else set(derived["derived_evidence_id"].astype(str))
+    )
+    if approved_derived not in derived_ids:
         raise PhaseB2Error("Approved derived-evidence contract ID is absent from its artifact.")
 
 

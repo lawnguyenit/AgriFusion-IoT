@@ -28,7 +28,9 @@ def _build_horizon(frame: pd.DataFrame, horizon: str, contract: NativeContract, 
     cadence = float(_required_value(window, "nominal_cadence_minutes"))
     expected_formula = str(_required_value(slot_formula, "formula"))
     include_anchor = bool(_required_value(window, "anchor_inclusion"))
-    tolerance = float(_required_value(slot_assignment, "tolerance_minutes"))
+    method = str(_required_value(slot_assignment, "method"))
+    tolerance_value = slot_assignment.get("tolerance_minutes")
+    tolerance = float(tolerance_value) if tolerance_value is not None else None
     min_coverage = float(_required_value(coverage_contract, "minimum_ratio"))
     max_gap = float(_required_value(gap_contract, "minutes"))
     rows: list[dict[str, object]] = []
@@ -42,11 +44,21 @@ def _build_horizon(frame: pd.DataFrame, horizon: str, contract: NativeContract, 
         if not include_anchor:
             upper &= timestamps < anchor
         candidates = candidates.loc[lower & upper].copy()
-        elapsed_minutes = (pd.to_datetime(candidates["sample_time_utc"], utc=True) - start).dt.total_seconds().div(60)
-        candidates["_nominal_slot"] = (elapsed_minutes / cadence).round().astype("Int64")
-        candidates["_slot_distance"] = (elapsed_minutes - candidates["_nominal_slot"].astype(float) * cadence).abs()
-        candidates = candidates.loc[candidates["_slot_distance"] <= tolerance].copy()
-        duplicate_slots = candidates.duplicated(["_nominal_slot"], keep=False).any() if not candidates.empty else False
+        timestamps = pd.to_datetime(candidates["sample_time_utc"], utc=True)
+        if method == "NEAREST_NOMINAL_SLOT":
+            if tolerance is None:
+                raise ValueError("NEAREST_NOMINAL_SLOT requires tolerance_minutes.")
+            elapsed_minutes = (timestamps - start).dt.total_seconds().div(60)
+            candidates["_nominal_slot"] = (elapsed_minutes / cadence).round().astype("Int64")
+            candidates["_slot_distance"] = (elapsed_minutes - candidates["_nominal_slot"].astype(float) * cadence).abs()
+            candidates = candidates.loc[candidates["_slot_distance"] <= tolerance].copy()
+            duplicate_slots = candidates.duplicated(["_nominal_slot"], keep=False).any() if not candidates.empty else False
+        elif method == "OBSERVED_TIMESTAMP":
+            # Coverage is based on unique valid observations.  Duplicate sample
+            # timestamps remain a hard failure; they are not silently collapsed.
+            duplicate_slots = timestamps.duplicated(keep=False).any() if not candidates.empty else False
+        else:
+            raise ValueError(f"Unsupported frozen window slot-assignment method: {method}")
         if duplicate_slots:
             accepted = pd.DataFrame()
         else:

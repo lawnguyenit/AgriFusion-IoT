@@ -103,6 +103,33 @@ def build_qk_anchor_safety_audits(
             projected["cross_deployment_anchor"] = projected[
                 "dependency_crosses_deployment"
             ]
+            projected["semantic_cross_split_anchor"] = (
+                projected["persistence_interval_crosses_nominal_split"]
+                | projected["persistence_dependency_unavailable"]
+            )
+            projected["semantic_cross_deployment_anchor"] = projected[
+                "dependency_crosses_deployment"
+            ]
+            projected["semantic_assignment_admissible"] = ~(
+                projected["semantic_cross_split_anchor"]
+                | projected["semantic_cross_deployment_anchor"]
+            )
+            projected["feature_history_admissible"] = ~projected[
+                "feature_interval_crosses_nominal_split"
+            ]
+            projected["crossing_cause"] = projected.apply(_crossing_cause, axis=1)
+            projected["dependency_type"] = projected.apply(_dependency_type, axis=1)
+            projected["exclusion_reason"] = projected["crossing_cause"].map(
+                {
+                    "DEPLOYMENT_BOUNDARY": "DEPLOYMENT_BOUNDARY",
+                    "FEATURE_HISTORY_AND_DEPLOYMENT": "DEPLOYMENT_BOUNDARY",
+                    "LABEL_DEPENDENCY_UNAVAILABLE": "LABEL_DEPENDENCY_UNAVAILABLE",
+                    "FEATURE_AND_LABEL_DEPENDENCY": "LABEL_DEPENDENCY_CROSS_SPLIT",
+                    "LABEL_DEPENDENCY_ONLY": "LABEL_DEPENDENCY_CROSS_SPLIT",
+                    "FEATURE_HISTORY_ONLY": "FEATURE_HISTORY_ONLY",
+                    "NONE": "NONE",
+                }
+            ).fillna("UNCLASSIFIED")
             projected["observed_run_crossing_audit"] = projected[
                 "observed_run_crosses_split"
             ]
@@ -153,11 +180,26 @@ def aggregate_fold_support_for_b2(anchor_safety: pd.DataFrame) -> pd.DataFrame:
                 "dependency_admissible_anchor_count": int(
                     group["dependency_admissible_anchor_count"].min()
                 ),
+                "semantic_admissible_anchor_count": int(
+                    group["semantic_admissible_anchor_count"].min()
+                ),
+                "feature_history_admissible_anchor_count": int(
+                    group["feature_history_admissible_anchor_count"].min()
+                ),
+                "evaluation_admissible_anchor_count": int(
+                    group["evaluation_admissible_anchor_count"].min()
+                ),
                 "purge_excluded_count": int(group["purge_excluded_count"].max()),
                 "boundary_excluded_count": int(group["boundary_excluded_count"].max()),
                 "cross_split_anchor_count": int(group["cross_split_anchor_count"].max()),
                 "cross_deployment_anchor_count": int(
                     group["cross_deployment_anchor_count"].max()
+                ),
+                "semantic_cross_split_anchor_count": int(
+                    group["semantic_cross_split_anchor_count"].max()
+                ),
+                "semantic_cross_deployment_anchor_count": int(
+                    group["semantic_cross_deployment_anchor_count"].max()
                 ),
                 "observed_run_crossing_audit_count": int(
                     group["observed_run_crossing_audit_count"].max()
@@ -169,6 +211,12 @@ def aggregate_fold_support_for_b2(anchor_safety: pd.DataFrame) -> pd.DataFrame:
                 "purge_applied": bool(group["purge_applied"].all()),
                 "evaluation_anchor_admissible": bool(
                     group["evaluation_anchor_admissible"].all()
+                ),
+                "semantic_assignment_admissible": bool(
+                    group["semantic_assignment_admissible"].all()
+                ),
+                "feature_history_admissible": bool(
+                    group["feature_history_admissible"].all()
                 ),
                 "support_scope": "DEPENDENCY_ADMISSIBLE_ACROSS_ALL_AUDITED_HORIZONS",
                 "authority_status": "CANDIDATE_ONLY",
@@ -288,31 +336,40 @@ def _summarize_projected_anchors(projected: pd.DataFrame) -> pd.DataFrame:
                 else "DIAGNOSTIC"
             )
         )
-        admissible = group["anchor_dependency_admissible"]
+        evaluation_admissible = group["anchor_dependency_admissible"]
+        semantic_admissible = group.get("semantic_assignment_admissible", evaluation_admissible)
+        feature_admissible = group.get("feature_history_admissible", evaluation_admissible)
         values.update(
             {
                 "raw_anchor_count": int(len(group)),
                 "unique_anchor_count": int(
                     group["record_id"].nunique() if "record_id" in group.columns else len(group)
                 ),
-                "dependency_admissible_anchor_count": int(admissible.sum()),
+                "dependency_admissible_anchor_count": int(evaluation_admissible.sum()),
+                "semantic_admissible_anchor_count": int(semantic_admissible.sum()),
+                "feature_history_admissible_anchor_count": int(feature_admissible.sum()),
+                "evaluation_admissible_anchor_count": int(evaluation_admissible.sum()),
                 "purge_excluded_count": int(group["purge_excluded"].sum()),
                 "boundary_excluded_count": int(group["boundary_excluded"].sum()),
                 "cross_split_anchor_count": int(group["cross_split_anchor"].sum()),
                 "cross_deployment_anchor_count": int(group["cross_deployment_anchor"].sum()),
+                "semantic_cross_split_anchor_count": int(group.get("semantic_cross_split_anchor", group["cross_split_anchor"]).sum()),
+                "semantic_cross_deployment_anchor_count": int(group.get("semantic_cross_deployment_anchor", group["cross_deployment_anchor"]).sum()),
                 "observed_run_crossing_audit_count": int(
                     group["observed_run_crossing_audit"].sum()
                 ),
                 "raw_event_count": int(group["observed_low_run_id"].nunique()),
                 "admissible_event_count": int(
-                    group.loc[admissible, "observed_low_run_id"].nunique()
+                    group.loc[semantic_admissible, "observed_low_run_id"].nunique()
                 ),
                 "event_count": int(
-                    group.loc[admissible, "observed_low_run_id"].nunique()
+                    group.loc[semantic_admissible, "observed_low_run_id"].nunique()
                 ),
-                "persistent_anchor_count": int(admissible.sum()),
+                "persistent_anchor_count": int(semantic_admissible.sum()),
                 "purge_applied": True,
-                "evaluation_anchor_admissible": bool(admissible.all()),
+                "evaluation_anchor_admissible": bool(evaluation_admissible.all()),
+                "semantic_assignment_admissible": bool(semantic_admissible.all()),
+                "feature_history_admissible": bool(feature_admissible.all()),
                 "support_scope": "DEPENDENCY_ADMISSIBLE_ANCHORS",
                 "fold_policy_role": policy_role,
                 "authority_status": "CANDIDATE_ONLY",
@@ -320,3 +377,38 @@ def _summarize_projected_anchors(projected: pd.DataFrame) -> pd.DataFrame:
         )
         rows.append(values)
     return pd.DataFrame(rows)
+
+
+def _crossing_cause(row: pd.Series) -> str:
+    feature = bool(row.get("feature_interval_crosses_nominal_split", False))
+    persistence = bool(row.get("persistence_interval_crosses_nominal_split", False))
+    deployment = bool(row.get("dependency_crosses_deployment", False))
+    unavailable = bool(row.get("persistence_dependency_unavailable", False))
+    if deployment and feature:
+        return "FEATURE_HISTORY_AND_DEPLOYMENT"
+    if deployment:
+        return "DEPLOYMENT_BOUNDARY"
+    if unavailable:
+        return "LABEL_DEPENDENCY_UNAVAILABLE"
+    if feature and persistence:
+        return "FEATURE_AND_LABEL_DEPENDENCY"
+    if feature:
+        return "FEATURE_HISTORY_ONLY"
+    if persistence:
+        return "LABEL_DEPENDENCY_ONLY"
+    return "NONE"
+
+
+def _dependency_type(row: pd.Series) -> str:
+    feature = bool(row.get("feature_interval_crosses_nominal_split", False))
+    persistence = bool(row.get("persistence_interval_crosses_nominal_split", False))
+    deployment = bool(row.get("dependency_crosses_deployment", False))
+    if feature and persistence:
+        return "COMBINED"
+    if feature:
+        return "FEATURE_HISTORY"
+    if persistence:
+        return "PERSISTENCE"
+    if deployment:
+        return "DEPLOYMENT"
+    return "NONE"

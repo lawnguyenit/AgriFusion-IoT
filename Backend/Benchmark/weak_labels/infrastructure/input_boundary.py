@@ -7,6 +7,7 @@ import pandas as pd
 
 from Backend.Benchmark.protocol_registry import load_protocol_registry
 from Backend.Benchmark.weak_labels.contracts.native import NativeContract, NativeContractError
+from Backend.Benchmark.weak_labels.infrastructure.shared.helpers import resolve_local_timestamp_series
 
 
 CANONICAL_REQUIRED_COLUMNS = (
@@ -48,7 +49,7 @@ def load_e1_authorized_canonical(
         usecols=["record.id", "record.segment_id", "record.sample_time_local"],
         low_memory=False,
     )
-    structural_sample = pd.to_datetime(structural["record.sample_time_local"], errors="coerce", utc=True)
+    structural_sample = resolve_local_timestamp_series(structural).dt.tz_convert("UTC")
     authorized_positions = structural.index[(structural_sample >= start) & (structural_sample < end)].tolist()
     if not authorized_positions:
         raise NativeContractError("No E1 canonical records are available for native execution.")
@@ -59,7 +60,7 @@ def load_e1_authorized_canonical(
         low_memory=False,
         skiprows=lambda row_number: row_number != 0 and row_number not in authorized_file_rows,
     ).convert_dtypes()
-    sample = pd.to_datetime(payload["record.sample_time_local"], errors="coerce", utc=True)
+    sample = resolve_local_timestamp_series(payload).dt.tz_convert("UTC")
     payload["sample_time_utc"] = sample
     payload["environment_id"] = "E1"
     frame = payload
