@@ -193,11 +193,12 @@ def resolve_view_ids(requested_view_ids: tuple[str, ...]) -> tuple[str, ...]:
     seen: set[str] = set()
     for view_id in requested_view_ids:
         if view_id.strip() == "v2":
+            # Legacy compatibility alias: keep the public primary family
+            # deterministic.  Eight-hour sensitivity views remain explicit
+            # selections and are never pulled in implicitly by orchestration.
             for semantic_view_id in (
                 "v2_minimal_sensor_window_3h",
-                "v2_minimal_sensor_window_8h",
                 "v2_sensor_row_window_3h",
-                "v2_sensor_row_window_8h",
             ):
                 if semantic_view_id not in seen:
                     seen.add(semantic_view_id)

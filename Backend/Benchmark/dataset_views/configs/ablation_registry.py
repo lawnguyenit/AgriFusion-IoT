@@ -4,6 +4,7 @@ from __future__ import annotations
 ABALATION_SUBSETS: tuple[dict[str, object], ...] = (
     {
         "subset_id": "v0_core",
+        "semantic_arm_id": "base_5",
         "base_matrix_id": "v0_minimal_sensor",
         "included_feature_families": ["sht", "npk_core"],
         "excluded_feature_families": [],
@@ -15,6 +16,7 @@ ABALATION_SUBSETS: tuple[dict[str, object], ...] = (
     },
     {
         "subset_id": "v0_plus_ph",
+        "semantic_arm_id": "plus_ph",
         "base_matrix_id": "v0_minimal_sensor",
         "included_feature_families": ["sht", "npk_core", "npk_ph"],
         "excluded_feature_families": [],
@@ -26,6 +28,7 @@ ABALATION_SUBSETS: tuple[dict[str, object], ...] = (
     },
     {
         "subset_id": "v0_plus_npk",
+        "semantic_arm_id": "plus_npk",
         "base_matrix_id": "v0_minimal_sensor",
         "included_feature_families": ["sht", "npk_core", "npk_ph", "npk_nutrients"],
         "excluded_feature_families": [],
@@ -37,6 +40,7 @@ ABALATION_SUBSETS: tuple[dict[str, object], ...] = (
     },
     {
         "subset_id": "v1_full",
+        "semantic_arm_id": "full_9",
         "base_matrix_id": "v0_minimal_sensor",
         "included_feature_families": ["sht", "npk_all"],
         "excluded_feature_families": [],
@@ -48,6 +52,7 @@ ABALATION_SUBSETS: tuple[dict[str, object], ...] = (
     },
     {
         "subset_id": "v1_without_ph",
+        "semantic_arm_id": "plus_npk",
         "base_matrix_id": "v0_minimal_sensor",
         "included_feature_families": ["sht", "npk_core", "npk_nutrients"],
         "excluded_feature_families": ["npk_ph"],
@@ -60,9 +65,10 @@ ABALATION_SUBSETS: tuple[dict[str, object], ...] = (
     {
         "subset_id": "v1_without_npk",
         "base_matrix_id": "v0_minimal_sensor",
-        "included_feature_families": ["sht"],
-        "excluded_feature_families": ["npk_all"],
-        "forbidden_root_sources": ["npk.soil_temp_c", "npk.soil_moisture_pct", "npk.ec", "npk.ph", "npk.n_proxy", "npk.p_proxy", "npk.k_proxy"],
+        "semantic_arm_id": "plus_ph",
+        "included_feature_families": ["sht", "npk_core", "npk_ph"],
+        "excluded_feature_families": ["npk_nutrients"],
+        "forbidden_root_sources": ["npk.n_proxy", "npk.p_proxy", "npk.k_proxy"],
         "target_id": "v1_point_train",
         "history_horizon": 0,
         "comparison_population_policy": "MATCHED_POINT_ANCHORS",

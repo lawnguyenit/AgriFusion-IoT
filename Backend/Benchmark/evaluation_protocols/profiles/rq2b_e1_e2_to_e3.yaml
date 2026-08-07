@@ -1,0 +1,15 @@
+profile_id: RQ2B_E1_E2_TO_E3_V1
+protocol_stage_id: RQ2B_E3_REEVALUATION_BATCH
+label_apply_environment_ids:
+  - E1
+  - E2
+  - E3_TARGET_PREEXPOSED
+train_environment_ids:
+  - E1
+  - E2
+evaluation_environment_ids:
+  - E1
+  - E2
+  - E3_TARGET_PREEXPOSED
+target_environment_ids:
+  - E3_TARGET_PREEXPOSED

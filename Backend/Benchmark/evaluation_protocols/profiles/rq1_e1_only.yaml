@@ -1,0 +1,9 @@
+profile_id: RQ1_E1_ONLY_V1
+protocol_stage_id: CONTRACT_FROZEN
+label_apply_environment_ids:
+  - E1
+train_environment_ids:
+  - E1
+evaluation_environment_ids:
+  - E1
+target_environment_ids: []

@@ -12,6 +12,9 @@ COMPARISON_SPECS: tuple[tuple[str, str, str, str], ...] = (
     ("v1_vs_v2_full_3h", "v1_point_train", "v2_same_y_3h", "3h"),
     ("v0_vs_v2_mini_8h", "v0_point_train", "v2_same_y_8h", "8h"),
     ("v1_vs_v2_full_8h", "v1_point_train", "v2_same_y_8h", "8h"),
+    ("base_5_vs_plus_ph", "v1_point_train", "v1_point_train", "point"),
+    ("base_5_vs_plus_npk", "v1_point_train", "v1_point_train", "point"),
+    ("base_5_vs_full_9", "v1_point_train", "v0_point_train", "point"),
 )
 
 
@@ -51,8 +54,8 @@ def build_explicit_matched_cohort_artifacts(
                 labels_equal = True
                 duplicate_record_ids = len(matched_ids) != len(set(matched_ids))
                 for index, record_id in enumerate(matched_ids, start=1):
-                    left_label = point_lookup.get((left_view_id, record_id), pd.NA)
-                    right_label = same_y_lookup.get((right_view_id, record_id), pd.NA)
+                    left_label = _lookup_label(left_view_id, record_id, point_lookup, same_y_lookup)
+                    right_label = _lookup_label(right_view_id, record_id, point_lookup, same_y_lookup)
                     if str(left_label) != str(right_label):
                         labels_equal = False
                     manifest_rows.append(
@@ -123,6 +126,16 @@ def _ordered_ids(
     frame["record_timestamp"] = frame["record_id"].astype("string").map(record_time_lookup)
     frame = frame.sort_values(["record_timestamp", "record_id"], kind="stable")
     return frame["record_id"].astype("string").tolist()
+
+
+def _lookup_label(
+    task_id: str,
+    record_id: str,
+    point_lookup: dict[tuple[str, str], object],
+    same_y_lookup: dict[tuple[str, str], object],
+) -> object:
+    lookup = same_y_lookup if task_id.startswith("v2_") else point_lookup
+    return lookup.get((task_id, record_id), pd.NA)
 
 
 def _hash_record_set(record_ids: list[str]) -> str:

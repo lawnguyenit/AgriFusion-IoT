@@ -6,6 +6,11 @@ from pathlib import Path
 
 import pandas as pd
 
+from Backend.Benchmark.dataset_views.configs.feature_arms import (
+    get_feature_arm,
+    semantic_arm_for_view,
+    validate_allowlist,
+)
 from Backend.Benchmark.weak_labels.infrastructure.hashing import file_sha256
 
 
@@ -20,6 +25,7 @@ REGISTRY_SPECS: tuple[dict[str, object], ...] = (
     {
         "experiment_id": "v0_point",
         "feature_view_id": "v0_point",
+        "semantic_arm_id": "full_9",
         "feature_source_view_id": "v0_minimal_sensor",
         "label_task_id": "v0_point_train",
         "protocol_view_id": "v0_point_train",
@@ -31,6 +37,7 @@ REGISTRY_SPECS: tuple[dict[str, object], ...] = (
     {
         "experiment_id": "v1_point",
         "feature_view_id": "v1_point",
+        "semantic_arm_id": "base_5",
         "feature_source_view_id": "v1_sensor_row",
         "label_task_id": "v1_point_train",
         "protocol_view_id": "v1_point_train",
@@ -40,8 +47,35 @@ REGISTRY_SPECS: tuple[dict[str, object], ...] = (
         "scientific_blocker": "",
     },
     {
+        "experiment_id": "plus_ph",
+        "feature_view_id": "plus_ph",
+        "semantic_arm_id": "plus_ph",
+        "feature_source_view_id": "v0_minimal_sensor",
+        "label_task_id": "v1_point_train",
+        "protocol_view_id": "v1_point_train",
+        "allowed_feature_columns": tuple(get_feature_arm("plus_ph").feature_names),
+        "sample_unit": "record",
+        "feature_join_key": "record.id",
+        "label_join_key": "sample_id",
+        "scientific_blocker": "",
+    },
+    {
+        "experiment_id": "plus_npk",
+        "feature_view_id": "plus_npk",
+        "semantic_arm_id": "plus_npk",
+        "feature_source_view_id": "v0_minimal_sensor",
+        "label_task_id": "v1_point_train",
+        "protocol_view_id": "v1_point_train",
+        "allowed_feature_columns": tuple(get_feature_arm("plus_npk").feature_names),
+        "sample_unit": "record",
+        "feature_join_key": "record.id",
+        "label_join_key": "sample_id",
+        "scientific_blocker": "",
+    },
+    {
         "experiment_id": "v2_same_y_mini_3h",
         "feature_view_id": "v2_same_y_mini_3h",
+        "semantic_arm_id": "base_5_history_3h",
         "feature_source_view_id": "v2_minimal_sensor_window_3h",
         "label_task_id": "v2_same_y_3h",
         "protocol_view_id": "v2_same_y_3h",
@@ -53,6 +87,7 @@ REGISTRY_SPECS: tuple[dict[str, object], ...] = (
     {
         "experiment_id": "v2_same_y_full_3h",
         "feature_view_id": "v2_same_y_full_3h",
+        "semantic_arm_id": "full_9_history_3h",
         "feature_source_view_id": "v2_sensor_row_window_3h",
         "label_task_id": "v2_same_y_3h",
         "protocol_view_id": "v2_same_y_3h",
@@ -64,6 +99,7 @@ REGISTRY_SPECS: tuple[dict[str, object], ...] = (
     {
         "experiment_id": "v2_temporal_mini_3h",
         "feature_view_id": "v2_temporal_mini_3h",
+        "semantic_arm_id": "base_5_history_3h",
         "feature_source_view_id": "v2_minimal_sensor_window_3h",
         "label_task_id": "v2_temporal_3h",
         "protocol_view_id": "v2_temporal_3h",
@@ -75,6 +111,7 @@ REGISTRY_SPECS: tuple[dict[str, object], ...] = (
     {
         "experiment_id": "v2_temporal_full_3h",
         "feature_view_id": "v2_temporal_full_3h",
+        "semantic_arm_id": "full_9_history_3h",
         "feature_source_view_id": "v2_sensor_row_window_3h",
         "label_task_id": "v2_temporal_3h",
         "protocol_view_id": "v2_temporal_3h",
@@ -86,6 +123,7 @@ REGISTRY_SPECS: tuple[dict[str, object], ...] = (
     {
         "experiment_id": "v2_same_y_mini_8h",
         "feature_view_id": "v2_same_y_mini_8h",
+        "semantic_arm_id": "base_5_history_8h",
         "feature_source_view_id": "v2_minimal_sensor_window_8h",
         "label_task_id": "v2_same_y_8h",
         "protocol_view_id": "v2_same_y_8h",
@@ -97,6 +135,7 @@ REGISTRY_SPECS: tuple[dict[str, object], ...] = (
     {
         "experiment_id": "v2_same_y_full_8h",
         "feature_view_id": "v2_same_y_full_8h",
+        "semantic_arm_id": "full_9_history_8h",
         "feature_source_view_id": "v2_sensor_row_window_8h",
         "label_task_id": "v2_same_y_8h",
         "protocol_view_id": "v2_same_y_8h",
@@ -108,6 +147,7 @@ REGISTRY_SPECS: tuple[dict[str, object], ...] = (
     {
         "experiment_id": "v2_temporal_mini_8h",
         "feature_view_id": "v2_temporal_mini_8h",
+        "semantic_arm_id": "base_5_history_8h",
         "feature_source_view_id": "v2_minimal_sensor_window_8h",
         "label_task_id": "v2_temporal_8h",
         "protocol_view_id": "v2_temporal_8h",
@@ -119,6 +159,7 @@ REGISTRY_SPECS: tuple[dict[str, object], ...] = (
     {
         "experiment_id": "v2_temporal_full_8h",
         "feature_view_id": "v2_temporal_full_8h",
+        "semantic_arm_id": "full_9_history_8h",
         "feature_source_view_id": "v2_sensor_row_window_8h",
         "label_task_id": "v2_temporal_8h",
         "protocol_view_id": "v2_temporal_8h",
@@ -134,6 +175,16 @@ COMPARISON_TO_FEATURE_VIEWS: dict[str, tuple[str, str]] = {
     "v1_vs_v2_full_3h": ("v1_point", "v2_same_y_full_3h"),
     "v0_vs_v2_mini_8h": ("v0_point", "v2_same_y_mini_8h"),
     "v1_vs_v2_full_8h": ("v1_point", "v2_same_y_full_8h"),
+    "base_5_vs_plus_ph": ("v1_point", "plus_ph"),
+    "base_5_vs_plus_npk": ("v1_point", "plus_npk"),
+    "base_5_vs_full_9": ("v1_point", "v0_point"),
+}
+
+FEATURE_VIEW_LABEL_TASK: dict[str, str] = {
+    "v0_point": "v0_point_train",
+    "v1_point": "v1_point_train",
+    "plus_ph": "v1_point_train",
+    "plus_npk": "v1_point_train",
 }
 
 
@@ -310,6 +361,8 @@ def load_dataset_view_feature_artifacts(
         feature_columns_payload = _load_json_file(feature_columns_path)
         ordered_feature_list = [str(column) for column in manifest["ordered_feature_list"]]
         allowed_feature_columns = [str(column) for column in feature_columns_payload["allowed_feature_columns"]]
+        if len(set(allowed_feature_columns)) != len(allowed_feature_columns):
+            raise ValueError(f"dataset_views feature columns are duplicated for {view_id}.")
         if ordered_feature_list != allowed_feature_columns:
             raise ValueError(
                 f"dataset_views feature columns drift for {view_id}: "
@@ -457,6 +510,7 @@ def build_task_training_manifest(
                     "sample_id": sample_id,
                     "feature_view_id": feature_view_id,
                     "feature_source_view_id": feature_source_view_id,
+                    "semantic_arm_id": mapping.get("semantic_arm_id", pd.NA),
                     "label_task_id": label_task_id,
                     "protocol_view_id": protocol_view_id,
                     "fold_id": str(row["fold_id"]),
@@ -497,6 +551,7 @@ def build_task_training_manifest(
                     "row_index_hash": mapping["row_index_hash"],
                     "sample_id_hash": mapping["sample_id_hash"],
                     "allowed_feature_columns_json": mapping["allowed_feature_columns_json"],
+                    "feature_list_hash": mapping.get("feature_list_hash", pd.NA),
                     "identifier_columns_json": mapping["identifier_columns_json"],
                     "audit_only_columns_json": mapping["audit_only_columns_json"],
                     "forbidden_columns_json": mapping["forbidden_columns_json"],
@@ -636,6 +691,7 @@ def build_comparison_training_manifest(
                         "matched_cohort_id": str(row.get("matched_cohort_id_x", row.get("matched_cohort_id", ""))),
                         "feature_view_id": feature_view_id,
                         "feature_source_view_id": row["feature_source_view_id"],
+                        "semantic_arm_id": row.get("semantic_arm_id", pd.NA),
                         "label_task_id": row["label_task_id"],
                         "protocol_view_id": row["protocol_view_id"],
                         "fold_id": str(row["fold_id"]),
@@ -658,6 +714,8 @@ def build_comparison_training_manifest(
                         "feature_generator_code_commit": row["feature_generator_code_commit"],
                         "source_canonical_hash": row["source_canonical_hash"],
                         "sample_id_hash": row["sample_id_hash"],
+                        "allowed_feature_columns_json": row.get("allowed_feature_columns_json", pd.NA),
+                        "feature_list_hash": row.get("feature_list_hash", pd.NA),
                     }
                 )
     comparison_df = pd.DataFrame(rows).convert_dtypes()
@@ -712,6 +770,7 @@ def _registry_row(
     row = {
         "experiment_id": str(spec["experiment_id"]),
         "feature_view_id": str(spec["feature_view_id"]),
+        "semantic_arm_id": str(spec.get("semantic_arm_id") or semantic_arm_for_view(str(spec["feature_view_id"]))),
         "feature_source_view_id": str(spec["feature_source_view_id"]),
         "label_task_id": str(spec["label_task_id"]),
         "protocol_view_id": str(spec["protocol_view_id"]),
@@ -745,6 +804,7 @@ def _registry_row(
                 "sample_id_hash": pd.NA,
                 "row_count": pd.NA,
                 "allowed_feature_columns_json": pd.NA,
+                "feature_list_hash": pd.NA,
                 "identifier_columns_json": pd.NA,
                 "audit_only_columns_json": pd.NA,
                 "forbidden_columns_json": pd.NA,
@@ -767,7 +827,12 @@ def _registry_row(
             "row_index_hash": resolved_feature.row_index_hash,
             "sample_id_hash": resolved_feature.sample_id_hash,
             "row_count": resolved_feature.row_count,
-            "allowed_feature_columns_json": _json_list(resolved_feature.allowed_feature_columns),
+            "allowed_feature_columns_json": _json_list(
+                _resolve_allowed_feature_columns(spec=spec, resolved_feature=resolved_feature)
+            ),
+            "feature_list_hash": _feature_list_hash(
+                _resolve_allowed_feature_columns(spec=spec, resolved_feature=resolved_feature)
+            ),
             "identifier_columns_json": _json_list(resolved_feature.identifier_columns),
             "audit_only_columns_json": _json_list(resolved_feature.audit_only_columns),
             "forbidden_columns_json": _json_list(resolved_feature.forbidden_columns),
@@ -786,6 +851,31 @@ def _native_task_key(label_task_id: str) -> str:
     raise ValueError(f"Unsupported native label task id: {label_task_id}")
 
 
+def _resolve_allowed_feature_columns(
+    *,
+    spec: dict[str, object],
+    resolved_feature: ResolvedFeatureArtifact,
+) -> tuple[str, ...]:
+    requested = spec.get("allowed_feature_columns")
+    if requested is None:
+        return tuple(resolved_feature.allowed_feature_columns)
+    return validate_allowlist(
+        arm_id=str(spec.get("semantic_arm_id")),
+        available_columns=resolved_feature.allowed_feature_columns,
+    )
+
+
+def _feature_list_hash(columns: tuple[str, ...]) -> str:
+    payload = json.dumps(list(columns), ensure_ascii=True, separators=(",", ":"))
+    return file_sha256_from_bytes(payload.encode("utf-8"))
+
+
+def file_sha256_from_bytes(payload: bytes) -> str:
+    import hashlib
+
+    return hashlib.sha256(payload).hexdigest()
+
+
 def _build_matched_cohort_lookup(cohort_manifests: dict[str, pd.DataFrame]) -> dict[tuple[str, str, str, str, str], str]:
     lookup: dict[tuple[str, str, str, str, str], str] = {}
     for name, frame in cohort_manifests.items():
@@ -802,7 +892,9 @@ def _build_matched_cohort_lookup(cohort_manifests: dict[str, pd.DataFrame]) -> d
                     (
                         str(row["record_id"]),
                         feature_view_id,
-                        label_task_id if feature_view_id.startswith("v2_same_y_") else ("v0_point_train" if feature_view_id == "v0_point" else "v1_point_train"),
+                        label_task_id
+                        if feature_view_id.startswith("v2_same_y_")
+                        else FEATURE_VIEW_LABEL_TASK.get(feature_view_id, "v1_point_train"),
                         str(row["fold_id"]),
                         str(row["partition"]),
                     )

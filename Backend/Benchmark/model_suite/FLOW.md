@@ -21,7 +21,10 @@ flowchart LR
 - train the requested models on the allowed train rows
 - evaluate them on the allowed evaluation rows
 - write prediction and metric artifacts under the tranche-0 contract
-- run exact-rule control as a deterministic positive-control check
+- run artifact-consistency and independent-oracle positive controls; a job
+  is not valid when either control disagrees
+- preserve supported-class metrics separately from fixed-ontology metrics and
+  record `fixed_ontology_estimability_status` in job and pooled reports
 
 It does **not** define benchmark folds or weak labels.
 
@@ -43,6 +46,8 @@ It does **not** define benchmark folds or weak labels.
   - `run_validation.json`
   - `run_metadata.json`
   - `rule_control_summary.json`
+  - `artifact_consistency_disagreements.parquet`
+  - `independent_oracle_disagreements.parquet`
   - `disagreement_samples.parquet`
 - profile/run summary artifacts
   - `training_summary.csv`

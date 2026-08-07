@@ -30,6 +30,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--segment-manifest", type=Path, default=None)
     parser.add_argument("--dataset-views-run-dir", type=Path, required=True)
     parser.add_argument("--native-label-release-dir", type=Path, required=True)
+    parser.add_argument(
+        "--execution-profile",
+        type=Path,
+        default=None,
+        help="YAML environment scope; omit to use the compatibility P1/P2 profile.",
+    )
     parser.add_argument("--output-root", type=Path, default=EVALUATION_PROTOCOLS_ROOT / "artifacts")
     return parser.parse_args()
 
@@ -48,6 +54,7 @@ def main() -> None:
             dataset_views_run_dir=dataset_views_run_dir,
             native_label_release_dir=args.native_label_release_dir.resolve(),
             output_root=args.output_root.resolve(),
+            execution_profile_path=args.execution_profile.resolve() if args.execution_profile is not None else None,
         )
     )
     print("evaluation_protocols build complete")

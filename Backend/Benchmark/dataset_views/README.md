@@ -39,7 +39,20 @@ Aliases:
 
 - `v0 -> v0_minimal_sensor`
 - `v1 -> v1_sensor_row`
-- `v2 ->` all four public V2 subviews
+- `v2 ->` the two primary 3h V2 subviews; 8h views must be selected explicitly
+
+## Semantic feature arms
+
+The full nine-channel matrix is the materialization source. Evaluation selects
+the scientific arm before training through an allowlist:
+
+- `base_5`: the five-channel baseline (legacy `v1_point`)
+- `plus_ph`: `base_5` plus pH
+- `plus_npk`: `base_5` plus N/P/K proxies
+- `full_9`: `base_5` plus pH and N/P/K proxies (legacy `v0_point`)
+
+The arm identity and ordered feature list are recorded in the evaluation and
+model manifests. Separate dataset files are not required for these arms.
 
 Rejected legacy or removed ids include:
 

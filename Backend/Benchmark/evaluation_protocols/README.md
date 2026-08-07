@@ -63,10 +63,37 @@ registry has `phase_a_only=true`, so this lane fails closed until Phase B
 publishes a frozen registry. This prevents the historical runner contract from
 silently overriding the corrected 7-day/5-day policy.
 
+Environment scope is explicit per run through `--execution-profile`; the
+runner does not open E2/E3 merely because those environments exist in the
+registry. The first RQ1 profile is:
+
+- `profiles/rq1_e1_only.yaml`: read, label, train, and evaluate E1 only;
+- a future RQ2A profile can train on E1+E2 without opening E3;
+- a future RQ2B profile can evaluate E1/E2 against the pre-exposed E3 target.
+
+The selected profile is recorded in `run_metadata/run_manifest.json`. A
+profile requesting an environment absent from the native label release fails
+closed.
+
 It also consumes an explicit `dataset_views` artifact run as the
 feature authority. The runner contract must pin resolved feature
 artifacts, row-index lineage, and allowlisted columns from that run
 rather than inferring feature bundles from placeholders.
+
+Feature semantics are explicit even where legacy runtime IDs are retained
+for artifact compatibility:
+
+| semantic arm | ordered feature columns |
+| --- | --- |
+| `base_5` | temperature, humidity, soil temperature, soil moisture, EC |
+| `plus_ph` | `base_5` + pH |
+| `plus_npk` | `base_5` + `npk.n_proxy`, `npk.p_proxy`, `npk.k_proxy` |
+| `full_9` | `base_5` + pH + N/P/K proxy |
+
+The materialized `full_9` matrix is shared; the registry allowlist selects
+5/6/8/9 columns before preprocessing. The compatibility mapping is
+`v1_point -> base_5` and `v0_point -> full_9`. New claims use explicit
+comparisons such as `base_5 -> plus_ph`, never bare V0/V1 names.
 
 For downstream model training, the runner-facing authority is under
 `primary_protocol/runner/`:

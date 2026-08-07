@@ -40,6 +40,10 @@ from Backend.Benchmark.evaluation_protocols.contracts import (
     EvaluationProtocolConfig,
     EvaluationProtocolResult,
 )
+from Backend.Benchmark.evaluation_protocols.execution_profiles import (
+    EvaluationExecutionProfile,
+    default_full_profile,
+)
 from Backend.Benchmark.evaluation_protocols.pipeline.layout import (
     build_artifact_catalog,
     build_evaluation_artifact_layout,
@@ -81,7 +85,22 @@ from Backend.Benchmark.weak_labels.infrastructure.hashing import file_sha256
 
 def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationProtocolResult:
     protocol_registry = load_protocol_registry(config.protocol_registry_run_dir)
-    _validate_protocol_registry_authority(config, protocol_registry)
+    execution_profile = (
+        EvaluationExecutionProfile.load(config.execution_profile_path)
+        if config.execution_profile_path is not None
+        else default_full_profile()
+    )
+    if execution_profile.protocol_stage_id != config.protocol_stage_id:
+        raise ValueError(
+            "Execution profile stage does not match --protocol-stage-id: "
+            f"{execution_profile.protocol_stage_id} != {config.protocol_stage_id}"
+        )
+    _validate_protocol_registry_authority(config, protocol_registry, execution_profile)
+    unknown_scope = set(execution_profile.read_environment_ids) - set(
+        protocol_registry.environment_manifest["environment_id"].astype("string")
+    )
+    if unknown_scope:
+        raise PermissionError(f"Execution profile references unknown environments: {sorted(unknown_scope)}")
     parquet_engine = ensure_parquet_engine()
     canonical_df = load_canonical_history(config.canonical_history_path.resolve())
     validate_unique_record_ids(canonical_df, key_column="record.id")
@@ -98,6 +117,11 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
 
     working = canonical_df.copy()
     working["deployment_domain_name"] = working["record.segment_id"].astype("string").map(DEPLOYMENT_DOMAIN_MAP).fillna("UNKNOWN")
+    working = _filter_canonical_to_execution_profile(
+        working,
+        environment_manifest=protocol_registry.environment_manifest,
+        execution_profile=execution_profile,
+    )
     working["base_partition"] = "protocol_all"
     working = attach_continuity_chunks(
         working,
@@ -105,6 +129,19 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
         boundary_columns=("record.segment_boundary_before",),
         threshold_multiplier=2.5,
     )
+    full_environment_registry = build_environment_registry(
+        working,
+        protocol_registry.environment_manifest,
+    )
+    full_sample_environment_manifest = build_sample_environment_manifest(
+        working,
+        full_environment_registry,
+    )
+    environment_lookup = full_sample_environment_manifest.set_index("sample_id")["environment_id"]
+    working["environment_id"] = working["record.id"].astype("string").map(environment_lookup)
+    if working.empty:
+        raise ValueError(f"Execution profile {execution_profile.profile_id} selected no canonical records.")
+
     deployment_domains = build_deployment_domain_frame(
         working,
         segment_manifest=segment_manifest,
@@ -114,7 +151,7 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
     environment_registry = build_environment_registry(
         working,
         protocol_registry.environment_manifest,
-    )
+    ).loc[lambda frame: frame["environment_id"].astype("string").isin(execution_profile.read_environment_ids)].copy()
     sample_environment_manifest = build_sample_environment_manifest(working, environment_registry)
     write_csv(environment_registry, layout.domain_manifests / "environment_registry.csv")
     write_parquet(sample_environment_manifest, layout.domain_manifests / "sample_environment_manifest.parquet", engine=parquet_engine)
@@ -156,6 +193,22 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
     threshold_manifest_hash = stable_hash_object(threshold_manifest)
 
     weak_sources = load_native_label_sources(config.native_label_release_dir.resolve())
+    _validate_native_label_scope(weak_sources, execution_profile)
+    # The native release deliberately exposes semantic evidence using its
+    # canonical `sample_id` identity.  The legacy evaluation lineage helper
+    # still needs a temporary record/group projection for purge bookkeeping;
+    # derive that projection here from the already-loaded canonical working
+    # frame instead of requiring the native engine to emit legacy columns.
+    continuity_lookup = working.loc[
+        :, ["record.id", "record.continuity_chunk_id"]
+    ].drop_duplicates("record.id").set_index("record.id")["record.continuity_chunk_id"]
+    for evidence_name in ("v2_temporal_evidence_3h", "v2_temporal_evidence_8h"):
+        evidence_frame = getattr(weak_sources, evidence_name).copy()
+        if "record.id" not in evidence_frame.columns and "sample_id" in evidence_frame.columns:
+            evidence_frame["record.id"] = evidence_frame["sample_id"].astype("string")
+        if "record.continuity_chunk_id" not in evidence_frame.columns:
+            evidence_frame["record.continuity_chunk_id"] = evidence_frame["record.id"].astype("string").map(continuity_lookup)
+        object.__setattr__(weak_sources, evidence_name, evidence_frame.convert_dtypes())
     feature_artifacts = load_dataset_view_feature_artifacts(
         config.dataset_views_run_dir.resolve(),
         required_view_ids=PRIMARY_FEATURE_SOURCE_VIEW_IDS,
@@ -172,6 +225,10 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
     v2_temporal_3h["deployment_domain_name"] = v2_temporal_3h["sample_id"].astype("string").map(record_domain_lookup)
     v2_temporal_8h = weak_sources.v2_temporal_labels_8h.copy()
     v2_temporal_8h["deployment_domain_name"] = v2_temporal_8h["sample_id"].astype("string").map(record_domain_lookup)
+    point_labels = _ensure_intrinsic_exclusion_reason(point_labels)
+    v2_same_y = _ensure_intrinsic_exclusion_reason(v2_same_y)
+    v2_temporal_3h = _ensure_intrinsic_exclusion_reason(v2_temporal_3h)
+    v2_temporal_8h = _ensure_intrinsic_exclusion_reason(v2_temporal_8h)
     assignment_artifacts_7day = build_protocol_assignment_artifacts(
         fold_specs=fold_specs,
         point_labels=point_labels,
@@ -589,6 +646,15 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
     run_manifest = {
         "pipeline": "evaluation_protocols",
         "version": "2026-07-16.eval-protocol.v2",
+        "execution_profile": {
+            "profile_id": execution_profile.profile_id,
+            "protocol_stage_id": execution_profile.protocol_stage_id,
+            "label_apply_environment_ids": list(execution_profile.label_apply_environment_ids),
+            "train_environment_ids": list(execution_profile.train_environment_ids),
+            "evaluation_environment_ids": list(execution_profile.evaluation_environment_ids),
+            "target_environment_ids": list(execution_profile.target_environment_ids),
+            "read_environment_ids": list(execution_profile.read_environment_ids),
+        },
         "config": _config_to_dict(config),
         "protocol_registry": {
             "run_dir": str(protocol_registry.run_dir),
@@ -654,6 +720,7 @@ def _config_to_dict(config: EvaluationProtocolConfig) -> dict[str, object]:
         "segment_manifest_path": str(config.segment_manifest_path) if config.segment_manifest_path is not None else None,
         "dataset_views_run_dir": str(config.dataset_views_run_dir),
         "native_label_release_dir": str(config.native_label_release_dir),
+        "execution_profile_path": str(config.execution_profile_path) if config.execution_profile_path is not None else None,
         "output_root": str(config.output_root),
         "rolling_block_days": config.rolling_block_days,
         "initial_train_blocks": config.initial_train_blocks,
@@ -665,12 +732,69 @@ def _config_to_dict(config: EvaluationProtocolConfig) -> dict[str, object]:
     }
 
 
+def _ensure_intrinsic_exclusion_reason(frame: pd.DataFrame) -> pd.DataFrame:
+    """Add a consumer-side reason projection for native Assignment rows.
+
+    Native assignments intentionally keep semantic status and eligibility as
+    the authority. Older evaluation manifests also expect a diagnostic reason
+    column, so derive it only for ineligible rows without changing the native
+    artifact.
+    """
+    result = frame.copy()
+    if "intrinsic_exclusion_reason" in result.columns:
+        return result
+    result["intrinsic_exclusion_reason"] = pd.NA
+    if "intrinsic_eligibility" in result.columns:
+        excluded = ~result["intrinsic_eligibility"].fillna(False).astype(bool)
+        if "label_name" in result.columns:
+            result.loc[excluded, "intrinsic_exclusion_reason"] = (
+                result.loc[excluded, "label_name"].astype("string")
+            )
+        elif "assignment_status" in result.columns:
+            result.loc[excluded, "intrinsic_exclusion_reason"] = (
+                result.loc[excluded, "assignment_status"].astype("string")
+            )
+    return result.convert_dtypes()
+
+
+def _filter_canonical_to_execution_profile(
+    frame: pd.DataFrame,
+    *,
+    environment_manifest: pd.DataFrame,
+    execution_profile: EvaluationExecutionProfile,
+) -> pd.DataFrame:
+    """Select canonical payload rows before continuity/feature processing.
+
+    This is deliberately based only on environment facts (deployment domain
+    and manifest time interval). It prevents an E1-only run from deriving
+    continuity or diagnostics across E2/E3 rows.
+    """
+    selected = set(execution_profile.read_environment_ids)
+    mask = pd.Series(False, index=frame.index)
+    for row in environment_manifest.loc[
+        environment_manifest["environment_id"].astype("string").isin(selected)
+    ].itertuples(index=False):
+        start = pd.Timestamp(row.start_time)
+        end = pd.Timestamp(row.end_time)
+        mask |= (
+            (frame["deployment_domain_name"].astype("string") == str(row.deployment_id))
+            & (frame["timestamp_local"] >= start)
+            & (frame["timestamp_local"] < end)
+        )
+    return frame.loc[mask].copy()
+
+
 def _optional_manifest_hash(run_dir: Path) -> str | None:
     manifest = run_dir.resolve() / "run_metadata" / "run_manifest.json"
     return file_sha256(manifest) if manifest.exists() else None
 
 
-def _validate_protocol_registry_authority(config: EvaluationProtocolConfig, registry) -> None:
+def _validate_protocol_registry_authority(
+    config: EvaluationProtocolConfig,
+    registry,
+    execution_profile: EvaluationExecutionProfile | None = None,
+) -> None:
+    execution_profile = execution_profile or default_full_profile()
     if bool(registry.run_manifest.get("phase_a_only", False)):
         raise PermissionError(
             "This protocol registry is Phase A audit-only. "
@@ -687,10 +811,9 @@ def _validate_protocol_registry_authority(config: EvaluationProtocolConfig, regi
         raise PermissionError("Evaluation remains locked until the Phase C native engine is implemented.")
     if str(registry.run_manifest.get("canonical_manifest_hash")) != file_sha256(config.manifest_path.resolve()):
         raise ValueError("Protocol registry canonical-manifest hash does not match evaluation input.")
-    required = (
-        ("E1", "inspect_sensitive"),
-        ("E2", "inspect_sensitive"),
-        ("E3_TARGET_PREEXPOSED", "evaluate"),
+    required = tuple(
+        [(environment_id, "inspect_sensitive") for environment_id in execution_profile.read_environment_ids]
+        + [(environment_id, "evaluate") for environment_id in execution_profile.evaluation_environment_ids]
     )
     denied = [
         f"{environment_id}:{operation}"
@@ -701,4 +824,25 @@ def _validate_protocol_registry_authority(config: EvaluationProtocolConfig, regi
         raise PermissionError(
             "Governed evaluation protocol is not authorized at "
             f"{config.protocol_stage_id}: {', '.join(denied)}"
+        )
+
+
+def _validate_native_label_scope(weak_sources, execution_profile: EvaluationExecutionProfile) -> None:
+    """Reject a profile whose requested source environments lack labels."""
+    frames = [
+        weak_sources.point_labels_train,
+        weak_sources.v2_same_y_labels,
+        weak_sources.v2_temporal_labels_3h,
+        weak_sources.v2_temporal_labels_8h,
+    ]
+    observed: set[str] = set()
+    for frame in frames:
+        if "environment_id" in frame.columns:
+            observed.update(str(value) for value in frame["environment_id"].dropna().tolist())
+    required = set(execution_profile.label_apply_environment_ids)
+    missing = sorted(required - observed)
+    if missing:
+        raise PermissionError(
+            "Native label release does not cover execution-profile environments: "
+            f"{missing}. Run native label generation for those environments first."
         )

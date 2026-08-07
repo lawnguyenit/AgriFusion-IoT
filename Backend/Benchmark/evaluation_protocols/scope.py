@@ -4,6 +4,8 @@ from __future__ import annotations
 PRIMARY_FEATURE_VIEW_IDS: tuple[str, ...] = (
     "v0_point",
     "v1_point",
+    "plus_ph",
+    "plus_npk",
     "v2_same_y_mini_3h",
     "v2_same_y_full_3h",
 )
@@ -26,6 +28,9 @@ PRIMARY_PROTOCOL_VIEW_IDS: tuple[str, ...] = PRIMARY_LABEL_TASK_IDS
 PRIMARY_COMPARISON_IDS: tuple[str, ...] = (
     "v0_vs_v2_mini_3h",
     "v1_vs_v2_full_3h",
+    "base_5_vs_plus_ph",
+    "base_5_vs_plus_npk",
+    "base_5_vs_full_9",
 )
 
 PRIMARY_FOLD_IDS: tuple[str, ...] = ("fold_01",)

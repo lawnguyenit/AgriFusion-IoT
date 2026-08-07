@@ -1,0 +1,12 @@
+profile_id: RQ2A_E1_E2_SOURCE_EXPANSION_V1
+protocol_stage_id: RQ2A_E2_RELEASE
+label_apply_environment_ids:
+  - E1
+  - E2
+train_environment_ids:
+  - E1
+  - E2
+evaluation_environment_ids:
+  - E1
+  - E2
+target_environment_ids: []

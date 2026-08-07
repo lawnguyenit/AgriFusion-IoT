@@ -5,7 +5,7 @@
 ```mermaid
 flowchart LR
     P["protocol_registry frozen contract"] --> B["evaluation_protocols"]
-    A["dataset_views + weak_labels + canonical data"] --> B
+    A["selected dataset_views + native weak-label release + canonical data"] --> B
     B --> C["runner manifests + protocol registries + protocol diagnostics"]
 ```
 
@@ -17,12 +17,17 @@ flowchart LR
 - one `weak_labels` run as label authority
 - one explicit non-Phase-A `protocol_registry` run as environment and
   permission authority
+- one explicit execution profile selecting label/train/evaluation/target
+  environments
 
 ## This Layer Does
 
 - consume benchmark environments from the upstream registry
+- filter the run to the execution profile before building manifests
 - decide which rows belong to which training or evaluation protocol
 - build the runner-facing manifests consumed by `model_suite`
+- resolve semantic feature arms from one materialized full matrix and pin
+  the ordered allowlist plus its hash in every training manifest
 - publish the tranche-0 scientific contract artifacts such as
   environment registry, claim registry, comparison registry, and digest
   proofs
@@ -32,6 +37,24 @@ flowchart LR
 It remains runner-protocol authority but no longer owns environment facts.
 Phase-A-only registries trigger a hard STOP before this lane creates a run.
 It does **not** train models.
+
+For an E1-only RQ1 run:
+
+```powershell
+python Backend/Benchmark/evaluation_protocols/main.py `
+  --protocol-registry-run-dir <native-child-registry> `
+  --protocol-stage-id CONTRACT_FROZEN `
+  --dataset-views-run-dir <dataset-views-run> `
+  --native-label-release-dir <native-label-release> `
+  --execution-profile Backend/Benchmark/evaluation_protocols/profiles/rq1_e1_only.yaml
+```
+
+E2/E3 runs require a different predeclared profile and a native label release
+covering every requested environment; they are not implicitly joined to RQ1.
+
+The legacy `v2` alias is compatibility-only and expands to the primary 3h
+minimal and full history views. Any 8h run must request
+`v2_minimal_sensor_window_8h` or `v2_sensor_row_window_8h` explicitly.
 
 ## Output
 

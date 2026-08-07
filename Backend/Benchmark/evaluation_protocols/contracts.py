@@ -15,6 +15,7 @@ class EvaluationProtocolConfig:
     dataset_views_run_dir: Path
     native_label_release_dir: Path
     output_root: Path
+    execution_profile_path: Path | None = None
     rolling_block_days: int = 7
     initial_train_blocks: int = 3
     validation_blocks: int = 1

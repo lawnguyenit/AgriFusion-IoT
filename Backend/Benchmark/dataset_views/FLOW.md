@@ -19,7 +19,9 @@ flowchart LR
 ## This Layer Does
 
 - materialize the active benchmark feature scope:
-  `v0`, `v1`, and `v2`
+  `v0`, `v1`, and explicit `v2` subviews
+- provide the full nine-channel source matrix from which downstream
+  evaluation selects `base_5`, `plus_ph`, `plus_npk`, or `full_9`
 - reject removed `v3`, `v5`, and `v6` family requests at view
   resolution time
 - publish one shared sample universe and one shared feature-lineage

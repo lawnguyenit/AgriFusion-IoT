@@ -78,6 +78,9 @@ def train_tabular_classifier(
         "selected_feature_names": selected_feature_names,
         "use_balanced_sample_weight": bool(profile.use_balanced_sample_weight),
         "preprocessing_library_version": sklearn_version,
+        "semantic_arm_id": (task_metadata or {}).get("semantic_arm_id"),
+        "feature_list_hash": (task_metadata or {}).get("feature_list_hash"),
+        "source_feature_artifact_hash": (task_metadata or {}).get("source_feature_artifact_hash"),
     }
     model_metadata = {
         "model_key": profile.model_key,

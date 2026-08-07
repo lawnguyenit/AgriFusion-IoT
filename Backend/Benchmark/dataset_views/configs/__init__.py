@@ -1,4 +1,16 @@
 from .ablation_registry import ABALATION_SUBSETS
+from .feature_arms import (
+    BASE_5_FEATURES,
+    FEATURE_ARMS,
+    FULL_9_FEATURES,
+    NPK_FEATURES,
+    PH_FEATURE,
+    FeatureArm,
+    feature_family_for_arm,
+    get_feature_arm,
+    semantic_arm_for_view,
+    validate_allowlist,
+)
 from .dependency_registry import bundled_dependency_registry_path, load_dependency_registry
 from .label_modes import BENCHMARK_READY_MODE, FEATURE_ONLY_MODE, SUPPORTED_MODES
 from .policies import GLOBAL_FORBIDDEN_MODEL_FIELDS, ROW_INDEX_COLUMNS, SHARED_METADATA_COLUMNS, VIEW_ID_ALIASES
@@ -26,6 +38,16 @@ from .views import DEFAULT_VIEW_IDS, get_view_definition
 
 __all__ = [
     "ABALATION_SUBSETS",
+    "BASE_5_FEATURES",
+    "FEATURE_ARMS",
+    "FULL_9_FEATURES",
+    "NPK_FEATURES",
+    "PH_FEATURE",
+    "FeatureArm",
+    "feature_family_for_arm",
+    "get_feature_arm",
+    "semantic_arm_for_view",
+    "validate_allowlist",
     "BENCHMARK_READY_MODE",
     "DEFAULT_PUBLIC_VIEW_IDS",
     "DEFAULT_VIEW_IDS",

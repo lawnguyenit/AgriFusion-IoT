@@ -299,12 +299,18 @@ def _resolve_subset_columns(*, subset: dict[str, object], base_columns: list[str
         return [column for column in base_columns if column in {"sht.temp_c", "sht.humidity_pct", "npk.soil_temp_c", "npk.soil_moisture_pct", "npk.ec"}]
     if subset_id == "v0_plus_ph":
         return [column for column in base_columns if column in {"sht.temp_c", "sht.humidity_pct", "npk.soil_temp_c", "npk.soil_moisture_pct", "npk.ec", "npk.ph"}]
-    if subset_id in {"v0_plus_npk", "v1_full"}:
+    if subset_id == "v0_plus_npk":
+        return [column for column in base_columns if column != "npk.ph"]
+    if subset_id == "v1_full":
         return list(base_columns)
     if subset_id == "v1_without_ph":
         return [column for column in base_columns if column != "npk.ph"]
     if subset_id == "v1_without_npk":
-        return [column for column in base_columns if not column.startswith("npk.")]
+        return [
+            column
+            for column in base_columns
+            if column not in {"npk.n_proxy", "npk.p_proxy", "npk.k_proxy"}
+        ]
     if subset_id == "v0_without_direct_row_source":
         return [column for column in base_columns if column != "npk.soil_moisture_pct"]
     if subset_id == "v0_without_direct_source_family":

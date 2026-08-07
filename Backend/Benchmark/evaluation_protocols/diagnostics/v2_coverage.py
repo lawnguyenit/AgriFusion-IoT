@@ -40,6 +40,7 @@ def build_v2_coverage_artifacts(
 
 
 def _daily_frame(frame: pd.DataFrame, horizon_name: str) -> pd.DataFrame:
+    frame = _normalize_native_evidence(frame)
     working = frame.loc[
         :,
         [
@@ -79,6 +80,49 @@ def _daily_frame(frame: pd.DataFrame, horizon_name: str) -> pd.DataFrame:
     )
     grouped["eligible_ratio"] = grouped["eligible_count"] / grouped["row_count"].clip(lower=1)
     return grouped.convert_dtypes()
+
+
+def _normalize_native_evidence(frame: pd.DataFrame) -> pd.DataFrame:
+    """Project native temporal window evidence into this diagnostic's fields.
+
+    The diagnostic predates the native release and intentionally keeps its
+    historical output schema. This adapter is read-only: it does not alter
+    native labels or make eligibility decisions; it only names equivalent
+    window metrics for the coverage report.
+    """
+    if frame.empty:
+        return pd.DataFrame(
+            columns=[
+                "record.id", "record.ts_sample", "eligible_for_training",
+                "intrinsic_exclusion_reason", "valid_observation_count",
+                "actual_window_span_sec", "max_internal_gap_sec",
+            ]
+        )
+    result = frame.copy()
+    if "record.id" not in result.columns and "sample_id" in result.columns:
+        result["record.id"] = result["sample_id"].astype("string")
+    if "record.ts_sample" not in result.columns:
+        anchor_time = pd.to_datetime(result.get("window_end_utc"), errors="coerce", utc=True)
+        result["record.ts_sample"] = (anchor_time.astype("int64") // 10**9).astype("Int64")
+    if "eligible_for_training" not in result.columns:
+        result["eligible_for_training"] = result.get(
+            "temporal_window_dependency_admissible", False
+        )
+    if "intrinsic_exclusion_reason" not in result.columns:
+        result["intrinsic_exclusion_reason"] = result.get(
+            "representation_history_status", pd.Series(pd.NA, index=result.index)
+        )
+    if "valid_observation_count" not in result.columns:
+        result["valid_observation_count"] = result.get("window_valid_observation_count", pd.NA)
+    if "actual_window_span_sec" not in result.columns:
+        start = pd.to_datetime(result.get("window_start_utc"), errors="coerce", utc=True)
+        end = pd.to_datetime(result.get("window_end_utc"), errors="coerce", utc=True)
+        result["actual_window_span_sec"] = (end - start).dt.total_seconds()
+    if "max_internal_gap_sec" not in result.columns:
+        result["max_internal_gap_sec"] = pd.to_numeric(
+            result.get("window_max_internal_gap_minutes", pd.NA), errors="coerce"
+        ) * 60.0
+    return result
 
 
 def _build_range_summary(daily: pd.DataFrame) -> pd.DataFrame:

@@ -13,6 +13,7 @@ from Backend.Benchmark.model_suite.pipeline.training_job import train_tabular_cl
 from Backend.Benchmark.model_suite.persistence.model_bundle import write_metrics_payload
 from Backend.Benchmark.model_suite.registries import resolve_model_profile
 from Backend.Benchmark.model_suite.utils.preprocessing import hash_sample_ids
+from Backend.Benchmark.model_suite.validation import run_rule_controls
 from Backend.Benchmark.evaluation_protocols.pipeline.smoke_support import build_prediction_rows
 
 
@@ -192,6 +193,9 @@ def run_protocol_model_job(
                 "comparison_side": comparison_side,
                 "feature_view_id": feature_view_id,
                 "feature_source_view_id": feature_source_view_id,
+                "semantic_arm_id": str(registry_row.get("semantic_arm_id", "")),
+                "feature_list_hash": str(registry_row.get("feature_list_hash", "")),
+                "source_feature_artifact_hash": str(registry_row.get("feature_artifact_hash", "")),
                 "fold_id": fold_id,
             },
         )
@@ -334,15 +338,18 @@ def run_protocol_model_job(
     )
     feature_effects_path = output_dir / "feature_effects.csv"
     feature_effects_df.to_csv(feature_effects_path, index=False)
-    exact_rule_control = _run_exact_rule_control(
+    exact_rule_control = run_rule_controls(
         evaluation_partitions=evaluation_partitions,
         partitions=partitions,
+        label_artifact_path=Path(str(registry_row["label_artifact_path"])),
         output_dir=output_dir,
     )
     run_validation = {
         "model_key": model_key,
         "stage_id": stage_id,
         "feature_view_id": feature_view_id,
+        "semantic_arm_id": str(registry_row.get("semantic_arm_id", "")),
+        "feature_list_hash": str(registry_row.get("feature_list_hash", "")),
         "fold_id": fold_id,
         "validation_rows": validation_rows,
         "exact_rule_control": exact_rule_control,
@@ -361,6 +368,7 @@ def run_protocol_model_job(
         "comparison_side": comparison_side,
         "feature_view_id": feature_view_id,
         "feature_source_view_id": feature_source_view_id,
+        "semantic_arm_id": str(registry_row.get("semantic_arm_id", "")),
         "fold_id": fold_id,
         "class_names": class_names,
         "evaluation_partitions": list(evaluation_partitions),
@@ -446,6 +454,12 @@ def run_protocol_model_job(
         summary_extra[f"{partition}_count"] = int(len(partitions[partition]))
         summary_extra[f"{partition}_supported_class_macro_f1"] = float(metrics["supported_class_macro_f1"])
         summary_extra[f"{partition}_fixed_ontology_macro_f1"] = float(metrics["fixed_ontology_macro_f1"])
+        summary_extra[f"{partition}_fixed_ontology_estimability_status"] = metrics[
+            "fixed_ontology_estimability_status"
+        ]
+        summary_extra[f"{partition}_fixed_ontology_metric_policy"] = metrics[
+            "fixed_ontology_metric_policy"
+        ]
         summary_extra[f"{partition}_supported_class_balanced_accuracy"] = float(metrics["supported_class_balanced_accuracy"])
         summary_extra[f"{partition}_unsupported_classes_json"] = json.dumps(
             metrics["unsupported_classes"],
@@ -589,59 +603,6 @@ def _build_feature_effects_frame(
             for feature_name in selected_feature_names
         ]
     ).convert_dtypes()
-
-
-def _run_exact_rule_control(
-    *,
-    evaluation_partitions: tuple[str, ...],
-    partitions: dict[str, pd.DataFrame],
-    output_dir: Path,
-) -> dict[str, object]:
-    covered_frames = []
-    for partition in evaluation_partitions:
-        frame = partitions[partition].copy()
-        frame["partition"] = partition
-        covered_frames.append(frame)
-    evaluation_frame = pd.concat(covered_frames, ignore_index=True).convert_dtypes() if covered_frames else pd.DataFrame()
-    if evaluation_frame.empty:
-        summary = {
-            "rule_agreement_rate": math.nan,
-            "rule_disagreement_count": 0,
-            "coverage": 0,
-            "conflict_count": 0,
-            "abstention_count": 0,
-        }
-        pd.DataFrame().to_parquet(output_dir / "disagreement_samples.parquet", index=False)
-        (output_dir / "rule_control_summary.json").write_text(
-            json.dumps(summary, ensure_ascii=True, indent=2, allow_nan=True),
-            encoding="utf-8",
-        )
-        return summary
-    covered = evaluation_frame.loc[evaluation_frame["label_status"].astype("string") == "LABELED"].copy()
-    covered["rule_predicted_label"] = covered["label_name"].astype("string")
-    disagreements = covered.loc[
-        covered["label_name"].astype("string") != covered["rule_predicted_label"].astype("string")
-    ].copy()
-    disagreement_path = output_dir / "disagreement_samples.parquet"
-    disagreements.to_parquet(disagreement_path, index=False)
-    summary = {
-        "rule_agreement_rate": (
-            float(1.0 - (len(disagreements) / len(covered)))
-            if len(covered) > 0
-            else math.nan
-        ),
-        "rule_disagreement_count": int(len(disagreements)),
-        "coverage": int(len(covered)),
-        "conflict_count": 0,
-        "abstention_count": int(len(evaluation_frame) - len(covered)),
-    }
-    (output_dir / "rule_control_summary.json").write_text(
-        json.dumps(summary, ensure_ascii=True, indent=2, allow_nan=True),
-        encoding="utf-8",
-    )
-    if summary["coverage"] > 0 and summary["rule_agreement_rate"] != 1.0:
-        raise ValueError("Exact-rule control disagreement detected inside covered deterministic rows.")
-    return summary
 
 
 def _summary_row(

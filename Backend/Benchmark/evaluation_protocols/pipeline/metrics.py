@@ -50,10 +50,15 @@ def summarize_protocol_classification(
             "estimable": estimable,
         }
 
+    fixed_ontology_estimability_status = (
+        "NON_ESTIMABLE"
+        if support_restricted_environment or unsupported_classes
+        else "ESTIMABLE"
+    )
     fixed_ontology_macro_f1 = (
-        math.nan
-        if support_restricted_environment
-        else float(np.nanmean(f1)) if len(f1) > 0 and not np.isnan(f1).all() else math.nan
+        float(np.mean(f1))
+        if fixed_ontology_estimability_status == "ESTIMABLE" and len(f1) > 0
+        else math.nan
     )
     supported_class_macro_f1 = (
         float(np.mean(supported_f1_values))
@@ -76,6 +81,8 @@ def summarize_protocol_classification(
         "supported_class_balanced_accuracy": supported_class_balanced_accuracy,
         "supported_class_macro_f1": supported_class_macro_f1,
         "fixed_ontology_macro_f1": fixed_ontology_macro_f1,
+        "fixed_ontology_estimability_status": fixed_ontology_estimability_status,
+        "fixed_ontology_metric_policy": "requires_full_ontology_support",
         "weighted_f1": weighted_f1,
         "supported_classes": [class_name for class_name in class_names if class_name not in unsupported_classes],
         "unsupported_classes": unsupported_classes,

@@ -45,6 +45,8 @@ def build_pooled_prediction_summary(predictions_df: pd.DataFrame) -> pd.DataFram
                 "supported_class_balanced_accuracy": float(metrics["supported_class_balanced_accuracy"]),
                 "supported_class_macro_f1": float(metrics["supported_class_macro_f1"]),
                 "fixed_ontology_macro_f1": float(metrics["fixed_ontology_macro_f1"]),
+                "fixed_ontology_estimability_status": metrics["fixed_ontology_estimability_status"],
+                "fixed_ontology_metric_policy": metrics["fixed_ontology_metric_policy"],
                 "weighted_f1": float(metrics["weighted_f1"]),
                 "unsupported_classes_json": json.dumps(metrics["unsupported_classes"], ensure_ascii=True, separators=(",", ":")),
             }

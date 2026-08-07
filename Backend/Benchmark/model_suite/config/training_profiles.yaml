@@ -179,6 +179,43 @@
           ]
         }
       ]
+    },
+    "semantic_feature_arms_smoke": {
+      "description": "Fold 01 smoke for base_5, plus_ph, plus_npk, full_9 and explicit 3h history arms.",
+      "stage_specs": [
+        {
+          "stage_id": "semantic_arms_task_fold_01",
+          "source_kind": "task_and_comparison",
+          "feature_views": [
+            "v1_point",
+            "plus_ph",
+            "plus_npk",
+            "v0_point",
+            "v2_same_y_mini_3h",
+            "v2_same_y_full_3h"
+          ],
+          "fold_ids": ["fold_01"],
+          "comparison_ids": [],
+          "evaluation_partitions": ["validation", "test"]
+        },
+        {
+          "stage_id": "semantic_arms_comparison_fold_01",
+          "source_kind": "task_and_comparison",
+          "feature_views": [
+            "v1_point",
+            "plus_ph",
+            "plus_npk",
+            "v0_point"
+          ],
+          "fold_ids": ["fold_01"],
+          "comparison_ids": [
+            "base_5_vs_plus_ph",
+            "base_5_vs_plus_npk",
+            "base_5_vs_full_9"
+          ],
+          "evaluation_partitions": ["validation", "test"]
+        }
+      ]
     }
   }
 }
