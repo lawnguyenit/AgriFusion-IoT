@@ -181,6 +181,20 @@ Run the phase-1 smoke suite on an existing protocol run:
 python Backend\Benchmark\model_suite\cli.py --smoke-protocol-run-dir D:\AgriFusion-IoT\Backend\Benchmark\evaluation_protocols\artifacts\evaluation_protocols_20260717_130735
 ```
 
+Run the official semantic E1 primary benchmark (Fold 01, explicit 3h arms,
+registered full model defaults):
+
+```powershell
+python Backend\Benchmark\model_suite\cli.py --smoke-protocol-run-dir <E1_PROTOCOL_RUN_ROOT> --profile semantic_feature_arms_primary_3h --model-keys xgboost --no-progress
+```
+
+The flag name `--smoke-protocol-run-dir` is retained for CLI compatibility;
+the `semantic_feature_arms_primary_3h` profile is non-smoke and therefore does
+not receive smoke-only XGBoost overrides. The current official E1 protocol
+contains only `fold_01`; secondary/legacy folds and all 8h views are excluded
+from this profile. Add `logistic_regression` or `extra_trees` explicitly when
+comparison models are wanted.
+
 Run the full primary source-only task benchmark:
 
 ```powershell

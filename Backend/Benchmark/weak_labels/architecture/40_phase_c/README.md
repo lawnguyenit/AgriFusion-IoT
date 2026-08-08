@@ -27,3 +27,8 @@ Phase C không tự chọn lại Q/K, không fit threshold, không đọc E2/E3 
 payload trong E1 release, không ghép feature Dataset Views và không quyết định
 train-ready cuối cùng. Release hiện tại có 3291 E1 records, với Point,
 Same-Y 3h/8h và Temporal 3h/8h assignments.
+
+Bản draft giải thích chi tiết nine-channel input → derived evidence →
+RuleFiring → Resolution → Assignment nằm trong artifact output của semantic
+map generator (`semantic_label_draft.md`, `semantic_label_flow.mmd`,
+`semantic_label_summary.json`).

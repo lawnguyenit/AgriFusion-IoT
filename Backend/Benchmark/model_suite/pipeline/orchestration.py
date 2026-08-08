@@ -133,7 +133,15 @@ def run_smoke_suite(
                             output_dir=model_output_dir,
                             random_seed=int(artifact_policy["random_seed"]),
                             thread_count=int(artifact_policy["thread_count"]),
-                            hyperparameter_overrides=resolve_smoke_hyperparameters(model_key),
+                            # Smoke profiles intentionally use reduced settings for fast
+                            # diagnostics.  A named non-smoke profile is a real benchmark
+                            # run and must use the registered catalog defaults so it is not
+                            # silently trained with smoke-only XGBoost parameters.
+                            hyperparameter_overrides=(
+                                resolve_smoke_hyperparameters(model_key)
+                                if profile_name.startswith("smoke_")
+                                else {}
+                            ),
                             use_balanced_sample_weight=None,
                             evaluation_partitions=evaluation_partitions,
                         )

@@ -140,9 +140,20 @@ run_metadata/artifact_catalog.csv
 
 ## Trạng thái hiện tại
 
-Phase C chưa được chạy thành công trong snapshot hiện tại. Phase B1 chưa phải
-frozen contract; vì vậy chưa có Point, Same-Y hoặc Temporal native release để
-`evaluation_protocols` tiêu thụ.
+Phase C đã được chạy thành công và đã publish native release:
+
+```text
+native_engine_20260805_045419_359073
+operationalization: Q10-K3
+semantic_contract: SEMANTIC_CONTRACT_36280129f4ec1d40
+point rows: 3291
+```
+
+Release này là label authority được `evaluation_protocols` tiêu thụ. Các
+artifact `RuleFiring`, `Resolution`, `Assignment`, continuity và lineage đã
+được ghi trong release; Fold/split/purge và train-ready eligibility vẫn thuộc
+Evaluation. Nội dung sơ đồ chi tiết được tái sinh bởi semantic-label draft
+generator trong `weak_labels/architecture/tools`.
 
 ## Quy tắc không được nhầm
 

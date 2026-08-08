@@ -36,6 +36,11 @@ def run_protocol_model_job(
     use_balanced_sample_weight: bool | None = None,
     evaluation_partitions: tuple[str, ...] = ("validation", "test"),
 ) -> dict[str, object]:
+    # Create the job directory before any validation/control artifact is
+    # written.  Training normally creates it as a side effect, but comparison
+    # jobs can reach the independent controls through an alternate path and
+    # must not rely on that ordering.
+    output_dir.mkdir(parents=True, exist_ok=True)
     feature_source_view_id = str(registry_row["feature_source_view_id"])
     if "record_id_order" in task_rows.columns:
         task_rows = task_rows.sort_values(["partition", "record_id_order", "sample_id"], kind="stable").reset_index(drop=True)

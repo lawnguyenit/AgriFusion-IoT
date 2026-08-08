@@ -19,6 +19,8 @@ flowchart LR
 
 - read the locked protocol manifests
 - train the requested models on the allowed train rows
+- apply reduced hyperparameters only to profiles whose name starts with
+  `smoke_`; named non-smoke profiles use the registered model catalog defaults
 - evaluate them on the allowed evaluation rows
 - write prediction and metric artifacts under the tranche-0 contract
 - run artifact-consistency and independent-oracle positive controls; a job

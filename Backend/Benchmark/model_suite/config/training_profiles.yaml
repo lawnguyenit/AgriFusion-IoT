@@ -216,6 +216,43 @@
           "evaluation_partitions": ["validation", "test"]
         }
       ]
+    },
+    "semantic_feature_arms_primary_3h": {
+      "description": "Official E1 primary benchmark on Fold 01 using explicit semantic arms and 3h history only. This is a full-default training profile, not a smoke run.",
+      "stage_specs": [
+        {
+          "stage_id": "semantic_tasks_f01",
+          "source_kind": "task_and_comparison",
+          "feature_views": [
+            "v1_point",
+            "plus_ph",
+            "plus_npk",
+            "v0_point",
+            "v2_same_y_mini_3h",
+            "v2_same_y_full_3h"
+          ],
+          "fold_ids": ["fold_01"],
+          "comparison_ids": [],
+          "evaluation_partitions": ["validation", "test"]
+        },
+        {
+          "stage_id": "semantic_cmp_f01",
+          "source_kind": "task_and_comparison",
+          "feature_views": [
+            "v1_point",
+            "plus_ph",
+            "plus_npk",
+            "v0_point"
+          ],
+          "fold_ids": ["fold_01"],
+          "comparison_ids": [
+            "base_5_vs_plus_ph",
+            "base_5_vs_plus_npk",
+            "base_5_vs_full_9"
+          ],
+          "evaluation_partitions": ["validation", "test"]
+        }
+      ]
     }
   }
 }
