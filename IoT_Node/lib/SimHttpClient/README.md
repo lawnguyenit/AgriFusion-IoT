@@ -11,3 +11,7 @@ Responsibilities:
 
 Use case:
 - serve as the low-level transport for RTDB REST calls over SIM without relying on TinyGSM
+
+HTTP-read payload extraction removes the modem's `OK` trailer for CRLF, LF, or
+CR line endings and bounds the accumulated body by the modem-reported HTTP
+body length, so a JSON body such as `null` reaches the RTDB caller intact.

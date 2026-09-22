@@ -2,6 +2,7 @@
 #define SHT30_SERVICE_H
 
 #include <Arduino.h>
+#include <ArduinoJson.h>
 
 class Sht30Service {
 public:
@@ -29,8 +30,29 @@ private:
     bool _wireReady = false;
     uint32_t _lastInitAttemptMs = 0;
     uint32_t _consecutiveInvalidCount = 0;
+    uint8_t _lastI2cError = 0xFF;
+    uint8_t _lastInitAttempts = 0;
+    bool _lastInitProbeReadOk = false;
+    float _lastInitProbeTemperature = NAN;
+    float _lastInitProbeHumidity = NAN;
+    String _lastInitError = "not_attempted";
+
+    bool _lastMeasurementTransportOk = false;
+    bool _lastMeasurementAttempted = false;
+    bool _lastFrameOk = false;
+    bool _lastTemperatureCrcOk = false;
+    bool _lastHumidityCrcOk = false;
+    uint8_t _lastReceivedBytes = 0;
+    uint16_t _lastRawTemperature = 0;
+    uint16_t _lastRawHumidity = 0;
+    uint8_t _lastMeasurementI2cError = 0xFF;
+    String _lastMeasurementError = "not_attempted";
 
     void ensureWireReady(bool forceRefresh = false);
+    void clearMeasurementDiagnostics();
+    bool sendCommand(uint16_t command, uint8_t &i2cError);
+    bool readRawMeasurement(float *temperatureOut, float *humidityOut);
+    void writeMeasurementDiagnostics(JsonDocument &doc);
 };
 
 #endif

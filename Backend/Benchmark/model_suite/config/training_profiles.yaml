@@ -253,6 +253,42 @@
           "evaluation_partitions": ["validation", "test"]
         }
       ]
+    },
+    "temporal_k_gated_3h": {
+      "description": "Additive temporal benchmark using native Q10-K3 temporal assignments; point/Same-Y profiles remain the baseline.",
+      "stage_specs": [
+        {
+          "stage_id": "temporal_k_gated_3h_f01",
+          "source_kind": "task_and_comparison",
+          "feature_views": [
+            "v2_temporal_mini_3h",
+            "v2_temporal_full_3h"
+          ],
+          "fold_ids": ["fold_01"],
+          "comparison_ids": [],
+          "evaluation_partitions": ["validation", "test"]
+        }
+      ]
+    },
+    "temporal_event_online_3h": {
+      "description": "Paired temporal benchmark: causal online target versus retrospective completed-run event target on identical 3h features and split assignments.",
+      "stage_specs": [
+        {
+          "stage_id": "temporal_event_online_3h_f01",
+          "source_kind": "task_and_comparison",
+          "feature_views": [
+            "v2_temporal_mini_3h",
+            "v2_temporal_full_3h"
+          ],
+          "target_views": [
+            "temporal_online_3h",
+            "temporal_event_3h"
+          ],
+          "fold_ids": ["fold_01"],
+          "comparison_ids": [],
+          "evaluation_partitions": ["validation", "test"]
+        }
+      ]
     }
   }
 }

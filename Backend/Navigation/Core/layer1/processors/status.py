@@ -10,6 +10,63 @@ from .common import (
 )
 
 
+def classify_sensor_error(
+    *,
+    packet_present: bool,
+    read_ok: bool | None,
+    sample_valid: bool | None,
+    status: str | None,
+    error_code: str | None,
+) -> str | None:
+    """Reduce firmware error strings to a stable analytical fault class."""
+    if not packet_present:
+        return "missing_packet"
+
+    normalized_error = normalize_error_code(error_code)
+    normalized_status = normalize_text(status)
+    if (
+        read_ok is True
+        and sample_valid is True
+        and normalized_status == "ok"
+        and normalized_error in {None, "ok"}
+    ):
+        return "ok"
+
+    error_text = " ".join(
+        value for value in (normalized_error, normalized_status) if value
+    )
+    if any(
+        token in error_text
+        for token in ("zero_frame", "out_of_range", "measurement_invalid", "value_invalid")
+    ):
+        return "value_invalid"
+    if any(token in error_text for token in ("crc", "frame", "integrity")):
+        return "integrity"
+    if any(
+        token in error_text
+        for token in (
+            "bus",
+            "i2c",
+            "modbus",
+            "response_timeout",
+            "timeout",
+            "not_initialized",
+            "missing",
+            "transport",
+        )
+    ):
+        return "transport"
+    if "invalid" in error_text or "value" in error_text:
+        return "value_invalid"
+    if sample_valid is False:
+        return "value_invalid"
+    if read_ok is False:
+        return "transport"
+    if normalized_error not in {None, "ok"} or normalized_status == "error":
+        return "unknown_error"
+    return None
+
+
 def build_sensor_branch(
     *,
     packet_present: bool,
@@ -64,6 +121,13 @@ def build_sensor_branch(
         f"{normalized_prefix}.sample_valid": sample_valid,
         f"{normalized_prefix}.status": status,
         f"{normalized_prefix}.error_code": error_code,
+        f"{normalized_prefix}.error_class": classify_sensor_error(
+            packet_present=packet_present,
+            read_ok=read_ok,
+            sample_valid=sample_valid,
+            status=status,
+            error_code=error_code,
+        ),
         f"{normalized_prefix}.valid": valid,
         f"{normalized_prefix}.fault": fault,
         f"{normalized_prefix}.missing_packet": not packet_present,

@@ -136,9 +136,11 @@ String canonicalTelemetryRecordId(uint32_t tsSample, uint32_t seqNo) {
     if (tsSample < 1700000000UL) {
         return "";
     }
-    char buf[48];
-    snprintf(buf, sizeof(buf), "%lu_%lu", (unsigned long)tsSample, (unsigned long)seqNo);
-    return String(buf);
+    (void)seqNo;
+    // Node1/Layer0 uses the sample timestamp as the event key. The sequence
+    // remains in system_record.identity.seq_no for diagnostics without
+    // changing the peer-compatible RTDB path.
+    return String((unsigned long)tsSample);
 }
 
 String canonicalTelemetryDateKey(uint32_t tsSample) {
@@ -305,8 +307,7 @@ void FirebasePipeline::updateReadyFlag() {
 
 FirebaseBootstrapResult FirebasePipeline::begin(FirebaseConfig &firebaseConfig,
                                                 FirebaseAuth &firebaseAuth,
-                                                FirebaseData &firebaseData,
-                                                FirebaseData &firebaseOtaData) {
+                                                FirebaseData &firebaseData) {
     FirebaseBootstrapResult result;
     CUS_DBGLN("[FIREBASE] Dang khoi tao RTDB...");
     _ready = false;
@@ -363,7 +364,6 @@ FirebaseBootstrapResult FirebasePipeline::begin(FirebaseConfig &firebaseConfig,
     return result;
 #else
     firebaseData.stopWiFiClient();
-    firebaseOtaData.stopWiFiClient();
     Firebase.reset(&firebaseConfig);
     firebaseConfig = FirebaseConfig();
     firebaseAuth = FirebaseAuth();
@@ -375,9 +375,7 @@ FirebaseBootstrapResult FirebasePipeline::begin(FirebaseConfig &firebaseConfig,
 #endif
 
     firebaseData.setBSSLBufferSize(_cfg.tlsRxBufferSize, _cfg.tlsTxBufferSize);
-    firebaseOtaData.setBSSLBufferSize(_cfg.tlsRxBufferSize, _cfg.tlsTxBufferSize);
     firebaseData.setResponseSize(2048);
-    firebaseOtaData.setResponseSize(2048);
 
     firebaseConfig.database_url = _cfg.databaseUrl;
     firebaseConfig.token_status_callback = firebaseTokenStatusLogger;
@@ -555,6 +553,7 @@ RawTelemetryRecordContext FirebasePipeline::buildRecordContext(DeviceContext &de
     ctx.rssi = networkSignalDbm();
     ctx.hasInternet = hasInternet;
     ctx.sensorError = sensorError;
+    ctx.includePartialSensorValues = APP_PUBLISH_PARTIAL_SENSOR_VALUES != 0;
     return ctx;
 }
 
@@ -721,7 +720,19 @@ TelemetryPushResult FirebasePipeline::pushPayloadDetailed(FirebaseData &firebase
         updateUploadState(record, "direct", true, true, "direct_upload", -1, -1, true, "", "");
         updateSyncState(record, false, "", false, false, false, "", "");
 
-        if (_rawTelemetryReporter.publishRecord(firebaseData, record, publishResult, err)) {
+        err = "";
+        bool telemetryPublished = _rawTelemetryReporter.publishRecord(firebaseData, record, publishResult, err);
+        CUS_DBGF("[FIREBASE][TELEMETRY] result ok=%d duplicate=%d path=%s ref=%s http=%d stage=%s detail=%s elapsed=%lu ms\n",
+                 telemetryPublished ? 1 : 0,
+                 publishResult.duplicate ? 1 : 0,
+                 publishResult.path.c_str(),
+                 publishResult.refId.c_str(),
+                 publishResult.httpStatus,
+                 publishResult.stage.c_str(),
+                 (err.length() ? err : publishResult.detail).c_str(),
+                 (unsigned long)(millis() - uploadStartMs));
+
+        if (telemetryPublished) {
             int uploadLatencyMs = (int)(millis() - uploadStartMs);
             updateUploadState(record,
                               "direct",
@@ -751,7 +762,6 @@ TelemetryPushResult FirebasePipeline::pushPayloadDetailed(FirebaseData &firebase
                 publishTelemetryDebug(firebaseData, true, publishResult.path, result.detail, utcMs);
                 publishTelemetryChannel(firebaseData, true, false, false, "direct_upload", publishResult.path, result.detail, utcMs);
             }
-            CUS_DBGF("[FIREBASE] Node telemetry OK path=%s\n", publishResult.path.c_str());
             return result;
         }
 

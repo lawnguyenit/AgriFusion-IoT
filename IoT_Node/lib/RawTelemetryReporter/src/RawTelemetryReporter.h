@@ -19,6 +19,7 @@ struct RawTelemetryRecordContext {
     int rssi = 0;
     bool hasInternet = false;
     bool sensorError = false;
+    bool includePartialSensorValues = false;
     uint32_t retryCount = 0;
     uint32_t timeoutMs = 0;
 };

@@ -52,9 +52,24 @@ python Backend/Benchmark/evaluation_protocols/main.py `
 E2/E3 runs require a different predeclared profile and a native label release
 covering every requested environment; they are not implicitly joined to RQ1.
 
+The runner keeps point/Same-Y views as the primary compatibility scope and also
+exposes additive temporal K-gated task rows for the 3h temporal model profile.
+Those rows consume the native temporal assignment artifact rather than the
+point/Same-Y label transfer.
+
 The legacy `v2` alias is compatibility-only and expands to the primary 3h
 minimal and full history views. Any 8h run must request
 `v2_minimal_sensor_window_8h` or `v2_sensor_row_window_8h` explicitly.
+
+## Additive paired target-view protocol
+
+`target_views.py` can derive a sibling protocol from an existing temporal
+protocol run.  It preserves the base feature artifacts, sample universe,
+folds, and partitions, and adds `target_view_id` to the task registry and
+training manifest.  The paired profile currently contains
+`temporal_online_3h` and `temporal_event_3h`; both use the same trainable row
+sets.  `Y_event` is retrospective target construction only, and future
+information remains forbidden in the feature matrix.
 
 ## Output
 

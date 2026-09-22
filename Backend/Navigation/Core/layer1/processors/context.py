@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from ipaddress import IPv4Address
 from typing import Any
 
 try:
@@ -28,6 +29,26 @@ def extract_raw_buffer_reason(source_record: SourceRecord) -> str | None:
         payload.get("buffer_reason"),
         system_sync.get("buffer_reason_code"),
     )
+
+
+def first_valid_ipv4(*values: Any) -> str | None:
+    for value in values:
+        text = first_non_empty_str(value)
+        if not text or text == "0.0.0.0":
+            continue
+        try:
+            IPv4Address(text)
+        except ValueError:
+            continue
+        return text
+    return None
+
+
+def useful_operator(value: Any) -> str | None:
+    text = first_non_empty_str(value)
+    if not text or "ERROR" in text.upper() or "+COPS:" in text.upper():
+        return None
+    return text
 
 
 def build_record_and_context_fields(source_record: SourceRecord) -> dict[str, Any]:
@@ -105,6 +126,42 @@ def build_record_and_context_fields(source_record: SourceRecord) -> dict[str, An
         payload.get("demo_template_id")
     ) or bool(system_record.get("synthetic"))
 
+    signal_dbm = safe_int(
+        first_not_none(sim_module.get("signal_dbm"), sim_network.get("signal_dbm"))
+    )
+    signal_csq = safe_int(
+        first_not_none(sim_module.get("signal_csq"), sim_network.get("signal_csq"))
+    )
+    signal_valid = first_bool(
+        sim_module.get("signal_valid"), sim_network.get("signal_valid")
+    )
+    if signal_valid is None and signal_dbm not in {None, 0}:
+        signal_valid = True
+
+    local_ip = first_valid_ipv4(
+        sim_module.get("local_ip"), sim_network.get("local_ip")
+    )
+    local_ip_valid = first_bool(
+        sim_module.get("local_ip_valid"), sim_network.get("local_ip_valid")
+    )
+    if local_ip_valid is None and local_ip is not None:
+        local_ip_valid = True
+    local_ip_source = (
+        first_non_empty_str(
+            sim_module.get("local_ip_source"), sim_network.get("local_ip_source")
+        )
+        if local_ip is not None
+        else None
+    )
+    operator = useful_operator(
+        first_not_none(sim_module.get("operator"), sim_network.get("operator"))
+    )
+    operator_valid = first_bool(
+        sim_module.get("operator_valid"), sim_network.get("operator_valid")
+    )
+    if operator_valid is None and operator is not None:
+        operator_valid = True
+
     return {
         "record.node_id": node_id,
         "record.date_key": source_record.date_key,
@@ -141,10 +198,15 @@ def build_record_and_context_fields(source_record: SourceRecord) -> dict[str, An
         "delivery.buffered_at_ms": buffered_at_ms,
         "delivery.replayed_at_ms": replayed_at_ms,
         "delivery.metadata_complete": metadata_complete,
-        "network.signal_dbm": safe_int(
-            first_not_none(sim_module.get("signal_dbm"), sim_network.get("signal_dbm"))
-        ),
+        "network.signal_dbm": signal_dbm,
+        "network.signal_csq": signal_csq,
+        "network.signal_valid": signal_valid,
         "network.gprs": first_bool(sim_module.get("gprs"), sim_network.get("pdp_active")),
+        "network.local_ip": local_ip,
+        "network.local_ip_valid": local_ip_valid,
+        "network.local_ip_source": local_ip_source,
+        "network.operator": operator,
+        "network.operator_valid": operator_valid,
         "network.device_online": as_optional_bool(overall_health.get("online")),
         "device.wake_reason": wake_reason,
         "device.cycle_duration_ms": safe_int(

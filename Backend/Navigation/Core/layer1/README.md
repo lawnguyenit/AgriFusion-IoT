@@ -90,6 +90,19 @@ thi cac file nay duoc sinh lai tu canonical source-of-truth, khong con la pipeli
 - `feature_catalog.csv` co them governance fields:
   `feature_role`, `used_by_label_rule`, `rule_proxy_level`,
   `split_only`, `allowed_views`, `forbidden_views`;
+- network diagnostics from `sim_record.network` such as `local_ip`,
+  `local_ip_valid`, `local_ip_source`, `signal_csq`, and operator validity are
+  retained as `RAW_ONLY` audit context; they are not model features;
+- sensor semantics are retained as audit/applicability fields rather than
+  extra model channels: per-field validity/source for NPK temperature,
+  moisture, EC, pH, and N/P/K; SHT30 value/error state; sensor error class;
+  and the moisture calibration regime/profile. The nine public numeric
+  measurement columns remain unchanged;
+- NPK `pH` protocol validity is separate from pH value validity, so a valid
+  N/P/K/EC/temperature/moisture field is not hidden merely because pH is
+  absent or semantically invalid. A moisture percentage is explicitly a
+  provisional relative index for the configured 10--15 cm installation
+  profile, not a VWC observation;
 - `eligible_for_model` duoc giu lai nhu cot compatibility suy ra tu
   governance moi.
 

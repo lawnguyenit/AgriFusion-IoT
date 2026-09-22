@@ -3,7 +3,7 @@
 Purpose: simple LittleFS helpers for offline data persistence.
 
 Main API:
-- `setupStorage()`
+- `setupStorage()` — mounts LittleFS and returns whether the mount succeeded
 - `saveOfflineData()`
 - `processOfflineData()`
 

@@ -27,23 +27,33 @@
 #define USE_SIM_NETWORK 1            // chon kieu mang chinh cho node
 
 // ================= [APP MODE] =================
-// Current deployment profile: keep the node running continuously.
-// Deep-sleep mode can be added later after field power profiling is stable.
-// APP_RUN_CONTINUOUS: luong van hanh chinh cua node. Hien tai de 1 de chay lien tuc.
+// Current deployment profile: wake, measure, send/buffer, then deep-sleep.
+// APP_RUN_CONTINUOUS can still be enabled for a continuous bench profile.
+// APP_RUN_CONTINUOUS: 1 = chay lien tuc, 0 = wake-do-gui-ngu.
 // APP_SIM_PURE_TEST_MODE: bat khi chi muon test SIM, bo qua toan bo runtime sensor/cloud.
 // APP_SHT30_TEST_MODE: bat khi chi muon test rieng SHT30 qua Sht30Service, bo qua runtime chinh.
+// APP_DS18B20_TEST_MODE: bat khi chi muon test rieng DS18B20 qua OneWire, bo qua runtime chinh.
+// APP_SOIL_MOISTURE_TEST_MODE: bat khi chi muon test moisture sensor v1.2 analog.
+// APP_ALL_SENSORS_TEST_MODE: bat khi test serial-only toan bo NPK, moisture, DS18B20, SHT30.
 // APP_RAW_TRUTH_PROBE_MODE: bat khi can bai test raw transport/time cap thap, khong vao flow app that.
 #define APP_RUN_CONTINUOUS 0         // 1 = chay lien tuc, 0 = che do wake-do-gui-ngu
 #define APP_SIM_PURE_TEST_MODE 0     // 1 = bo qua AppRuntime, chay che do test SIM thuan de chan doan mang
 #define APP_SHT30_TEST_MODE 0        // 1 = bo qua AppRuntime, chay che do test rieng SHT30
+#define APP_DS18B20_TEST_MODE 0      // 1 = bo qua AppRuntime, chay che do test rieng DS18B20
+#define APP_SOIL_MOISTURE_TEST_MODE 0 // 1 = bo qua AppRuntime, chay che do test moisture rieng
+#define APP_ALL_SENSORS_TEST_MODE 0   // production AppRuntime path
 #define APP_RAW_TRUTH_PROBE_MODE 0   // 1 = chay harness raw transport/time, 0 = de du phong cho app runtime sau nay
 
+#if (APP_SIM_PURE_TEST_MODE + APP_SHT30_TEST_MODE + APP_DS18B20_TEST_MODE + APP_SOIL_MOISTURE_TEST_MODE + APP_ALL_SENSORS_TEST_MODE + APP_RAW_TRUTH_PROBE_MODE) > 1
+  #error "Chi duoc bat mot che do diagnostic/test tai mot thoi diem"
+#endif
+
 // ================= [NODE IDENTITY] =================
-#define APP_NODE_SLOT_KEY              "Node1"              // key dinh danh node trong app/cloud
-#define APP_NODE_ID                    "Node1"              // id node dung trong payload va cloud
+#define APP_NODE_SLOT_KEY              "Node2"              // key dinh danh node trong app/cloud
+#define APP_NODE_ID                    "Node2"              // id node dung trong payload va cloud
 #define APP_NODE_NAME                  "Vuon sau rieng A"   // ten hien thi cua node
 #define APP_NODE_SITE_ID               "Binh Phu, Vinh Long" // vi tri/cum trien khai
-#define APP_NODE_DEVICE_UID            "esp32s3_node1"      // uid thiet bi phan biet voi cac node khac
+#define APP_NODE_DEVICE_UID            "esp32s3_node2"      // uid thiet bi phan biet voi cac node khac
 #define APP_NODE_POWER_TYPE            "solar_battery"      // kieu nguon cap de dua len metadata
 #define APP_NODE_TIMEZONE              "Asia/Ho_Chi_Minh"   // timezone dang text de luu metadata
 #define APP_NODE_TZ_CONFIG             "ICT-7"              // chuoi cau hinh timezone cho NTP
@@ -51,7 +61,7 @@
 #define APP_BOARD_MODEL                "ESP32-S3"           // model board hien tai
 #define APP_SIM_MODULE_MODEL           "A7682S"             // model module SIM hien tai
 #define APP_CONFIG_VERSION             "cfg_v2"             // version config runtime duoc build cung firmware
-#define APP_CALIBRATION_VERSION        "calib_v1"           // version calibration/runtime note hien tai
+#define APP_CALIBRATION_VERSION        "calib_v2"           // phien ban calibration cong khai, khong mo ta cach sensor tao EC
 
 // Canonical sensor registry ids/types used in schema v2.
 #define APP_SENSOR_ID_SHT30            "air_sht30_01"
@@ -67,15 +77,20 @@
 
 // Cac path duoi day la schema cloud hien tai.
 // Neu doi ten node/path tren RTDB thi sua tai day thay vi sua trong code runtime.
-#define APP_RTDB_PATH_NODE_ROOT        "/Node1"             // root du lieu cua node tren RTDB
-#define APP_RTDB_PATH_NODE_INFO        "/Node1/info"        // metadata tinh do admin ghi tay
-#define APP_RTDB_PATH_NODE_LATEST      "/Node1/latest"      // snapshot moi nhat theo schema canonical v2
-#define APP_RTDB_PATH_NODE_TELEMETRY   "/Node1/telemetry"   // root telemetry thuc te cua node
-#define APP_RTDB_PATH_NODE_TELEMETRY_PROBE "/debug/Node1/telemetry_probe" // path probe/debug khong chen vao canonical telemetry
-#define APP_RTDB_PATH_NODE_DEBUG_ROOT  "/debug/Node1"       // root debug/ops phu tro
-#define APP_RTDB_PATH_NODE_DEBUG_STATUS "/debug/Node1/status" // snapshot trang thai runtime de debug
-#define APP_RTDB_PATH_NODE_DEBUG_TELEMETRY "/debug/Node1/telemetry" // debug channel cho publish/replay
+#define APP_RTDB_PATH_NODE_ROOT        "/Node2"             // root du lieu cua node tren RTDB
+#define APP_RTDB_PATH_NODE_INFO        "/Node2/info"        // metadata tinh do admin ghi tay
+#define APP_RTDB_PATH_NODE_LATEST      "/Node2/latest/current" // ban ghi moi nhat, tuong thich latest/current cua Node1
+#define APP_RTDB_PATH_NODE_LATEST_META "/Node2/latest/meta" // metadata dieu phoi latest cho Backend/Layer0
+#define APP_RTDB_PATH_NODE_TELEMETRY   "/Node2/telemetry"   // root telemetry thuc te cua node
+#define APP_RTDB_PATH_NODE_TELEMETRY_PROBE "/debug/Node2/telemetry_probe" // path probe/debug khong chen vao canonical telemetry
+#define APP_RTDB_PATH_NODE_DEBUG_ROOT  "/debug/Node2"       // root debug/ops phu tro
+#define APP_RTDB_PATH_NODE_DEBUG_STATUS "/debug/Node2/status" // snapshot trang thai runtime de debug
+#define APP_RTDB_PATH_NODE_DEBUG_TELEMETRY "/debug/Node2/telemetry" // debug channel cho publish/replay
+#define APP_RTDB_PATH_NODE_NPK_TEST     "/debug/Node2/npk_test/latest" // ban ghi test canonical NPK, khong vao telemetry chinh
 #define APP_OFFLINE_RAW_FILE           "/offline_data.txt"  // file dem khi mat mang
+// Production khong ghi snapshot/trang thai vao nhanh /debug. Bat lai tam
+// thoi khi can chan doan cloud; serial log van hoat dong theo DEBUG_MODE.
+#define APP_RTDB_DEBUG_PUBLISH_ENABLED 0                    // 0 = tat ghi RTDB debug, 1 = cho phep ghi debug
 
 // ================= [EDGE METADATA] =================
 #define APP_EDGE_SYSTEM_NPK            "soil_npk_edge"      // ten nhom he thong cho cam bien NPK
@@ -123,7 +138,7 @@
 // ================= [TASK / BUFFER] =================
 // APP_QUEUE_LENGTH va APP_QUEUE_REPLACE_OLDEST_ON_FULL quyet dinh cach xu ly khi sensor tao mau nhanh hon cloud upload.
 // Hien tai uu tien GIU MAU MOI NHAT: khi queue day se bo ban tin cu nhat.
-#define APP_SENSOR_PAYLOAD_BUFFER_SIZE     2048U                 // kich thuoc toi da cho 1 payload JSON; tang de tranh roi mau khi packet debug vuot 1.5 KB
+#define APP_SENSOR_PAYLOAD_BUFFER_SIZE     4096U                 // kich thuoc du cho node packet + raw/error diagnostics trong continuous queue
 #define APP_MESSAGE_KIND_BUFFER_SIZE       24U                   // kich thuoc chuoi phan loai payload
 #define APP_QUEUE_LENGTH                   10U                   // so ban tin toi da cho trong queue
 #define APP_QUEUE_SEND_WAIT_MS             10UL                  // cho toi da 10ms khi sensor task day 1 packet vao queue
@@ -146,12 +161,19 @@
 #define APP_SHT30_INIT_ATTEMPTS            3U                    // so lan thu init lien tiep moi khi danh thuc/can force init SHT30
 #define APP_SHT30_INIT_RETRY_DELAY_MS      180UL                 // do tre giua cac lan init SHT30 trong 1 dot
 #define APP_SHT30_FORCE_REINIT_STREAK      2U                    // bao nhieu chu ky doc loi lien tiep thi danh dau can init lai
-#define APP_SHT30_WIRE_CLOCK_HZ            100000UL              // toc do I2C cua SHT30
+#define APP_SHT30_WIRE_CLOCK_HZ            10000UL               // low-speed I2C da dung o phase 1, phu hop day dai
 #define APP_SHT30_WIRE_TIMEOUT_MS          20UL                  // timeout I2C
-#define APP_SHT30_POST_WIRE_BEGIN_DELAY_MS 30UL                  // cho ngan sau Wire.begin de bus on dinh
+#define APP_SHT30_POST_WIRE_BEGIN_DELAY_MS 100UL                 // phase 1 cho bus on dinh sau Wire.begin
+#define APP_SHT30_SOFT_RESET_WAIT_MS       10UL                  // cho sau lenh soft reset 0x30A2
+#define APP_SHT30_MEASUREMENT_WAIT_MS      20UL                  // cho conversion sau lenh 0x2400
+#define APP_SHT30_RETRY_SETTLE_DELAY_MS    20UL                  // cho them truoc retry sau reset
 #define APP_SHT30_TEST_INTERVAL_MS         5000UL                // chu ky lap lai bai test SHT30
-#define APP_SHT30_TEST_BOOT_PROBES         3U                    // so mau test lien tiep ngay sau boot de bat loi startup
-#define APP_SHT30_TEST_BOOT_DELAY_MS       1000UL                // khoang cach giua cac mau boot test SHT30
+#define APP_SHT30_TEST_BOOT_PROBES         10U                   // so lan init+probe bat buoc lien tiep trong 1 dot
+#define APP_SHT30_TEST_BOOT_DELAY_MS       300UL                 // khoang cach ngan giua cac lan init lien tiep
+#define APP_SHT30_TEST_RAW_READ_COUNT      6U                    // so lan doc raw lien tiep sau khi bus phan hoi
+#define APP_SHT30_TEST_RAW_READ_DELAY_MS   500UL                 // khoang cach giua cac raw read
+#define APP_SHT30_TEST_SCAN_FULL_BUS       1                     // 1 = scan 0x03..0x77, 0 = chi ping 0x44/0x45
+#define APP_SHT30_TEST_ALT_ADDR            0x45                  // dia chi thay the chi dung de chan doan
 
 // ================= [LOG LABELS] =================
 #define APP_LOG_SYS_TAG        "[SYS]"      // nhan log he thong
@@ -167,7 +189,7 @@
 #define SIM_RX_PIN      16                  // RX cua ESP noi sang TX cua SIM
 #define SIM_BAUDRATE    115200              // baudrate UART giao tiep voi SIM
 #define SIM_GSM_PIN     ""                  // ma PIN cua SIM neu nha mang yeu cau
-#define SIM_APN         "v-internet"        // APN cua nha mang
+#define SIM_APN         "m9-itelecom"       // APN cua nha mang iTel
 #define SIM_APN_USER    ""                  // username APN
 #define SIM_APN_PASS    ""                  // password APN
 #define SIM_PDP_TYPE    "IP"                // kieu PDP context hien tai; co the thu "IPV4V6" neu can
@@ -202,15 +224,96 @@
 // ================= [NPK SENSOR] =================
 #define NPK_TX_PIN      5                   // TX cua ESP noi sang RX cam bien NPK
 #define NPK_RX_PIN      4                   // RX cua ESP noi sang TX cam bien NPK
-#define NPK_BAUDRATE    4800                // baudrate Modbus/serial cua NPK
+#define NPK_BAUDRATE    9600                // baudrate Modbus/serial da xac nhan qua matrix
+#define NPK_MODBUS_SLAVE_ID 1U              // dia chi slave da xac nhan co phan hoi
+#define NPK_REG_PH       0x0006U             // holding register pH da xac nhan co frame hop le
+#define NPK_REG_NPK      0x001EU             // holding register bat dau N/P/K da xac nhan co frame hop le
+#define NPK_REG_NPK_COUNT 3U                 // N, P, K
+// Node2 production dung map sparse da xac nhan. Map phase 1 van duoc giu lai
+// trong thu vien/matrix de tai kiem chung khi thay sensor profile khac, nhung
+// khong probe trong moi wake cycle de tranh mat them thoi gian/pin.
+#define NPK_LEGACY_FULL_MAP_ENABLED 0
+#define NPK_LEGACY_FULL_MAP_START   0x0000U
+#define NPK_LEGACY_FULL_MAP_COUNT   7U
+
+// ================= [NPK DERIVED VALUES] =================
+// Node2 khong phan hoi o cac thanh ghi EC/nhiet/do am rieng. Khi N/P/K da
+// doc thanh cong, dung he so fit tu Layer1 de ghi EC proxy truc tiep vao
+// npk.ec. Phan output cong khai giu cung hinh dang EC cua giai doan 1.
+#define NPK_EC_INFERENCE_ENABLED              1
+#define NPK_EC_INFERENCE_FORMULA_VERSION      "layer1_node1_multivariate_v1"
+#define NPK_EC_INFERENCE_INTERCEPT            104.537608f
+#define NPK_EC_INFERENCE_N_COEFFICIENT        0.33430017f
+#define NPK_EC_INFERENCE_P_COEFFICIENT        0.92924061f
+#define NPK_EC_INFERENCE_K_COEFFICIENT        0.99130859f
+
+// Khi mot kenh co frame hop le nhung kenh khac (vi du pH) khong dat validity,
+// van giu cac gia tri da xac nhan trong sensor_record.values; kenh khong hop
+// le duoc ghi null va trang thai van nam trong read_status.
+#define APP_PUBLISH_PARTIAL_SENSOR_VALUES     1
+
+// Day la mien du lieu Node1 dung de danh dau canh bao khi Node2 nam ngoai
+// mien hieu chinh. Khong chan viec tinh EC; chi de hien thi trong log/payload.
+#define NPK_EC_CALIBRATION_N_MIN              1
+#define NPK_EC_CALIBRATION_N_MAX              195
+#define NPK_EC_CALIBRATION_P_MIN              50
+#define NPK_EC_CALIBRATION_P_MAX              496
+#define NPK_EC_CALIBRATION_K_MIN              42
+#define NPK_EC_CALIBRATION_K_MAX              492
+
+// Thiet bi hien tai khong co frame nhiet/do am dat rieng. Humidity van giu
+// bang 0 de giu schema on dinh; DS18B20 co the bo sung lai soil temperature.
+#define NPK_UNSUPPORTED_SOIL_CLIMATE_AS_ZERO  1
 
 // ================= [SHT30 SENSOR] =================
-#define SHT30_SDA_PIN   8                   // chan SDA I2C cua SHT30
-#define SHT30_SCL_PIN   9                   // chan SCL I2C cua SHT30
+#define SHT30_SDA_PIN   6                   // chan SDA I2C cua SHT30
+#define SHT30_SCL_PIN   7                   // chan SCL I2C cua SHT30
 #define SHT30_I2C_ADDR  0x44                // dia chi I2C cua SHT30
 
 #define SHT30_READ_MAX_ATTEMPTS   3         // so lan doc lai SHT30 trong 1 chu ky
 #define SHT30_RETRY_DELAY_MS      900       // delay giua cac lan doc lai SHT30
 #define SHT30_MAX_WAIT_MS         3000      // tong thoi gian toi da cho viec doc SHT30
+
+// ================= [MOISTURE SENSOR V1.2] =================
+// Assumption for this temporary test: capacitive analog module with VCC/GND/AOUT.
+// GPIO1 is an unused ESP32-S3 ADC input in the current Node2 pin allocation.
+#define SOIL_MOISTURE_ADC_PIN             1U
+#define SOIL_MOISTURE_TEST_INTERVAL_MS    1000UL
+#define SOIL_MOISTURE_SAMPLE_COUNT        32U
+#define SOIL_MOISTURE_SAMPLE_GAP_MS       2U
+// Provisional relative profile, not field calibration or VWC. The official
+// example uses 520/260 on a 10-bit Arduino ADC. These are scaled to 12-bit
+// ESP32 ADC values (approximately 1041/2082) and their direction follows the
+// observed unit, whose raw value increased when placed in water. The observed
+// 920/2525 values are not used as calibration endpoints.
+#define SOIL_MOISTURE_CALIBRATION_IS_DEFAULT 1
+#define SOIL_MOISTURE_CALIBRATION_PROFILE "manufacturer_example_scaled_12bit_direction_adjusted"
+#define SOIL_MOISTURE_CALIBRATION_SOURCE  "manufacturer_two_point_relative_provisional"
+#define SOIL_MOISTURE_MANUFACTURER_DRY_10BIT 520
+#define SOIL_MOISTURE_MANUFACTURER_WET_10BIT 260
+#define SOIL_MOISTURE_AIR_ADC             1041
+#define SOIL_MOISTURE_WATER_ADC           2082
+#define SOIL_MOISTURE_PIPELINE_ENABLED    1
+#define SOIL_MOISTURE_CALIBRATION_TARGET_DEPTH_CM 10.0f
+#define SOIL_MOISTURE_INSTALL_DEPTH_CM_MIN 10.0f
+#define SOIL_MOISTURE_INSTALL_DEPTH_CM_MAX 15.0f
+#define APP_ALL_SENSORS_TEST_INTERVAL_MS  5000UL
+
+// ================= [DS18B20 SENSOR] =================
+// GPIO21 la GPIO I/O thuong, khong trung UART NPK (4/5), I2C SHT30 (6/7),
+// hay UART SIM (16/17) tren profile ESP32-S3-DevKitC-1 hien tai.
+#define DS18B20_DATA_PIN              21
+#define DS18B20_PIPELINE_ENABLED      1
+#define DS18B20_TEST_INTERVAL_MS      3000UL
+#define DS18B20_CONVERSION_WAIT_MS    750UL
+#define DS18B20_RETRY_INIT_MS         10000UL
+#define DS18B20_READ_MAX_ATTEMPTS     1U
+#define DS18B20_RETRY_DELAY_MS        100UL
+#define DS18B20_MAX_WAIT_MS           2000UL
+#define DS18B20_MAX_DEVICES           4U
+#define DS18B20_USE_INTERNAL_PULLUP   1
+#define DS18B20_USE_STRONG_PULLUP     1
+#define DS18B20_BUS_PRECHARGE_US      20U
+#define DS18B20_SINGLE_DROP_FALLBACK   1
 
 #endif

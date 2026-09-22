@@ -78,6 +78,17 @@ authority. There is one executable label path: the native lifecycle.
 It does **not** decide benchmark fold IDs, deployment environments, or
 final trainability.
 
+### Field-level applicability
+
+Rule and derived-evidence consumers use the validity of the measurement they
+actually inspect. Moisture rules resolve `npk.soil_moisture_valid`, EC rules
+resolve `npk.ec_valid`, and temporal deltas require both the current and
+strictly previous field to be valid. The aggregate `npk.valid` remains a
+compatibility/fault indicator; it cannot hide an independently valid N/P/K,
+EC, temperature, or moisture value when another field (for example pH) is
+invalid. Source, calibration regime, protocol/value validity, and error class
+remain audit evidence and are not added to label classes or feature arms.
+
 ## Phase A Readiness Path
 
 - consumes an explicit `protocol_registry` run;
@@ -182,8 +193,41 @@ locked.
   - `run_metadata/native_engine_validation.yaml`
   - `run_metadata/artifact_catalog.csv`
 
+## Derived UNRES-origin analysis
+
+The published temporal label remains the authority. An audit-only sibling
+artifact may derive `UNRES_K` and `UNRES_A` from the native temporal
+assignment plus point/rule/continuity evidence:
+
+```text
+artifacts/phase_c/temporal_unres_origin_split_<run_id>/
+```
+
+`UNRES_K` means `M_t <= Q` with strict support depth `d_t < K`; `UNRES_A`
+means `M_t > Q` with at least one positive auxiliary rule. The derived field
+is for later fallback experiments and row filtering. It does not mutate the
+native label release, create a new training ontology, or run model evaluation.
+
 ## Main Handoff
 
 - downstream label authority for `evaluation_protocols`
 - downstream rule-trace authority for exact-rule validation and later
   synthesis
+
+## Additive event/online target views
+
+The native temporal release remains the label authority.  The analysis module
+`analysis/temporal_target_views.py` materializes an additive sibling containing
+two target views over the same native rows:
+
+- `temporal_online_3h`: causal label using support depth `d_t` at the anchor;
+- `temporal_event_3h`: retrospective label using completed run length `L_r`.
+
+Both retain the three model-facing classes `LOW/UNRES/REF` (with the native
+long names) and provenance columns for `run_id`, `d_t`, `L_r`, `unres_origin`,
+and `event_vs_online_changed`.  Right-censored LOW runs are
+`EVENT_UNDETERMINED` abstentions and are excluded from the paired cohort.
+Future data is used only to define `Y_event`, never as a feature.  The output
+is a sibling under
+`artifacts/phase_c/temporal_event_online_target_views_<run_id>/`; it does not
+mutate the native release or feature artifacts.

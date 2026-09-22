@@ -12,7 +12,10 @@ struct SimNetworkState {
     bool packetAttached;
     bool gprsConnected;
     int signalDbm;
+    int signalCsq;
     String localIp;
+    bool localIpValid;
+    String localIpSource;
     String operatorName;
 };
 
@@ -30,6 +33,8 @@ struct SimConnectivityReport {
     int signalCsq;
     int cipOpenCode;
     String localIp;
+    bool localIpValid;
+    String localIpSource;
     String operatorName;
     String pdpContext;
     String pdpActive;

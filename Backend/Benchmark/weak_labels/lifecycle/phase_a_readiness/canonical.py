@@ -45,6 +45,34 @@ SENSITIVE_E1_COLUMNS = (
     "npk.valid",
 )
 
+OPTIONAL_E1_SEMANTIC_COLUMNS = (
+    "sht.value_valid",
+    "sht.values_available",
+    "sht.values_recorded_with_error",
+    "sht.error_class",
+    "npk.error_class",
+    "npk.soil_temp_valid",
+    "npk.soil_temp_source",
+    "npk.soil_moisture_valid",
+    "npk.soil_moisture_source",
+    "npk.soil_moisture_calibration_status",
+    "npk.soil_moisture_calibration_profile",
+    "npk.soil_moisture_value_semantics",
+    "npk.soil_moisture_raw_adc",
+    "npk.soil_moisture_voltage_mv",
+    "npk.soil_moisture_install_depth_cm_min",
+    "npk.soil_moisture_install_depth_cm_max",
+    "npk.ph_protocol_ok",
+    "npk.ph_valid",
+    "npk.ph_status",
+    "npk.ec_valid",
+    "npk.ec_source",
+    "npk.ec_measurement_kind",
+    "npk.n_proxy_valid",
+    "npk.p_proxy_valid",
+    "npk.k_proxy_valid",
+)
+
 
 def load_canonical_audit_inputs(
     canonical_path: Path,
@@ -97,10 +125,19 @@ def load_canonical_audit_inputs(
         .astype(int)
         .tolist()
     )
+    e1_sensitive_columns = list(
+        dict.fromkeys(
+            [
+                *STRUCTURAL_COLUMNS,
+                *SENSITIVE_E1_COLUMNS,
+                *(column for column in OPTIONAL_E1_SEMANTIC_COLUMNS if column in header),
+            ]
+        )
+    )
     e1_sensitive = _read_selected_rows(
         canonical_path,
         row_locators=e1_locators,
-        columns=list(dict.fromkeys([*STRUCTURAL_COLUMNS, *SENSITIVE_E1_COLUMNS])),
+        columns=e1_sensitive_columns,
     )
     e1_sensitive["source_row_locator"] = pd.Series(sorted(e1_locators), dtype="Int64")
     e1_sensitive["sample_time"] = _parse_local_timestamp_series(e1_sensitive["record.sample_time_local"])
@@ -135,7 +172,7 @@ def load_canonical_audit_inputs(
         "canonical_schema_version": _canonical_schema_version(canonical_manifest_path),
         "input_row_count": len(structural),
         "structural_column_allowlist": list(STRUCTURAL_COLUMNS),
-        "e1_sensitive_columns": list(SENSITIVE_E1_COLUMNS),
+        "e1_sensitive_columns": e1_sensitive_columns,
         "sealed_environment_ids": ["E2", "E3_TARGET_PREEXPOSED"],
         "sealed_payload_policy": "STRUCTURAL_COMMITMENTS_ONLY",
     }

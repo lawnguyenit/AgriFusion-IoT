@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 import json
 from pathlib import Path
 
@@ -863,6 +864,7 @@ def extend_manifest_with_contracts(
     *,
     sample_environment_manifest: pd.DataFrame,
     ontology_id: str,
+    ontology_by_label_task_id: Mapping[str, str] | None = None,
 ) -> pd.DataFrame:
     environment_lookup = sample_environment_manifest.set_index("sample_id")[
         ["timestamp_local", "deployment_id", "segment_id", "environment_id", "analysis_status", "boundary_status"]
@@ -893,6 +895,10 @@ def extend_manifest_with_contracts(
     if "target" not in working.columns:
         working["target"] = working.get("label_name", pd.Series([pd.NA] * len(working), dtype="string")).astype("string")
     working["ontology_id"] = ontology_id
+    if ontology_by_label_task_id and "label_task_id" in working.columns:
+        task_ids = working["label_task_id"].astype("string")
+        for label_task_id, task_ontology_id in ontology_by_label_task_id.items():
+            working.loc[task_ids.eq(str(label_task_id)), "ontology_id"] = str(task_ontology_id)
     working["population_digest"] = _group_digest(working, ["sample_id"], ["sample_id"])
     working["evaluation_contract_digest"] = _group_digest(
         working,

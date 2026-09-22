@@ -56,7 +56,8 @@ class EvaluationProtocolDiagnosticsTests(unittest.TestCase):
         )
 
         self.assertAlmostEqual(float(metrics["supported_class_macro_f1"]), 0.7333333333, places=6)
-        self.assertAlmostEqual(float(metrics["fixed_ontology_macro_f1"]), 0.4888888888, places=6)
+        self.assertTrue(np.isnan(float(metrics["fixed_ontology_macro_f1"])))
+        self.assertEqual(metrics["fixed_ontology_estimability_status"], "NON_ESTIMABLE")
         self.assertEqual(metrics["unsupported_classes"], ["low_relative_moisture_point"])
         self.assertFalse(bool(metrics["ontology_all_classes_supported"]))
 

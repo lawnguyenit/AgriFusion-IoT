@@ -33,8 +33,16 @@ def build_derived_evidence(frame: pd.DataFrame, contract: NativeContract) -> pd.
     strict = working["strictly_consecutive_from_previous"].fillna(False).astype(bool)
     moisture = pd.to_numeric(working["npk.soil_moisture_pct"], errors="coerce")
     ec = pd.to_numeric(working["npk.ec"], errors="coerce")
-    working["moisture_rise_delta"] = (moisture - previous_moisture).where(strict)
-    working["ec_shift_delta_abs"] = (ec - previous_ec).abs().where(strict)
+    moisture_valid = _resolve_field_validity(working, "npk.soil_moisture_valid", moisture.notna())
+    ec_valid = _resolve_field_validity(working, "npk.ec_valid", ec.notna())
+    previous_moisture_valid = moisture_valid.groupby(working["deployment_segment_id"], dropna=False).shift(1).fillna(False)
+    previous_ec_valid = ec_valid.groupby(working["deployment_segment_id"], dropna=False).shift(1).fillna(False)
+    working["moisture_rise_delta"] = (moisture - previous_moisture).where(
+        strict & moisture_valid & previous_moisture_valid
+    )
+    working["ec_shift_delta_abs"] = (ec - previous_ec).abs().where(
+        strict & ec_valid & previous_ec_valid
+    )
     working.loc[~strict, ["moisture_rise_delta", "ec_shift_delta_abs"]] = np.nan
     working["vpd_evaluable"] = working["derived.vpd_kpa"].notna().astype("boolean")
     working["moisture_delta_evaluable"] = working["moisture_rise_delta"].notna().astype("boolean")
@@ -69,3 +77,16 @@ def _required_policy(row: dict[str, object], key: str) -> str:
     if value is None or not str(value).strip():
         raise NativeContractError(f"Derived-evidence contract must declare {key}.")
     return str(value)
+
+
+def _resolve_field_validity(
+    frame: pd.DataFrame,
+    column: str,
+    fallback: pd.Series,
+) -> pd.Series:
+    if column not in frame.columns:
+        return fallback.astype(bool)
+    raw = frame[column]
+    if str(raw.dtype) in {"bool", "boolean"}:
+        return raw.fillna(False).astype(bool)
+    return raw.astype("string").str.strip().str.lower().isin({"true", "1", "yes"})

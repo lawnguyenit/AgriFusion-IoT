@@ -20,6 +20,34 @@ CANONICAL_REQUIRED_COLUMNS = (
     "sht.humidity_pct",
 )
 
+OPTIONAL_CANONICAL_EVIDENCE_COLUMNS = {
+    "sht.value_valid",
+    "sht.values_available",
+    "sht.values_recorded_with_error",
+    "sht.error_class",
+    "npk.error_class",
+    "npk.soil_temp_valid",
+    "npk.soil_temp_source",
+    "npk.soil_moisture_valid",
+    "npk.soil_moisture_source",
+    "npk.soil_moisture_calibration_status",
+    "npk.soil_moisture_calibration_profile",
+    "npk.soil_moisture_value_semantics",
+    "npk.soil_moisture_raw_adc",
+    "npk.soil_moisture_voltage_mv",
+    "npk.soil_moisture_install_depth_cm_min",
+    "npk.soil_moisture_install_depth_cm_max",
+    "npk.ph_protocol_ok",
+    "npk.ph_valid",
+    "npk.ph_status",
+    "npk.ec_valid",
+    "npk.ec_source",
+    "npk.ec_measurement_kind",
+    "npk.n_proxy_valid",
+    "npk.p_proxy_valid",
+    "npk.k_proxy_valid",
+}
+
 
 def load_e1_authorized_canonical(
     *,
@@ -96,7 +124,11 @@ def _resolve_allowlisted_columns(schema_path: Path, canonical_path: Path) -> lis
         raise NativeContractError("Canonical evidence schema requires canonical_field or field_name.")
     requested = [str(value) for value in schema[field_column].dropna().tolist()]
     required = list(dict.fromkeys(CANONICAL_REQUIRED_COLUMNS + tuple(requested)))
-    missing = [column for column in required if column not in header]
+    missing = [
+        column
+        for column in required
+        if column not in header and column not in OPTIONAL_CANONICAL_EVIDENCE_COLUMNS
+    ]
     if missing:
         raise NativeContractError(f"Canonical evidence schema references missing columns: {missing}")
-    return required
+    return [column for column in required if column in header]

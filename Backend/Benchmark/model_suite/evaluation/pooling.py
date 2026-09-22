@@ -21,6 +21,8 @@ def build_pooled_prediction_summary(predictions_df: pd.DataFrame) -> pd.DataFram
         "feature_source_view_id",
         "partition",
     ]
+    if "target_view_id" in predictions_df.columns and predictions_df["target_view_id"].notna().any():
+        group_columns.insert(0, "target_view_id")
     for keys, frame in predictions_df.groupby(group_columns, dropna=False, sort=False):
         class_names_values = frame["class_names_json"].astype("string").dropna().unique().tolist()
         if len(class_names_values) != 1:

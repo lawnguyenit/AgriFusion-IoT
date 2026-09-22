@@ -49,6 +49,9 @@ class ModelSuiteTests(unittest.TestCase):
         self.assertIn("phase1_primary_comparisons", profiles)
         self.assertIn("phase2_frozen_target_holdout", profiles)
         self.assertIn("full_benchmark_v0_v2", profiles)
+        self.assertIn("semantic_feature_arms_smoke", profiles)
+        self.assertIn("semantic_feature_arms_primary_3h", profiles)
+        self.assertIn("temporal_k_gated_3h", profiles)
 
     def test_primary_profiles_align_to_current_3h_public_scope(self) -> None:
         for profile_name in (
@@ -57,6 +60,8 @@ class ModelSuiteTests(unittest.TestCase):
             "phase1_primary_comparisons",
             "phase2_frozen_target_holdout",
             "full_benchmark_v0_v2",
+            "semantic_feature_arms_smoke",
+            "semantic_feature_arms_primary_3h",
         ):
             stage_specs = load_stage_specs_for_profile(TRAINING_PROFILES_PATH, profile_name)
             for stage_spec in stage_specs:
@@ -66,6 +71,46 @@ class ModelSuiteTests(unittest.TestCase):
                 self.assertNotIn("v2_same_y_full_8h", feature_views)
                 self.assertNotIn("v0_vs_v2_mini_8h", comparison_ids)
                 self.assertNotIn("v1_vs_v2_full_8h", comparison_ids)
+
+    def test_primary_semantic_profile_is_fold01_and_3h_only(self) -> None:
+        stage_specs = load_stage_specs_for_profile(
+            TRAINING_PROFILES_PATH,
+            "semantic_feature_arms_primary_3h",
+        )
+        self.assertEqual(
+            {str(fold_id) for stage in stage_specs for fold_id in stage["fold_ids"]},
+            {"fold_01"},
+        )
+        for stage in stage_specs:
+            self.assertTrue(
+                all("8h" not in str(view_id) for view_id in stage["feature_views"])
+            )
+            self.assertTrue(
+                all("8h" not in str(comparison_id) for comparison_id in stage["comparison_ids"])
+            )
+
+    def test_temporal_k_gated_profile_uses_native_temporal_views(self) -> None:
+        stage_specs = load_stage_specs_for_profile(
+            TRAINING_PROFILES_PATH,
+            "temporal_k_gated_3h",
+        )
+        self.assertEqual(len(stage_specs), 1)
+        stage = stage_specs[0]
+        self.assertEqual(
+            {str(view_id) for view_id in stage["feature_views"]},
+            {"v2_temporal_mini_3h", "v2_temporal_full_3h"},
+        )
+        self.assertEqual({str(fold_id) for fold_id in stage["fold_ids"]}, {"fold_01"})
+        self.assertEqual(stage["evaluation_partitions"], ["validation", "test"])
+
+    def test_non_smoke_xgboost_uses_catalog_defaults(self) -> None:
+        profile = resolve_model_profile("xgboost")
+        self.assertEqual(profile.hyperparameters["n_estimators"], 250)
+        self.assertNotEqual(
+            profile.hyperparameters["n_estimators"],
+            64,
+            "64 estimators is reserved for smoke-only overrides.",
+        )
 
     def test_profile_run_guides_are_written(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

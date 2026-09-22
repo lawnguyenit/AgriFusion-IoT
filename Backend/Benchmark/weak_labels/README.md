@@ -124,6 +124,14 @@ In short:
 - `weak_labels` answers: "what weak target state does this row/window
   receive, and why?"
 
+Semantic applicability is field-specific. Moisture rules use
+`npk.soil_moisture_valid`; EC rules use `npk.ec_valid`; and temporal deltas
+require the current and previous field to be valid. The aggregate
+`npk.valid` remains a compatibility/fault signal, but it is not allowed to
+mask an independently valid measurement. Provenance, calibration status,
+protocol/value validity, and error class are retained as audit evidence and
+are not promoted into model features or labels by this lane.
+
 ## Output
 
 Each native run is published under the requested output root as:

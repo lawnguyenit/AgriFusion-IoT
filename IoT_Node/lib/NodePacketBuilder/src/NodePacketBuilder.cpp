@@ -8,10 +8,74 @@
 #include <time.h>
 
 namespace {
-void copyObject(JsonObject dst, JsonObjectConst src) {
-    for (JsonPairConst kv : src) {
-        dst[kv.key().c_str()] = kv.value();
+void compactProductionNpkPayload(JsonObject npkPayload) {
+    // The scalar semantic fields are emitted by MyNPK and consumed by the
+    // reporter. These verbose objects are duplicated in every valid packet,
+    // but remain valuable evidence when the aggregate NPK sample is invalid.
+    const bool keepFailureEvidence = !(npkPayload["read_ok"] | false) ||
+                                     !(npkPayload["npk_values_valid"] | false);
+    if (!keepFailureEvidence) {
+        for (const char *key : {"field_validity",
+                                "field_value_validity",
+                                "field_source",
+                                "field_defaulted_zero",
+                                "raw_registers",
+                                "conversion",
+                                "map_diagnostics",
+                                "external_sources",
+                                "moisture_calibration"}) {
+            npkPayload.remove(key);
+        }
     }
+}
+
+void compactProductionShtPayload(JsonObject shtPayload) {
+    const bool sampleValid = shtPayload["sht_sample_valid"] | false;
+    const bool readOk = shtPayload["sht_read_ok"] | false;
+    if (sampleValid && readOk) {
+        for (const char *key : {"sht_init_attempts",
+                                "sht_init_error",
+                                "sht_init_probe_read_ok",
+                                "sht_init_probe_temp_c",
+                                "sht_init_probe_hum_pct",
+                                "sht_measurement_transport_ok",
+                                "sht_frame_ok",
+                                "sht_temp_crc_ok",
+                                "sht_hum_crc_ok",
+                                "sht_received_bytes",
+                                "sht_measurement_i2c_error",
+                                "sht_measurement_error",
+                                "sht_raw_values_available",
+                                "sht_raw_temp",
+                                "sht_raw_hum",
+                                "sht_observed_temp_c",
+                                "sht_observed_hum_pct"}) {
+            shtPayload.remove(key);
+        }
+    }
+}
+
+bool parseAndCopyObject(JsonObject destination,
+                        const String &payloadJson,
+                        const char *readOkKey,
+                        const char *errorKey,
+                        const char *invalidError) {
+    JsonDocument sourceDoc;
+    const DeserializationError parseError = deserializeJson(sourceDoc, payloadJson);
+    if (parseError != DeserializationError::Ok) {
+        destination[readOkKey] = false;
+        destination[errorKey] = invalidError;
+        return false;
+    }
+
+    const JsonObjectConst sourceObject = sourceDoc.as<JsonObjectConst>();
+    if (sourceObject.isNull() || !destination.set(sourceObject)) {
+        destination[readOkKey] = false;
+        destination[errorKey] = "payload_copy_overflow";
+        return false;
+    }
+
+    return true;
 }
 
 uint32_t currentUtcSecIfSynced() {
@@ -80,30 +144,33 @@ String NodePacketBuilder::buildCombinedNodePacket(const String &npkPayloadJson,
                                                   const String &shtPayloadJson,
                                                   bool npkAlarm,
                                                   const String &firmwareVersion,
-                                                  const String &runningPartition) const {
+                                                  const String &runningPartition,
+                                                  const char *testMode,
+                                                  uint32_t testCycleNo,
+                                                  bool firebaseUploadEnabled) const {
     JsonDocument outDoc;
     outDoc["schema_version"] = 3;
 
     JsonObject packet = outDoc["packet"].to<JsonObject>();
 
-    JsonDocument npkDoc;
     JsonObject npkOut = packet["npk_data"].to<JsonObject>();
-    if (deserializeJson(npkDoc, npkPayloadJson) == DeserializationError::Ok) {
-        copyObject(npkOut, npkDoc.as<JsonObjectConst>());
-    } else {
+    if (!parseAndCopyObject(npkOut,
+                            npkPayloadJson,
+                            "read_ok",
+                            "error_code",
+                            "npk_payload_invalid")) {
         npkOut["read_ok"] = false;
-        npkOut["error_code"] = "npk_payload_invalid";
     }
     npkOut.remove("sensor_type");
     npkOut.remove("sensor_id");
 
-    JsonDocument shtDoc;
     JsonObject shtOut = packet["sht30_data"].to<JsonObject>();
-    if (deserializeJson(shtDoc, shtPayloadJson) == DeserializationError::Ok) {
-        copyObject(shtOut, shtDoc.as<JsonObjectConst>());
-    } else {
+    if (!parseAndCopyObject(shtOut,
+                            shtPayloadJson,
+                            "sht_read_ok",
+                            "sht_error",
+                            "sht_payload_invalid")) {
         shtOut["sht_read_ok"] = false;
-        shtOut["sht_error"] = "sht_payload_invalid";
     }
     shtOut.remove("sensor_type");
     shtOut.remove("sensor_id");
@@ -117,10 +184,23 @@ String NodePacketBuilder::buildCombinedNodePacket(const String &npkPayloadJson,
     shtOut.remove("sht_retry_delay_ms");
     shtOut.remove("sht_max_wait_ms");
 
+    // Full diagnostic mode keeps raw protocol evidence for the serial test.
+    // The production path keeps the compact semantic contract instead.
+    if (testMode == nullptr || testMode[0] == '\0') {
+        compactProductionNpkPayload(npkOut);
+        compactProductionShtPayload(shtOut);
+    }
+
     JsonObject systemOut = packet["system_data"].to<JsonObject>();
-    (void)npkAlarm;
     (void)firmwareVersion;
     (void)runningPartition;
+
+    if (testMode != nullptr && testMode[0] != '\0') {
+        systemOut["test_mode"] = testMode;
+        systemOut["test_cycle_no"] = testCycleNo;
+        systemOut["firebase_upload_enabled"] = firebaseUploadEnabled;
+        systemOut["sensor_alarm"] = npkAlarm;
+    }
 
     uint32_t sampleEpochSec = currentUtcSecIfSynced();
     uint32_t sampleSlotNo = slotIndexFromEpoch(sampleEpochSec);

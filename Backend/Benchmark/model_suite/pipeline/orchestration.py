@@ -94,12 +94,26 @@ def run_smoke_suite(
             for stage_run in stage_runs:
                 feature_view_id = str(stage_run["feature_view_id"])
                 fold_id = str(stage_run["fold_id"])
+                target_view_id = (
+                    str(stage_run["target_view_id"])
+                    if stage_run.get("target_view_id") is not None
+                    else None
+                )
                 task_rows = pd.DataFrame(stage_run["task_rows"]).convert_dtypes()
                 registry_rows = loaded.task_registry.loc[
                     loaded.task_registry["feature_view_id"].astype("string") == feature_view_id
                 ].copy()
+                if target_view_id is not None:
+                    if "target_view_id" not in registry_rows.columns:
+                        raise ValueError("Target-aware stage requires target_view_id in task registry.")
+                    registry_rows = registry_rows.loc[
+                        registry_rows["target_view_id"].astype("string") == target_view_id
+                    ].copy()
                 if len(registry_rows) != 1:
-                    raise ValueError(f"Expected exactly one task registry row for feature_view_id={feature_view_id}.")
+                    raise ValueError(
+                        "Expected exactly one task registry row for "
+                        f"feature_view_id={feature_view_id}, target_view_id={target_view_id}."
+                    )
                 registry_row = registry_rows.iloc[0]
                 evaluation_partitions = tuple(
                     str(value) for value in stage_spec.get("evaluation_partitions", ["validation", "test"])
@@ -117,7 +131,7 @@ def run_smoke_suite(
                     progress.start_job(job)
                     model_output_dir = job_root / stage_id / model_key / (
                         str(stage_run["comparison_id"]) if stage_run["comparison_id"] is not None else "task"
-                    ) / feature_view_id / fold_id
+                    ) / (target_view_id or "legacy_target") / feature_view_id / fold_id
                     try:
                         result = run_protocol_model_job(
                             model_key=model_key,
@@ -126,6 +140,7 @@ def run_smoke_suite(
                             comparison_id=(str(stage_run["comparison_id"]) if stage_run["comparison_id"] is not None else None),
                             comparison_side=(str(stage_run["comparison_side"]) if stage_run["comparison_side"] is not None else None),
                             feature_view_id=feature_view_id,
+                            target_view_id=target_view_id,
                             fold_id=fold_id,
                             registry_row=registry_row,
                             task_rows=task_rows.copy(),

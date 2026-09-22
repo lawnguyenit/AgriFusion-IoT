@@ -71,6 +71,14 @@ def evaluate_point_rules(frame: pd.DataFrame, contract: NativeContract, operatio
                     "not_evaluable_reason": "MISSING_INPUT" if state == "NOT_EVALUABLE" else pd.NA,
                     "evidence_field": evidence_field,
                     "evidence_value": value,
+                    "measurement_source": _measurement_source(row, rule_id),
+                    "measurement_validity_field": _measurement_validity_field(rule_id),
+                    "calibration_status": row.get("npk.soil_moisture_calibration_status")
+                    if rule_id in {"LOW_RELATIVE_MOISTURE", "MOISTURE_RISE"}
+                    else pd.NA,
+                    "measurement_kind": row.get("npk.ec_measurement_kind")
+                    if rule_id == "EC_SHIFT"
+                    else pd.NA,
                     "comparison_operator": operator,
                     "threshold_id": threshold_id,
                     "threshold_value": threshold,
@@ -86,14 +94,43 @@ def _rule_applicable(row: dict[str, object], rule_id: str) -> bool:
     if not bool(row.get("time_integrity_ok", False)):
         return False
     if rule_id == "LOW_RELATIVE_MOISTURE":
-        return pd.notna(row.get("npk.soil_moisture_pct"))
+        return _field_is_usable(row, "npk.soil_moisture_valid", "npk.soil_moisture_pct")
     if rule_id == "THERMAL_CONTEXT":
         return pd.notna(row.get("derived.vpd_kpa"))
     if rule_id == "MOISTURE_RISE":
         return bool(row.get("strictly_consecutive_from_previous", False))
     if rule_id == "EC_SHIFT":
-        return bool(row.get("strictly_consecutive_from_previous", False))
+        return bool(row.get("strictly_consecutive_from_previous", False)) and _field_is_usable(
+            row, "npk.ec_valid", "npk.ec"
+        )
     return False
+
+
+def _field_is_usable(row: dict[str, object], validity_field: str, value_field: str) -> bool:
+    explicit = row.get(validity_field)
+    if explicit is not None and not pd.isna(explicit):
+        return bool(explicit)
+    return pd.notna(row.get(value_field))
+
+
+def _measurement_source(row: dict[str, object], rule_id: str) -> object:
+    if rule_id in {"LOW_RELATIVE_MOISTURE", "MOISTURE_RISE"}:
+        return row.get("npk.soil_moisture_source", pd.NA)
+    if rule_id == "EC_SHIFT":
+        return row.get("npk.ec_source", pd.NA)
+    if rule_id == "THERMAL_CONTEXT":
+        return "sht30"
+    return pd.NA
+
+
+def _measurement_validity_field(rule_id: str) -> str:
+    if rule_id in {"LOW_RELATIVE_MOISTURE", "MOISTURE_RISE"}:
+        return "npk.soil_moisture_valid"
+    if rule_id == "EC_SHIFT":
+        return "npk.ec_valid"
+    if rule_id == "THERMAL_CONTEXT":
+        return "sht.valid"
+    return ""
 
 
 def _state(rows: list[dict[str, object]], sample_id: str, rule_id: str) -> str:

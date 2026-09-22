@@ -8,5 +8,6 @@ bool syncTimeFromHttpHeader(const String &header);
 bool syncTimeFromHttpDate();
 bool timeLooksSane();
 String getCurrentTimeStr();
+String getCurrentUtcTimeStr();
 
 #endif

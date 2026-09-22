@@ -13,7 +13,10 @@ public:
                                    const String &shtPayloadJson,
                                    bool npkAlarm,
                                    const String &firmwareVersion,
-                                   const String &runningPartition) const;
+                                   const String &runningPartition,
+                                   const char *testMode = nullptr,
+                                   uint32_t testCycleNo = 0U,
+                                   bool firebaseUploadEnabled = true) const;
     String buildCombinedNodePacket(const String &npkPayloadJson,
                                    bool npkAlarm,
                                    const String &firmwareVersion,

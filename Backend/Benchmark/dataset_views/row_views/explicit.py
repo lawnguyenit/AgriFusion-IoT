@@ -7,6 +7,7 @@ from pathlib import Path
 import pandas as pd
 
 from Backend.Benchmark.dataset_views.contracts import TaxonomyEntry, ViewDefinition
+from Backend.Benchmark.dataset_views.configs import V2_SENSOR_VALIDITY_COLUMNS
 from Backend.Benchmark.dataset_views.contracts.artifact_contracts import (
     build_feature_columns_payload,
     build_schema_payload,
@@ -146,6 +147,15 @@ def build_explicit_feature_frame(
     feature_frame = canonical_df.loc[:, feature_columns].copy()
     for feature_column in feature_columns:
         validity_column = resolve_validity_column(feature_column)
+        if validity_column is not None and validity_column not in canonical_df.columns:
+            validity_column = next(
+                (
+                    fallback
+                    for prefix, fallback in V2_SENSOR_VALIDITY_COLUMNS.items()
+                    if feature_column.startswith(prefix) and fallback in canonical_df.columns
+                ),
+                None,
+            )
         if validity_column is None or validity_column not in canonical_df.columns:
             continue
         numeric = pd.to_numeric(canonical_df[feature_column], errors="coerce")

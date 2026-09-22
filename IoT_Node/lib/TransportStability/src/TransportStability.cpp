@@ -179,16 +179,17 @@ CloudTransportReport runCloudTransportCycle() {
 }
 
 void printCloudTransportReport(const CloudTransportReport &report) {
-    CUS_DBGF("[TIME] sane_before=%d sim_sync=%d http_sync=%d time_ready=%d now_before=%s now_after=%s cclk=%s\n",
+    CUS_DBGF("[TIME] sane_before=%d sim_sync=%d http_sync=%d time_ready=%d now_before_local=%s now_after_local=%s utc_now=%s cclk=%s\n",
              report.timeWasSaneBefore ? 1 : 0,
              report.timeSyncFromSimOk ? 1 : 0,
              report.timeSyncFromHttpOk ? 1 : 0,
              report.timeReadyAfter ? 1 : 0,
              report.timeBefore.c_str(),
              report.timeAfter.c_str(),
+             getCurrentUtcTimeStr().c_str(),
              report.simClockRaw.c_str());
 
-    CUS_DBGF("[SIM][CLOUD] stage=%s detail=%s sim=%d reg=%d attach=%d gprs=%d ip=%s csq=%d dbm=%d op=%s\n",
+    CUS_DBGF("[SIM][CLOUD] stage=%s detail=%s sim=%d reg=%d attach=%d gprs=%d ip=%s ip_valid=%d ip_source=%s csq=%d dbm=%d op=%s\n",
              report.stage.c_str(),
              report.detail.c_str(),
              report.network.simReady ? 1 : 0,
@@ -196,7 +197,9 @@ void printCloudTransportReport(const CloudTransportReport &report) {
              report.network.packetAttached ? 1 : 0,
              report.network.gprsConnected ? 1 : 0,
              report.network.localIp.c_str(),
-             report.network.signalDbm != 0 ? ((report.network.signalDbm + 113) / 2) : 0,
+             report.network.localIpValid ? 1 : 0,
+             report.network.localIpSource.c_str(),
+             report.network.signalCsq,
              report.network.signalDbm,
              report.network.operatorName.c_str());
 

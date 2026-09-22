@@ -626,16 +626,19 @@ def build_task_training_manifest(
             )
 
     manifest_df = pd.DataFrame(rows).convert_dtypes()
+    duplicate_columns = ["feature_view_id", "fold_id", "partition", "sample_id"]
+    if "target_view_id" in manifest_df.columns:
+        duplicate_columns.insert(0, "target_view_id")
     if not manifest_df.empty and manifest_df.duplicated(
-        subset=["feature_view_id", "fold_id", "partition", "sample_id"],
+        subset=duplicate_columns,
         keep=False,
     ).any():
         duplicates = manifest_df.loc[
-            manifest_df.duplicated(subset=["feature_view_id", "fold_id", "partition", "sample_id"], keep=False),
-            ["feature_view_id", "fold_id", "partition", "sample_id"],
+            manifest_df.duplicated(subset=duplicate_columns, keep=False),
+            duplicate_columns,
         ]
         raise ValueError(
-            "Task training manifest has duplicate feature_view_id/fold_id/partition/sample_id rows: "
+            "Task training manifest has duplicate target/feature/fold/partition/sample rows: "
             f"{duplicates.to_dict(orient='records')}"
         )
     return manifest_df, pd.DataFrame(validation_rows).convert_dtypes()

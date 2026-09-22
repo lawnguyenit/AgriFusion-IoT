@@ -23,6 +23,7 @@ static const uint32_t RAW_AT_TIMEOUT_BRIEF_MS = 250;
 static const uint32_t LONG_AT_TIMEOUT_MS = 15000;
 static const uint32_t NETWORK_WAIT_SLICE_MS = 500;
 static String gLastResolvedIp = "0.0.0.0";
+static String gLastResolvedIpSource = "unresolved";
 static SemaphoreHandle_t gAtPortMutex = nullptr;
 
 String runRawAt(const char *cmd, uint32_t timeoutMs = RAW_AT_TIMEOUT_MS);
@@ -177,6 +178,43 @@ bool runRawAtOk(const String &cmd, uint32_t timeoutMs = RAW_AT_TIMEOUT_MS) {
     return atResponseIsOk(runRawAt(cmd, timeoutMs));
 }
 
+bool isValidIpv4Candidate(const String &candidate) {
+    if (!candidate.length()) {
+        return false;
+    }
+
+    int parts = 0;
+    int start = 0;
+    while (start < candidate.length()) {
+        int end = candidate.indexOf('.', start);
+        if (end < 0) {
+            end = candidate.length();
+        }
+        if (end == start || ++parts > 4) {
+            return false;
+        }
+
+        int value = 0;
+        int digits = 0;
+        for (int index = start; index < end; ++index) {
+            char digit = candidate[index];
+            if (!isAsciiDigit(digit)) {
+                return false;
+            }
+            if (++digits > 3) {
+                return false;
+            }
+            value = (value * 10) + (digit - '0');
+            if (value > 255) {
+                return false;
+            }
+        }
+        start = end + 1;
+    }
+
+    return parts == 4 && candidate[candidate.length() - 1] != '.';
+}
+
 String extractFirstIpv4(const String &text) {
     String candidate;
     for (size_t i = 0; i < text.length(); ++i) {
@@ -184,59 +222,32 @@ String extractFirstIpv4(const String &text) {
         if (isAsciiDigit(c) || c == '.') {
             candidate += c;
         } else if (!candidate.isEmpty()) {
-            int parts = 0;
-            int start = 0;
-            bool valid = true;
-            while (start < candidate.length()) {
-                int end = candidate.indexOf('.', start);
-                if (end < 0) {
-                    end = candidate.length();
-                }
-                if (end == start) {
-                    valid = false;
-                    break;
-                }
-                if (++parts > 4) {
-                    valid = false;
-                    break;
-                }
-
-                int value = 0;
-                for (int j = start; j < end; ++j) {
-                    char digit = candidate[j];
-                    if (!isAsciiDigit(digit)) {
-                        valid = false;
-                        break;
-                    }
-                    value = (value * 10) + (digit - '0');
-                    if (value > 255) {
-                        valid = false;
-                        break;
-                    }
-                }
-                if (!valid) {
-                    break;
-                }
-                start = end + 1;
-            }
-            if (valid && parts == 4) {
+            if (isValidIpv4Candidate(candidate)) {
                 return candidate;
             }
             candidate = "";
         }
     }
 
+    // AT responses may end immediately after the address, with no delimiter.
+    // The previous implementation only validated on a following delimiter,
+    // so a valid response such as "10.235.16.185" was discarded.
+    if (isValidIpv4Candidate(candidate)) {
+        return candidate;
+    }
+
     return "";
 }
 
 bool isValidIpv4(const String &ip) {
-    if (!ip.length() || ip.indexOf('.') < 0) {
-        return false;
-    }
-    return extractFirstIpv4(ip) == ip;
+    return isValidIpv4Candidate(ip);
 }
 
-String queryCgpaddrIpv4() {
+bool isUsableIpv4(const String &ip) {
+    return isValidIpv4(ip) && ip != "0.0.0.0";
+}
+
+String queryCgpaddrIpv4(String *sourceOut = nullptr) {
     const char *const commands[] = {
         "+CGPADDR=1",
         "+CGPADDR?",
@@ -250,7 +261,10 @@ String queryCgpaddrIpv4() {
             String response = runRawAt(commands[cmdIndex], timeoutMs);
             if (response != "<no response>" && response != "<lock timeout>") {
                 String ip = extractFirstIpv4(response);
-                if (isValidIpv4(ip) && ip != "0.0.0.0") {
+                if (isUsableIpv4(ip)) {
+                    if (sourceOut) {
+                        *sourceOut = commands[cmdIndex];
+                    }
                     return ip;
                 }
             }
@@ -263,7 +277,10 @@ String queryCgpaddrIpv4() {
         String response = runRawAt("+CGPADDR=1", timeoutMs);
         if (response != "<no response>" && response != "<lock timeout>") {
             String ip = extractFirstIpv4(response);
-            if (isValidIpv4(ip) && ip != "0.0.0.0") {
+            if (isUsableIpv4(ip)) {
+                if (sourceOut) {
+                    *sourceOut = "+CGPADDR=1";
+                }
                 return ip;
             }
         }
@@ -275,23 +292,39 @@ String queryCgpaddrIpv4() {
 String resolveLocalIp(bool forceRefresh = false) {
     uint32_t now = millis();
     bool cacheFresh = gLastIpRefreshMs > 0 && (now - gLastIpRefreshMs < IP_REFRESH_INTERVAL_MS);
-    bool cacheUsable = isValidIpv4(gLastResolvedIp) && gLastResolvedIp != "0.0.0.0";
+    bool cacheUsable = isUsableIpv4(gLastResolvedIp);
     if (!forceRefresh && cacheFresh && cacheUsable) {
+        gLastResolvedIpSource = "cache";
         return gLastResolvedIp;
     }
 
-    String ip = queryCgpaddrIpv4();
-    if (!isValidIpv4(ip)) {
-        if (isValidIpv4(gLastResolvedIp) && gLastResolvedIp != "0.0.0.0") {
+    String source;
+    String ip = queryCgpaddrIpv4(&source);
+    if (!isUsableIpv4(ip)) {
+        if (isUsableIpv4(gLastResolvedIp)) {
             gLastIpRefreshMs = now;
+            gLastResolvedIpSource = "stale_cache";
             return gLastResolvedIp;
         }
         ip = "0.0.0.0";
+        source = "unresolved";
     }
 
     gLastResolvedIp = ip;
+    gLastResolvedIpSource = source;
     gLastIpRefreshMs = now;
     return gLastResolvedIp;
+}
+
+int signalDbmFromCsq(int csq) {
+    if (csq < 0 || csq == 99) {
+        return 0;
+    }
+    return -113 + (2 * csq);
+}
+
+bool isUsableSignalCsq(int csq) {
+    return csq >= 0 && csq != 99;
 }
 
 String extractQuotedValue(const String &response) {
@@ -558,6 +591,8 @@ bool softRestartModem() {
     CUS_DBGLN("[SIM] Gui lenh soft reset modem...");
     runRawAt("+CRESET", 5000);
     gLastResolvedIp = "0.0.0.0";
+    gLastResolvedIpSource = "unresolved";
+    gLastIpRefreshMs = 0;
     yieldToScheduler(3000);
     return waitForAtReady(SIM_AT_RESPONSE_TIMEOUT_MS, SIM_AT_READY_RETRY_DELAY_MS);
 }
@@ -651,18 +686,19 @@ void dumpSimState(const char *stage, bool force) {
     gLastDiagMs = now;
 
     SimNetworkState state = simReadNetworkState(true);
-    int csq = querySignalCsq();
-
     CUS_DBGLN("\n[SIM][STATE] ===== MODEM SNAPSHOT =====");
     CUS_DBGF("[SIM][STATE] stage=%s\n", stage ? stage : "na");
-    CUS_DBGF("[SIM][STATE] sim=%s csq=%d dbm=%d net=%d gprs=%d attach=%d ip=%s\n",
+    CUS_DBGF("[SIM][STATE] sim=%s csq=%d dbm=%d signal_valid=%d net=%d gprs=%d attach=%d ip=%s ip_valid=%d ip_source=%s\n",
              simStatusText(state.simReady),
-             csq,
+             state.signalCsq,
              state.signalDbm,
+             isUsableSignalCsq(state.signalCsq) ? 1 : 0,
              state.networkRegistered ? 1 : 0,
              state.gprsConnected ? 1 : 0,
              state.packetAttached ? 1 : 0,
-             state.localIp.c_str());
+             state.localIp.c_str(),
+             state.localIpValid ? 1 : 0,
+             state.localIpSource.c_str());
     CUS_DBGF("[SIM][STATE] operator=%s\n", state.operatorName.c_str());
 
 #if SIM_VERBOSE_AT_QUERY_LOG
@@ -696,6 +732,8 @@ bool setupSIM() {
     SerialAT.begin(SIM_BAUDRATE, SERIAL_8N1, SIM_RX_PIN, SIM_TX_PIN);
     SerialAT.setTimeout(50);
     gLastResolvedIp = "0.0.0.0";
+    gLastResolvedIpSource = "unresolved";
+    gLastIpRefreshMs = 0;
 
     CUS_DBGLN("\n[SIM] --- BAT DAU KHOI DONG ---");
     if (SIM_BOOT_WAIT_MS > 0) {
@@ -792,8 +830,14 @@ bool checkNetwork() {
     SimNetworkState state = simReadNetworkState(true);
     if (packetSessionLooksUsable(state)) {
         gRestartCount = 0;
-        if (state.localIp == "0.0.0.0") {
+        if (!state.localIpValid) {
             CUS_DBGF("[SIM] Packet data dang ton tai nhung IP query chua on dinh, tiep tuc giu session. op=%s dbm=%d\n",
+                     state.operatorName.c_str(),
+                     state.signalDbm);
+        } else {
+            CUS_DBGF("[SIM] Packet data on dinh, local_ip=%s source=%s op=%s dbm=%d\n",
+                     state.localIp.c_str(),
+                     state.localIpSource.c_str(),
                      state.operatorName.c_str(),
                      state.signalDbm);
         }
@@ -861,8 +905,11 @@ void checkInfo() {
     CUS_DBGLN("\n=== THONG TIN SIM ===");
     if (waitForAtReady(1000, 100)) {
         CUS_DBGF("Operator: %s\n", state.operatorName.c_str());
-        CUS_DBGF("Signal:   %d CSQ / %d dBm\n", querySignalCsq(), state.signalDbm);
-        CUS_DBGF("IP:       %s\n", state.localIp.c_str());
+        CUS_DBGF("Signal:   %d CSQ / %d dBm\n", state.signalCsq, state.signalDbm);
+        CUS_DBGF("IP:       %s (valid=%d source=%s)\n",
+                 state.localIp.c_str(),
+                 state.localIpValid ? 1 : 0,
+                 state.localIpSource.c_str());
 #if SIM_VERBOSE_AT_QUERY_LOG
         dumpSimState("check_info", true);
 #endif
@@ -879,16 +926,21 @@ SimNetworkState simReadNetworkState(bool forceRefreshIp) {
     state.networkRegistered = isCellRegisteredAny();
     state.packetAttached = isPacketAttached();
     state.localIp = resolveLocalIp(forceRefreshIp);
+    state.localIpValid = isUsableIpv4(state.localIp);
+    state.localIpSource = gLastResolvedIpSource;
     state.operatorName = queryOperatorName();
-    state.signalDbm = simSignalDbm();
+    state.signalCsq = querySignalCsq();
+    state.signalDbm = signalDbmFromCsq(state.signalCsq);
     state.gprsConnected = state.packetAttached && isPdpContextActive();
 
-    if (!isValidIpv4(state.localIp)) {
+    if (!state.localIpValid) {
         state.localIp = "0.0.0.0";
     }
 
     if (!state.packetAttached) {
-        state.localIp = state.packetAttached ? state.localIp : "0.0.0.0";
+        state.localIp = "0.0.0.0";
+        state.localIpValid = false;
+        state.localIpSource = "not_attached";
     }
 
     return state;
@@ -911,10 +963,12 @@ SimConnectivityReport runSimConnectivityProbe(bool forceRefreshIp,
     report.networkRegistered = state.networkRegistered;
     report.packetAttached = state.packetAttached;
     report.gprsConnected = state.gprsConnected;
-    report.hasUsableIp = (state.localIp != "0.0.0.0");
+    report.hasUsableIp = state.localIpValid;
     report.signalDbm = state.signalDbm;
-    report.signalCsq = querySignalCsq();
+    report.signalCsq = state.signalCsq;
     report.localIp = state.localIp;
+    report.localIpValid = state.localIpValid;
+    report.localIpSource = state.localIpSource;
     report.operatorName = state.operatorName;
     report.pdpContext = compactAtResponse(runRawAt("+CGDCONT?", RAW_AT_TIMEOUT_MS));
     report.pdpActive = compactAtResponse(runRawAt("+CGACT?", RAW_AT_TIMEOUT_MS));
@@ -982,7 +1036,7 @@ SimConnectivityReport runSimConnectivityProbe(bool forceRefreshIp,
 }
 
 void printSimConnectivityReport(const SimConnectivityReport &report) {
-    CUS_DBGF("[SIM][PROBE] stage=%s detail=%s uart=%d sim=%d reg=%d attach=%d gprs=%d ip=%d rawat_direct=%d raw_http=%d internet=%d csq=%d dbm=%d cipopen=%d ip_addr=%s op=%s\n",
+    CUS_DBGF("[SIM][PROBE] stage=%s detail=%s uart=%d sim=%d reg=%d attach=%d gprs=%d ip=%d rawat_direct=%d raw_http=%d internet=%d csq=%d dbm=%d cipopen=%d ip_addr=%s ip_source=%s op=%s\n",
              report.stage.c_str(),
              report.detail.c_str(),
              report.uartReady ? 1 : 0,
@@ -998,6 +1052,7 @@ void printSimConnectivityReport(const SimConnectivityReport &report) {
              report.signalDbm,
              report.cipOpenCode,
              report.localIp.c_str(),
+             report.localIpSource.c_str(),
              report.operatorName.c_str());
 
     if (!report.uartReady) {
@@ -1045,6 +1100,8 @@ void printSimForensicAtSnapshot() {
     CUS_DBGF("[SIM][FORENSIC] CREG=%s\n", compactAtResponse(runRawAt("+CREG?", RAW_AT_TIMEOUT_MS)).c_str());
     CUS_DBGF("[SIM][FORENSIC] CGREG=%s\n", compactAtResponse(runRawAt("+CGREG?", RAW_AT_TIMEOUT_MS)).c_str());
     CUS_DBGF("[SIM][FORENSIC] CEREG=%s\n", compactAtResponse(runRawAt("+CEREG?", RAW_AT_TIMEOUT_MS)).c_str());
+    CUS_DBGF("[SIM][FORENSIC] COPS=%s\n", compactAtResponse(runRawAt("+COPS?", RAW_AT_TIMEOUT_MS)).c_str());
+    CUS_DBGF("[SIM][FORENSIC] CFUN=%s\n", compactAtResponse(runRawAt("+CFUN?", RAW_AT_TIMEOUT_MS)).c_str());
     CUS_DBGF("[SIM][FORENSIC] CGDCONT=%s\n", compactAtResponse(runRawAt("+CGDCONT?", RAW_AT_TIMEOUT_MS)).c_str());
     CUS_DBGF("[SIM][FORENSIC] CGACT=%s\n", compactAtResponse(runRawAt("+CGACT?", RAW_AT_TIMEOUT_MS)).c_str());
     CUS_DBGF("[SIM][FORENSIC] CGATT=%s\n", compactAtResponse(runRawAt("+CGATT?", RAW_AT_TIMEOUT_MS)).c_str());
@@ -1057,15 +1114,12 @@ void printSimForensicAtSnapshot() {
 }
 
 bool simHasUsableIP() {
-    return simReadNetworkState().localIp != "0.0.0.0";
+    return simReadNetworkState().localIpValid;
 }
 
 int simSignalDbm() {
     int csq = querySignalCsq();
-    if (csq <= 0 || csq == 99) {
-        return 0;
-    }
-    return -113 + (2 * csq);
+    return signalDbmFromCsq(csq);
 }
 
 String simLocalIP() {
@@ -1074,7 +1128,7 @@ String simLocalIP() {
 
 int simStatusCode() {
     SimNetworkState state = simReadNetworkState();
-    if (state.gprsConnected && state.localIp != "0.0.0.0") {
+    if (state.gprsConnected && state.localIpValid) {
         return 3;
     }
     if (state.packetAttached) {

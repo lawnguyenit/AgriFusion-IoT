@@ -8,16 +8,17 @@
 #include "RawTelemetryReporter.h"
 
 struct NodeRuntimeConfig {
-    const char *nodeRootPath = "/Node1";
-    const char *nodeInfoPath = "/Node1/info";
-    const char *nodeLatestPath = "/Node1/latest";
-    const char *nodeDebugRootPath = "/debug/Node1";
-    const char *nodeDebugStatusPath = "/debug/Node1/status";
-    const char *nodeDebugTelemetryPath = "/debug/Node1/telemetry";
+    const char *nodeRootPath = "/Node2";
+    const char *nodeInfoPath = "/Node2/info";
+    const char *nodeLatestPath = "/Node2/latest/current";
+    const char *nodeLatestMetaPath = "/Node2/latest/meta";
+    const char *nodeDebugRootPath = "/debug/Node2";
+    const char *nodeDebugStatusPath = "/debug/Node2/status";
+    const char *nodeDebugTelemetryPath = "/debug/Node2/telemetry";
 
-    const char *nodeId = "Node1";
-    const char *deviceUid = "esp32s3_node1";
-    const char *siteId = "farm_a_zone_1";
+    const char *nodeId = "Node2";
+    const char *deviceUid = "esp32s3_node2";
+    const char *siteId = "farm_a_zone_2";
     const char *powerType = "solar_battery";
     const char *timezone = "Asia/Ho_Chi_Minh";
 

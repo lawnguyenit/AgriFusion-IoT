@@ -29,7 +29,19 @@ def build_rule_applicability(e1_df: pd.DataFrame) -> pd.DataFrame:
     working["soil_sensor_applicable"] = soil_packet.astype("boolean")
     working["sht_valid"] = sht_valid.astype("boolean")
     working["soil_sensor_valid"] = soil_valid.astype("boolean")
-    working["soil_moisture_evaluable"] = (soil_valid & moisture.notna()).astype("boolean")
+    moisture_valid = _resolve_field_validity(
+        working,
+        "npk.soil_moisture_valid",
+        soil_valid & moisture.notna(),
+    )
+    ec_valid = _resolve_field_validity(
+        working,
+        "npk.ec_valid",
+        soil_valid & ec.notna(),
+    )
+    working["soil_moisture_field_valid"] = moisture_valid.astype("boolean")
+    working["ec_field_valid"] = ec_valid.astype("boolean")
+    working["soil_moisture_evaluable"] = (moisture_valid & moisture.notna()).astype("boolean")
     working["vpd_evaluable"] = (sht_valid & temp.notna() & humidity.notna()).astype("boolean")
     working["moisture_delta_evaluable"] = (
         working["soil_moisture_evaluable"].fillna(False)
@@ -37,7 +49,7 @@ def build_rule_applicability(e1_df: pd.DataFrame) -> pd.DataFrame:
         & pd.to_numeric(working["moisture_delta_strict"], errors="coerce").notna()
     ).astype("boolean")
     working["ec_delta_evaluable"] = (
-        soil_valid
+        ec_valid
         & ec.notna()
         & working["strictly_consecutive_from_previous"].fillna(False)
         & pd.to_numeric(working["ec_delta_abs_strict"], errors="coerce").notna()
@@ -168,7 +180,7 @@ def build_evidence_inventory(
         [
             {
                 "evidence_flag": "low_flag",
-                "source_fields": "npk.soil_moisture_pct",
+                "source_fields": "npk.soil_moisture_pct|npk.soil_moisture_valid|npk.soil_moisture_calibration_status",
                 "threshold_id": "LOW_MOISTURE_Q10_E1_DISCOVERY_CANDIDATE",
                 "known_dependencies": "shares soil-sensor validity with rise_flag and ec_shift_flag",
                 "independent_vote": False,
@@ -182,14 +194,14 @@ def build_evidence_inventory(
             },
             {
                 "evidence_flag": "moisture_rise_flag",
-                "source_fields": "npk.soil_moisture_pct|strict_previous_observation",
+                "source_fields": "npk.soil_moisture_pct|npk.soil_moisture_valid|strict_previous_observation",
                 "threshold_id": "MOISTURE_RISE_FIXED_5PP_REFERENCE",
                 "known_dependencies": "shares moisture source and strict continuity with low_flag",
                 "independent_vote": False,
             },
             {
                 "evidence_flag": "ec_shift_flag",
-                "source_fields": "npk.ec|strict_previous_observation",
+                "source_fields": "npk.ec|npk.ec_valid|npk.ec_measurement_kind|strict_previous_observation",
                 "threshold_id": "EC_SHIFT_Q95_E1_DISCOVERY_CANDIDATE",
                 "known_dependencies": "shares soil-sensor validity and strict continuity",
                 "independent_vote": False,
@@ -296,3 +308,13 @@ def _bool_series(series: pd.Series) -> pd.Series:
     if str(series.dtype) in {"bool", "boolean"}:
         return series.fillna(False).astype(bool)
     return series.astype("string").str.strip().str.lower().isin({"true", "1", "yes"})
+
+
+def _resolve_field_validity(
+    frame: pd.DataFrame,
+    column: str,
+    fallback: pd.Series,
+) -> pd.Series:
+    if column not in frame.columns:
+        return fallback.astype(bool)
+    return _bool_series(frame[column]).astype(bool)

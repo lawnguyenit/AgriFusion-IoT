@@ -12,4 +12,6 @@ What it returns:
 - Simple wet/dry state string
 
 Status:
-- Utility library kept for alternate soil probes, not the main NPK path.
+- Reused by the temporary `SoilMoistureProbe` analog diagnostic.
+- It remains outside the main NPK path until a physical calibration and
+  integration decision are confirmed.

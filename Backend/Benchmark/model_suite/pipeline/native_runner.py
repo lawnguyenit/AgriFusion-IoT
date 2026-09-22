@@ -26,6 +26,7 @@ def run_protocol_model_job(
     comparison_side: str | None,
     feature_view_id: str,
     fold_id: str,
+    target_view_id: str | None = None,
     registry_row: pd.Series,
     task_rows: pd.DataFrame,
     feature_cache: dict[str, pd.DataFrame],
@@ -99,6 +100,7 @@ def run_protocol_model_job(
                 feature_view_id=feature_view_id,
                 feature_source_view_id=feature_source_view_id,
                 fold_id=fold_id,
+                target_view_id=target_view_id,
                 status="insufficient_partition_rows",
                 note="One or more partitions are empty after final_trainability filtering.",
             ),
@@ -155,6 +157,7 @@ def run_protocol_model_job(
                 feature_view_id=feature_view_id,
                 feature_source_view_id=feature_source_view_id,
                 fold_id=fold_id,
+                target_view_id=target_view_id,
                 status="unsupported_train_class_support",
                 note="Train partition does not contain at least two supported classes.",
                 extra={
@@ -197,6 +200,7 @@ def run_protocol_model_job(
                 "comparison_id": comparison_id,
                 "comparison_side": comparison_side,
                 "feature_view_id": feature_view_id,
+                "target_view_id": target_view_id,
                 "feature_source_view_id": feature_source_view_id,
                 "semantic_arm_id": str(registry_row.get("semantic_arm_id", "")),
                 "feature_list_hash": str(registry_row.get("feature_list_hash", "")),
@@ -215,6 +219,7 @@ def run_protocol_model_job(
                 feature_view_id=feature_view_id,
                 feature_source_view_id=feature_source_view_id,
                 fold_id=fold_id,
+                target_view_id=target_view_id,
                 status="model_unavailable",
                 note=str(exc),
             ),
@@ -235,6 +240,7 @@ def run_protocol_model_job(
                 feature_view_id=feature_view_id,
                 feature_source_view_id=feature_source_view_id,
                 fold_id=fold_id,
+                target_view_id=target_view_id,
                 status="zero_selected_features",
                 note="VarianceThreshold removed every column.",
             ),
@@ -261,6 +267,7 @@ def run_protocol_model_job(
         "comparison_id": comparison_id,
         "comparison_side": comparison_side,
         "model_key": model_key,
+        "target_view_id": target_view_id,
     }
     for partition, metrics in evaluation_metrics.items():
         metrics_payload[partition] = metrics
@@ -295,6 +302,7 @@ def run_protocol_model_job(
                 y_pred=training_result.evaluation_predictions[partition],
                 y_proba=training_result.evaluation_probabilities.get(partition),
                 class_names=class_names,
+                target_view_id=target_view_id,
             )
         )
     for row in prediction_rows:
@@ -316,6 +324,7 @@ def run_protocol_model_job(
         model_key=model_key,
         stage_id=stage_id,
         feature_view_id=feature_view_id,
+        target_view_id=target_view_id,
         fold_id=fold_id,
     )
     per_class_metrics_path = output_dir / "per_class_metrics.csv"
@@ -326,6 +335,7 @@ def run_protocol_model_job(
         model_key=model_key,
         stage_id=stage_id,
         feature_view_id=feature_view_id,
+        target_view_id=target_view_id,
         fold_id=fold_id,
     )
     confusion_matrix_path = output_dir / "confusion_matrix.csv"
@@ -340,19 +350,34 @@ def run_protocol_model_job(
         selected_feature_names=training_result.selected_feature_names,
         model_key=model_key,
         feature_view_id=feature_view_id,
+        target_view_id=target_view_id,
     )
     feature_effects_path = output_dir / "feature_effects.csv"
     feature_effects_df.to_csv(feature_effects_path, index=False)
+    oracle_path_value = registry_row.get("oracle_artifact_path", None)
+    oracle_artifact_path = (
+        Path(str(oracle_path_value))
+        if oracle_path_value is not None and not pd.isna(oracle_path_value)
+        else None
+    )
+    oracle_kind_value = registry_row.get("oracle_kind", None)
     exact_rule_control = run_rule_controls(
         evaluation_partitions=evaluation_partitions,
         partitions=partitions,
         label_artifact_path=Path(str(registry_row["label_artifact_path"])),
         output_dir=output_dir,
+        oracle_artifact_path=oracle_artifact_path,
+        oracle_kind=(
+            None
+            if oracle_kind_value is None or pd.isna(oracle_kind_value)
+            else str(oracle_kind_value)
+        ),
     )
     run_validation = {
         "model_key": model_key,
         "stage_id": stage_id,
         "feature_view_id": feature_view_id,
+        "target_view_id": target_view_id,
         "semantic_arm_id": str(registry_row.get("semantic_arm_id", "")),
         "feature_list_hash": str(registry_row.get("feature_list_hash", "")),
         "fold_id": fold_id,
@@ -372,6 +397,7 @@ def run_protocol_model_job(
         "comparison_id": comparison_id,
         "comparison_side": comparison_side,
         "feature_view_id": feature_view_id,
+        "target_view_id": target_view_id,
         "feature_source_view_id": feature_source_view_id,
         "semantic_arm_id": str(registry_row.get("semantic_arm_id", "")),
         "fold_id": fold_id,
@@ -481,6 +507,7 @@ def run_protocol_model_job(
             feature_view_id=feature_view_id,
             feature_source_view_id=feature_source_view_id,
             fold_id=fold_id,
+            target_view_id=target_view_id,
             status="trained",
             note="Training completed.",
             extra=summary_extra,
@@ -497,6 +524,7 @@ def _build_per_class_metrics_frame(
     model_key: str,
     stage_id: str,
     feature_view_id: str,
+    target_view_id: str | None,
     fold_id: str,
 ) -> pd.DataFrame:
     rows: list[dict[str, object]] = []
@@ -507,6 +535,7 @@ def _build_per_class_metrics_frame(
                     "model_key": model_key,
                     "stage_id": stage_id,
                     "feature_view_id": feature_view_id,
+                    "target_view_id": target_view_id if target_view_id is not None else pd.NA,
                     "fold_id": fold_id,
                     "partition": partition,
                     "class_name": class_name,
@@ -528,6 +557,7 @@ def _build_confusion_matrix_frame(
     model_key: str,
     stage_id: str,
     feature_view_id: str,
+    target_view_id: str | None,
     fold_id: str,
 ) -> pd.DataFrame:
     rows: list[dict[str, object]] = []
@@ -540,6 +570,7 @@ def _build_confusion_matrix_frame(
                         "model_key": model_key,
                         "stage_id": stage_id,
                         "feature_view_id": feature_view_id,
+                        "target_view_id": target_view_id if target_view_id is not None else pd.NA,
                         "fold_id": fold_id,
                         "partition": partition,
                         "true_label": true_label,
@@ -591,12 +622,14 @@ def _build_feature_effects_frame(
     selected_feature_names: list[str],
     model_key: str,
     feature_view_id: str,
+    target_view_id: str | None = None,
 ) -> pd.DataFrame:
     return pd.DataFrame(
         [
             {
                 "model_key": model_key,
                 "feature_view_id": feature_view_id,
+                "target_view_id": target_view_id if target_view_id is not None else pd.NA,
                 "feature_name": feature_name,
                 "effect_method": "selected_feature_membership",
                 "model_id": model_key,
@@ -622,6 +655,7 @@ def _summary_row(
     fold_id: str,
     status: str,
     note: str,
+    target_view_id: str | None = None,
     extra: dict[str, object] | None = None,
 ) -> dict[str, object]:
     row = {
@@ -632,6 +666,7 @@ def _summary_row(
         "comparison_side": comparison_side if comparison_side is not None else pd.NA,
         "feature_view_id": feature_view_id,
         "feature_source_view_id": feature_source_view_id,
+        "target_view_id": target_view_id if target_view_id is not None else pd.NA,
         "fold_id": fold_id,
         "status": status,
         "note": note,

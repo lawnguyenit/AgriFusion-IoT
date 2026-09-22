@@ -24,23 +24,22 @@ from Backend.Benchmark.evaluation_protocols.pipeline.tranche0_contracts import (
     build_e1_fold_registry,
 )
 from Backend.Benchmark.evaluation_protocols.pipeline.reporting import write_benchmark_readiness_report
-from Backend.Benchmark.evaluation_protocols.lineage.v6_partitions import build_fold_v6_event_assignments
 
 
 class EvaluationProtocolsTests(unittest.TestCase):
-    def test_primary_protocol_locks_5day_folds_and_runner_contract(self) -> None:
+    def test_primary_protocol_locks_7day_fold_and_runner_contract(self) -> None:
         fold_manifest = pd.DataFrame(
             [
                 {
                     "fold_id": fold_id,
                     "partition": partition,
-                    "block_days": 5,
+                    "block_days": 7,
                     "primary_benchmark_eligible": True,
                     "stress_analysis_eligible": True,
                     "status_reason": "temporal_completeness_passed",
                     "failed_criteria": "[]",
                 }
-                for fold_id in ("fold_01", "fold_02", "fold_03")
+                for fold_id in ("fold_01",)
                 for partition in ("train", "validation", "test")
             ]
         ).convert_dtypes()
@@ -104,7 +103,7 @@ class EvaluationProtocolsTests(unittest.TestCase):
         }
 
         artifacts = build_primary_protocol_artifacts(
-            five_day_fold_manifest=fold_manifest,
+            primary_fold_manifest=fold_manifest,
             base_split_assignments=base_split_assignments,
             view_split_assignments=view_split_assignments,
             matched_cohort_manifests=matched_manifests,
@@ -112,90 +111,9 @@ class EvaluationProtocolsTests(unittest.TestCase):
         )
 
         self.assertEqual(artifacts.runner_contract["protocol_id"], PRIMARY_PROTOCOL_ID)
-        self.assertEqual(artifacts.fold_manifest["fold_id"].astype("string").nunique(), 3)
+        self.assertEqual(artifacts.fold_manifest["fold_id"].astype("string").nunique(), 1)
         self.assertIn("p2_target_holdout", artifacts.base_split_assignments["fold_id"].astype("string").tolist())
         self.assertTrue(artifacts.validation["passed"].astype(bool).all())
-
-    def test_v6_lineage_uses_episode_owned_start_end_for_atomic_boundary_exclusion(self) -> None:
-        tz = "Asia/Ho_Chi_Minh"
-        spec = RollingFoldSpec(
-            fold_id="fold_01",
-            train_start=pd.Timestamp("2026-07-01 00:00:00", tz=tz),
-            train_end=pd.Timestamp("2026-07-01 01:40:00", tz=tz),
-            validation_start=pd.Timestamp("2026-07-01 01:40:00", tz=tz),
-            validation_end=pd.Timestamp("2026-07-01 03:20:00", tz=tz),
-            test_start=pd.Timestamp("2026-07-01 03:20:00", tz=tz),
-            test_end=pd.Timestamp("2026-07-01 05:00:00", tz=tz),
-            fold_status="full_candidate",
-        )
-        event_start = pd.Timestamp("2026-07-01 01:30:00", tz=tz)
-        event_end = pd.Timestamp("2026-07-01 01:50:00", tz=tz)
-        v6_events = pd.DataFrame(
-            [
-                {
-                    "sample_id": "evt_1",
-                    "record.segment_id": "node1_seg_0001",
-                    "record_ids": '["r1","r2"]',
-                    "event_start_local": event_start.isoformat(),
-                    "event_end_local": event_end.isoformat(),
-                    "label_status": "LABELED",
-                    "label_name": "persistent_low_relative_moisture_event",
-                    "record_count": 2,
-                }
-            ]
-        ).convert_dtypes()
-
-        rows, boundary_rows = build_fold_v6_event_assignments(
-            v6_events=v6_events,
-            spec=spec,
-            record_domain={"r1": "P1_SOURCE", "r2": "P1_SOURCE"},
-            record_segment={"r1": "node1_seg_0001", "r2": "node1_seg_0001"},
-            record_time={"r1": event_start, "r2": event_end},
-        )
-
-        self.assertEqual(len(rows), 1)
-        self.assertEqual(rows[0]["effective_partition"], "excluded")
-        self.assertEqual(rows[0]["exclusion_reason"], "boundary_event")
-        self.assertEqual(len(boundary_rows), 1)
-
-    def test_v6_lineage_rejects_episode_owned_time_mismatch(self) -> None:
-        tz = "Asia/Ho_Chi_Minh"
-        spec = RollingFoldSpec(
-            fold_id="fold_01",
-            train_start=pd.Timestamp("2026-07-01 00:00:00", tz=tz),
-            train_end=pd.Timestamp("2026-07-01 01:40:00", tz=tz),
-            validation_start=pd.Timestamp("2026-07-01 01:40:00", tz=tz),
-            validation_end=pd.Timestamp("2026-07-01 03:20:00", tz=tz),
-            test_start=pd.Timestamp("2026-07-01 03:20:00", tz=tz),
-            test_end=pd.Timestamp("2026-07-01 05:00:00", tz=tz),
-            fold_status="full_candidate",
-        )
-        v6_events = pd.DataFrame(
-            [
-                {
-                    "sample_id": "evt_bad",
-                    "record.segment_id": "node1_seg_0001",
-                    "record_ids": '["r1","r2"]',
-                    "event_start_local": pd.Timestamp("2026-07-01 01:31:00", tz=tz).isoformat(),
-                    "event_end_local": pd.Timestamp("2026-07-01 01:50:00", tz=tz).isoformat(),
-                    "label_status": "LABELED",
-                    "label_name": "persistent_low_relative_moisture_event",
-                    "record_count": 2,
-                }
-            ]
-        ).convert_dtypes()
-
-        with self.assertRaises(ValueError):
-            build_fold_v6_event_assignments(
-                v6_events=v6_events,
-                spec=spec,
-                record_domain={"r1": "P1_SOURCE", "r2": "P1_SOURCE"},
-                record_segment={"r1": "node1_seg_0001", "r2": "node1_seg_0001"},
-                record_time={
-                    "r1": pd.Timestamp("2026-07-01 01:30:00", tz=tz),
-                    "r2": pd.Timestamp("2026-07-01 01:50:00", tz=tz),
-                },
-            )
 
     def test_consumption_rejects_protocol_columns_in_label_artifact(self) -> None:
         label_df = pd.DataFrame(
@@ -537,7 +455,7 @@ class EvaluationProtocolsTests(unittest.TestCase):
 
         statuses = registry.set_index("fold_id")["analysis_status"].astype("string").to_dict()
         self.assertEqual(statuses["fold_01"], "PRIMARY_LOCKED")
-        self.assertEqual(statuses["fold_03"], "PRIMARY_LOCKED")
+        self.assertEqual(statuses["fold_03"], "SECONDARY_EXPLORATORY")
         self.assertEqual(statuses["fold_04"], "SECONDARY_EXPLORATORY")
 
     def test_comparison_registry_marks_8h_history_as_sensitivity_only(self) -> None:

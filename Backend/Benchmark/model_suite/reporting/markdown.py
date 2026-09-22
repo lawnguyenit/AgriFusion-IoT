@@ -11,7 +11,7 @@ def build_run_report_markdown(
     pooled_df: pd.DataFrame,
 ) -> str:
     lines = [
-        "# Model Suite Smoke Report",
+        "# Model Suite Report",
         "",
         f"- run_id: `{run_id}`",
         f"- profile_name: `{profile_name}`",
@@ -36,6 +36,7 @@ def build_run_report_markdown(
             for column in (
                 "model_key",
                 "stage_id",
+                "target_view_id",
                 "feature_view_id",
                 "partition",
                 "accuracy",

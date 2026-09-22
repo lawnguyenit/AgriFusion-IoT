@@ -10,6 +10,16 @@ PRIMARY_FEATURE_VIEW_IDS: tuple[str, ...] = (
     "v2_same_y_full_3h",
 )
 
+# Temporal K-gated tasks are intentionally additive to the primary point and
+# Same-Y benchmark.  They reuse the already-materialized 3h feature sources
+# but consume the native temporal label assignments.
+TEMPORAL_FEATURE_VIEW_IDS: tuple[str, ...] = (
+    "v2_temporal_mini_3h",
+    "v2_temporal_full_3h",
+)
+
+RUNNER_FEATURE_VIEW_IDS: tuple[str, ...] = PRIMARY_FEATURE_VIEW_IDS + TEMPORAL_FEATURE_VIEW_IDS
+
 PRIMARY_FEATURE_SOURCE_VIEW_IDS: tuple[str, ...] = (
     "v0_minimal_sensor",
     "v1_sensor_row",

@@ -471,6 +471,47 @@ class NormalizedSnapshotMixin:
                 "read_duration_ms": status.get("read_elapsed_ms"),
                 "consecutive_fail_count": status.get("consecutive_fail_count"),
                 "recovered_after_fail": status.get("recovered_after_fail"),
+                "ph_state": status.get("ph_state"),
+                "temp_protocol_ok": _status_field_value(status, "field_validity", "temp", "temp_protocol_ok"),
+                "temp_value_valid": _status_field_value(status, "field_value_validity", "temp", "temp_value_valid"),
+                "temp_source": _status_field_value(status, "field_source", "temp", "temp_source"),
+                "hum_protocol_ok": _status_field_value(status, "field_validity", "hum", "hum_protocol_ok"),
+                "hum_value_valid": _status_field_value(status, "field_value_validity", "hum", "hum_value_valid"),
+                "hum_source": _status_field_value(status, "field_source", "hum", "hum_source"),
+                "hum_calibration_status": _status_field_value(
+                    status, "moisture_calibration", "status", "hum_calibration_status"
+                ),
+                "hum_calibration_profile": _status_field_value(
+                    status, "moisture_calibration", "profile", "hum_calibration_profile"
+                ),
+                "hum_value_semantics": _status_field_value(
+                    status, "moisture_calibration", "value_semantics", "hum_value_semantics"
+                ),
+                "hum_raw_adc": _status_field_value(
+                    status, "moisture_calibration", "latest_raw_adc", "hum_raw_adc"
+                ),
+                "hum_voltage_mv": _status_field_value(
+                    status, "moisture_calibration", "latest_voltage_mv", "hum_voltage_mv"
+                ),
+                "hum_install_depth_cm_min": _status_field_value(
+                    status, "moisture_calibration", "install_depth_cm_min", "hum_install_depth_cm_min"
+                ),
+                "hum_install_depth_cm_max": _status_field_value(
+                    status, "moisture_calibration", "install_depth_cm_max", "hum_install_depth_cm_max"
+                ),
+                "ph_protocol_ok": _status_field_value(status, "field_validity", "ph", "ph_protocol_ok"),
+                "ph_value_valid": _status_field_value(status, "field_value_validity", "ph", "ph_value_valid"),
+                "ph_source": _status_field_value(status, "field_source", "ph", "ph_source"),
+                "ec_protocol_ok": _status_field_value(status, "field_validity", "ec", "ec_protocol_ok"),
+                "ec_value_valid": _status_field_value(status, "field_value_validity", "ec", "ec_value_valid"),
+                "ec_source": _status_field_value(status, "field_source", "ec", "ec_source"),
+                "ec_measurement_kind": status.get("ec_measurement_kind"),
+                "N_value_valid": _status_field_value(status, "field_value_validity", "N", "N_value_valid"),
+                "N_source": _status_field_value(status, "field_source", "N", "N_source"),
+                "P_value_valid": _status_field_value(status, "field_value_validity", "P", "P_value_valid"),
+                "P_source": _status_field_value(status, "field_source", "P", "P_source"),
+                "K_value_valid": _status_field_value(status, "field_value_validity", "K", "K_value_valid"),
+                "K_source": _status_field_value(status, "field_source", "K", "K_source"),
                 "temp": values.get("soil_temp_c"),
                 "hum": values.get("soil_moisture_pct"),
                 "ph": values.get("soil_ph"),
@@ -494,6 +535,18 @@ class NormalizedSnapshotMixin:
                 "sht_retry_count": status.get("retry_count"),
                 "sht_read_elapsed_ms": status.get("read_elapsed_ms"),
                 "sht_invalid_streak": status.get("invalid_streak"),
+                "sht_value_valid": status.get("value_valid"),
+                "sht_values_available": status.get("values_available"),
+                "sht_values_recorded_with_error": status.get("values_recorded_with_error"),
+                "sht_observed_temp_c": status.get("observed_temp_c"),
+                "sht_observed_hum_pct": status.get("observed_hum_pct"),
+                "sht_i2c_address_ack": status.get("i2c_address_ack"),
+                "sht_i2c_error": status.get("i2c_error"),
+                "sht_frame_ok": status.get("frame_ok"),
+                "sht_temp_crc_ok": status.get("temp_crc_ok"),
+                "sht_hum_crc_ok": status.get("hum_crc_ok"),
+                "sht_raw_temp": status.get("raw_temp"),
+                "sht_raw_hum": status.get("raw_hum"),
                 "sht_temp_c": values.get("air_temp_c"),
                 "sht_hum_pct": values.get("air_rh_pct"),
             }
@@ -507,12 +560,23 @@ class NormalizedSnapshotMixin:
         read_status: Any,
     ) -> dict[str, Any]:
         read_status = read_status if isinstance(read_status, dict) else {}
+        read_ok = read_status.get("read_ok")
+        sample_valid = read_status.get("sample_valid")
+        error_code = read_status.get("error_code")
+        status = read_status.get("status")
+        if status is None:
+            if sample_valid is False or (error_code not in (None, "", "ok", 0)):
+                status = "error"
+            elif read_ok is True and sample_valid is True:
+                status = "ok"
         return canonicalize_json(
             {
                 "sensor_id": sensor_id,
                 "sensor_type": sensor_type,
-                "read_ok": read_status.get("read_ok"),
-                "sample_valid": read_status.get("sample_valid"),
+                "read_ok": read_ok,
+                "sample_valid": sample_valid,
+                "status": status,
+                "error_code": error_code,
             }
         )
 
@@ -577,3 +641,18 @@ class NormalizedSnapshotMixin:
             return int(value)
         except (TypeError, ValueError):
             return None
+
+
+def _status_field_value(
+    status: dict[str, Any],
+    object_key: str,
+    field_key: str,
+    scalar_key: str,
+) -> Any:
+    scalar_value = status.get(scalar_key)
+    if scalar_value is not None:
+        return scalar_value
+    nested = status.get(object_key)
+    if isinstance(nested, dict):
+        return nested.get(field_key)
+    return None

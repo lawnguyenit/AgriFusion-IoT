@@ -173,6 +173,14 @@ String extractHttpReadPayload(const String &response) {
 
     String payload = response.substring(lineEnd + 1);
     int okPos = payload.lastIndexOf("\r\nOK");
+    int newlineOkPos = payload.lastIndexOf("\nOK");
+    int carriageOkPos = payload.lastIndexOf("\rOK");
+    if (newlineOkPos > okPos) {
+        okPos = newlineOkPos;
+    }
+    if (carriageOkPos > okPos) {
+        okPos = carriageOkPos;
+    }
     if (okPos >= 0) {
         payload = payload.substring(0, okPos);
     }
@@ -280,6 +288,13 @@ bool SimHttpClient::perform(const SimHttpRequest &request, SimHttpResponse &resp
             String rawChunk = readHttpBodyChunk(offset, toRead);
             response.bodyResponse += compactResponse(rawChunk);
             String payload = extractHttpReadPayload(rawChunk);
+            size_t remaining = (size_t)response.dataLen - offset;
+            if (payload.length() > remaining) {
+                // The modem trailer is not part of the server body. Bound the
+                // accumulated body by HTTPACTION's declared byte count even
+                // when a module returns the trailer without a line separator.
+                payload = payload.substring(0, remaining);
+            }
             response.body += payload;
             if (!payload.length()) {
                 break;

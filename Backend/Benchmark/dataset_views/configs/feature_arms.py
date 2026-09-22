@@ -67,8 +67,12 @@ LEGACY_VIEW_TO_ARM: dict[str, str] = {
     "v1_point": "base_5",
     "v2_same_y_mini_3h": "base_5_history_3h",
     "v2_same_y_full_3h": "full_9_history_3h",
+    "v2_temporal_mini_3h": "base_5_history_3h",
+    "v2_temporal_full_3h": "full_9_history_3h",
     "v2_same_y_mini_8h": "base_5_history_8h",
     "v2_same_y_full_8h": "full_9_history_8h",
+    "v2_temporal_mini_8h": "base_5_history_8h",
+    "v2_temporal_full_8h": "full_9_history_8h",
 }
 
 

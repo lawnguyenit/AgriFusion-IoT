@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from ....utils.common import safe_float, safe_int
+from ..common import as_optional_bool
 
 
 def extract_sht30_fields(packet_sht: dict[str, Any]) -> dict[str, Any]:
@@ -10,6 +11,11 @@ def extract_sht30_fields(packet_sht: dict[str, Any]) -> dict[str, Any]:
     return {
         "sht.temp_c": safe_float(packet_sht.get("sht_temp_c")),
         "sht.humidity_pct": safe_float(packet_sht.get("sht_hum_pct")),
+        "sht.value_valid": as_optional_bool(packet_sht.get("sht_value_valid")),
+        "sht.values_available": as_optional_bool(packet_sht.get("sht_values_available")),
+        "sht.values_recorded_with_error": as_optional_bool(
+            packet_sht.get("sht_values_recorded_with_error")
+        ),
         "sht.packet_present": packet_present,
         "sht.retry_count": safe_int(packet_sht.get("sht_retry_count")),
         "sht.read_elapsed_ms": safe_int(packet_sht.get("sht_read_elapsed_ms")),

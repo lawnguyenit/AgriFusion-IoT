@@ -23,7 +23,12 @@ def build_threshold_diagnostics(
     end = pd.Timestamp(cohort["end_time"])
     moisture = pd.to_numeric(e1_df["npk.soil_moisture_pct"], errors="coerce")
     npk_valid = _bool_series(e1_df["npk.valid"])
-    cohort_mask = e1_df["sample_time"].ge(start) & e1_df["sample_time"].lt(end) & npk_valid & moisture.notna()
+    moisture_valid = _resolve_field_validity(
+        e1_df,
+        "npk.soil_moisture_valid",
+        npk_valid & moisture.notna(),
+    )
+    cohort_mask = e1_df["sample_time"].ge(start) & e1_df["sample_time"].lt(end) & moisture_valid & moisture.notna()
     cohort_records = e1_df.loc[
         cohort_mask,
         [
@@ -253,3 +258,13 @@ def _bool_series(series: pd.Series) -> pd.Series:
     if str(series.dtype) in {"bool", "boolean"}:
         return series.fillna(False).astype(bool)
     return series.astype("string").str.strip().str.lower().isin({"true", "1", "yes"})
+
+
+def _resolve_field_validity(
+    frame: pd.DataFrame,
+    column: str,
+    fallback: pd.Series,
+) -> pd.Series:
+    if column not in frame.columns:
+        return fallback.astype(bool)
+    return _bool_series(frame[column]).astype(bool)

@@ -15,6 +15,7 @@ def build_stage_run_frames(
 ) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
     stage_id = str(stage_spec["stage_id"])
     stage_feature_views = set(stage_spec["feature_views"])
+    stage_target_views = {str(value) for value in stage_spec.get("target_views", [])}
     stage_fold_ids = set(stage_spec["fold_ids"])
     stage_comparison_ids = set(stage_spec["comparison_ids"])
     validation_rows: list[dict[str, object]] = []
@@ -65,6 +66,12 @@ def build_stage_run_frames(
         task_training_manifest["feature_view_id"].astype("string").isin(stage_feature_views)
         & task_training_manifest["fold_id"].astype("string").isin(stage_fold_ids)
     ].copy()
+    if stage_target_views:
+        if "target_view_id" not in task_frame.columns:
+            raise ValueError("Stage requests target_views but task manifest has no target_view_id column.")
+        task_frame = task_frame.loc[
+            task_frame["target_view_id"].astype("string").isin(stage_target_views)
+        ].copy()
     validation_rows.append(
         {
             "stage_id": stage_id,
@@ -81,21 +88,27 @@ def build_stage_run_frames(
         }
     )
     run_frames = []
-    for (feature_view_id, fold_id), frame in task_frame.groupby(
-        ["feature_view_id", "fold_id"],
+    grouping_columns = ["feature_view_id", "fold_id"]
+    if stage_target_views:
+        grouping_columns.insert(0, "target_view_id")
+    for keys, frame in task_frame.groupby(
+        grouping_columns,
         dropna=False,
         sort=False,
     ):
+        key_values = dict(zip(grouping_columns, keys if isinstance(keys, tuple) else (keys,), strict=True))
         run_frames.append(
             {
                 "run_scope": "task",
                 "comparison_id": None,
                 "comparison_side": None,
-                "feature_view_id": str(feature_view_id),
-                "fold_id": str(fold_id),
+                "feature_view_id": str(key_values["feature_view_id"]),
+                "fold_id": str(key_values["fold_id"]),
                 "task_rows": _order_task_rows(frame),
             }
         )
+        if stage_target_views:
+            run_frames[-1]["target_view_id"] = str(key_values["target_view_id"])
     return run_frames, validation_rows
 
 
@@ -114,6 +127,7 @@ def build_prediction_rows(
     y_pred: list[int],
     y_proba: list[list[float]] | None,
     class_names: list[str],
+    target_view_id: str | None = None,
 ) -> list[dict[str, object]]:
     class_names_json = json.dumps(class_names, ensure_ascii=True, separators=(",", ":"))
     rows: list[dict[str, object]] = []
@@ -125,8 +139,7 @@ def build_prediction_rows(
                 class_name: float(probability)
                 for class_name, probability in zip(class_names, y_proba[index], strict=True)
             }
-        rows.append(
-            {
+        payload = {
                 "stage_id": stage_id,
                 "run_scope": run_scope,
                 "comparison_id": comparison_id if comparison_id is not None else pd.NA,
@@ -156,7 +169,9 @@ def build_prediction_rows(
                 "gap_regime": row.get("gap_regime", pd.NA),
                 "ontology_id": row.get("ontology_id", pd.NA),
             }
-        )
+        if target_view_id is not None:
+            payload["target_view_id"] = target_view_id
+        rows.append(payload)
     return rows
 
 
@@ -173,6 +188,8 @@ def build_pooled_prediction_summary(predictions_df: pd.DataFrame) -> pd.DataFram
         "feature_source_view_id",
         "partition",
     ]
+    if "target_view_id" in predictions_df.columns and predictions_df["target_view_id"].notna().any():
+        group_columns.insert(0, "target_view_id")
     for keys, frame in predictions_df.groupby(group_columns, dropna=False, sort=False):
         class_names_values = frame["class_names_json"].astype("string").dropna().unique().tolist()
         if len(class_names_values) != 1:

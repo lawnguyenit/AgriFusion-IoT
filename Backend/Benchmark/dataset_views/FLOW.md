@@ -16,6 +16,14 @@ flowchart LR
 - segment manifest when a selected view needs continuity-aware windows
 - optional explicit label artifact in `benchmark-ready` mode
 
+Before promotion, a flattened Firebase export may be audited by the additive
+`Backend/Benchmark/source_intake` lane. That lane emits a canonical candidate,
+an exact old-column projection, a source-only provenance sidecar, a candidate
+segment manifest, and episode-level sidecars for sample gaps, consecutive
+sensorless runs, and replay-delay proxies. It does not replace the Layer1
+canonical file. Source rows must remain present until temporal segmentation
+and continuity-aware window construction are complete.
+
 ## This Layer Does
 
 - materialize the active benchmark feature scope:

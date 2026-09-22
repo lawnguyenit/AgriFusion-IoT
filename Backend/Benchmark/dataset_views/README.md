@@ -82,7 +82,10 @@ Rejected legacy or removed ids include:
 - `v2` materializes continuity-aware observed-only window features for
   `3h` and `8h`.
 - Invalid sensor measurements are masked consistently across row and
-  window views.
+  window views using per-field validity when available, with the historical
+  aggregate validity as a backward-compatible fallback. Semantic audit
+  fields (source, calibration, protocol/value validity, and error class) are
+  not additional feature channels.
 - `feature-only` mode writes feature artifacts only.
 - `benchmark-ready` mode requires an explicit label artifact keyed by
   `record.id`.
@@ -101,6 +104,32 @@ The active runtime reads:
   for V2 continuity-aware windows
 
 It does not require any legacy weak-label bridge CSV.
+
+## New flattened Firebase exports
+
+For a newly formatted Firebase CSV, run the non-mutating intake audit first:
+
+```powershell
+python Backend\Benchmark\source_intake\main.py --source-csv C:\path\AgriFusion_Node1_only_clean.csv
+```
+
+The run writes an additive artifact under
+`Backend/Benchmark/source_intake/artifacts/<run_id>/` containing:
+
+- `canonical_candidate.csv` in the current Layer1 field contract;
+- `canonical_legacy_compatible.csv` with the old canonical column order;
+- `source_auxiliary.csv` retaining every source-only field;
+  - `segments_manifest.json` and `candidate_layer1_manifest.json` for opt-in
+    continuity-aware view validation;
+  - overlap, missingness, duplicate, anomaly, comparison, gap-episode,
+    sensorless-run, and replay-delay-proxy tables;
+  - `report.md` and `manifest.json`.
+
+  The existing Layer1 canonical history is never overwritten by this command.
+Review gap geometry and replay/buffer handling and regenerate labels before
+using the candidate for a benchmark run. Preserve all rows until temporal
+segmentation is complete; otherwise an outage can be converted into false
+adjacency between two observations.
 
 ## Architecture
 

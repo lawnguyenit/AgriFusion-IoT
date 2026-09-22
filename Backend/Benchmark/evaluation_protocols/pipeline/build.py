@@ -68,7 +68,11 @@ from Backend.Benchmark.evaluation_protocols.pipeline.consumption import (
     load_native_label_sources,
 )
 from Backend.Benchmark.evaluation_protocols.pipeline.frozen_target import build_frozen_target_manifest
-from Backend.Benchmark.evaluation_protocols.scope import PRIMARY_FEATURE_SOURCE_VIEW_IDS, PRIMARY_FEATURE_VIEW_IDS
+from Backend.Benchmark.evaluation_protocols.scope import (
+    PRIMARY_FEATURE_SOURCE_VIEW_IDS,
+    PRIMARY_FEATURE_VIEW_IDS,
+    RUNNER_FEATURE_VIEW_IDS,
+)
 from Backend.Benchmark.shared.artifacts import create_run_directory
 from Backend.Benchmark.weak_labels.infrastructure.io import (
     load_canonical_history,
@@ -367,7 +371,7 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
         dataset_views_run_dir=config.dataset_views_run_dir.resolve(),
         split_artifact_path=protocol_view_assignments_path,
         feature_artifacts=feature_artifacts,
-        feature_view_ids=PRIMARY_FEATURE_VIEW_IDS,
+        feature_view_ids=RUNNER_FEATURE_VIEW_IDS,
     )
     label_frames_by_task = {
         "v0_point_train": point_labels.loc[point_labels["task_id"] == "v0_point_train"].copy(),
@@ -416,6 +420,10 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
         task_training_manifest,
         sample_environment_manifest=sample_environment_manifest,
         ontology_id="point_ontology_v1",
+        ontology_by_label_task_id={
+            "v2_temporal_3h": "temporal_k_gated_ontology_v1",
+            "v2_temporal_8h": "temporal_k_gated_ontology_v1",
+        },
     )
     comparison_training_manifest = extend_manifest_with_contracts(
         comparison_training_manifest,

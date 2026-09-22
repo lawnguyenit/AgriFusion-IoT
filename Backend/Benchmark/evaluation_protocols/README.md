@@ -100,6 +100,12 @@ For downstream model training, the runner-facing authority is under
 
 - authoritative benchmark scope here is `V0`, `V1`, and `V2 same-Y`
   `3h` only;
+- additive temporal K-gated task rows are available as `v2_temporal_mini_3h`
+  and `v2_temporal_full_3h`; they consume native `v2_temporal_3h` labels and
+  are used by the separate `temporal_k_gated_3h` model profile;
+- a derived paired protocol can add `target_view_id` with
+  `temporal_online_3h` and `temporal_event_3h` over the same rows, features,
+  and split; it is consumed by `temporal_event_online_3h`;
 - `V2 same-Y 8h` remains available for diagnostics and sensitivity,
   but it is not part of the default public runner contract;
 - `task_view_registry.csv`: explicit mapping between feature views,

@@ -89,8 +89,7 @@ public:
 
     FirebaseBootstrapResult begin(FirebaseConfig &firebaseConfig,
                                   FirebaseAuth &firebaseAuth,
-                                  FirebaseData &firebaseData,
-                                  FirebaseData &firebaseOtaData);
+                                  FirebaseData &firebaseData);
 
     bool ready() const;
     bool usesNativeFirebase() const;

@@ -14,24 +14,25 @@ class E1E2SplitAuditTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             protocol_run_dir = root / "evaluation_protocols_run"
-            weak_labels_run_dir = root / "weak_labels_run"
+            native_label_release_dir = root / "native_label_release"
             (protocol_run_dir / "domain_manifests").mkdir(parents=True, exist_ok=True)
-            (weak_labels_run_dir / "point").mkdir(parents=True, exist_ok=True)
-            (weak_labels_run_dir / "v2").mkdir(parents=True, exist_ok=True)
+            (native_label_release_dir / "tasks" / "point").mkdir(parents=True, exist_ok=True)
+            (native_label_release_dir / "tasks" / "same_y" / "horizon_3h").mkdir(parents=True, exist_ok=True)
+            (native_label_release_dir / "tasks" / "same_y" / "horizon_8h").mkdir(parents=True, exist_ok=True)
 
             sample_rows: list[dict[str, object]] = []
             point_rows: list[dict[str, object]] = []
             v2_rows: list[dict[str, object]] = []
             base_time = pd.Timestamp("2026-04-01T00:00:00+07:00")
             shared_cycle = [
-                "normal_point",
+                "reference_context_point",
                 "low_relative_moisture_point",
-                "unknown_environment_point",
+                "unresolved_environmental_evidence_point",
             ]
             sparse_tail_cycle = [
-                "normal_point",
+                "reference_context_point",
                 "low_relative_moisture_point",
-                "normal_point",
+                "reference_context_point",
             ]
 
             for index in range(20):
@@ -50,25 +51,28 @@ class E1E2SplitAuditTests(unittest.TestCase):
                 point_rows.append(
                     {
                         "sample_id": sample_id,
-                        "label_task_id": "v0_point_train",
+                        "label_task_id": "point",
                         "label_status": "LABELED",
                         "label_name": shared_cycle[index % len(shared_cycle)],
+                        "horizon_id": "3h",
                     }
                 )
                 v2_rows.append(
                     {
                         "sample_id": sample_id,
-                        "label_task_id": "v2_same_y_3h",
+                        "label_task_id": "same_y",
                         "label_status": "LABELED",
                         "label_name": shared_cycle[index % len(shared_cycle)],
+                        "horizon_id": "3h",
                     }
                 )
                 v2_rows.append(
                     {
                         "sample_id": sample_id,
-                        "label_task_id": "v2_same_y_8h",
+                        "label_task_id": "same_y",
                         "label_status": "LABELED",
                         "label_name": sparse_tail_cycle[index - 17] if index >= 17 else shared_cycle[index % len(shared_cycle)],
+                        "horizon_id": "8h",
                     }
                 )
 
@@ -77,24 +81,31 @@ class E1E2SplitAuditTests(unittest.TestCase):
                 index=False,
             )
             pd.DataFrame(point_rows).convert_dtypes().to_parquet(
-                weak_labels_run_dir / "point" / "point_labels_train.parquet",
+                native_label_release_dir / "tasks" / "point" / "assignments.parquet",
                 index=False,
             )
             pd.DataFrame(v2_rows).convert_dtypes().to_parquet(
-                weak_labels_run_dir / "v2" / "v2_same_y_labels.parquet",
+                native_label_release_dir / "tasks" / "same_y" / "horizon_3h" / "assignments.parquet",
                 index=False,
             )
 
+            # The audit utility reads one task path per specification.  The
+            # fixture mirrors the native release layout; the 8h frame is
+            # written separately below for its explicit sensitivity task.
+            pd.DataFrame(v2_rows).convert_dtypes().to_parquet(
+                native_label_release_dir / "tasks" / "same_y" / "horizon_8h" / "assignments.parquet",
+                index=False,
+            )
             result = build_e1e2_split_audit(
                 protocol_run_dir=protocol_run_dir,
-                weak_labels_run_dir=weak_labels_run_dir,
+                native_label_release_dir=native_label_release_dir,
             )
 
             summary = result["summary"].set_index("audit_task_id")
             self.assertTrue(bool(summary.loc["v0_v1_point_train", "all_partitions_have_full_class_support"]))
             self.assertTrue(bool(summary.loc["v2_same_y_3h", "all_partitions_have_full_class_support"]))
             self.assertFalse(bool(summary.loc["v2_same_y_8h", "all_partitions_have_full_class_support"]))
-            self.assertEqual(summary.loc["v2_same_y_8h", "test_missing_classes_json"], "[\"unknown_environment_point\"]")
+            self.assertEqual(summary.loc["v2_same_y_8h", "test_missing_classes_json"], "[\"unresolved_environmental_evidence_point\"]")
             self.assertTrue((result["output_dir"] / "ARTIFACT_GUIDE.md").exists())
             self.assertTrue((result["output_dir"] / "task_split_summary.csv").exists())
 

@@ -67,7 +67,8 @@ flowchart TD
   - load source records from Layer0
 - `processors/`
   - packet parsing, context extraction, canonical row assembly,
-    temporal and segment features
+    temporal and segment features; network diagnostics are normalized into
+    `network.*` raw audit context
 - `validation/`
   - invariant checks
 - `writers/`
@@ -86,6 +87,16 @@ flowchart TD
 - reports should only read canonical rows
 - legacy publishers must remain downstream of canonical rows instead of
   becoming a second processing pipeline
+- local PDP IP, IP validity/source, raw CSQ, and operator validity are
+  retained as `RAW_ONLY` audit metadata; public/NAT IP is not part of the
+  production canonical path
+- sensor provenance and semantic validity are also canonical audit fields.
+  They describe whether each numeric measurement is independently usable,
+  where it came from, and (for moisture) which calibration regime applies;
+  they are not added to feature arms automatically
+- invalid-but-recorded observations remain traceable: SHT30 decoded values
+  such as `-45/0` and pH raw zero can remain present as evidence while their
+  field/value validity is false and their error class is available
 
 ## Read this next
 

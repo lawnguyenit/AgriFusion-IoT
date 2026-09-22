@@ -8,13 +8,13 @@ import pandas as pd
 CONTINUOUS_SHIFT_COLUMNS: tuple[tuple[str, str], ...] = (
     ("sht.temp_c", "sht.valid"),
     ("sht.humidity_pct", "sht.valid"),
-    ("npk.soil_temp_c", "npk.valid"),
-    ("npk.soil_moisture_pct", "npk.valid"),
-    ("npk.ph", "npk.valid"),
-    ("npk.ec", "npk.valid"),
-    ("npk.n_proxy", "npk.valid"),
-    ("npk.p_proxy", "npk.valid"),
-    ("npk.k_proxy", "npk.valid"),
+    ("npk.soil_temp_c", "npk.soil_temp_valid"),
+    ("npk.soil_moisture_pct", "npk.soil_moisture_valid"),
+    ("npk.ph", "npk.ph_valid"),
+    ("npk.ec", "npk.ec_valid"),
+    ("npk.n_proxy", "npk.n_proxy_valid"),
+    ("npk.p_proxy", "npk.p_proxy_valid"),
+    ("npk.k_proxy", "npk.k_proxy_valid"),
     ("record.delta_prev_sec", None),
 )
 
@@ -231,8 +231,13 @@ def _resolve_feature_series(
     if feature_name not in frame.columns:
         return pd.Series(dtype="float64")
     series = _coerce_numeric_series(frame[feature_name])
-    if not mask_invalid or validity_column is None or validity_column not in frame.columns:
+    if not mask_invalid or validity_column is None:
         return series
+    if validity_column not in frame.columns:
+        fallback = "sht.valid" if feature_name.startswith("sht.") else "npk.valid" if feature_name.startswith("npk.") else None
+        if fallback is None or fallback not in frame.columns:
+            return series
+        validity_column = fallback
     validity = frame[validity_column].fillna(False)
     if str(validity.dtype) != "boolean":
         validity = validity.astype("boolean")

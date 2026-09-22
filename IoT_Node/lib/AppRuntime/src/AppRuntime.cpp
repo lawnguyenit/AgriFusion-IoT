@@ -6,6 +6,7 @@
 #include <ArduinoJson.h>
 #include <cstring>
 #include <esp_sleep.h>
+#include <esp_ota_ops.h>
 #include <esp_task_wdt.h>
 #include <time.h>
 
@@ -22,7 +23,6 @@
 #define APP_LOG_SENSOR(fmt, ...) CUS_DBGF(APP_LOG_SENSOR_TAG " " fmt, ##__VA_ARGS__)
 #define APP_LOG_NET(fmt, ...)    CUS_DBGF(APP_LOG_NET_TAG " " fmt, ##__VA_ARGS__)
 #define APP_LOG_CLOUD(fmt, ...)  CUS_DBGF(APP_LOG_CLOUD_TAG " " fmt, ##__VA_ARGS__)
-#define APP_LOG_OTA(fmt, ...)    CUS_DBGF(APP_LOG_OTA_TAG " " fmt, ##__VA_ARGS__)
 
 namespace {
 String buildUploadDiagSummary(bool firebaseReady) {
@@ -31,13 +31,16 @@ String buildUploadDiagSummary(bool firebaseReady) {
     char buf[256];
     snprintf(buf,
              sizeof(buf),
-             "net=%d fb=%d reg=%d attach=%d gprs=%d ip=%s rssi=%d op=%s",
+             "net=%d fb=%d reg=%d attach=%d gprs=%d ip=%s ip_valid=%d ip_source=%s csq=%d rssi=%d op=%s",
              networkIsConnected() ? 1 : 0,
              firebaseReady ? 1 : 0,
              sim.networkRegistered ? 1 : 0,
              sim.packetAttached ? 1 : 0,
              sim.gprsConnected ? 1 : 0,
              sim.localIp.c_str(),
+             sim.localIpValid ? 1 : 0,
+             sim.localIpSource.c_str(),
+             sim.signalCsq,
              sim.signalDbm,
              sim.operatorName.c_str());
     return String(buf);
@@ -100,10 +103,15 @@ String buildFirebaseAuthDiagSummary() {
 
 AppRuntime::AppRuntime()
     : _rawTelemetryReporter(APP_RTDB_PATH_NODE_ROOT),
-      _otaReporter(APP_RTDB_PATH_OTA_STATUS, APP_RTDB_PATH_OTA_HISTORY),
       _nodeRuntimePublisher(makeNodeRuntimeConfig()),
       _firebasePipeline(makeFirebasePipelineConfig(), _rawTelemetryReporter, _nodeRuntimePublisher),
       _sht30Service(SHT30_SDA_PIN, SHT30_SCL_PIN, SHT30_I2C_ADDR, APP_SHT30_RETRY_INIT_MS),
+      _ds18b20Service(DS18B20_DATA_PIN, DS18B20_RETRY_INIT_MS),
+      _soilMoistureService(SOIL_MOISTURE_ADC_PIN,
+                           SOIL_MOISTURE_AIR_ADC,
+                           SOIL_MOISTURE_WATER_ADC,
+                           SOIL_MOISTURE_SAMPLE_COUNT,
+                           SOIL_MOISTURE_SAMPLE_GAP_MS),
       _packetBuilder(_sht30Service),
       _serialNpk(1) {}
 
@@ -112,6 +120,7 @@ NodeRuntimeConfig AppRuntime::makeNodeRuntimeConfig() {
     cfg.nodeRootPath = APP_RTDB_PATH_NODE_ROOT;
     cfg.nodeInfoPath = APP_RTDB_PATH_NODE_INFO;
     cfg.nodeLatestPath = APP_RTDB_PATH_NODE_LATEST;
+    cfg.nodeLatestMetaPath = APP_RTDB_PATH_NODE_LATEST_META;
     cfg.nodeDebugRootPath = APP_RTDB_PATH_NODE_DEBUG_ROOT;
     cfg.nodeDebugStatusPath = APP_RTDB_PATH_NODE_DEBUG_STATUS;
     cfg.nodeDebugTelemetryPath = APP_RTDB_PATH_NODE_DEBUG_TELEMETRY;
@@ -146,10 +155,8 @@ void AppRuntime::begin() {
 
     initTimeSync();
     _deviceContext.begin();
-    _otaBootGuard.begin(_otaStateStore, APP_OTA_MAX_PENDING_BOOTS);
-
     if (!APP_RUN_CONTINUOUS) {
-        runSleepCycle();
+        runWakeCycle();
         return;
     }
 
@@ -176,30 +183,114 @@ void AppRuntime::begin() {
                             APP_NETWORK_TASK_CORE);
 }
 
-void AppRuntime::runSleepCycle() {
-    APP_LOG_SYS("Bat dau phien wake cycle, retry SIM=%u lan moi %lu giay.\n",
-                (unsigned)APP_SIM_READY_MAX_POLLS,
-                (unsigned long)(APP_SIM_READY_RETRY_INTERVAL_MS / 1000UL));
+void AppRuntime::runWakeCycle() {
+    APP_LOG_SYS("Bat dau wake cycle: opening -> collection -> finalization.\n");
 
-    initTimeSync();
-    setupStorage();
-    _offlineReplayPending = storageFileExists(APP_OFFLINE_RAW_FILE);
+    OpeningResult opening = runOpeningPhase();
+    CollectionResult collection = runCollectionPhase();
+    FinalizationResult finalization = runFinalizationPhase(opening, collection);
 
-    String payload;
-    bool sensorAlarm = false;
-    if (!collectSingleSample(payload, sensorAlarm)) {
-        APP_LOG_SENSOR("Khong tao duoc mau hop le, ngu va thu lai sau.\n");
-        enterTimedDeepSleep(APP_SLEEP_FAIL_RETRY_INTERVAL_MS, "sample_fail");
-        return;
+    if (finalization.sleepRequested) {
+        enterTimedDeepSleep(finalization.sleepMs, finalization.reason.c_str());
     }
 
-    bool cloudReady = waitForCloudReadyWindow();
+    APP_LOG_SYS("Wake cycle khong co quyet dinh sleep, dung lai de tranh lap vo han.\n");
+}
+
+OpeningResult AppRuntime::runOpeningPhase() {
+    OpeningResult result;
+    result.storageReady = setupStorage();
+    _offlineReplayPending = storageFileExists(APP_OFFLINE_RAW_FILE);
+    result.offlineReplayPending = _offlineReplayPending;
+
+    prepareSensorsForWake(result);
+    result.cloudReady = openNetworkAndCloud();
+    result.networkReady = networkIsConnected();
+    result.timeReady = utcEpochMsIfSynced() > 0;
+
+    char detail[192];
+    snprintf(detail,
+             sizeof(detail),
+             "storage=%d npk=%d sht30=%d ds18b20=%d moisture=%d net=%d cloud=%d time=%d backlog=%d",
+             result.storageReady ? 1 : 0,
+             result.npkPrepared ? 1 : 0,
+             result.sht30Ready ? 1 : 0,
+             result.ds18b20Ready ? 1 : 0,
+             result.soilMoistureReady ? 1 : 0,
+             result.networkReady ? 1 : 0,
+             result.cloudReady ? 1 : 0,
+             result.timeReady ? 1 : 0,
+             result.offlineReplayPending ? 1 : 0);
+    result.detail = detail;
+    APP_LOG_SYS("Phase opening done: %s\n", result.detail.c_str());
+    return result;
+}
+
+void AppRuntime::prepareSensorsForWake(OpeningResult &result) {
+    APP_LOG_SENSOR("Phase opening: khoi tao NPK UART, SHT30, DS18B20 va moisture.\n");
+    _serialNpk.begin(NPK_BAUDRATE, SERIAL_8N1, NPK_RX_PIN, NPK_TX_PIN);
+    _npkSensor.begin(_serialNpk);
+    result.npkPrepared = true;
+    result.sht30Ready = _sht30Service.tryInit(true);
+#if DS18B20_PIPELINE_ENABLED
+    result.ds18b20Ready = _ds18b20Service.tryInit(true);
+#else
+    result.ds18b20Ready = true;
+#endif
+#if SOIL_MOISTURE_PIPELINE_ENABLED
+    _soilMoistureService.begin();
+    result.soilMoistureReady = true;
+#else
+    result.soilMoistureReady = true;
+#endif
+}
+
+CollectionResult AppRuntime::runCollectionPhase() {
+    CollectionResult result;
+    uint32_t startMs = millis();
+    result.ok = collectSingleSample(result.payload, result.sensorAlarm);
+    result.elapsedMs = millis() - startMs;
+    result.detail = result.ok ? "sample_built" : "sample_build_failed";
+    APP_LOG_SENSOR("Phase collection done: ok=%d alarm=%d elapsed=%lu ms.\n",
+                   result.ok ? 1 : 0,
+                   result.sensorAlarm ? 1 : 0,
+                   (unsigned long)result.elapsedMs);
+    return result;
+}
+
+FinalizationResult AppRuntime::runFinalizationPhase(const OpeningResult &opening,
+                                                    const CollectionResult &collection) {
+    FinalizationResult result;
+    if (!collection.ok) {
+        APP_LOG_SENSOR("Phase collection that bai, khong tao packet de gui.\n");
+        result.stage = "sample_fail";
+        result.detail = collection.detail;
+        result.reason = "sample_fail";
+        result.sleepMs = APP_SLEEP_FAIL_RETRY_INTERVAL_MS;
+        result.sleepRequested = true;
+        return result;
+    }
+
+    // Re-check once after collection. The opening result records what was
+    // ready before sampling; finalization decides from the current transport
+    // state whether it can publish or must buffer.
+    networkMaintain();
     bool hasInternet = networkIsConnected();
+    if (hasInternet) {
+        ensureCloudTransportReady(hasInternet, "finalization_check", false);
+        beginFirebaseClientIfNeeded(hasInternet, false, "finalization_check");
+    }
     bool firebaseReady = _firebaseClientInitialized ? _firebasePipeline.ready() : false;
+    result.cloudReady = hasInternet && firebaseReady;
+    if (opening.cloudReady != result.cloudReady) {
+        APP_LOG_NET("Finalization cloud state changed: opening=%d current=%d.\n",
+                    opening.cloudReady ? 1 : 0,
+                    result.cloudReady ? 1 : 0);
+    }
     logConnectivityTransitions(hasInternet, firebaseReady);
 
-    if (cloudReady) {
-        publishSystemStatusCached("boot", "wake cycle network ready", true);
+    if (result.cloudReady) {
+        publishSystemStatusCached("opening_complete", "wake cycle cloud ready", true);
 
         if (_offlineReplayPending) {
             OfflineReplayResult replay = _firebasePipeline.replayOfflineIfAnyDetailed(_firebaseData,
@@ -214,57 +305,73 @@ void AppRuntime::runSleepCycle() {
         }
 
         uint32_t uploadStartMs = millis();
-        TelemetryPushResult result = _firebasePipeline.pushPayloadDetailed(_firebaseData,
-                                                                           payload.c_str(),
-                                                                           sensorAlarm,
-                                                                           sensorAlarm ? APP_PAYLOAD_KIND_SENSOR_ALARM : APP_PAYLOAD_KIND_NODE_PACKET,
-                                                                           _deviceContext,
-                                                                           currentFwVersion(),
-                                                                           currentFwPartition(),
-                                                                           _offlineReplayPending,
-                                                                           utcEpochMsIfSynced());
+        TelemetryPushResult pushed = _firebasePipeline.pushPayloadDetailed(
+            _firebaseData,
+            collection.payload.c_str(),
+            collection.sensorAlarm,
+            collection.sensorAlarm ? APP_PAYLOAD_KIND_SENSOR_ALARM : APP_PAYLOAD_KIND_NODE_PACKET,
+            _deviceContext,
+            currentFwVersion(),
+            currentFwPartition(),
+            _offlineReplayPending,
+            utcEpochMsIfSynced());
         uint32_t uploadElapsedMs = millis() - uploadStartMs;
 
-        if (result.uploaded) {
-            APP_LOG_CLOUD("Wake upload OK in %lu ms ref=%s.\n",
+        result.uploaded = pushed.uploaded;
+        result.buffered = pushed.buffered;
+        result.stage = pushed.stage;
+        result.detail = pushed.detail;
+        if (pushed.uploaded) {
+            APP_LOG_CLOUD("Phase finalization upload OK in %lu ms ref=%s telemetry_path=%s stage=%s duplicate=%d latest_updated=%d.\n",
                           (unsigned long)uploadElapsedMs,
-                          result.refId.c_str());
-            publishSystemStatusCached(sensorAlarm ? "sensor_alarm" : "online",
-                                      sensorAlarm ? "wake upload sensor alarm" : "wake upload ok",
+                          pushed.refId.c_str(),
+                          pushed.telemetryPath.c_str(),
+                          pushed.stage.c_str(),
+                          pushed.duplicate ? 1 : 0,
+                          pushed.latestUpdated ? 1 : 0);
+            publishSystemStatusCached(collection.sensorAlarm ? "sensor_alarm" : "online",
+                                      collection.sensorAlarm ? "wake upload sensor alarm" : "wake upload ok",
                                       true);
-            enterTimedDeepSleep(APP_SENSOR_SAMPLE_INTERVAL_MS, "cycle_done");
-            return;
+            result.reason = "cycle_done";
+            result.sleepMs = APP_SENSOR_SAMPLE_INTERVAL_MS;
+        } else {
+            APP_LOG_CLOUD("Phase finalization upload buffered: stage=%s detail=%s elapsed=%lu ms state={%s}\n",
+                          pushed.stage.c_str(),
+                          pushed.detail.c_str(),
+                          (unsigned long)uploadElapsedMs,
+                          pushed.pipelineState.c_str());
+            result.reason = "upload_buffered";
+            result.sleepMs = APP_SLEEP_FAIL_RETRY_INTERVAL_MS;
         }
 
-        APP_LOG_CLOUD("Wake upload buffered: stage=%s detail=%s elapsed=%lu ms state={%s}\n",
-                      result.stage.c_str(),
-                      result.detail.c_str(),
-                      (unsigned long)uploadElapsedMs,
-                      result.pipelineState.c_str());
-        enterTimedDeepSleep(APP_SLEEP_FAIL_RETRY_INTERVAL_MS, "upload_buffered");
-        return;
+        result.sleepRequested = true;
+        return result;
     }
 
-    annotatePayloadSendState(payload, "sim_not_ready_timeout", APP_SIM_READY_MAX_POLLS);
-    TelemetryPushResult buffered = _firebasePipeline.pushPayloadDetailed(_firebaseData,
-                                                                         payload.c_str(),
-                                                                         sensorAlarm,
-                                                                         sensorAlarm ? APP_PAYLOAD_KIND_SENSOR_ALARM : APP_PAYLOAD_KIND_NODE_PACKET,
-                                                                         _deviceContext,
-                                                                         currentFwVersion(),
-                                                                         currentFwPartition(),
-                                                                         _offlineReplayPending,
-                                                                         utcEpochMsIfSynced());
-    if (!buffered.bufferStoreOk) {
-        APP_LOG_CLOUD("Khong luu duoc packet fail-window vao backlog: stage=%s detail=%s\n",
-                      buffered.stage.c_str(),
-                      buffered.detail.c_str());
-    } else {
-        APP_LOG_CLOUD("SIM/cloud chua san sang sau cua so retry, packet da duoc dem lai. stage=%s detail=%s\n",
-                      buffered.stage.c_str(),
-                      buffered.detail.c_str());
-    }
-    enterTimedDeepSleep(APP_SLEEP_FAIL_RETRY_INTERVAL_MS, "sim_retry_timeout");
+    String payload = collection.payload;
+    annotatePayloadSendState(payload, "cloud_not_ready_timeout", APP_SIM_READY_MAX_POLLS);
+    TelemetryPushResult buffered = _firebasePipeline.pushPayloadDetailed(
+        _firebaseData,
+        payload.c_str(),
+        collection.sensorAlarm,
+        collection.sensorAlarm ? APP_PAYLOAD_KIND_SENSOR_ALARM : APP_PAYLOAD_KIND_NODE_PACKET,
+        _deviceContext,
+        currentFwVersion(),
+        currentFwPartition(),
+        _offlineReplayPending,
+        utcEpochMsIfSynced());
+
+    result.buffered = buffered.buffered;
+    result.stage = buffered.stage;
+    result.detail = buffered.detail;
+    APP_LOG_CLOUD("Phase finalization cloud unavailable: buffered=%d stage=%s detail=%s\n",
+                  buffered.buffered ? 1 : 0,
+                  buffered.stage.c_str(),
+                  buffered.detail.c_str());
+    result.reason = "cloud_retry_timeout";
+    result.sleepMs = APP_SLEEP_FAIL_RETRY_INTERVAL_MS;
+    result.sleepRequested = true;
+    return result;
 }
 
 void AppRuntime::sensorTaskEntry(void *ctx) {
@@ -311,29 +418,140 @@ void AppRuntime::setMessagePayloadKind(SensorMessage &msg, const char *kind) {
 }
 
 String AppRuntime::currentFwVersion() const {
-    return _otaBootGuard.info().runningVersion.length()
-               ? _otaBootGuard.info().runningVersion
-               : OtaBootGuard::currentRunningVersion();
+    const esp_app_desc_t *desc = esp_ota_get_app_description();
+    return desc ? String(desc->version) : String("unknown");
 }
 
 String AppRuntime::currentFwPartition() const {
-    return _otaBootGuard.info().runningPartition.length()
-               ? _otaBootGuard.info().runningPartition
-               : OtaBootGuard::currentRunningPartition();
+    const esp_partition_t *running = esp_ota_get_running_partition();
+    return (running && running->label) ? String(running->label) : String("unknown");
+}
+
+bool AppRuntime::readDs18b20ForNpk(Ds18b20Reading &reading,
+                                   uint8_t &attempts,
+                                   uint32_t &elapsedMs,
+                                   String &errorText) {
+    reading = {};
+    attempts = 0U;
+    elapsedMs = 0U;
+    errorText = "disabled";
+
+#if DS18B20_PIPELINE_ENABLED
+    const uint32_t startMs = millis();
+    errorText = "not_ready";
+
+    for (uint32_t attempt = 1U;
+         attempt <= static_cast<uint32_t>(APP_SENSOR_RETRY_WINDOW_COUNT);
+         ++attempt) {
+        if (!_ds18b20Service.ready()) {
+            APP_LOG_SENSOR("DS18B20 chua ready, thu init lai trong cua so retry %lu/%u.\n",
+                           static_cast<unsigned long>(attempt),
+                           static_cast<unsigned>(APP_SENSOR_RETRY_WINDOW_COUNT));
+            _ds18b20Service.tryInit(true);
+        }
+
+        ++attempts;
+        if (_ds18b20Service.readPrimary(reading)) {
+            errorText = "ok";
+            elapsedMs = millis() - startMs;
+            APP_LOG_SENSOR("DS18B20 result: read_ok=1 sample_valid=1 retry=%u elapsed=%lu ms error=ok\n",
+                           static_cast<unsigned>(attempts - 1U),
+                           static_cast<unsigned long>(elapsedMs));
+            APP_LOG_SENSOR("DS18B20 value: temp=%.2f C raw=0x%04X resolution=%u-bit\n",
+                           static_cast<double>(reading.temperatureC),
+                           static_cast<unsigned>(static_cast<uint16_t>(reading.rawTemperature)),
+                           static_cast<unsigned>(reading.resolutionBits));
+            return true;
+        }
+
+        if (!reading.presenceDetected) {
+            errorText = "presence_missing";
+        } else if (!reading.scratchpadCrcOk) {
+            errorText = "scratchpad_crc_failed";
+        } else if (!reading.rangeOk) {
+            errorText = "out_of_range";
+        } else {
+            errorText = "read_failed";
+        }
+
+        APP_LOG_SENSOR("DS18B20 chua on dinh, retry %lu/%u sau cua so %lu ms. error=%s\n",
+                       static_cast<unsigned long>(attempt),
+                       static_cast<unsigned>(APP_SENSOR_RETRY_WINDOW_COUNT),
+                       static_cast<unsigned long>(APP_SENSOR_RETRY_WINDOW_MS),
+                       errorText.c_str());
+        if (attempt < static_cast<uint32_t>(APP_SENSOR_RETRY_WINDOW_COUNT)) {
+            delay(APP_SENSOR_RETRY_WINDOW_MS);
+        }
+    }
+
+    elapsedMs = millis() - startMs;
+    APP_LOG_SENSOR("DS18B20 result: read_ok=0 sample_valid=0 retry=%u elapsed=%lu ms error=%s\n",
+                   static_cast<unsigned>(attempts),
+                   static_cast<unsigned long>(elapsedMs),
+                   errorText.c_str());
+#endif
+
+    return false;
+}
+
+bool AppRuntime::readSoilMoistureForNpk(SoilMoistureReading &reading,
+                                        uint8_t &attempts,
+                                        uint32_t &elapsedMs,
+                                        String &errorText) {
+    reading = {};
+    attempts = 0U;
+    elapsedMs = 0U;
+    errorText = "disabled";
+
+#if SOIL_MOISTURE_PIPELINE_ENABLED
+    const uint32_t startMs = millis();
+    ++attempts;
+    const bool readOk = _soilMoistureService.read(reading);
+    elapsedMs = millis() - startMs;
+    errorText = readOk ? reading.error : "adc_read_failed";
+    APP_LOG_SENSOR("Soil moisture result: read_ok=%d sample_valid=%d raw=%d raw_min=%d raw_max=%d voltage=%lu mV percent=%d calibration=%d elapsed=%lu ms error=%s depth_cm=%d..%d\n",
+                   readOk ? 1 : 0,
+                   reading.sampleValid ? 1 : 0,
+                   reading.raw,
+                   reading.rawMin,
+                   reading.rawMax,
+                   static_cast<unsigned long>(reading.voltageMv),
+                   reading.percent,
+                   reading.calibrationValid ? 1 : 0,
+                   static_cast<unsigned long>(elapsedMs),
+                   errorText.c_str(),
+                   static_cast<int>(SOIL_MOISTURE_INSTALL_DEPTH_CM_MIN),
+                   static_cast<int>(SOIL_MOISTURE_INSTALL_DEPTH_CM_MAX));
+    return readOk;
+#else
+    (void)reading;
+    (void)attempts;
+    (void)elapsedMs;
+    (void)errorText;
+    return false;
+#endif
 }
 
 bool AppRuntime::collectSingleSample(String &payloadOut, bool &sensorAlarmOut) {
     payloadOut = "";
     sensorAlarmOut = false;
 
-    _serialNpk.begin(NPK_BAUDRATE, SERIAL_8N1, NPK_RX_PIN, NPK_TX_PIN);
-    _npkSensor.begin(_serialNpk);
-
-    APP_LOG_SENSOR("Bat dau chu ky do wake-once.\n");
+    APP_LOG_SENSOR("Bat dau thu thap mau trong wake cycle.\n");
     uint32_t sampleStartMs = millis();
-    auto parseShtState = [](const String &json, bool &readOk, bool &sampleValid, String &errorText) {
+    auto parseShtState = [](const String &json,
+                            bool &readOk,
+                            bool &sampleValid,
+                            uint32_t &retryCount,
+                            uint32_t &elapsedMs,
+                            float &temperatureC,
+                            float &humidityPct,
+                            String &errorText) {
         readOk = false;
         sampleValid = false;
+        retryCount = 0;
+        elapsedMs = 0;
+        temperatureC = NAN;
+        humidityPct = NAN;
         errorText = "json_parse_fail";
 
         JsonDocument doc;
@@ -343,6 +561,12 @@ bool AppRuntime::collectSingleSample(String &payloadOut, bool &sensorAlarmOut) {
 
         readOk = doc["sht_read_ok"] | false;
         sampleValid = doc["sht_sample_valid"] | false;
+        retryCount = doc["sht_retry_count"] | 0U;
+        elapsedMs = doc["sht_read_elapsed_ms"] | 0U;
+        if (sampleValid) {
+            temperatureC = doc["sht_temp_c"] | NAN;
+            humidityPct = doc["sht_hum_pct"] | NAN;
+        }
         errorText = doc["sht_error"] | "unknown";
     };
 
@@ -387,13 +611,20 @@ bool AppRuntime::collectSingleSample(String &payloadOut, bool &sensorAlarmOut) {
     String shtJson;
     bool shtReadOk = false;
     bool shtSampleValid = false;
+    uint32_t shtRetryCount = 0;
+    uint32_t shtReadElapsedMs = 0;
+    float shtTemperatureC = NAN;
+    float shtHumidityPct = NAN;
     String shtError = "not_started";
     for (uint32_t attempt = 1; attempt <= (uint32_t)APP_SENSOR_RETRY_WINDOW_COUNT; ++attempt) {
         if (!_sht30Service.ready()) {
             APP_LOG_SENSOR("SHT30 chua ready, thu init lai trong cua so retry %lu/%u.\n",
                            (unsigned long)attempt,
                            (unsigned)APP_SENSOR_RETRY_WINDOW_COUNT);
-            _sht30Service.tryInit(attempt == 1);
+            // Each outer retry is a real init/probe attempt. The service-level
+            // throttle is useful between wake cycles, but would otherwise turn
+            // retries 2/3 into no-op calls after a failed startup probe.
+            _sht30Service.tryInit(true);
         }
 
         shtJson = _sht30Service.buildJsonPayload(APP_SENSOR_TYPE_SHT30,
@@ -404,7 +635,14 @@ bool AppRuntime::collectSingleSample(String &payloadOut, bool &sensorAlarmOut) {
                                                  SHT30_READ_MAX_ATTEMPTS,
                                                  SHT30_RETRY_DELAY_MS,
                                                  SHT30_MAX_WAIT_MS);
-        parseShtState(shtJson, shtReadOk, shtSampleValid, shtError);
+        parseShtState(shtJson,
+                      shtReadOk,
+                      shtSampleValid,
+                      shtRetryCount,
+                      shtReadElapsedMs,
+                      shtTemperatureC,
+                      shtHumidityPct,
+                      shtError);
         if (shtSampleValid) {
             if (attempt > 1) {
                 APP_LOG_SENSOR("SHT30 phuc hoi trong cua so retry tai lan %lu/%u.\n",
@@ -425,6 +663,59 @@ bool AppRuntime::collectSingleSample(String &payloadOut, bool &sensorAlarmOut) {
             delay(APP_SENSOR_RETRY_WINDOW_MS);
         }
     }
+
+    APP_LOG_SENSOR("SHT30 result: read_ok=%d sample_valid=%d retry=%lu elapsed=%lu ms error=%s\n",
+                   shtReadOk ? 1 : 0,
+                   shtSampleValid ? 1 : 0,
+                   (unsigned long)shtRetryCount,
+                   (unsigned long)shtReadElapsedMs,
+                   shtError.c_str());
+    if (shtSampleValid) {
+        APP_LOG_SENSOR("SHT30 values: temp=%.2f C hum=%.2f %%\n",
+                       shtTemperatureC,
+                       shtHumidityPct);
+    }
+
+    Ds18b20Reading ds18b20Reading;
+    uint8_t ds18b20Attempts = 0U;
+    uint32_t ds18b20ElapsedMs = 0U;
+    String ds18b20Error;
+    const bool ds18b20SampleValid = readDs18b20ForNpk(ds18b20Reading,
+                                                      ds18b20Attempts,
+                                                      ds18b20ElapsedMs,
+                                                      ds18b20Error);
+    if (ds18b20SampleValid) {
+        _npkSensor.applyExternalTemperature(data,
+                                            ds18b20Reading.temperatureC,
+                                            ds18b20Reading.rawTemperature);
+        APP_LOG_SENSOR("NPK soil temp source=DS18B20 temp=%.2f C raw=0x%04X\n",
+                       static_cast<double>(ds18b20Reading.temperatureC),
+                       static_cast<unsigned>(static_cast<uint16_t>(ds18b20Reading.rawTemperature)));
+    }
+
+    SoilMoistureReading soilMoistureReading;
+    uint8_t soilMoistureAttempts = 0U;
+    uint32_t soilMoistureElapsedMs = 0U;
+    String soilMoistureError;
+    const bool soilMoistureReadOk = readSoilMoistureForNpk(soilMoistureReading,
+                                                           soilMoistureAttempts,
+                                                           soilMoistureElapsedMs,
+                                                           soilMoistureError);
+#if SOIL_MOISTURE_PIPELINE_ENABLED
+    // Always attach the external reading, including ADC/calibration failures,
+    // so Firebase receives the source and explicit invalid/error diagnostics.
+    _npkSensor.applyExternalMoisture(data, soilMoistureReading);
+    APP_LOG_SENSOR("NPK soil moisture source=soil_moisture_v1_2 read_ok=%d raw=%d voltage=%lu mV percent=%d valid=%d error=%s\n",
+                   soilMoistureReadOk ? 1 : 0,
+                   soilMoistureReading.raw,
+                   static_cast<unsigned long>(soilMoistureReading.voltageMv),
+                   soilMoistureReading.percent,
+                   soilMoistureReading.sampleValid ? 1 : 0,
+                   soilMoistureReading.error.c_str());
+#else
+    (void)soilMoistureReadOk;
+    (void)soilMoistureReading;
+#endif
 
     bool recoveredAfterFail = false;
     uint32_t failStreakBeforeRecover = 0;
@@ -516,7 +807,7 @@ bool AppRuntime::annotatePayloadSendState(String &payload, const char *state, ui
     return true;
 }
 
-bool AppRuntime::waitForCloudReadyWindow() {
+bool AppRuntime::openNetworkAndCloud() {
     bool netOk = networkSetup();
     if (!netOk) {
         APP_LOG_NET("Khoi dong mang lan dau chua thanh cong, se vao cua so retry.\n");
@@ -526,7 +817,7 @@ bool AppRuntime::waitForCloudReadyWindow() {
     for (uint32_t poll = 1; poll <= (uint32_t)APP_SIM_READY_MAX_POLLS; ++poll) {
         networkMaintain();
         bool hasInternet = networkIsConnected();
-        APP_LOG_NET("Wake retry %lu/%u: net=%d diag={%s}\n",
+        APP_LOG_NET("Phase opening network retry %lu/%u: net=%d diag={%s}\n",
                     (unsigned long)poll,
                     (unsigned)APP_SIM_READY_MAX_POLLS,
                     hasInternet ? 1 : 0,
@@ -537,18 +828,19 @@ bool AppRuntime::waitForCloudReadyWindow() {
             beginFirebaseClientIfNeeded(hasInternet, !_firebaseClientInitialized, "wake_retry_window");
             bool firebaseReady = _firebaseClientInitialized ? _firebasePipeline.ready() : false;
             if (firebaseReady) {
-                APP_LOG_NET("Cloud ready trong cua so retry tai lan %lu.\n", (unsigned long)poll);
+                APP_LOG_NET("Phase opening cloud ready tai lan retry %lu.\n", (unsigned long)poll);
                 return true;
             }
         }
 
         if (poll < (uint32_t)APP_SIM_READY_MAX_POLLS) {
-            APP_LOG_NET("Cloud chua san sang, cho %lu giay roi hoi lai.\n",
+            APP_LOG_NET("Phase opening cloud chua san sang, cho %lu giay roi hoi lai.\n",
                         (unsigned long)(APP_SIM_READY_RETRY_INTERVAL_MS / 1000UL));
             delay(APP_SIM_READY_RETRY_INTERVAL_MS);
         }
     }
 
+    APP_LOG_NET("Phase opening het cua so retry, cloud chua san sang.\n");
     return false;
 }
 
@@ -684,7 +976,8 @@ bool AppRuntime::ensureCloudTransportReady(bool hasInternet, const char *reason,
                 report.httpProbe.ok ? 1 : 0,
                 report.stage.c_str());
 
-    if (verboseLog || !report.transportUsable || !report.timeReadyAfter) {
+    if (verboseLog || !report.transportUsable || !report.timeReadyAfter ||
+        report.timeSyncFromSimOk || report.timeSyncFromHttpOk) {
         printCloudTransportReport(report);
     }
 
@@ -743,8 +1036,7 @@ bool AppRuntime::beginFirebaseClientIfNeeded(bool hasInternet, bool networkJustR
 
     FirebaseBootstrapResult bootstrap = _firebasePipeline.begin(_firebaseConfig,
                                                                 _firebaseAuth,
-                                                                _firebaseData,
-                                                                _firebaseOtaData);
+                                                                _firebaseData);
     _firebaseClientInitialized = bootstrap.transportConfigured && bootstrap.beginAttempted;
 
     if (!_firebasePipeline.configLooksValid()) {
@@ -797,141 +1089,14 @@ void AppRuntime::maybeLogFirebaseNotReady(bool hasInternet, bool firebaseReady) 
     ensureCloudTransportReady(hasInternet, "firebase_not_ready_diag", true);
 }
 
-OtaStoredEvent AppRuntime::makeOtaEvent(const char *stage,
-                                        const char *status,
-                                        const String &detail,
-                                        const String &version,
-                                        const String &requestId) const {
-    OtaStoredEvent ev;
-    ev.valid = true;
-    ev.stage = stage;
-    ev.status = status;
-    ev.detail = detail;
-    ev.version = version;
-    ev.requestId = requestId;
-    return ev;
-}
-
-bool AppRuntime::reportOrStoreOtaEvent(const OtaStoredEvent &event) {
-    if (!event.valid) {
-        return true;
-    }
-
-    if (_firebasePipeline.usesNativeFirebase() && networkIsConnected() && Firebase.ready()) {
-        if (_otaReporter.reportEvent(_firebaseOtaData, event, currentFwVersion(), currentFwPartition())) {
-            return true;
-        }
-        APP_LOG_OTA("Report fail: %s\n", _firebaseOtaData.errorReason().c_str());
-    }
-
-    return _otaStateStore.savePendingEvent(event);
-}
-
-void AppRuntime::handleOtaCommandIfAny() {
-    if (!_firebasePipeline.usesNativeFirebase()) {
-        return;
-    }
-    static uint32_t lastPollMs = 0;
-    uint32_t now = millis();
-    if (now - lastPollMs < APP_OTA_POLL_INTERVAL_MS) {
-        return;
-    }
-    lastPollMs = now;
-
-    OtaCommand cmd;
-    String err;
-    if (!_otaManager.fetchCommand(_firebaseOtaData, APP_RTDB_PATH_OTA_COMMAND, cmd, err)) {
-        APP_LOG_OTA("Poll command fail: %s\n", err.c_str());
-        return;
-    }
-
-    if (!cmd.enabled) {
-        return;
-    }
-
-    String lastHandled = _otaStateStore.loadLastHandledRequestId();
-    if (!cmd.force && cmd.requestId == lastHandled) {
-        APP_LOG_OTA("Duplicate request ignored: %s\n", cmd.requestId.c_str());
-        _otaManager.disableCommand(_firebaseOtaData, APP_RTDB_PATH_OTA_COMMAND);
-        return;
-    }
-
-    String runningVer = currentFwVersion();
-    if (!cmd.force && cmd.version.length() > 0 && cmd.version == runningVer) {
-        reportOrStoreOtaEvent(makeOtaEvent("command", "skipped", "same firmware version", cmd.version, cmd.requestId));
-        _otaStateStore.saveLastHandledRequestId(cmd.requestId);
-        _otaManager.disableCommand(_firebaseOtaData, APP_RTDB_PATH_OTA_COMMAND);
-        return;
-    }
-
-    reportOrStoreOtaEvent(makeOtaEvent("download", "started", cmd.url, cmd.version, cmd.requestId));
-    publishSystemStatusCached("ota_downloading", cmd.version.c_str(), true);
-
-    String targetPartition;
-    String otaErr;
-    if (!_otaManager.performHttpOta(cmd, targetPartition, otaErr)) {
-        reportOrStoreOtaEvent(makeOtaEvent("update", "failed", otaErr, cmd.version, cmd.requestId));
-        _otaStateStore.saveLastHandledRequestId(cmd.requestId);
-        _otaManager.disableCommand(_firebaseOtaData, APP_RTDB_PATH_OTA_COMMAND);
-        publishSystemStatusCached("ota_failed", otaErr.c_str(), true);
-        return;
-    }
-
-    OtaPendingValidationInfo pending;
-    pending.active = true;
-    pending.requestId = cmd.requestId;
-    pending.targetVersion = cmd.version;
-    pending.targetPartition = targetPartition;
-    pending.previousPartition = currentFwPartition();
-    pending.bootCount = 0;
-    _otaStateStore.savePendingValidation(pending);
-    _otaStateStore.saveLastHandledRequestId(cmd.requestId);
-
-    reportOrStoreOtaEvent(makeOtaEvent("reboot", "pending_validation", targetPartition, cmd.version, cmd.requestId));
-    _otaManager.disableCommand(_firebaseOtaData, APP_RTDB_PATH_OTA_COMMAND);
-    publishSystemStatusCached("ota_rebooting", cmd.version.c_str(), true);
-
-    delay(1000);
-    ESP.restart();
-}
-
-void AppRuntime::maybeConfirmOtaAfterHealthyWindow() {
-    if (!_firebasePipeline.usesNativeFirebase()) {
-        return;
-    }
-    static bool confirmedThisBoot = false;
-    static uint32_t healthySinceMs = 0;
-
-    if (confirmedThisBoot || !_otaBootGuard.isPendingValidation()) {
-        return;
-    }
-
-    bool healthy = networkIsConnected() && Firebase.ready();
-    if (!healthy) {
-        healthySinceMs = 0;
-        return;
-    }
-
-    if (healthySinceMs == 0) {
-        healthySinceMs = millis();
-        return;
-    }
-
-    if (millis() - healthySinceMs < APP_OTA_CONFIRM_HEALTH_MS) {
-        return;
-    }
-
-    if (_otaBootGuard.confirmPendingValidation(_otaStateStore)) {
-        confirmedThisBoot = true;
-        _otaReporter.flushPendingEvent(_firebaseOtaData, _otaStateStore, currentFwVersion(), currentFwPartition());
-        publishSystemStatusCached("ota_confirmed", currentFwVersion().c_str(), true);
-    }
-}
-
 void AppRuntime::sensorTaskLoop() {
     _serialNpk.begin(NPK_BAUDRATE, SERIAL_8N1, NPK_RX_PIN, NPK_TX_PIN);
     _npkSensor.begin(_serialNpk);
+    _soilMoistureService.begin();
     _sht30Service.tryInit();
+#if DS18B20_PIPELINE_ENABLED
+    _ds18b20Service.tryInit();
+#endif
 
     TickType_t lastWakeTick = xTaskGetTickCount();
     uint32_t lastSampleMs = 0;
@@ -950,6 +1115,12 @@ void AppRuntime::sensorTaskLoop() {
             APP_LOG_SENSOR("SHT30 chua ready, thu init lai.\n");
             _sht30Service.tryInit();
         }
+#if DS18B20_PIPELINE_ENABLED
+        if (!_ds18b20Service.ready()) {
+            APP_LOG_SENSOR("DS18B20 chua ready, thu init lai.\n");
+            _ds18b20Service.tryInit();
+        }
+#endif
 
         uint32_t sampleStartMs = millis();
         uint32_t sampleIntervalMs = (lastSampleMs == 0) ? 0 : (sampleStartMs - lastSampleMs);
@@ -992,6 +1163,47 @@ void AppRuntime::sensorTaskLoop() {
                 APP_LOG_SENSOR("Canh bao NPK fail den nguong alarm.\n");
             }
         }
+
+        Ds18b20Reading ds18b20Reading;
+        uint8_t ds18b20Attempts = 0U;
+        uint32_t ds18b20ElapsedMs = 0U;
+        String ds18b20Error;
+        const bool ds18b20SampleValid = readDs18b20ForNpk(ds18b20Reading,
+                                                          ds18b20Attempts,
+                                                          ds18b20ElapsedMs,
+                                                          ds18b20Error);
+        if (ds18b20SampleValid) {
+            _npkSensor.applyExternalTemperature(data,
+                                                ds18b20Reading.temperatureC,
+                                                ds18b20Reading.rawTemperature);
+            APP_LOG_SENSOR("NPK soil temp source=DS18B20 temp=%.2f C raw=0x%04X\n",
+                           static_cast<double>(ds18b20Reading.temperatureC),
+                           static_cast<unsigned>(static_cast<uint16_t>(ds18b20Reading.rawTemperature)));
+        }
+
+        SoilMoistureReading soilMoistureReading;
+        uint8_t soilMoistureAttempts = 0U;
+        uint32_t soilMoistureElapsedMs = 0U;
+        String soilMoistureError;
+        const bool soilMoistureReadOk = readSoilMoistureForNpk(soilMoistureReading,
+                                                               soilMoistureAttempts,
+                                                               soilMoistureElapsedMs,
+                                                               soilMoistureError);
+#if SOIL_MOISTURE_PIPELINE_ENABLED
+        // Keep the moisture source in the packet even when the ADC read fails;
+        // the service exposes read_ok/error separately from value validity.
+        _npkSensor.applyExternalMoisture(data, soilMoistureReading);
+        APP_LOG_SENSOR("NPK soil moisture source=soil_moisture_v1_2 read_ok=%d raw=%d voltage=%lu mV percent=%d valid=%d error=%s\n",
+                       soilMoistureReadOk ? 1 : 0,
+                       soilMoistureReading.raw,
+                       static_cast<unsigned long>(soilMoistureReading.voltageMv),
+                       soilMoistureReading.percent,
+                       soilMoistureReading.sampleValid ? 1 : 0,
+                       soilMoistureReading.error.c_str());
+#else
+        (void)soilMoistureReadOk;
+        (void)soilMoistureReading;
+#endif
 
         String npkJson = _npkSensor.makeJsonFromData(data,
                                                      sampleIntervalMs,
@@ -1038,10 +1250,6 @@ void AppRuntime::networkTaskLoop() {
     setupStorage();
     _offlineReplayPending = storageFileExists(APP_OFFLINE_RAW_FILE);
 
-    if (_firebasePipeline.usesNativeFirebase()) {
-        _otaReporter.flushPendingEvent(_firebaseOtaData, _otaStateStore, currentFwVersion(), currentFwPartition());
-    }
-
     SensorMessage rcvMsg = {};
 
     for (;;) {
@@ -1070,11 +1278,6 @@ void AppRuntime::networkTaskLoop() {
             }
             maintainTimeSync();
             _firebasePipeline.probeTelemetryPathIfNeeded(_firebaseData, utcEpochMsIfSynced());
-            if (_firebasePipeline.usesNativeFirebase()) {
-                _otaReporter.flushPendingEvent(_firebaseOtaData, _otaStateStore, currentFwVersion(), currentFwPartition());
-                maybeConfirmOtaAfterHealthyWindow();
-                handleOtaCommandIfAny();
-            }
             OfflineReplayResult replay = _firebasePipeline.replayOfflineIfAnyDetailed(_firebaseData,
                                                                                       _offlineReplayPending,
                                                                                       utcEpochMsIfSynced());

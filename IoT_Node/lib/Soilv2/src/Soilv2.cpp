@@ -1,9 +1,15 @@
 #include "Soilv2.h"
 
-SoilV2::SoilV2(uint8_t pin, int airVal, int waterVal) {
+SoilV2::SoilV2(uint8_t pin,
+               int airVal,
+               int waterVal,
+               uint8_t sampleCount,
+               uint16_t sampleGapMs) {
     _pin = pin;
     _airValue = airVal;
     _waterValue = waterVal;
+    _sampleCount = sampleCount > 0U ? sampleCount : 20U;
+    _sampleGapMs = sampleGapMs;
 }
 
 void SoilV2::begin() {
@@ -13,36 +19,54 @@ void SoilV2::begin() {
     analogSetAttenuation(ADC_11db); // Cho phép đọc full dải áp 3.3V
 }
 
-// Hàm này quản lý rủi ro "Nhiễu tín hiệu"
-int SoilV2::readRawSmoothed() {
-    long sum = 0;
-    const int SAMPLES = 20; // Đọc 20 lần liên tiếp
-    
-    for(int i=0; i<SAMPLES; i++) {
-        sum += analogRead(_pin);
-        delay(2); // Nghỉ cực ngắn giữa các lần đọc
-    }
-    
-    return (int)(sum / SAMPLES); // Trả về trung bình cộng
-}
-
 SoilData SoilV2::read() {
     SoilData result;
-    
-    // 1. Lấy giá trị thô đã lọc nhiễu
-    result.raw = readRawSmoothed();
+    long rawSum = 0;
+    long voltageSum = 0;
+    result.rawMin = 4095;
+    result.rawMax = 0;
 
-    int per = map(result.raw, _airValue, _waterValue, 0, 100);
-    // 2. Giới hạn trong khoảng 0-100%
-    if (per > 100) per = 100;
-    if (per < 0) per = 0;
-    
+    for (uint8_t index = 0U; index < _sampleCount; ++index) {
+        const int raw = analogRead(_pin);
+        const uint32_t voltageMv = analogReadMilliVolts(_pin);
+        rawSum += raw;
+        voltageSum += static_cast<long>(voltageMv);
+        if (raw < result.rawMin) {
+            result.rawMin = raw;
+        }
+        if (raw > result.rawMax) {
+            result.rawMax = raw;
+        }
+        delay(_sampleGapMs);
+    }
+
+    result.raw = static_cast<int>(rawSum / _sampleCount);
+    result.voltageMv = static_cast<uint32_t>(voltageSum / _sampleCount);
+    result.calibrationValid = _airValue != _waterValue;
+
+    if (!result.calibrationValid) {
+        result.percent = -1;
+        result.state = "CHUA HIEU CHUAN";
+        return result;
+    }
+
+    const long scaled = (static_cast<long>(result.raw) - _airValue) * 100L;
+    int per = static_cast<int>(scaled / (_waterValue - _airValue));
+    if (per > 100) {
+        per = 100;
+    }
+    if (per < 0) {
+        per = 0;
+    }
+
     result.percent = per;
-
-    // 4. Đánh giá trạng thái (Cho main dễ dùng)
-    if (per < 30) result.state = "KHO (Can tuoi)";
-    else if (per < 70) result.state = "AM (Tot)";
-    else result.state = "UOT (Ngap)";
+    if (per < 30) {
+        result.state = "KHO (Can tuoi)";
+    } else if (per < 70) {
+        result.state = "AM (Tot)";
+    } else {
+        result.state = "UOT (Ngap)";
+    }
 
     return result;
 }

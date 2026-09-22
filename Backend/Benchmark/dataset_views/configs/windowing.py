@@ -37,6 +37,22 @@ V2_SENSOR_VALIDITY_COLUMNS: dict[str, str] = {
     "npk.": "npk.valid",
 }
 
+# Per-channel validity prevents one invalid NPK field (for example pH=0) from
+# masking independently usable DS18B20/moisture/EC channels. The aggregate
+# mapping above remains the backward-compatible fallback for old canonical
+# histories that predate these fields.
+V2_FIELD_VALIDITY_COLUMNS: dict[str, str] = {
+    "sht.temp_c": "sht.valid",
+    "sht.humidity_pct": "sht.valid",
+    "npk.soil_temp_c": "npk.soil_temp_valid",
+    "npk.soil_moisture_pct": "npk.soil_moisture_valid",
+    "npk.ph": "npk.ph_valid",
+    "npk.ec": "npk.ec_valid",
+    "npk.n_proxy": "npk.n_proxy_valid",
+    "npk.p_proxy": "npk.p_proxy_valid",
+    "npk.k_proxy": "npk.k_proxy_valid",
+}
+
 
 @dataclass(frozen=True)
 class WindowHorizon:

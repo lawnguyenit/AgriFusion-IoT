@@ -73,6 +73,11 @@ into every default smoke invocation.
   - model bundle sidecars, artifact catalogs, run signatures
 - `reporting/`
   - compact tables and markdown reports
+- `analysis/`
+  - non-mutating post-hoc analyses over existing prediction artifacts
+- `analysis/k_window_variants/`
+  - reproducible research benchmarks for K/representation variants, causal
+    history flattening, and robustness/claim audits
 - `utils/`
   - preprocessing helpers and lightweight config loading
 - `config/`
@@ -188,12 +193,135 @@ registered full model defaults):
 python Backend\Benchmark\model_suite\cli.py --smoke-protocol-run-dir <E1_PROTOCOL_RUN_ROOT> --profile semantic_feature_arms_primary_3h --model-keys xgboost --no-progress
 ```
 
+Run the additive temporal K-gated benchmark (native Q10-K3 temporal target;
+the point/Same-Y baseline is unchanged):
+
+```powershell
+python Backend\Benchmark\model_suite\cli.py --smoke-protocol-run-dir <E1_TEMPORAL_PROTOCOL_RUN_ROOT> --profile temporal_k_gated_3h --model-keys xgboost --no-progress
+```
+
+Run the five-test history robustness and claim-audit suite:
+
+```powershell
+python Backend\Benchmark\model_suite\analysis\k_window_variants\robustness_main.py
+```
+
+The suite writes `k_robustness_audit_<run_id>` with pure-lag versus metadata
+metrics, same-dimensional disrupted-order controls, `UNRES_K`/`UNRES_A`
+conditional evaluation, 3-fold temporal mean±std tables, and the direct
+`M_t,M_{t-1},M_{t-2}` threshold positive control. Fold 02 and Fold 03 remain
+protocol-labelled diagnostics where their status requires caution; no output
+changes upstream labels or canonical feature artifacts.
+
+Run the ordered representation progression (Fold 01, fixed seed, XGBoost):
+
+```powershell
+python Backend\Benchmark\model_suite\analysis\k_window_variants\ordered_main.py
+```
+
+This writes `ordered_history_progression_<run_id>/` and trains the five
+representation steps after the deterministic oracle for both K3 online and
+K3 event: `M_t` (1), `X_t` (9), `M-history` (13), `X-history` (117), and
+`X-history+context` (162). The final step is sensor-history plus causal 3h
+context summaries and excludes acquisition/history-quality metadata.
+
+Run the corrected nested RQ1 progression with paired risk contrasts:
+
+```powershell
+python Backend\Benchmark\model_suite\analysis\k_window_variants\rq1_main.py
+```
+
+This writes `rq1_nested_progression_<run_id>/` and evaluates
+`S0=M_t -> S1=X_t -> S2=X_t+H_M -> S3=X_t+H_X -> S4=X_t+H_X+C` plus the
+diagnostic `B_M=M_t+H_M` branch over protocol-owned temporal folds 01--03.
+It reports fold mean/std classification metrics, macro one-vs-rest Average
+Precision, per-class support, paired multiclass log-loss/Brier contrasts, and
+temporal block-bootstrap intervals. The earlier ordered runner is retained as
+a historical diagnostic because its `X_t -> M-history` transition was not
+nested.
+
+Run the paired causal/event target benchmark on the derived protocol:
+
+```powershell
+python Backend\Benchmark\model_suite\cli.py --smoke-protocol-run-dir <PAIRED_TARGET_PROTOCOL_RUN_ROOT> --profile temporal_event_online_3h --model-keys xgboost --no-progress
+```
+
+Compare the two trained target views on the successful-run prefix cohort
+`G = {d_t < K, L_r >= K}`:
+
+```powershell
+python Backend\Benchmark\model_suite\analysis\main.py `
+  --model-run-dir D:\AgriFusion-IoT\Backend\Benchmark\model_suite\artifacts\<PAIRED_MODEL_RUN_ID> `
+  --target-views-artifact-dir D:\AgriFusion-IoT\Backend\Benchmark\weak_labels\artifacts\phase_c\<TARGET_VIEWS_ARTIFACT_ID> `
+  --profile temporal_event_online_3h
+```
+
+This comparison requires a newly trained target-view model run because
+`Y_event` and `Y_online` are different targets. The event view is retrospective
+and diagnostic; future values are never passed as features.
+
+Run the post-hoc focal analysis on the existing online-target predictions:
+
+```powershell
+python Backend\Benchmark\model_suite\analysis\main.py `
+  --model-run-dir D:\AgriFusion-IoT\Backend\Benchmark\model_suite\artifacts\<PAIRED_MODEL_RUN_ID> `
+  --run-depth-target-views-artifact-dir D:\AgriFusion-IoT\Backend\Benchmark\weak_labels\artifacts\phase_c\<TARGET_VIEWS_ARTIFACT_ID> `
+  --profile temporal_event_online_3h `
+  --partitions validation test
+```
+
+This command keeps `Y_online` unchanged and performs no new model inference.
+
+Run the additive five-strata provenance analysis using the existing paired
+online/event predictions. It does not create a five-class model; the five
+strata are audit metadata over the existing three outputs:
+
+```powershell
+python Backend\Benchmark\model_suite\analysis\main.py `
+  --model-run-dir D:\AgriFusion-IoT\Backend\Benchmark\model_suite\artifacts\<PAIRED_MODEL_RUN_ID> `
+  --provenance-strata-target-views-artifact-dir D:\AgriFusion-IoT\Backend\Benchmark\weak_labels\artifacts\phase_c\<TARGET_VIEWS_ARTIFACT_ID> `
+  --profile temporal_event_online_3h `
+  --partitions validation test
+```
+
+The sibling output contains the online 5x3 matrix, event 5x3 comparator,
+`U_K_succ`/`U_K_fail` K-state decomposition, per-stratum probability deltas,
+transitions, and static figures. It reuses existing predictions and performs
+no retraining, weight loading, or new inference.
+
+Join an existing temporal prediction artifact to the derived UNRES origins
+without retraining or rerunning inference:
+
+```powershell
+python Backend\Benchmark\model_suite\analysis\main.py `
+  --model-run-dir D:\AgriFusion-IoT\Backend\Benchmark\model_suite\artifacts\<MODEL_RUN_ID> `
+  --unres-origin-artifact-dir D:\AgriFusion-IoT\Backend\Benchmark\weak_labels\artifacts\phase_c\<UNRES_ORIGIN_ARTIFACT_ID>
+```
+
+The command creates a sibling
+`temporal_unres_origin_prediction_join_<run_id>` folder under the model-suite
+artifact root. Its default scope is the temporal 3h test partition and its
+three existing prediction labels remain `LOW`, `UNRES`, and `REF`.
+
 The flag name `--smoke-protocol-run-dir` is retained for CLI compatibility;
 the `semantic_feature_arms_primary_3h` profile is non-smoke and therefore does
 not receive smoke-only XGBoost overrides. The current official E1 protocol
 contains only `fold_01`; secondary/legacy folds and all 8h views are excluded
 from this profile. Add `logistic_regression` or `extra_trees` explicitly when
 comparison models are wanted.
+
+Run the configured R/K representation matrix (Fold 01, fixed seed, XGBoost):
+
+```powershell
+python Backend\Benchmark\model_suite\analysis\k_window_variants\configured_main.py
+```
+
+The schedule is explicit and reproducible: K1 uses R00 and R11; K3 online and
+K3 event each use R00, R10, R01, and R11. R00/R10/R01/R11 contain 9/54/134/179
+features respectively. The run writes a schedule, label distributions,
+imbalance-aware metrics, per-class results, held-out predictions, and K3
+`U_K_succ`/`U_K_fail` strata under
+`Backend/Benchmark/model_suite/artifacts/k_configured_r_matrix_<run_id>/`.
 
 Run the full primary source-only task benchmark:
 

@@ -109,14 +109,12 @@ class DatasetViewsSelectionTests(unittest.TestCase):
         self.assertEqual(resolve_view_id("v0"), "v0_minimal_sensor")
         self.assertEqual(resolve_view_id("v1"), "v1_sensor_row")
 
-    def test_v2_alias_resolves_to_all_public_v2_views(self) -> None:
+    def test_v2_legacy_alias_resolves_to_primary_3h_views(self) -> None:
         self.assertEqual(
             resolve_view_ids(("v2",)),
             (
                 "v2_minimal_sensor_window_3h",
-                "v2_minimal_sensor_window_8h",
                 "v2_sensor_row_window_3h",
-                "v2_sensor_row_window_8h",
             ),
         )
 

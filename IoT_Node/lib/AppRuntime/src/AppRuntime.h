@@ -10,17 +10,16 @@
 
 #include "Config.h"
 #include "DeviceContext.h"
+#include "Ds18b20Service.h"
 #include "FirebasePipeline.h"
 #include "NodePacketBuilder.h"
 #include "NodeRuntimePublisher.h"
 #include "NPK.h"
-#include "OtaBootGuard.h"
-#include "OtaManager.h"
-#include "OtaRtdbReporter.h"
-#include "OtaStateStore.h"
 #include "RawTelemetryReporter.h"
 #include "Sht30Service.h"
+#include "SoilMoistureService.h"
 #include "TransportStability.h"
+#include "WakeCycle.h"
 
 class AppRuntime {
 public:
@@ -44,17 +43,14 @@ private:
     FirebaseConfig _firebaseConfig;
     FirebaseAuth _firebaseAuth;
     FirebaseData _firebaseData;
-    FirebaseData _firebaseOtaData;
 
     DeviceContext _deviceContext;
     RawTelemetryReporter _rawTelemetryReporter;
-    OtaStateStore _otaStateStore;
-    OtaBootGuard _otaBootGuard;
-    OtaRtdbReporter _otaReporter;
-    OtaManager _otaManager;
     NodeRuntimePublisher _nodeRuntimePublisher;
     FirebasePipeline _firebasePipeline;
     Sht30Service _sht30Service;
+    Ds18b20Service _ds18b20Service;
+    SoilMoistureService _soilMoistureService;
     NodePacketBuilder _packetBuilder;
     MyNPK _npkSensor;
     HardwareSerial _serialNpk;
@@ -93,12 +89,25 @@ private:
     static void sensorTaskEntry(void *ctx);
     static void networkTaskEntry(void *ctx);
 
-    void runSleepCycle();
+    void runWakeCycle();
+    OpeningResult runOpeningPhase();
+    CollectionResult runCollectionPhase();
+    FinalizationResult runFinalizationPhase(const OpeningResult &opening,
+                                            const CollectionResult &collection);
+    void prepareSensorsForWake(OpeningResult &result);
     void sensorTaskLoop();
     void networkTaskLoop();
     bool collectSingleSample(String &payloadOut, bool &sensorAlarmOut);
+    bool readDs18b20ForNpk(Ds18b20Reading &reading,
+                           uint8_t &attempts,
+                           uint32_t &elapsedMs,
+                           String &errorText);
+    bool readSoilMoistureForNpk(SoilMoistureReading &reading,
+                                uint8_t &attempts,
+                                uint32_t &elapsedMs,
+                                String &errorText);
     bool annotatePayloadSendState(String &payload, const char *state, uint32_t attempts) const;
-    bool waitForCloudReadyWindow();
+    bool openNetworkAndCloud();
     void enterTimedDeepSleep(uint32_t sleepMs, const char *reason) const;
 
     bool enqueueSensorMessage(const SensorMessage &msg,
@@ -119,14 +128,6 @@ private:
     bool beginFirebaseClientIfNeeded(bool hasInternet, bool networkJustRecovered, const char *reasonHint = nullptr);
     void maybeLogFirebaseNotReady(bool hasInternet, bool firebaseReady);
 
-    OtaStoredEvent makeOtaEvent(const char *stage,
-                                const char *status,
-                                const String &detail,
-                                const String &version,
-                                const String &requestId) const;
-    bool reportOrStoreOtaEvent(const OtaStoredEvent &event);
-    void handleOtaCommandIfAny();
-    void maybeConfirmOtaAfterHealthyWindow();
 };
 
 #endif

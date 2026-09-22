@@ -12,6 +12,7 @@ def build_model_comparison_table(summary_df: pd.DataFrame) -> pd.DataFrame:
     columns = [
         "model_key",
         "stage_id",
+        "target_view_id",
         "feature_view_id",
         "fold_id",
         "validation_supported_class_macro_f1",

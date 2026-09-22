@@ -4,8 +4,14 @@
 
 #include "Config.h"
 
-#if APP_SHT30_TEST_MODE
+#if APP_ALL_SENSORS_TEST_MODE
+#include "AllSensorsProbe.h"
+#elif APP_SOIL_MOISTURE_TEST_MODE
+#include "SoilMoistureProbe.h"
+#elif APP_SHT30_TEST_MODE
 #include "Sht30Probe.h"
+#elif APP_DS18B20_TEST_MODE
+#include "Ds18b20Probe.h"
 #elif APP_RAW_TRUTH_PROBE_MODE || APP_SIM_PURE_TEST_MODE
 #include "RawTruthProbe.h"
 #else
@@ -22,8 +28,14 @@ void appEntrySetup() {
     delay(300);
 #endif
 
-#if APP_SHT30_TEST_MODE
+#if APP_ALL_SENSORS_TEST_MODE
+    allSensorsProbeBegin();
+#elif APP_SOIL_MOISTURE_TEST_MODE
+    soilMoistureProbeBegin();
+#elif APP_SHT30_TEST_MODE
     sht30ProbeBegin();
+#elif APP_DS18B20_TEST_MODE
+    ds18b20ProbeBegin();
 #elif APP_RAW_TRUTH_PROBE_MODE || APP_SIM_PURE_TEST_MODE
     rawTruthProbeBegin();
 #else
@@ -32,8 +44,17 @@ void appEntrySetup() {
 }
 
 void appEntryLoop() {
-#if APP_SHT30_TEST_MODE
+#if APP_ALL_SENSORS_TEST_MODE
+    allSensorsProbeLoop();
+    delay(20);
+#elif APP_SOIL_MOISTURE_TEST_MODE
+    soilMoistureProbeLoop();
+    delay(50);
+#elif APP_SHT30_TEST_MODE
     sht30ProbeLoop();
+    delay(50);
+#elif APP_DS18B20_TEST_MODE
+    ds18b20ProbeLoop();
     delay(50);
 #elif APP_RAW_TRUTH_PROBE_MODE || APP_SIM_PURE_TEST_MODE
     rawTruthProbeLoop();
