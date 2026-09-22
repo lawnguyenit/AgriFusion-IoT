@@ -6,7 +6,7 @@ from pathlib import Path
 try:
     from Config.runtime import BackendSettings
 except ModuleNotFoundError:
-    from ....Config.runtime import BackendSettings
+    from .....Config.runtime import BackendSettings
 
 from ..utils.file_store import sha256_hex
 from .base import NormalizedSnapshotMixin

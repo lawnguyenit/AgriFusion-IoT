@@ -2,10 +2,10 @@
 
 ## Purpose
 
-This document describes the implemented end-to-end flow from ingestion
-to training results in the current repository, and identifies which
-folders are entrypoints, which folders define handoff contracts, and
-which folders own the core logic.
+This document describes the implemented handoffs from source ingestion to
+canonical telemetry and from canonical telemetry into research evaluation.
+The operational lane and benchmark lane are connected by artifacts but have
+different owners and release gates.
 
 ## Naming note
 

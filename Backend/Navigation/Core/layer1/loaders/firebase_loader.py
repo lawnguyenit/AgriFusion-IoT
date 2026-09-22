@@ -6,7 +6,7 @@ from typing import Any
 try:
     from Config.runtime import BACKEND_SETTINGS
 except ModuleNotFoundError:
-    from ....Config.runtime import BACKEND_SETTINGS
+    from .....Config.runtime import BACKEND_SETTINGS
 
 from ...utils.common import safe_int
 from ...utils.storage import read_json

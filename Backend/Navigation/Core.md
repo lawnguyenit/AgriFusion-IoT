@@ -1,9 +1,14 @@
-# Navigate to Core
-[Go to Core](../Core)
+# Core telemetry processing
 
-This folder contains:
-- `infrastructure`: external adapters used by Core stages
-- `layer0`: raw ingestion from Firebase/JSON export into Layer0 artifacts
-- `layer1`: preprocessing from Layer0 raw artifacts into structured snapshots
-- `layer2`: reusable feature builders
-- `utils`: thin compatibility layer over shared config helpers
+[Open the Core package README](Core/README.md)
+
+The canonical implementation is `Backend/Navigation/Core`:
+
+- `infrastructure/` — Firebase adapter;
+- `layer0/` — source loading, sync decisions and raw artifacts;
+- `layer1/` — canonical telemetry processing and quality outputs;
+- `layer2/` — reusable downstream feature builders;
+- `utils/` — small Core-local compatibility helpers.
+
+The public Python namespace is `Backend.Navigation.Core`. Core does not own
+benchmark labels, model predictions or research conclusions.

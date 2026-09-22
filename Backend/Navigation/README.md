@@ -1,21 +1,23 @@
-# Backend Navigation
+# Backend navigation
 
-This folder provides simple navigation links to major backend areas.
+This directory contains navigation documents for the backend implementation.
+The source packages live under `Backend/Navigation/Core`; benchmark code lives
+under `Backend/Benchmark`.
 
-## Available Navigations
+## Areas
 
-- [Core](Core.md) - Core processing modules
-- [Benchmark](Benchmark.md) - Benchmark models
-- [Output_data](Output_data.md) - Data outputs
-- [Test](Test.md) - Test modules
+- [Core telemetry processing](Core.md) — Layer0, Layer1 and Layer2;
+- [Benchmark](Benchmark.md) — research dataset and model lanes;
+- [Generated outputs](Output_data.md) — local Layer0/Layer1 artifacts;
+- [Tests](Test.md) — backend test entry points.
 
-## Path Access
+## Import namespace
 
-For programmatic path access, use `Backend/Config/paths.py`:
+Use the canonical package namespace from the repository root:
 
 ```python
-from Backend.Config.paths import BACKEND_PATHS
-
-core_dir = BACKEND_PATHS.core_dir
-benchmark_dir = BACKEND_PATHS.benchmark_dir
+from Backend.Navigation.Core import PreprocessingPipeline
 ```
+
+The historical `Backend.Core` and `Navigation.Core` aliases are not public
+package paths.

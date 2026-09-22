@@ -5,8 +5,8 @@ import unittest
 from pathlib import Path
 
 from Backend.Config.storage import read_json
-from Backend.Core.layer1.loaders import FirebaseSourceLoader
-from Backend.Core.layer1.pipelines import PreprocessingPipeline
+from Backend.Navigation.Core.layer1.loaders import FirebaseSourceLoader
+from Backend.Navigation.Core.layer1.pipelines import PreprocessingPipeline
 
 
 def _base_record(*, ts_sample: int, ts_server: int | None = None) -> dict:

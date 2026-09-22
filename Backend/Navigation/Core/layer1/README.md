@@ -1,6 +1,6 @@
 # Core Layer1
 
-`Backend/Core/layer1` theo huong canonical-first.
+`Backend/Navigation/Core/layer1` theo huong canonical-first.
 
 ## Muc dich
 

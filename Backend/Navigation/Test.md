@@ -1,4 +1,6 @@
-# Navigate to Test
-[Go to Test](../Test)
+# Backend tests
 
-This folder contains test scripts and configurations.
+[Open the backend test guide](../tests/README.md)
+
+Tests are grouped by contract owner. Run them from the repository root so the
+canonical `Backend.Navigation.Core` namespace is used.

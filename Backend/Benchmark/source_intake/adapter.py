@@ -13,8 +13,8 @@ for import_path in (ROOT_DIR, BACKEND_DIR):
     if str(import_path) not in sys.path:
         sys.path.insert(0, str(import_path))
 
-from Navigation.Core.layer1.contracts import TemporalSettings, active_field_names  # noqa: E402
-from Navigation.Core.layer1.processors.temporal import apply_temporal_features  # noqa: E402
+from Backend.Navigation.Core.layer1.contracts import TemporalSettings, active_field_names  # noqa: E402
+from Backend.Navigation.Core.layer1.processors.temporal import apply_temporal_features  # noqa: E402
 
 
 REQUIRED_SOURCE_COLUMNS: tuple[str, ...] = (

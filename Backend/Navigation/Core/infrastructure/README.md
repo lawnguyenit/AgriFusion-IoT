@@ -2,7 +2,7 @@
 
 ## Purpose
 
-`Backend/Core/infrastructure` contains shared technical components used
+`Backend/Navigation/Core/infrastructure` contains shared technical components used
 by Core stages.
 
 This folder is for infrastructure that may be reused by multiple Core

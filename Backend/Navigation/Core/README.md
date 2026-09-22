@@ -2,7 +2,7 @@
 
 ## Purpose
 
-`Backend/Core` owns the accepted backend stages from raw telemetry
+`Backend/Navigation/Core` owns the accepted backend stages from raw telemetry
 ingestion through canonical preprocessing, plus the reusable
 benchmark-facing Layer2 feature builders that still consume Core outputs.
 
@@ -25,7 +25,7 @@ Core is not responsible for:
 ## Current structure
 
 ```text
-Core/
+Backend/Navigation/Core/
 |-- infrastructure/ external adapters used by Core stages
 |-- layer0/      raw telemetry ingestion into Layer0 artifacts
 |-- layer1/      canonical telemetry preprocessing
@@ -37,17 +37,17 @@ Core/
 
 ```text
 Firebase RTDB / JSON export
--> Core/layer0
+-> Backend/Navigation/Core/layer0
 -> Backend/Output_data/Layer0
--> Core/layer1
+-> Backend/Navigation/Core/layer1
 -> Backend/Output_data/Layer1
--> Core/layer2 or Backend/Benchmark consumers
+-> Backend/Navigation/Core/layer2 or Backend/Benchmark consumers
 ```
 
 ## Notes
 
 - Layer1 now uses one canonical history table as its source of truth.
-- Layer0 and its Firebase adapter now live under `Backend/Core`, not a
+- Layer0 and its Firebase adapter now live under `Backend/Navigation/Core`, not a
   separate `Services` package.
 - Sensor-specific `sht30/*`, `npk/*`, and `meteo/*` artifacts under
   `Output_data/Layer1` are compatibility outputs derived from canonical

@@ -124,6 +124,29 @@ For the implemented end-to-end handoff from benchmark lanes into
 
 - `v4_hybrid` remains reserved
 - V3, V5, and V6 are removed from the active benchmark runtime surface
+- `source_intake/` is an additive audit/conversion lane; it does not replace
+  the immutable existing canonical source without an explicit promotion
+  decision.
+- `model_suite/analysis/` contains controlled research probes and progression
+  runs. Their artifacts are evidence for a question, not automatically the
+  primary benchmark release.
+
+## Entry points
+
+Run these from the repository root:
+
+```powershell
+python -m Backend.Benchmark.dataset_views.main --help
+python -m Backend.Benchmark.protocol_registry.main --help
+python -m Backend.Benchmark.evaluation_protocols.main --help
+python -m Backend.Benchmark.validity_lifecycle.main --help
+python -m Backend.Benchmark.model_suite.cli --help
+```
+
+The concrete artifact directory is an input to the next lane. A report or
+Markdown summary is not a substitute for the machine-readable manifest,
+feature matrix, label artifact, split assignment or runner contract that
+produced it.
 
 ## Detailed Flow Docs
 

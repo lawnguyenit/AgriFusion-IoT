@@ -16,7 +16,14 @@ class BackendPaths:
 
     @property
     def core_dir(self) -> Path:
-        return self.backend_dir / "Core"
+        """Canonical telemetry-processing package directory.
+
+        The implementation lives under ``Backend/Navigation/Core``.  Keep
+        the property name as a compatibility alias for callers that already
+        use ``BACKEND_PATHS.core_dir``.
+        """
+
+        return self.backend_dir / "Navigation" / "Core"
 
     @property
     def benchmark_dir(self) -> Path:

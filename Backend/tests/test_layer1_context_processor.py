@@ -2,20 +2,12 @@ from __future__ import annotations
 
 import unittest
 
-try:
-    from Navigation.Core.layer1.contracts import SourceRecord
-    from Navigation.Core.layer1.processors.common import normalize_buffer_reason
-    from Navigation.Core.layer1.processors.context import (
-        build_record_and_context_fields,
-        extract_raw_buffer_reason,
-    )
-except ModuleNotFoundError:
-    from Backend.Navigation.Core.layer1.contracts import SourceRecord
-    from Backend.Navigation.Core.layer1.processors.common import normalize_buffer_reason
-    from Backend.Navigation.Core.layer1.processors.context import (
-        build_record_and_context_fields,
-        extract_raw_buffer_reason,
-    )
+from Backend.Navigation.Core.layer1.contracts import SourceRecord
+from Backend.Navigation.Core.layer1.processors.common import normalize_buffer_reason
+from Backend.Navigation.Core.layer1.processors.context import (
+    build_record_and_context_fields,
+    extract_raw_buffer_reason,
+)
 
 
 class Layer1ContextProcessorTests(unittest.TestCase):

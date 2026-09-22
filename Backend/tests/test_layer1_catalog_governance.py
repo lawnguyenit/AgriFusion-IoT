@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import unittest
 
-from Backend.Core.layer1.contracts import catalog_entries
-from Backend.Core.layer1.validation.canonical import build_unknown_catalog_entries
+from Backend.Navigation.Core.layer1.contracts import catalog_entries
+from Backend.Navigation.Core.layer1.validation.canonical import build_unknown_catalog_entries
 
 
 class Layer1CatalogGovernanceTests(unittest.TestCase):

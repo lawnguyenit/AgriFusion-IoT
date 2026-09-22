@@ -2,7 +2,7 @@
 
 ## 1. Mục đích
 
-`Backend/Core/layer2` chứa các helper sinh feature time-series dùng lại cho benchmark và các bước phân tích downstream. Đây không phải là bước bắt buộc trong đường đi tối thiểu từ Firebase lên web, nhưng là một phần quan trọng để tái lập quá trình tạo đặc trưng.
+`Backend/Navigation/Core/layer2` chứa các helper sinh feature time-series dùng lại cho benchmark và các bước phân tích downstream. Đây không phải là bước bắt buộc trong đường đi tối thiểu từ Firebase lên web, nhưng là một phần quan trọng để tái lập quá trình tạo đặc trưng.
 
 ## 2. Kiến trúc xử lý
 

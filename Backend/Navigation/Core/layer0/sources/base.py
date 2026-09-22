@@ -8,7 +8,7 @@ from typing import Any
 try:
     from Config.runtime import BackendSettings
 except ModuleNotFoundError:
-    from ....Config.runtime import BackendSettings
+    from .....Config.runtime import BackendSettings
 
 from ..stores.artifact_store import base_source_manifest_payload
 from ..utils.file_store import serialize_json, sha256_hex

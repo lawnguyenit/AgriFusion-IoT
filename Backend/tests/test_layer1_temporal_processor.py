@@ -4,8 +4,8 @@ import unittest
 
 import pandas as pd
 
-from Backend.Core.layer1.contracts import TemporalSettings
-from Backend.Core.layer1.processors.temporal import apply_temporal_features
+from Backend.Navigation.Core.layer1.contracts import TemporalSettings
+from Backend.Navigation.Core.layer1.processors.temporal import apply_temporal_features
 
 
 class Layer1TemporalProcessorTests(unittest.TestCase):

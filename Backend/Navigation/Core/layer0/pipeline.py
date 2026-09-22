@@ -6,7 +6,7 @@ from typing import Any
 try:
     from Config.runtime import BACKEND_SETTINGS, BackendSettings
 except ModuleNotFoundError:
-    from ...Config.runtime import BACKEND_SETTINGS, BackendSettings
+    from ....Config.runtime import BACKEND_SETTINGS, BackendSettings
 
 from .sources import FirebaseSourceAdapter, JsonExportSourceAdapter
 from .stores.artifact_store import write_latest_meta, write_latest_payload, write_source_audit_artifacts

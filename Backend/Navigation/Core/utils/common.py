@@ -12,7 +12,7 @@ try:
         trim_recent_ids,
     )
 except ModuleNotFoundError:
-    from ...Config.common import (
+    from ....Config.common import (
         build_window_stats,
         classify_trend,
         format_local_iso,

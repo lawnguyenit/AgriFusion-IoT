@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from Backend.Core.layer1.writers.supplemental import SupplementalOutputWriter
+from Backend.Navigation.Core.layer1.writers.supplemental import SupplementalOutputWriter
 
 
 class Layer1SupplementalWriterTests(unittest.TestCase):

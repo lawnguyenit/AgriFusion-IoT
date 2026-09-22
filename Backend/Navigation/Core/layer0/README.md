@@ -2,7 +2,7 @@
 
 ## 1. Purpose
 
-`Backend/Core/layer0` is the standard package for bringing
+`Backend/Navigation/Core/layer0` is the standard package for bringing
 source telemetry into local raw artifacts that can be audited and
 replayed.
 
