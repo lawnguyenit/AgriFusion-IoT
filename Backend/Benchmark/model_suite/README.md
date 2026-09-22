@@ -240,6 +240,20 @@ temporal block-bootstrap intervals. The earlier ordered runner is retained as
 a historical diagnostic because its `X_t -> M-history` transition was not
 nested.
 
+Run the structured RQ1 experimental program:
+
+```powershell
+python Backend\Benchmark\model_suite\analysis\k_window_variants\rq1_program_main.py --bootstrap-reps 1000
+```
+
+This writes `rq1_structured_program_<run_id>/` and runs the named `D/C/H_D/H_C`
+blocks, engineered windows `W`, true temporal context `T`, acquisition block
+`A`, persistence probe, factorial `F00/F10/F01/F11`, Module A alias/group
+diagnostics, and the 45-dimensional negative control for both K3 target
+views. It reports paired held-out log loss/Brier, temporal block-bootstrap
+intervals, per-class metrics, and the feature contract. It is analysis-only;
+the new Firebase candidate is not mixed into the locked labeled benchmark.
+
 Run the paired causal/event target benchmark on the derived protocol:
 
 ```powershell

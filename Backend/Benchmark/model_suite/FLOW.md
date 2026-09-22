@@ -101,6 +101,17 @@ and computes paired held-out log-loss/Brier contrasts with temporal block
 bootstrap intervals. It writes analysis-only artifacts and does not mutate
 canonical data, labels, or upstream feature views.
 
+The structured RQ1 program is an additive extension under
+`analysis/k_window_variants/rq1_program_main.py`. It names the feature blocks
+`D`, `C`, `H_D`, `H_C`, engineered window summaries `W`, true temporal context
+`T`, acquisition evidence `A`, and negative control `N45`. It runs Modules A--F
+for K3 online and K3 event, including snapshot alias pairs, the H/W factorial,
+the persistence probe, acquisition shortcut controls, and paired temporal
+block-bootstrap risk contrasts. `T` excludes validity/missing-lag fields, which
+belong to `A`; unavailable RSSI/replay/buffer/server-upload fields are not
+fabricated. Output is written under
+`artifacts/rq1_structured_program_<run_id>/`.
+
 ## Input
 
 - one `evaluation_protocols` run directory
