@@ -19,6 +19,20 @@ def prepare_source(
     )
     if working[profile.timestamp_column].isna().any():
         raise ValueError("Label input has invalid timestamps; intake must resolve these before labeling.")
+    source_observed_start = working[profile.timestamp_column].min()
+    source_observed_end = working[profile.timestamp_column].max()
+    scope_end = (
+        pd.Timestamp(profile.scope_end_exclusive)
+        if profile.scope_end_exclusive is not None
+        else None
+    )
+    excluded_by_scope = 0
+    if scope_end is not None:
+        in_scope = working[profile.timestamp_column].lt(scope_end)
+        excluded_by_scope = int((~in_scope).sum())
+        working = working.loc[in_scope].copy()
+        if working.empty:
+            raise ValueError("Dataset scope excludes every row from external labeling.")
     for target in profile.targets:
         working[target.measurement_column] = pd.to_numeric(
             working[target.measurement_column], errors="coerce"
@@ -45,6 +59,16 @@ def prepare_source(
     in_calibration = working[profile.timestamp_column].lt(calibration_end)
     if int(in_calibration.sum()) == 0:
         raise ValueError("The requested calibration interval contains no source rows.")
+    working.attrs["source_scope"] = {
+        "scope_start_inclusive": first_time.isoformat(),
+        "scope_end_exclusive": scope_end.isoformat() if scope_end is not None else None,
+        "source_observed_start": source_observed_start.isoformat(),
+        "source_observed_end": source_observed_end.isoformat(),
+        "source_row_count": int(len(source)),
+        "included_row_count": int(len(working)),
+        "excluded_row_count": excluded_by_scope,
+        "scope_exclusion_policy": "timestamp < scope_end_exclusive" if scope_end is not None else "all canonical rows",
+    }
     return working, entity_key, in_calibration, first_time, calibration_end
 
 
@@ -58,9 +82,14 @@ def validate_source(
     missing = sorted(allowed - set(source.columns))
     if missing:
         raise ValueError(f"External canonical source is missing label fields: {missing}")
-    forbidden = [column for column in source.columns if column.startswith("criterion.") or column.endswith("(GT)")]
+    target_sources = {target.measurement_column for target in profile.targets}
+    forbidden = [
+        column
+        for column in source.columns
+        if (column.startswith("criterion.") or column.endswith("(GT)")) and column not in target_sources
+    ]
     if forbidden:
-        raise ValueError(f"Criterion-only columns must not enter the label generator: {forbidden}")
+        raise ValueError(f"Undeclared criterion fields must not enter target generation: {forbidden}")
     if config.calibration_days <= 0:
         raise ValueError("calibration_days must be positive.")
     if not config.tail_shares or any(not 0 < q < 0.5 for q in config.tail_shares):

@@ -36,6 +36,23 @@ def run_external_feature_processing(config: ExternalFeatureConfig) -> ExternalFe
     leaked_criteria = [column for column in profile.value_columns if column.lower().startswith("criterion.")]
     if leaked_criteria:
         raise ValueError(f"Criterion-only fields cannot enter model features: {leaked_criteria}")
+    source_row_count = len(canonical)
+    source_observed_end = pd.to_datetime(canonical[profile.timestamp_column]).max()
+    scope_end = (
+        pd.Timestamp(profile.scope_end_exclusive)
+        if profile.scope_end_exclusive is not None
+        else None
+    )
+    excluded_by_scope = 0
+    if scope_end is not None:
+        timestamps = pd.to_datetime(canonical[profile.timestamp_column], errors="coerce")
+        if timestamps.isna().any():
+            raise ValueError("Feature source has invalid timestamps; intake must resolve these before feature processing.")
+        in_scope = timestamps.lt(scope_end)
+        excluded_by_scope = int((~in_scope).sum())
+        canonical = canonical.loc[in_scope].copy()
+        if canonical.empty:
+            raise ValueError("Dataset scope excludes every row from external feature processing.")
     features, groups, quality = build_external_feature_matrix(
         canonical=canonical,
         profile=profile,
@@ -61,6 +78,15 @@ def run_external_feature_processing(config: ExternalFeatureConfig) -> ExternalFe
         "timestamp_time_basis": intake_manifest.get("adapter_audit", {}).get("timestamp_time_basis", "UTC"),
         "group_columns": list(profile.group_columns),
         "value_columns": list(profile.value_columns),
+        "source_scope": {
+            "scope_start_inclusive": str(pd.to_datetime(canonical[profile.timestamp_column]).min()),
+            "scope_end_exclusive": scope_end.isoformat() if scope_end is not None else None,
+            "source_observed_end": source_observed_end.isoformat(),
+            "source_row_count": int(source_row_count),
+            "included_row_count": int(len(canonical)),
+            "excluded_row_count": excluded_by_scope,
+            "scope_exclusion_policy": "timestamp < scope_end_exclusive" if scope_end is not None else "all canonical rows",
+        },
         "criterion_and_evidence_columns_excluded_from_features": _excluded_columns(intake_manifest),
         "window_hours": list(config.window_hours),
         "min_window_observations": config.min_window_observations,

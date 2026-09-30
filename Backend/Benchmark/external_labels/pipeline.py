@@ -113,7 +113,12 @@ def _build_run_manifest(
         "raw_manifest_path": str(raw_manifest_path.resolve()),
         "raw_manifest_sha256": str(intake_manifest["raw_manifest_sha256"]),
         "target_specs": [_target_manifest(target) for target in profile.targets],
-        "criteria_and_posthoc_fields_loaded": False,
+        "criterion_target_sources": [
+            target.measurement_column
+            for target in profile.targets
+            if target.evidence_kind == "CERTIFIED_REFERENCE_CRITERION"
+        ],
+        "criterion_fields_used_as_model_features": False,
         "calibration": calibration,
         "primary_candidate_selected": False,
         "label_release_status": "CANDIDATE_AUDIT_REVIEW_REQUIRED",
@@ -126,7 +131,9 @@ def _build_run_manifest(
 def _target_manifest(target: TargetSpec) -> dict[str, str]:
     return {
         "target_id": str(target.target_id),
-        "measurement_column": str(target.measurement_column),
+        "target_source_column": str(target.measurement_column),
+        "evidence_kind": str(target.evidence_kind),
+        "input_feature_candidates": "|".join(target.input_feature_candidates),
         "tail_direction": str(target.tail_direction),
         "positive_label": str(target.positive_label),
     }

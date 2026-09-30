@@ -9,6 +9,7 @@ class ExternalFeatureProfile:
     timestamp_column: str
     group_columns: tuple[str, ...]
     value_columns: tuple[str, ...]
+    scope_end_exclusive: str | None = None
 
 
 def resolve_profile(dataset_id: str, run_manifest: dict[str, object]) -> ExternalFeatureProfile:
@@ -31,5 +32,6 @@ def resolve_profile(dataset_id: str, run_manifest: dict[str, object]) -> Externa
                 "sensor.co", "sensor.nmhc", "sensor.nox", "sensor.no2", "sensor.o3",
                 "context.temperature_c", "context.relative_humidity_pct", "context.absolute_humidity",
             ),
+            scope_end_exclusive="2005-03-01T00:00:00",
         )
     raise ValueError(f"No external feature profile is registered for {dataset_id!r}.")

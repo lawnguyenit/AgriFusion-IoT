@@ -23,17 +23,17 @@ class ExternalFeatureTests(unittest.TestCase):
             canonical_path = intake_dir / "canonical.parquet"
             pd.DataFrame(
                 {
-                    "sample_id": ["u1", "u2", "u3"],
-                    "timestamp": pd.to_datetime(["2024-01-01 00:00", "2024-01-01 01:00", "2024-01-01 02:00"]),
-                    "sensor.co": [10.0, 20.0, 30.0],
-                    "sensor.nmhc": [1.0, 2.0, 3.0],
-                    "sensor.nox": [4.0, 5.0, 6.0],
-                    "sensor.no2": [7.0, 8.0, 9.0],
-                    "sensor.o3": [10.0, 11.0, 12.0],
-                    "context.temperature_c": [20.0, 21.0, 22.0],
-                    "context.relative_humidity_pct": [40.0, 41.0, 42.0],
-                    "context.absolute_humidity": [0.4, 0.5, 0.6],
-                    "criterion.co_gt_mg_m3": [1.0, 2.0, 3.0],
+                    "sample_id": ["u1", "u2", "u3", "u4"],
+                    "timestamp": pd.to_datetime(["2005-02-28 21:00", "2005-02-28 22:00", "2005-02-28 23:00", "2005-03-01 00:00"]),
+                    "sensor.co": [10.0, 20.0, 30.0, 40.0],
+                    "sensor.nmhc": [1.0, 2.0, 3.0, 4.0],
+                    "sensor.nox": [4.0, 5.0, 6.0, 7.0],
+                    "sensor.no2": [7.0, 8.0, 9.0, 10.0],
+                    "sensor.o3": [10.0, 11.0, 12.0, 13.0],
+                    "context.temperature_c": [20.0, 21.0, 22.0, 23.0],
+                    "context.relative_humidity_pct": [40.0, 41.0, 42.0, 43.0],
+                    "context.absolute_humidity": [0.4, 0.5, 0.6, 0.7],
+                    "criterion.co_gt_mg_m3": [1.0, 2.0, 3.0, 4.0],
                 }
             ).to_parquet(canonical_path, index=False)
             (intake_dir / "artifact_catalog.json").write_text(
@@ -74,6 +74,8 @@ class ExternalFeatureTests(unittest.TestCase):
             features = pd.read_parquet(result.feature_matrix_path)
 
             self.assertEqual(result.row_count, 3)
+            self.assertEqual(features["sample_id"].tolist(), ["u1", "u2", "u3"])
+            self.assertEqual(registry["source_scope"]["excluded_row_count"], 1)
             self.assertEqual(
                 registry["feature_groups"]["values"]["columns"],
                 [

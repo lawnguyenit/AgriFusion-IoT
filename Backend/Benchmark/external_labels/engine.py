@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pandas as pd
 
 from .candidates import add_joint_labels, build_target_candidates
@@ -15,6 +17,10 @@ def build_candidate_labels(
     config: ExternalLabelConfig,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, dict[str, object]]:
     """Coordinate calibration, candidate generation, and audit artifacts."""
+    if config.tau_minutes is None:
+        if not profile.default_tau_minutes:
+            raise ValueError(f"No evidence-based tau candidates are registered for {profile.dataset_id!r}.")
+        config = replace(config, tau_minutes=profile.default_tau_minutes)
     frame, entity_key, in_calibration, first_time, calibration_end = prepare_source(
         source, profile, config
     )
@@ -48,6 +54,8 @@ def build_candidate_labels(
         first_time,
         calibration_end,
         frame[profile.timestamp_column].max(),
+        frame.attrs.get("source_scope", {}),
+        profile,
     )
     return (
         labels.convert_dtypes(),
@@ -63,17 +71,24 @@ def _calibration_policy(
     first_time: pd.Timestamp,
     calibration_end: pd.Timestamp,
     observed_end: pd.Timestamp,
+    source_scope: dict[str, object],
+    profile: ExternalLabelProfile,
 ) -> dict[str, object]:
+    q_token = "_".join(f"{round(q * 100):02d}" for q in config.tail_shares)
+    tau_token = "_".join(str(int(tau)) for tau in config.tau_minutes)
     return {
-        "policy_id": "EXTERNAL_QTAU_21D_Q05_Q20_TAU30_90_V1",
+        "policy_id": f"EXTERNAL_QTAU_{config.calibration_days}D_Q{q_token}_TAU{tau_token}M_V3",
         "calibration_start": first_time.isoformat(),
         "calibration_end_exclusive": calibration_end.isoformat(),
         "observed_data_end": observed_end.isoformat(),
+        "source_scope": source_scope,
         "calibration_days": int(config.calibration_days),
         "threshold_fit_pooling": "all known target measurements across registered source entities",
         "quantile_interpolation": "linear",
         "tail_shares": list(config.tail_shares),
         "tau_minutes": list(config.tau_minutes),
+        "tau_selection_basis": profile.tau_basis,
+        "tau_evidence_sources": list(profile.tau_sources),
         "persistence_mapping": "K_e(tau)=ceil(tau_minutes/median_cadence_minutes_e)",
         "strict_continuity_bounds_fraction_of_median_cadence": [
             config.min_gap_cadence_fraction,

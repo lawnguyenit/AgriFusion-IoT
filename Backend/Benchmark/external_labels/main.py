@@ -20,7 +20,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--output-root", type=Path, required=True)
     parser.add_argument("--calibration-days", type=int, default=21)
     parser.add_argument("--tail-shares", nargs="+", type=float, default=[0.05, 0.10, 0.15, 0.20])
-    parser.add_argument("--tau-minutes", nargs="+", type=int, default=[30, 45, 60, 90])
+    parser.add_argument(
+        "--tau-minutes",
+        nargs="+",
+        type=int,
+        default=None,
+        help="Persistence candidates in minutes; defaults to the dataset profile's evidence-based values.",
+    )
     return parser
 
 
@@ -33,7 +39,7 @@ def main() -> int:
             output_root=args.output_root,
             calibration_days=args.calibration_days,
             tail_shares=tuple(args.tail_shares),
-            tau_minutes=tuple(args.tau_minutes),
+            tau_minutes=tuple(args.tau_minutes) if args.tau_minutes is not None else None,
         )
     )
     print(json.dumps({

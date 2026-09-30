@@ -198,6 +198,8 @@ def _registry_row(
         "dataset_id": profile.dataset_id,
         "target_id": target.target_id,
         "measurement_column": target.measurement_column,
+        "evidence_kind": target.evidence_kind,
+        "input_feature_candidates": "|".join(target.input_feature_candidates),
         "positive_label": target.positive_label,
         "tail_direction": target.tail_direction,
         "q_id": q_id,

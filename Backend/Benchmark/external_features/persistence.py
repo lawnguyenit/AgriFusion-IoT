@@ -63,7 +63,7 @@ def write_feature_artifacts(
             for key in (
                 "dataset_id", "intake_manifest_path", "intake_manifest_sha256",
                 "canonical_path", "canonical_sha256", "raw_manifest_path", "raw_manifest_sha256",
-                "dataset_metadata",
+                "dataset_metadata", "source_scope",
             )
             if key in manifest
         },

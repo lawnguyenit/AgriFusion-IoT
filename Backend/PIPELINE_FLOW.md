@@ -84,7 +84,9 @@ flowchart TD
   - builds label authority from canonical Layer1
 - `Backend/Benchmark/external_labels`
   - builds source-specific external q/τ candidate labels from allowlisted
-    measurements and keeps all candidate assignments separate from features
+    measurements and keeps all candidate assignments separate from features;
+    UCI candidates are scoped to timestamps before 2005-03-01 while raw and
+    canonical intake retain the complete source file
 - `Backend/Benchmark/evaluation_protocols`
   - freezes benchmark framing into a runner contract
 - `Backend/Benchmark/validity_lifecycle`
@@ -117,6 +119,60 @@ flowchart LR
     C --> F
     A --> F
 ```
+
+## Data processing and target generation at a glance
+
+The external pack follows two parallel authorities after intake: the feature
+lane builds X from observed sensor/context measurements, while the label lane
+builds candidate Y from its profile's target evidence. The lanes only meet at
+the pre-train audit through `sample_id`.
+
+```mermaid
+flowchart LR
+    subgraph RAW["Source evidence: preserve first"]
+      F0["Firebase raw snapshots/history"]
+      U0["UCI archive bytes + metadata"]
+      S0["Stuard environment / soil / water CSVs"]
+    end
+    F0 --> FC["Core Layer1 canonical telemetry"]
+    U0 --> UI["External intake: UCI adapter"]
+    S0 --> SI["External intake: Stuard adapter + backward joins"]
+    UI --> UC["UCI canonical + criteria retained"]
+    SI --> SC["Stuard canonical + provenance / ops evidence"]
+
+    UC --> UF["Feature lane: sensor/context allowlist"]
+    SC --> SF["Feature lane: 7 measurement allowlist"]
+    UF --> UX["Values + causal 3h/8h groups"]
+    SF --> SX["Values + causal 3h/8h groups"]
+
+    UC --> UL["Label lane: CO(GT), NOx(GT) as Y evidence"]
+    SC --> SL["Label lane: soil_moisture_pct as Y evidence"]
+    UL --> UY["CO and NOx independent q/τ candidate heads"]
+    SL --> SY["LOW_MOISTURE q/τ candidate head"]
+
+    UX --> AUD["Pre-train audit: select groups + targets + split by sample_id"]
+    SX --> AUD
+    UY --> AUD
+    SY --> AUD
+    FC --> FV["Existing in-house view/weak-label/protocol path"]
+    FV --> AUD
+    AUD --> FIT["Model suite: independent heads when multi-label"]
+    FIT --> OUT["Retained models, config, metrics, predictions, reports/charts"]
+```
+
+### Read the diagram with these boundaries
+
+- Raw intake and canonicalization preserve source fields; they do not create
+  benchmark labels or model features.
+- A field can be retained in canonical data yet forbidden in X. UCI analyzer
+  criteria are the current example: used for candidate Y, excluded from X.
+- Features, labels, and split manifests stay physically separate and are
+  reconciled by stable `sample_id` in the audit.
+- The candidate-label profile is currently configured by dataset ID. The
+  claim inventory informs human review, but approved claim IDs are not yet an
+  enforced runtime gate. Candidate output is not a frozen target release.
+- The diagram includes an optional pre-train audit. Existing frozen in-house
+  protocol-to-model consumers have not all been migrated to require it.
 
 This is the current connection order:
 
