@@ -59,6 +59,9 @@ fetch latest meta
 - `Backend/Output_data/Layer0/Firebase_data/new_raw/source_snapshot.json`
 - `Backend/Output_data/Layer0/Firebase_data/new_raw/sync_state.json`
 - `Backend/Output_data/Layer0/Firebase_data/history/**`
+- `Backend/Output_data/Layer0/Firebase_data/raw_history/**` when full history
+  is requested; this content-addressed archive preserves the source record
+  before Core normalization, including long firmware/hyperparameter logs
 
 ## 5. Reproducibility
 
@@ -85,6 +88,9 @@ python Backend\main.py --only-layer0 --source json-export --input-json C:\path\e
 - `Layer0IngestionPipeline` is the standard entry point.
 - `latest/meta` is the primary source for deciding whether data is new.
 - Raw history is immutable evidence and must stay auditable.
+- The normalized `history/` files remain the Layer1 input. `raw_history/` is
+  a sibling evidence archive; repeated identical source records reuse the same
+  content-addressed path and are not overwritten.
 
 ## 7. Detailed Flow
 

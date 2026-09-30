@@ -125,6 +125,10 @@ class BackendSettings:
     def firebase_history_root(self) -> Path:
         return self.firebase_layer0_root / "history"
 
+    @property
+    def firebase_raw_history_root(self) -> Path:
+        return self.firebase_layer0_root / "raw_history"
+
     # Backward-compatible aliases for legacy modules.
     @property
     def server_dir(self) -> Path:

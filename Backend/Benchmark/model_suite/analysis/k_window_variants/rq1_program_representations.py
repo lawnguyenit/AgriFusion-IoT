@@ -25,6 +25,14 @@ CORE_IDS = (
     "S3_X_HX_A",
     "S3_X_HX_N45",
 )
+REVIEW_IDS = (
+    "S3_X_HX_T_RAW",
+    "S3_X_HX_T_CONT",
+    "F11_X_HX_WX_T_RAW",
+    "F11_X_HX_WX_T_CONT",
+    "N0_C",
+    "NH_C_HC",
+)
 PROBE_IDS = ("S0_M_t", "S1_X_t", "S2_X_t_HM", "S3_X_t_HX")
 PROBE_LABELS = ("d_0", "d_1", "d_2", "d_ge_3")
 
@@ -61,6 +69,13 @@ def build_program_representations(
         )
 
     t_frame, t_names = _build_temporal_context(history_bundle=history_bundle, row_index=row_index, window_audit=window_audit)
+    t_raw_names = [
+        name for name in t_names
+        if name.startswith("causal_history__lag_") or name == "T__previous_delta_hours"
+    ]
+    t_continuity_names = [name for name in t_names if name not in t_raw_names]
+    t_raw_frame = t_frame.loc[:, ["sample_id", *t_raw_names]].copy()
+    t_continuity_frame = t_frame.loc[:, ["sample_id", *t_continuity_names]].copy()
     a_frame, a_names, a_capability = _build_acquisition_evidence(
         snapshot_bundle=snapshot_bundle,
         history_bundle=history_bundle,
@@ -85,6 +100,24 @@ def build_program_representations(
         "S3_X_HX_N45": _merge_bundle(nested["S3_X_t_HX"].feature_bundle, negative_frame, "S3_X_HX_N45", {"S3": nested["S3_X_t_HX"].feature_bundle.feature_names, "N45": negative_names}),
         "S3_X_HX_T": _merge_bundle(nested["S3_X_t_HX"].feature_bundle, t_frame, "S3_X_HX_T", {"S3": nested["S3_X_t_HX"].feature_bundle.feature_names, "T": t_names}),
         "F11_X_HX_WX_T": _merge_bundle(nested["S4_X_t_HX_C"].feature_bundle, t_frame, "F11_X_HX_WX_T", {"F11": nested["S4_X_t_HX_C"].feature_bundle.feature_names, "T": t_names}),
+        "S3_X_HX_T_RAW": _merge_bundle(nested["S3_X_t_HX"].feature_bundle, t_raw_frame, "S3_X_HX_T_RAW", {"S3": nested["S3_X_t_HX"].feature_bundle.feature_names, "T_raw_timing": t_raw_names}),
+        "S3_X_HX_T_CONT": _merge_bundle(nested["S3_X_t_HX"].feature_bundle, t_continuity_frame, "S3_X_HX_T_CONT", {"S3": nested["S3_X_t_HX"].feature_bundle.feature_names, "T_continuity": t_continuity_names}),
+        "F11_X_HX_WX_T_RAW": _merge_bundle(nested["S4_X_t_HX_C"].feature_bundle, t_raw_frame, "F11_X_HX_WX_T_RAW", {"F11": nested["S4_X_t_HX_C"].feature_bundle.feature_names, "T_raw_timing": t_raw_names}),
+        "F11_X_HX_WX_T_CONT": _merge_bundle(nested["S4_X_t_HX_C"].feature_bundle, t_continuity_frame, "F11_X_HX_WX_T_CONT", {"F11": nested["S4_X_t_HX_C"].feature_bundle.feature_names, "T_continuity": t_continuity_names}),
+        "N0_C": _bundle_from_frame(
+            snapshot_bundle.frame.loc[:, ["sample_id", *supporting_names]],
+            "N0_C",
+            supporting_names,
+            {"C": supporting_names},
+            display_name="strict_non_rule_snapshot",
+        ),
+        "NH_C_HC": _bundle_from_frame(
+            nested["S3_X_t_HX"].feature_bundle.frame.loc[:, ["sample_id", *supporting_names, *supporting_lags]],
+            "NH_C_HC",
+            [*supporting_names, *supporting_lags],
+            {"C": supporting_names, "H_C": supporting_lags},
+            display_name="strict_non_rule_history",
+        ),
     }
     contract = {
         "defining_block": {"id": "D", "features": [MOISTURE], "count": 1},
@@ -93,7 +126,10 @@ def build_program_representations(
         "support_history_block": {"id": "H_C", "features": supporting_lags, "count": len(supporting_lags)},
         "window_summary_block": {"id": "W_D_W_C", "features": context_names, "count": len(context_names), "derived_from": "causal 3h sensor window"},
         "true_temporal_block": {"id": "T", "features": t_names, "count": len(t_names), "derived_from": "row timestamps, causal history ages, continuity and gap audit"},
+        "true_temporal_raw_timing_block": {"id": "T_raw_timing", "features": t_raw_names, "count": len(t_raw_names), "definition": "lag-age fields and previous-row time delta only"},
+        "true_temporal_continuity_block": {"id": "T_continuity", "features": t_continuity_names, "count": len(t_continuity_names), "definition": "row-count/span/gap/reset/boundary continuity evidence"},
         "acquisition_block": {"id": "A", "features": a_names, "count": len(a_names), "capability": a_capability},
+        "strict_non_rule_controls": {"N0_C": {"features": supporting_names, "count": len(supporting_names), "excludes": [MOISTURE, "H_D"]}, "NH_C_HC": {"features": [*supporting_names, *supporting_lags], "count": len(supporting_names) + len(supporting_lags), "excludes": [MOISTURE, "H_D"]}},
         "negative_control": {"id": "N45", "features": negative_names, "count": len(negative_names), "method": "independent deterministic within-column permutation of W_X values; label-independent"},
         "representations": {
             key: {

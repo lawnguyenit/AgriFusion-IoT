@@ -192,6 +192,8 @@ def write_artifact_guides(
             "## Output",
             "- `row_index.*`: canonical sample identity and row order for this run",
             "- `metadata.*`: non-model context columns kept outside feature matrices",
+            "- `feature_superset.parquet`: row-identified union of selected feature views",
+            "- `feature_group_registry.json`: ordered feature groups and hashes for pre-training selection",
             "- `source_manifest.json`: run provenance and artifact pointers",
             "- `feature_role_registry.csv`: per-feature role and label-rule relation",
             "- `feature_dependency_closure.parquet`: transitive feature ancestry and root-source closure",

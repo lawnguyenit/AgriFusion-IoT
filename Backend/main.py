@@ -249,6 +249,7 @@ def run_layer0(args: argparse.Namespace, settings: BackendSettings) -> tuple[boo
         print(f"History snapshot saved to: {result.history_path}")
     if full_history:
         print(f"Full history files written: {result.full_history_written_count}")
+        print(f"Full history raw evidence files written: {result.full_history_raw_written_count}")
 
     layer1_source_loader = None
     if (

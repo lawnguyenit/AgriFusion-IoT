@@ -89,6 +89,15 @@ Rejected legacy or removed ids include:
 - `feature-only` mode writes feature artifacts only.
 - `benchmark-ready` mode requires an explicit label artifact keyed by
   `record.id`.
+- Each materialization also writes `shared/feature_superset.parquet`, a
+  row-identified union of the selected view matrices. Its adjacent
+  `feature_group_registry.json` records ordered columns, hashes, and the
+  `values`, `window_3h`, and `window_8h` groups present in that run. This is a
+  materialization foundation: downstream evaluation still consumes its
+  established per-view contracts, and generic group selection is not yet
+  wired into a pre-train audit or model runner.
+- The original per-view `views/<view_id>/X.parquet` contracts remain available
+  for existing protocol and analysis consumers during migration.
 
 There is no active support for operational-lineage (`v3`), proxy
 reduction (`v5`), or environmental sequence (`v6`) dataset families.

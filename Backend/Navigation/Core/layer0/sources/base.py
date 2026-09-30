@@ -59,6 +59,14 @@ class NormalizedSnapshotMixin:
         self._ensure_prepared()
         return copy.deepcopy(self._normalized_telemetry)
 
+    def fetch_full_history_raw_payload(self) -> dict[str, Any] | None:
+        """Return source telemetry before Core normalization or log truncation."""
+        self._ensure_prepared()
+        if self._source_payload is None:
+            return None
+        telemetry = self._source_payload.get("telemetry")
+        return copy.deepcopy(telemetry) if isinstance(telemetry, dict) else None
+
     def build_audit_artifacts(self, checked_at: datetime) -> SourceAuditArtifacts:
         self._ensure_prepared()
         manifest_payload = base_source_manifest_payload(

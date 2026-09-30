@@ -28,6 +28,7 @@ from Backend.Benchmark.dataset_views.pipelines.shared_outputs import (
     write_shared_outputs,
 )
 from Backend.Benchmark.dataset_views.pipelines.standard_views import materialize_standard_view
+from Backend.Benchmark.dataset_views.pipelines.superset import materialize_superset_feature_artifact
 from Backend.Benchmark.dataset_views.pipelines.runtime import (
     requires_segment_manifest,
     resolve_selected_public_view_ids,
@@ -133,6 +134,16 @@ def materialize_dataset_views(config: MaterializationConfig) -> MaterializationR
             source_manifest_payload=source_manifest_payload,
             segment_manifest_payload=segment_manifest_payload,
         )
+
+    superset_contract = materialize_superset_feature_artifact(
+        views_dir=views_dir,
+        shared_dir=shared_dir,
+        selected_view_ids=selected_public_view_ids,
+        row_index=row_index_df,
+        parquet_engine=parquet_engine,
+    )
+    source_manifest_payload["feature_superset"] = superset_contract
+    write_json_file(shared_dir / "source_manifest.json", source_manifest_payload)
 
     emit_tranche0_lineage_artifacts(
         output_dir=output_dir,

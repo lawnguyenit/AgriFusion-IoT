@@ -11,7 +11,11 @@ except ModuleNotFoundError:
 from .sources import FirebaseSourceAdapter, JsonExportSourceAdapter
 from .stores.artifact_store import write_latest_meta, write_latest_payload, write_source_audit_artifacts
 from .stores.sync_state_store import load_sync_state, save_sync_state
-from .stores.telemetry_store import write_full_history_snapshots, write_history_snapshot
+from .stores.telemetry_store import (
+    write_full_history_raw_snapshots,
+    write_full_history_snapshots,
+    write_history_snapshot,
+)
 from .sync.latest_sync import build_sync_state, decide_sync, parse_latest_meta
 from .utils.layout import format_iso_utc
 
@@ -32,6 +36,7 @@ class Layer0IngestionResult:
     source_manifest_path: Path
     source_snapshot_path: Path | None
     full_history_written_count: int = 0
+    full_history_raw_written_count: int = 0
 
 
 class Layer0IngestionPipeline:
@@ -47,6 +52,7 @@ class Layer0IngestionPipeline:
         self.last_latest_meta_payload: dict[str, Any] | None = None
         self.last_latest_current_payload: dict[str, Any] | None = None
         self.last_full_history_payload: dict[str, Any] | None = None
+        self.last_full_history_raw_payload: dict[str, Any] | None = None
 
     def run(
         self,
@@ -57,6 +63,7 @@ class Layer0IngestionPipeline:
         self.last_latest_meta_payload = None
         self.last_latest_current_payload = None
         self.last_full_history_payload = None
+        self.last_full_history_raw_payload = None
         checked_at = _utc_now()
         previous_sync_state = load_sync_state(self.settings)
 
@@ -93,6 +100,7 @@ class Layer0IngestionPipeline:
         history_path: Path | None = None
         source_snapshot_path: Path | None = None
         full_history_written_count = 0
+        full_history_raw_written_count = 0
 
         if decision.status != "duplicate_source":
             write_latest_meta(self.settings, latest_meta_payload)
@@ -137,7 +145,7 @@ class Layer0IngestionPipeline:
                 checked_at=checked_at,
             )
 
-        if full_history and decision.status != "duplicate_source":
+        if full_history:
             telemetry_payload = self.source_adapter.fetch_full_history_payload()
             if telemetry_payload is not None:
                 self.last_full_history_payload = telemetry_payload
@@ -147,6 +155,22 @@ class Layer0IngestionPipeline:
                     checked_at=checked_at,
                     start_date=history_start_date,
                     end_date=history_end_date,
+                )
+            raw_telemetry_payload = self.source_adapter.fetch_full_history_raw_payload()
+            if raw_telemetry_payload is not None:
+                self.last_full_history_raw_payload = raw_telemetry_payload
+                source = self.source_adapter.describe_source()
+                full_history_raw_written_count = write_full_history_raw_snapshots(
+                    settings=self.settings,
+                    telemetry_payload=raw_telemetry_payload,
+                    checked_at=checked_at,
+                    start_date=history_start_date,
+                    end_date=history_end_date,
+                    source_metadata={
+                        "source_type": source.source_type,
+                        "source_uri": source.source_uri,
+                        "source_sha256": source.source_sha256,
+                    },
                 )
 
         save_sync_state(self.settings, sync_state)
@@ -166,6 +190,7 @@ class Layer0IngestionPipeline:
             source_manifest_path=self.settings.source_manifest_path,
             source_snapshot_path=source_snapshot_path,
             full_history_written_count=full_history_written_count,
+            full_history_raw_written_count=full_history_raw_written_count,
         )
 
     def _build_source_adapter(self) -> Any:

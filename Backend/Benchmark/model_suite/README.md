@@ -42,6 +42,10 @@ Current responsibilities:
 - support `evaluation_protocols` as a downstream consumer
 - run data-backed smoke suites that emit reusable metrics,
   per-sample predictions, and artifact catalogs
+- write per-job held-out confusion and one-vs-rest ROC/PR charts from the
+  saved test predictions, without fitting or rerunning a model
+- keep a separate `multilabel/` lane for independent binary heads so the
+  existing scalar-label protocol contracts remain unchanged
 
 The default smoke-suite config remains conservative and only includes:
 
@@ -75,6 +79,9 @@ into every default smoke invocation.
   - compact tables and markdown reports
 - `analysis/`
   - non-mutating post-hoc analyses over existing prediction artifacts
+- `multilabel/`
+  - audited independent-head training, per-target scores/metrics, and joint
+    target-set reporting; see its README and FLOW for the contract
 - `analysis/k_window_variants/`
   - reproducible research benchmarks for K/representation variants, causal
     history flattening, and robustness/claim audits
@@ -253,6 +260,32 @@ diagnostics, and the 45-dimensional negative control for both K3 target
 views. It reports paired held-out log loss/Brier, temporal block-bootstrap
 intervals, per-class metrics, and the feature contract. It is analysis-only;
 the new Firebase candidate is not mixed into the locked labeled benchmark.
+
+Run the reviewer-control follow-up:
+
+```powershell
+python Backend\Benchmark\model_suite\analysis\k_window_variants\rq1_review_controls_main.py --threads 1
+```
+
+This writes `rq1_review_controls_<run_id>/` with `T_raw_timing` versus
+`T_continuity`, strict non-moisture controls `N0_C`/`NH_C_HC`, five-seed
+contrasts, `L={6,12,18,24}` sensitivity, reporting-gate facts, and a
+same-cohort K=2/3/4 sensitivity sweep. The K2/K4 rows reuse the locked K3
+protocol assignments and therefore are not frozen K2/K4 protocol releases.
+
+Run the WADE controlled-world calibration:
+
+```powershell
+python -m Backend.Benchmark.model_suite.analysis.wade_calibration.main --n-samples 8000 --seeds 20260923 20260924 20260925 --bootstrap-reps 500 --threads 1
+```
+
+This writes `wade_controlled_worlds_<run_id>/` and tests four known mechanisms
+with the same generator and registered XGBoost path: snapshot sufficiency,
+history necessity, deterministic rule reconstruction, and acquisition
+shortcut dependence. It emits mechanism-specific gates, paired held-out
+log-loss contrasts, disruption controls, oracle metrics, and representation
+contracts. A pass calibrates WADE under controlled construction; it is not
+external-domain validation.
 
 Run the paired causal/event target benchmark on the derived protocol:
 

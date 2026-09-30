@@ -27,16 +27,27 @@ flowchart TD
     F["CLI: Benchmark/dataset_views/main.py"] --> G["materialize_dataset_views()"]
     E --> G
     G --> H["Feature-view artifacts"]
+    H --> U["Optional pretrain_audit selection + keyed checks"]
+
+    X["External source files or explicit download"] --> Y["Benchmark/external_intake"]
+    Y --> Z["Immutable external raw release + canonical candidate"]
+    Z --> W["Benchmark/external_features"]
+    Z --> WL["Benchmark/external_labels: q/τ candidates + support audit"]
+    W --> U
+    WL --> U
 
     I["CLI: Benchmark/weak_labels/main.py"] --> J["build_weak_labels()"]
     E --> J
     J --> K["Weak-label artifacts"]
+    K --> U
 
     L["CLI: Benchmark/evaluation_protocols/main.py"] --> M["build_evaluation_protocols()"]
     E --> M
     H --> M
     K --> M
     M --> N["Runner contract: task/comparison/frozen manifests"]
+    N --> U
+    U --> V["Selected X, Y, split artifacts + audit report"]
 
     R["CLI: Benchmark/validity_lifecycle/main.py"] --> S["build_validity_lifecycle()"]
     N --> S
@@ -48,6 +59,10 @@ flowchart TD
     O["CLI: Benchmark/model_suite/cli.py"] --> P["run_smoke_suite()"]
     N --> P
     P --> Q["Per-job models, metrics, predictions, reports"]
+
+    U --> U2["Reviewed pretrain-audit artifact"]
+    U2 --> ML["Benchmark/model_suite/multilabel"]
+    ML --> ML2["Independent target heads + joint prediction state"]
 ```
 
 ## What each stage owns
@@ -64,9 +79,12 @@ flowchart TD
   - attaches continuity and temporal fields
   - writes reports and compatibility outputs
 - `Backend/Benchmark/dataset_views`
-  - builds feature matrices from canonical Layer1
+  - builds feature matrices and an additive row-identified superset from canonical Layer1
 - `Backend/Benchmark/weak_labels`
   - builds label authority from canonical Layer1
+- `Backend/Benchmark/external_labels`
+  - builds source-specific external q/τ candidate labels from allowlisted
+    measurements and keeps all candidate assignments separate from features
 - `Backend/Benchmark/evaluation_protocols`
   - freezes benchmark framing into a runner contract
 - `Backend/Benchmark/validity_lifecycle`
@@ -75,6 +93,13 @@ flowchart TD
   - does not create new train/validation/test splits
 - `Backend/Benchmark/model_suite`
   - trains and evaluates models from the locked runner contract
+  - stores test-set confusion and ROC/PR charts from retained predictions
+  - provides an additive independent-head runner for multi-label audit outputs
+- `Backend/Benchmark/pretrain_audit`
+  - selects explicit feature groups from a registered superset
+  - checks sample-key coverage across features, labels, and protocol splits
+  - reports missingness and target support before model fit without changing
+    existing `evaluation_protocols` consumers
 
 ## Benchmark Block Diagram
 
@@ -96,6 +121,7 @@ flowchart LR
 This is the current connection order:
 
 - `dataset_views` owns feature materialization.
+- `pretrain_audit` owns optional explicit group selection and keyed pre-fit checks.
 - `weak_labels` owns label authority.
 - `evaluation_protocols` owns benchmark framing and runner-facing
   manifests.

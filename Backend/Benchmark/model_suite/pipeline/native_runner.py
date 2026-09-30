@@ -12,6 +12,7 @@ from Backend.Benchmark.model_suite.evaluation.metrics import summarize_protocol_
 from Backend.Benchmark.model_suite.pipeline.training_job import train_tabular_classifier
 from Backend.Benchmark.model_suite.persistence.model_bundle import write_metrics_payload
 from Backend.Benchmark.model_suite.registries import resolve_model_profile
+from Backend.Benchmark.model_suite.reporting.plots import write_classification_plots
 from Backend.Benchmark.model_suite.utils.preprocessing import hash_sample_ids
 from Backend.Benchmark.model_suite.validation import run_rule_controls
 from Backend.Benchmark.evaluation_protocols.pipeline.smoke_support import build_prediction_rows
@@ -340,6 +341,17 @@ def run_protocol_model_job(
     )
     confusion_matrix_path = output_dir / "confusion_matrix.csv"
     confusion_matrix_df.to_csv(confusion_matrix_path, index=False)
+    plot_paths: list[Path] = []
+    if "test" in evaluation_partitions:
+        test_labels = evaluation_bundles["test"]["labels"].map(class_lookup).to_numpy(dtype="int64")
+        plot_paths = write_classification_plots(
+            y_true=test_labels,
+            y_pred=training_result.evaluation_predictions["test"],
+            probabilities=training_result.evaluation_probabilities.get("test"),
+            class_names=class_names,
+            output_dir=output_dir / "plots",
+            partition="test",
+        )
     slice_metrics_df = _build_slice_metrics_frame(
         predictions_df=predictions_df,
         model_key=model_key,
@@ -463,6 +475,15 @@ def run_protocol_model_job(
                 "usage": "exact-rule disagreement rows inside declared coverage",
             },
         ]
+    )
+    artifact_rows.extend(
+        {
+            "artifact_group": "job_run",
+            "path": str(path),
+            "role": "evaluation_plot",
+            "usage": "test-set confusion matrix or one-vs-rest ROC/PR chart derived from predictions also stored in predictions.parquet",
+        }
+        for path in plot_paths
     )
     summary_extra = {
         "job_output_dir": str(output_dir),

@@ -39,8 +39,9 @@ flowchart TD
     M --> P{"full_history?"}
     O --> P
     N --> P
-    P -- "Yes" --> Q["fetch_full_history_payload()"]
-    Q --> R["write_full_history_snapshots()"]
+    P -- "Yes" --> Q["fetch normalized + original source history"]
+    Q --> R["write normalized history snapshots"]
+    Q --> S["write content-addressed raw_history evidence + archive manifest"]
     P -- "No" --> S["Skip backfill"]
 
     R --> T["save_sync_state()"]
@@ -67,6 +68,14 @@ flowchart TD
 - `new_raw/sync_state.json`
 - `history/<date>/<event>.json`
 - full-history snapshots when `--full-history` is enabled
+  - normalized snapshots in `history/<YYYY>/<MM>/<DD>/`
+  - exact parsed source records in sibling `raw_history/<YYYY>/<MM>/<DD>/`
+  - one completed archive manifest per full-history retrieval in
+    `raw_history/archive_runs/`, including source hash, date range, and counts
+
+When `--full-history` is requested, history retrieval/backfill runs even if
+latest-meta synchronization classifies the source as a duplicate. This allows
+older installations to populate the raw evidence archive on a later run.
 
 ## Folder map
 

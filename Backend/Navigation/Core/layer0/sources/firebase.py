@@ -71,6 +71,16 @@ class FirebaseSourceAdapter(NormalizedSnapshotMixin):
             raise ValueError("Firebase telemetry payload must be a JSON object")
         return canonicalize_json(telemetry_payload)
 
+    def fetch_full_history_raw_payload(self) -> dict[str, Any] | None:
+        if self._mode == "snapshot_root":
+            return super().fetch_full_history_raw_payload()
+        telemetry_payload = self.firebase_client.pull_data(node_path=self.settings.telemetry_root_path)
+        if telemetry_payload is None:
+            return None
+        if not isinstance(telemetry_payload, dict):
+            raise ValueError("Firebase telemetry payload must be a JSON object")
+        return canonicalize_json(telemetry_payload)
+
     def build_audit_artifacts(self, checked_at: datetime) -> SourceAuditArtifacts:
         if self._mode == "snapshot_root":
             artifacts = super().build_audit_artifacts(checked_at)

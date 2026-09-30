@@ -8,6 +8,13 @@ flowchart LR
 B --> C["trained-model artifacts + predictions + metrics"]
 ```
 
+The separate `multilabel/` lane consumes a ready pre-train audit and fits one
+binary estimator per target. It preserves the existing scalar `label_name`
+runner contract, records independent head probabilities, then derives the
+joint positive-target set (including `REF` only for all-negative predictions).
+See [`multilabel/FLOW.md`](multilabel/FLOW.md) for its inputs, integrity gates,
+outputs, and partial-run recovery behavior.
+
 ## Post-hoc prediction analyses
 
 `analysis/` contains non-mutating analyses over already materialized model
@@ -112,6 +119,26 @@ belong to `A`; unavailable RSSI/replay/buffer/server-upload fields are not
 fabricated. Output is written under
 `artifacts/rq1_structured_program_<run_id>/`.
 
+The reviewer-control follow-up is a separate additive lane under
+`analysis/k_window_variants/rq1_review_controls_main.py`. It splits true
+temporal context into `T_raw_timing` and `T_continuity`, runs strict
+non-moisture controls `N0_C` and `NH_C_HC`, repeats the principal contrasts
+over five XGBoost seeds, sweeps block lengths 6/12/18/24, and derives a
+same-cohort K=2/3/4 sensitivity table from target lineage while retaining the
+locked K3 fold assignments. It writes only under
+`artifacts/rq1_review_controls_<run_id>/`; K2/K4 outputs are not frozen
+protocol releases.
+
+The WADE controlled-world calibration lane is an independent additive lane
+under `analysis/wade_calibration/main.py`. It uses one shared synthetic
+generator to create W_S (snapshot sufficient), W_H (history required), W_R
+(deterministic rule reconstruction), and W_A (acquisition shortcut). Each
+world is evaluated with the registered XGBoost training path, sequence-disjoint
+splits, named representation controls, oracle agreement, and paired held-out
+losses. Outputs are written under
+`artifacts/wade_controlled_worlds_<run_id>/`; the synthetic oracle is a
+positive control and is never treated as field ground truth.
+
 ## Input
 
 - one `evaluation_protocols` run directory
@@ -156,6 +183,8 @@ It does **not** define benchmark folds or weak labels.
   - `per_class_metrics.csv`
   - `slice_metrics.csv`
   - `confusion_matrix.csv`
+  - `plots/confusion_matrix_test.png`
+  - `plots/roc_pr_curves_test.png` when held-out probabilities are available
   - `feature_effects.csv`
   - `run_validation.json`
   - `run_metadata.json`
