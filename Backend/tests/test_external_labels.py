@@ -12,6 +12,11 @@ from Backend.Benchmark.external_labels.contracts import ExternalLabelConfig
 from Backend.Benchmark.external_labels.engine import build_candidate_labels
 from Backend.Benchmark.external_labels.pipeline import run_external_label_candidates
 from Backend.Benchmark.external_labels.profiles import PROFILES
+from Backend.Benchmark.external_labels.temporal import (
+    assign_binary_candidate,
+    continuous_tail_run_lengths,
+    observed_tail_onset_mask,
+)
 
 
 class ExternalLabelCandidateTests(unittest.TestCase):
@@ -118,11 +123,16 @@ class ExternalLabelCandidateTests(unittest.TestCase):
                 saved_manifest["criterion_target_sources"],
                 ["criterion.co_gt_mg_m3", "criterion.nox_gt_ppb"],
             )
+            self.assertEqual(
+                saved_manifest["target_defining_reference_sources"],
+                ["criterion.co_gt_mg_m3", "criterion.nox_gt_ppb"],
+            )
+            self.assertFalse(saved_manifest["independent_criterion"])
             self.assertFalse(saved_manifest["criterion_fields_used_as_model_features"])
             self.assertEqual(saved_manifest["target_specs"][0]["input_feature_candidates"], "sensor.co")
             self.assertEqual(saved_manifest["calibration"]["policy_id"].split("_")[-1], "V3")
 
-    def test_stuard_uses_lower_tail_tau_cadence_and_unknown_for_short_runs(self) -> None:
+    def test_stuard_uses_elapsed_tau_and_unknown_for_left_censored_short_runs(self) -> None:
         source = pd.DataFrame(
             {
                 "sample_id": [f"s{i}" for i in range(7)],
@@ -143,16 +153,37 @@ class ExternalLabelCandidateTests(unittest.TestCase):
         )
         q20_tau30 = "label_soil_moisture_low_q20_tau030m"
         q20_tau45 = "label_soil_moisture_low_q20_tau045m"
-        self.assertEqual(labels[q20_tau30].fillna(-1).tolist(), [-1, -1, 1, 1, 0, 0, -1])
+        self.assertEqual(labels[q20_tau30].fillna(-1).tolist(), [-1, -1, -1, 1, 0, 0, -1])
         self.assertEqual(labels[q20_tau45].fillna(-1).tolist(), [-1, -1, -1, -1, 0, 0, -1])
         self.assertEqual(labels["joint_label_soil_moisture_low_q20_tau030m"].tolist(), [
-            "UNRES", "UNRES", "LOW_MOISTURE", "LOW_MOISTURE", "REF", "REF", "UNRES",
+            "UNRES", "UNRES", "UNRES", "LOW_MOISTURE", "REF", "REF", "UNRES",
         ])
         self.assertEqual(int(cadence.iloc[0]["persistence_k"]), 3)
         self.assertEqual(int(cadence.loc[cadence["tau_minutes"].eq(45), "persistence_k"].iloc[0]), 5)
         self.assertEqual(int(support.loc[support["tau_minutes"].eq(30), "positive_event_count"].iloc[0]), 1)
         self.assertFalse(calibration["primary_candidate_selected"])
         self.assertEqual(registry.iloc[0]["candidate_status"], "SENSITIVITY_CANDIDATE_NOT_PRIMARY")
+
+    def test_stuard_continuity_tolerates_one_missed_sample_but_starts_new_run_after_larger_gap(self) -> None:
+        times = pd.to_datetime([
+            "2023-06-29T00:00Z", "2023-06-29T00:10Z", "2023-06-29T00:20Z",
+            "2023-06-29T00:40Z", "2023-06-29T00:50Z", "2023-06-29T01:20Z",
+            "2023-06-29T01:30Z",
+        ])
+        source = pd.DataFrame({
+            "sample_id": [f"s{i}" for i in range(len(times))],
+            "timestamp": times,
+            "entity_id": ["line_1"] * len(times),
+            "soil_moisture_pct": [20, 0, 0, 0, 0, 0, 0],
+        })
+        cfg = ExternalLabelConfig(Path("c.parquet"), Path("m.json"), Path("out"), tail_shares=(0.4,), tau_minutes=(30,))
+        labels, _, cadence, _, policy = build_candidate_labels(source, PROFILES["stuard_tomato_irrigation_2023"], cfg)
+        # 20-minute gap is connected at a 10-minute median; the 30-minute gap resets elapsed persistence.
+        self.assertEqual(labels["label_soil_moisture_low_q40_tau030m"].fillna(-1).tolist(), [0, -1, -1, 1, 1, -1, -1])
+        self.assertEqual(cadence.iloc[0]["strict_min_gap_minutes"], 0.0)
+        self.assertEqual(cadence.iloc[0]["strict_max_gap_minutes"], 20.0)
+        self.assertEqual(policy["persistence_basis"], "elapsed_time")
+        self.assertEqual(policy["continuity_policy"], "maximum gap only; no lower-gap bound; g_max=2x entity median cadence")
 
     def test_uci_keeps_independent_heads_and_ref_requires_both_negative(self) -> None:
         n = 20
@@ -190,7 +221,7 @@ class ExternalLabelCandidateTests(unittest.TestCase):
         self.assertTrue(labels["label_co_q20_tau060m"].eq(1).any())
         self.assertTrue(labels["label_nox_q20_tau060m"].eq(1).any())
         self.assertTrue(registry["measurement_column"].str.startswith("criterion.").all())
-        self.assertTrue(registry["evidence_kind"].eq("CERTIFIED_REFERENCE_CRITERION").all())
+        self.assertTrue(registry["evidence_kind"].eq("TARGET_DEFINING_REFERENCE_MEASUREMENT").all())
         self.assertFalse(any(column.startswith("criterion.") for column in labels.columns))
         self.assertTrue(registry["joint_label_column"].eq("joint_label_joint_q20_tau060m").all())
         all_rows = support.loc[support["scope"].eq("ALL"), "row_count"]
@@ -248,6 +279,36 @@ class ExternalLabelCandidateTests(unittest.TestCase):
         self.assertEqual(float(registry.iloc[0]["threshold_value"]), 2.0)
         self.assertEqual(calibration["calibration_days"], 21)
 
+    def test_stuard_primary_thresholds_are_fit_per_line_and_pooled_is_separate(self) -> None:
+        times = pd.date_range("2023-01-01", periods=25, freq="1D", tz="UTC")
+        source = pd.DataFrame(
+            {
+                "sample_id": [f"s{i}" for i in range(50)],
+                "timestamp": list(times) * 2,
+                "entity_id": ["line_1"] * 25 + ["line_2"] * 25,
+                "soil_moisture_pct": [float(value) for value in range(25)]
+                + [float(value + 100) for value in range(25)],
+            }
+        )
+        config = ExternalLabelConfig(
+            canonical_path=Path("canonical.parquet"),
+            intake_manifest_path=Path("run_manifest.json"),
+            output_root=Path("out"),
+            tail_shares=(0.20,),
+            tau_minutes=(1440,),
+        )
+        labels, registry, _, _, _ = build_candidate_labels(
+            source, PROFILES["stuard_tomato_irrigation_2023"], config
+        )
+        per_line = registry.loc[registry["threshold_scope"].eq("per_entity")].iloc[0]
+        pooled = registry.loc[registry["threshold_scope"].eq("pooled")].iloc[0]
+        thresholds = json.loads(per_line["threshold_by_entity_json"])
+        self.assertLess(thresholds["line_1"], 25)
+        self.assertGreater(thresholds["line_2"], 100)
+        self.assertAlmostEqual(float(pooled["threshold_value"]), 8.2)
+        self.assertIn("label_soil_moisture_low_q20_tau1440m", labels)
+        self.assertIn("label_soil_moisture_low_q20_tau1440m_pooled", labels)
+
     def test_gap_outside_strict_cadence_bounds_resets_persistence(self) -> None:
         source = pd.DataFrame(
             {
@@ -277,6 +338,84 @@ class ExternalLabelCandidateTests(unittest.TestCase):
         self.assertTrue(labels["label_soil_moisture_low_q20_tau030m"].isna().all())
         all_scope = support.loc[support["scope"].eq("ALL"), "positive_event_count"]
         self.assertEqual(int(all_scope.iloc[0]), 0)
+
+    def test_nonpersistent_low_is_negative_only_after_observed_onset(self) -> None:
+        times = pd.to_datetime([
+            "2024-01-01T00:00Z", "2024-01-01T00:10Z", "2024-01-01T00:20Z", "2024-01-01T00:30Z",
+        ])
+        frame = pd.DataFrame({"timestamp": times, "entity_id": ["line_1"] * 4})
+        tail = pd.Series([False, True, True, True], dtype=bool)
+        values = pd.Series([100.0, 1.0, 1.0, 1.0])
+        config = ExternalLabelConfig(
+            canonical_path=Path("canonical.parquet"),
+            intake_manifest_path=Path("run_manifest.json"),
+            output_root=Path("out"),
+            tau_minutes=(30,),
+        )
+        cadence = {"line_1": 10.0}
+        runs = continuous_tail_run_lengths(frame, tail, "timestamp", "entity_id", cadence, config)
+        onset = observed_tail_onset_mask(
+            frame, tail_mask=tail, observed_mask=values.notna(), timestamp_column="timestamp",
+            entity_key="entity_id", cadence_by_entity=cadence, config=config,
+        )
+        labels, statuses, _ = assign_binary_candidate(
+            frame, values, tail, runs, "entity_id", cadence, 30, onset
+        )
+        self.assertEqual(labels.fillna(-1).tolist(), [0, -1, -1, 1])
+        self.assertEqual(statuses.iloc[1], "TAIL_PERSISTENCE_NOT_MET_UNRESOLVED")
+        self.assertEqual(statuses.iloc[2], "TAIL_PERSISTENCE_NOT_MET_UNRESOLVED")
+
+        left_censored_tail = pd.Series([True, True, True], dtype=bool)
+        left_frame = frame.iloc[1:].reset_index(drop=True)
+        left_values = pd.Series([1.0, 1.0, 1.0])
+        left_runs = continuous_tail_run_lengths(left_frame, left_censored_tail, "timestamp", "entity_id", cadence, config)
+        left_onset = observed_tail_onset_mask(
+            left_frame, tail_mask=left_censored_tail, observed_mask=left_values.notna(),
+            timestamp_column="timestamp", entity_key="entity_id", cadence_by_entity=cadence, config=config,
+        )
+        left_labels, _, _ = assign_binary_candidate(
+            left_frame, left_values, left_censored_tail, left_runs, "entity_id", cadence, 30, left_onset
+        )
+        self.assertTrue(left_labels.iloc[:2].isna().all())
+        self.assertEqual(left_labels.iloc[2], 1)
+
+    def test_observed_tail_below_persistence_is_unresolved_until_tau(self) -> None:
+        times = pd.date_range("2024-02-01T00:00Z", periods=4, freq="10min")
+        frame = pd.DataFrame({"timestamp": times, "entity_id": ["line_1"] * 4})
+        cadence = {"line_1": 10.0}
+        config = ExternalLabelConfig(
+            canonical_path=Path("canonical.parquet"),
+            intake_manifest_path=Path("run_manifest.json"),
+            output_root=Path("out"),
+            tau_minutes=(30,),
+        )
+
+        # K=3: a three-observation tail beginning at the source boundary.
+        left_tail = pd.Series([True, True, True, False], dtype=bool)
+        left_values = pd.Series([1.0, 1.0, 1.0, 100.0])
+        left_runs = continuous_tail_run_lengths(frame, left_tail, "timestamp", "entity_id", cadence, config)
+        left_onset = observed_tail_onset_mask(
+            frame, tail_mask=left_tail, observed_mask=left_values.notna(), timestamp_column="timestamp",
+            entity_key="entity_id", cadence_by_entity=cadence, config=config,
+        )
+        left_labels, _, _ = assign_binary_candidate(
+            frame, left_values, left_tail, left_runs, "entity_id", cadence, 30, left_onset
+        )
+        self.assertEqual(left_labels.fillna(-1).tolist(), [-1, -1, 1, 0])
+
+        # An observed non-tail onset does not turn short tail rows into negatives.
+        observed_tail = pd.Series([False, True, True, False], dtype=bool)
+        observed_values = pd.Series([100.0, 1.0, 1.0, 100.0])
+        observed_runs = continuous_tail_run_lengths(frame, observed_tail, "timestamp", "entity_id", cadence, config)
+        observed_onset = observed_tail_onset_mask(
+            frame, tail_mask=observed_tail, observed_mask=observed_values.notna(), timestamp_column="timestamp",
+            entity_key="entity_id", cadence_by_entity=cadence, config=config,
+        )
+        observed_labels, statuses, _ = assign_binary_candidate(
+            frame, observed_values, observed_tail, observed_runs, "entity_id", cadence, 30, observed_onset
+        )
+        self.assertEqual(observed_labels.fillna(-1).tolist(), [0, -1, -1, 0])
+        self.assertTrue(statuses.iloc[1:3].eq("TAIL_PERSISTENCE_NOT_MET_UNRESOLVED").all())
 
     def test_undeclared_criterion_fields_cannot_enter_label_engine(self) -> None:
         source = pd.DataFrame(

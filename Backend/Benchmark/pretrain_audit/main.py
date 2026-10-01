@@ -18,6 +18,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--targets", nargs="+", required=True)
     parser.add_argument("--output-root", type=Path, required=True)
     parser.add_argument("--max-missing-fraction", type=float)
+    parser.add_argument("--support-gate", type=Path)
+    parser.add_argument("--exclude-unknown-targets", action="store_true")
+    parser.add_argument(
+        "--training-label-policy",
+        choices=("complete_case", "per_head_known"),
+        default="complete_case",
+        help="Use the intersection of complete targets, or retain each target's own known training rows.",
+    )
     return parser
 
 
@@ -33,6 +41,9 @@ def main() -> int:
             target_columns=tuple(args.targets),
             output_root=args.output_root,
             max_missing_fraction=args.max_missing_fraction,
+            support_gate_path=args.support_gate,
+            exclude_unknown_targets=args.exclude_unknown_targets,
+            training_label_policy=args.training_label_policy,
         )
     )
     print(

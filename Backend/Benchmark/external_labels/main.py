@@ -27,6 +27,12 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Persistence candidates in minutes; defaults to the dataset profile's evidence-based values.",
     )
+    parser.add_argument(
+        "--max-gap-cadence-fraction",
+        type=float,
+        default=None,
+        help="Override the profile's maximum continuity gap as a multiple of entity median cadence.",
+    )
     return parser
 
 
@@ -40,6 +46,7 @@ def main() -> int:
             calibration_days=args.calibration_days,
             tail_shares=tuple(args.tail_shares),
             tau_minutes=tuple(args.tau_minutes) if args.tau_minutes is not None else None,
+            max_gap_cadence_fraction=args.max_gap_cadence_fraction,
         )
     )
     print(json.dumps({

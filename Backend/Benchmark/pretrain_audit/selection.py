@@ -31,6 +31,9 @@ def resolve_feature_selection(
         raise ValueError(f"Selected feature groups are absent from the registry: {missing_groups}")
     columns: list[str] = []
     for group in selected_groups:
+        group_role = registry.get("feature_group_roles", {}).get(group)
+        if group_role == "diagnostic_only":
+            raise ValueError(f"Feature group {group!r} is diagnostic-only and cannot enter model audit X.")
         group_columns = groups[group]["columns"]
         if stable_hash_object(group_columns) != groups[group].get("columns_hash"):
             raise ValueError(f"Feature group {group!r} column hash does not match its registry.")
@@ -55,6 +58,13 @@ def resolve_feature_selection(
     ]
     if forbidden:
         raise ValueError(f"Non-feature columns entered the selected feature set: {forbidden}")
+    excluded_sources = [str(name) for name in registry.get("excluded_target_source_columns", [])]
+    target_descendants = [
+        name for name in allowlist
+        if any(name == source or name.startswith(f"{source}__") or name.startswith(f"{source}_") for source in excluded_sources)
+    ]
+    if target_descendants:
+        raise ValueError(f"Target source fields and their derived descendants cannot enter X: {target_descendants}")
     selection = {
         "selected_groups": list(selected_groups),
         "ordered_feature_columns": allowlist,

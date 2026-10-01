@@ -30,7 +30,7 @@ def run_external_feature_processing(config: ExternalFeatureConfig) -> ExternalFe
         raise ValueError("Canonical source checksum does not match its intake artifact catalog.")
     canonical = pd.read_parquet(canonical_path)
     profile = resolve_profile(dataset_id, intake_manifest)
-    absent_measurements = [column for column in profile.value_columns if column not in canonical.columns]
+    absent_measurements = [column for column in (*profile.value_columns, *profile.context_columns) if column not in canonical.columns]
     if absent_measurements:
         raise ValueError(f"Canonical dataset is missing allowlisted measurements: {absent_measurements}")
     leaked_criteria = [column for column in profile.value_columns if column.lower().startswith("criterion.")]
@@ -78,6 +78,8 @@ def run_external_feature_processing(config: ExternalFeatureConfig) -> ExternalFe
         "timestamp_time_basis": intake_manifest.get("adapter_audit", {}).get("timestamp_time_basis", "UTC"),
         "group_columns": list(profile.group_columns),
         "value_columns": list(profile.value_columns),
+        "optional_context_columns": list(profile.context_columns),
+        "excluded_target_source_columns": list(profile.excluded_target_source_columns),
         "source_scope": {
             "scope_start_inclusive": str(pd.to_datetime(canonical[profile.timestamp_column]).min()),
             "scope_end_exclusive": scope_end.isoformat() if scope_end is not None else None,
@@ -87,11 +89,21 @@ def run_external_feature_processing(config: ExternalFeatureConfig) -> ExternalFe
             "excluded_row_count": excluded_by_scope,
             "scope_exclusion_policy": "timestamp < scope_end_exclusive" if scope_end is not None else "all canonical rows",
         },
+        "source_columns_excluded_from_feature_matrix": _excluded_columns(intake_manifest),
+        # Compatibility alias retained for readers of the earlier manifest schema.
         "criterion_and_evidence_columns_excluded_from_features": _excluded_columns(intake_manifest),
+        "data_semantics": intake_manifest.get("data_semantics", intake_manifest.get("adapter_audit", {}).get("data_semantics", {})),
         "window_hours": list(config.window_hours),
         "min_window_observations": config.min_window_observations,
         "causal_window_policy": "trailing closed-both; current and prior rows only; grouped by source entity",
-        "feature_selection_policy": "source adapter measurement allowlist only",
+        "numeric_coercion_policy": {
+            "measurement_columns": list(profile.value_columns),
+            "parse": "pandas.to_numeric(errors='coerce') before saving current-value features or building windows",
+            "nonfinite": "positive/negative infinity are converted to missing",
+            "diagnostics": "window_quality.csv records source dtype, parse failures, nonfinite values, and missingness per value feature",
+        },
+        "feature_selection_policy": _feature_selection_policy(dataset_id, bool(profile.context_columns)),
+        "feature_group_roles": _feature_group_roles(groups),
         "model_fit_performed": False,
     }
     matrix_path, registry_path = write_feature_artifacts(
@@ -127,3 +139,26 @@ def _excluded_columns(manifest: dict[str, object]) -> list[str]:
             for name in columns
         ]
     return []
+
+
+def _feature_selection_policy(dataset_id: str, has_context: bool) -> str:
+    policy = "strict sensor measurements and causal windows; target-defining reference measurements are excluded from learner-visible X"
+    if dataset_id == "uci_air_quality_360":
+        return policy + "; the criterion.* namespace is retained for compatibility"
+    if has_context:
+        return policy + "; Stuard irrigation-meter context is optional and separately selectable"
+    return policy
+
+
+def _feature_group_roles(groups: dict[str, list[str]]) -> dict[str, str]:
+    roles: dict[str, str] = {}
+    for group in groups:
+        if group == "values":
+            roles[group] = "strict_sensor_measurements"
+        elif group.startswith("window_"):
+            roles[group] = "causal_window_derived_measurements"
+        elif group == "irrigation_context":
+            roles[group] = "optional_irrigation_operations_proxy"
+        else:
+            roles[group] = "optional_source_context"
+    return roles

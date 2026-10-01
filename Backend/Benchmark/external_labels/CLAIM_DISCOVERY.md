@@ -143,8 +143,9 @@ Stuard, or other future sources.
 - This file remains the human-reviewed, cited semantic inventory for the two
   external datasets; it is not a frozen label contract.
 - The external label profile still is dataset-configured, but its UCI heads
-  now read certified criterion columns as target sources and record PT08 as
-  candidate inputs. The feature lane independently excludes criteria from X.
+  now read analyzer reference measurements as the target-defining sources
+  (not as independent criteria) and record PT08 as candidate inputs. The
+  feature lane independently excludes these target-source columns from X.
 - Earlier UCI candidate runs based on sensor tails remain historical and must
   not be used. New criterion-based runs are still sensitivity candidates, not
   a frozen semantic release or evidence of absolute regulatory exceedance.

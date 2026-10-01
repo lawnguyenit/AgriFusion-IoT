@@ -41,6 +41,8 @@ UCI_COLUMN_MAP: dict[str, str] = {
     "AH": "context.absolute_humidity",
 }
 
+UCI_TARGET_DEFINING_REFERENCES = ("criterion.co_gt_mg_m3", "criterion.nox_gt_ppb")
+
 
 def load_uci_raw(path: Path) -> tuple[pd.DataFrame, str]:
     if not path.is_file():
@@ -115,6 +117,18 @@ def build_uci_candidate(raw_path: Path) -> tuple[pd.DataFrame, pd.DataFrame, dic
         "timestamp_time_basis": "local_wall_time_no_timezone_in_source",
         "missing_criterion_columns": missing_criterion_columns,
         "column_roles": {UCI_COLUMN_MAP[source]: role for source, role in UCI_COLUMN_ROLES.items()},
+        "data_semantics": {
+            "reference_measurement_columns": [
+                UCI_COLUMN_MAP[name] for name, role in UCI_COLUMN_ROLES.items() if role == "criterion_only"
+            ],
+            "target_defining_reference_measurements": list(UCI_TARGET_DEFINING_REFERENCES),
+            "independent_criterion": False,
+            "legacy_namespace_prefix": "criterion.",
+            "legacy_role_interpretation": (
+                "criterion_only is an exclusion-from-X role label; it does not mean the measurement is an "
+                "independent evaluation criterion"
+            ),
+        },
         "forbidden_model_columns": [
             UCI_COLUMN_MAP[name]
             for name, role in UCI_COLUMN_ROLES.items()

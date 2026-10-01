@@ -51,6 +51,7 @@ def run_external_intake(config: ExternalIntakeConfig) -> ExternalIntakeResult:
         "excluded_row_count": int(len(excluded)),
         "column_roles": roles,
         "adapter_audit": audit,
+        "data_semantics": audit.get("data_semantics", {}),
         "target_generation": "not_performed",
         "feature_materialization": "not_performed",
         "criterion_columns_must_not_enter_model_features": True,
@@ -99,6 +100,14 @@ def _render_report(manifest: dict[str, object]) -> str:
             audit_json,
             "```",
             "",
+            *(
+                [
+                    "UCI `(GT)` columns are reference-analyzer measurements; the CO and NOx references define their respective targets. `criterion.*` is a legacy namespace and exclusion-role label, not an independent criterion claim.",
+                    "",
+                ]
+                if manifest.get("dataset_id") == "uci_air_quality_360"
+                else []
+            ),
             "No labels, model features, splits, or predictions are created by intake.",
             "",
         ]

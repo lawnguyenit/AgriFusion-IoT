@@ -9,6 +9,8 @@ class ExternalFeatureProfile:
     timestamp_column: str
     group_columns: tuple[str, ...]
     value_columns: tuple[str, ...]
+    context_columns: tuple[str, ...] = ()
+    excluded_target_source_columns: tuple[str, ...] = ()
     scope_end_exclusive: str | None = None
 
 
@@ -19,9 +21,11 @@ def resolve_profile(dataset_id: str, run_manifest: dict[str, object]) -> Externa
             timestamp_column="timestamp",
             group_columns=("entity_id",),
             value_columns=(
-                "soil_moisture_pct", "soil_temperature_c", "soil_ec_us_cm",
+                "soil_temperature_c", "soil_ec_us_cm",
                 "air_temperature_c", "air_humidity_pct", "air_co2_ppm", "air_pressure_hpa",
             ),
+            context_columns=("water_volume_m3", "water_alignment_age_sec"),
+            excluded_target_source_columns=("soil_moisture_pct",),
         )
     if dataset_id == "uci_air_quality_360":
         return ExternalFeatureProfile(

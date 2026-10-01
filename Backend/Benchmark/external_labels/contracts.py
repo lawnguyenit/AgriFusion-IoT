@@ -12,8 +12,9 @@ class ExternalLabelConfig:
     calibration_days: int = 21
     tail_shares: tuple[float, ...] = (0.05, 0.10, 0.15, 0.20)
     tau_minutes: tuple[int, ...] | None = None
-    min_gap_cadence_fraction: float = 13 / 15
-    max_gap_cadence_fraction: float = 17 / 15
+    min_gap_cadence_fraction: float | None = None
+    max_gap_cadence_fraction: float | None = None
+    persistence_basis: str = "observation_count"
 
 
 @dataclass(frozen=True)

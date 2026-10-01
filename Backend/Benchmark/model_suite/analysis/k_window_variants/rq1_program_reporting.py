@@ -33,6 +33,11 @@ def write_program_outputs(
     primary_cv["strata"].to_csv(output_dir / "primary_strata.csv", index=False)
     primary_losses.to_parquet(output_dir / "primary_per_anchor_losses.parquet", index=False)
     primary_contrasts.to_csv(output_dir / "primary_paired_contrasts.csv", index=False)
+    primary_contrasts.loc[
+        primary_contrasts["arrow"].astype("string").isin(
+            ["S1_to_S2_add_defining_history", "S2_to_S3_add_supporting_history"]
+        )
+    ].to_csv(output_dir / "primary_history_decomposition.csv", index=False)
     factorial_by_fold.to_parquet(output_dir / "factorial_contrasts_by_anchor.parquet", index=False)
     factorial_summary.to_csv(output_dir / "factorial_contrast_summary.csv", index=False)
     module_a_groups.to_csv(output_dir / "module_a_s0_group_metrics.csv", index=False)
@@ -76,6 +81,8 @@ def _build_report(manifest: dict[str, object], primary_summary: pd.DataFrame, co
         "Positive log-loss delta means the richer condition reduced held-out loss. The paired comparisons are refit-based and use common test anchors.",
         "",
         _markdown_table(contrasts, ["arrow", "target_view_id", "fold_count", "anchor_count", "delta_log_loss_mean_across_folds", "pooled_delta_log_loss_ci_low", "pooled_delta_log_loss_ci_high", "delta_brier_loss_mean_across_folds", "pooled_delta_brier_loss_ci_low", "pooled_delta_brier_loss_ci_high"]),
+        "",
+        "Direct-history decomposition: `S1→S2` adds defining moisture history; `S2→S3` adds supporting-sensor history conditional on moisture history. Positive deltas favor the richer representation. Window summaries remain combined as `W_X`; separating `W_D` and `W_C` requires fitting additional arms.",
         "",
         "## Module C — persistence-state probe",
         "",

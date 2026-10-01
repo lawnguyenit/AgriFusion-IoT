@@ -63,7 +63,8 @@ def write_feature_artifacts(
             for key in (
                 "dataset_id", "intake_manifest_path", "intake_manifest_sha256",
                 "canonical_path", "canonical_sha256", "raw_manifest_path", "raw_manifest_sha256",
-                "dataset_metadata", "source_scope",
+                "dataset_metadata", "data_semantics", "source_scope", "feature_selection_policy",
+                "excluded_target_source_columns", "feature_group_roles",
             )
             if key in manifest
         },
@@ -93,8 +94,8 @@ def write_feature_artifacts(
         f"- Model feature columns: {len(registry['ordered_feature_columns'])}",
         f"- Feature groups: `{', '.join(group_registry)}`",
         "",
-        "Only fields registered as measurements by the source adapter enter the feature matrix. "
-        "Criterion-only and post-hoc operational evidence remain outside X.",
+        "Only fields registered as measurements or explicitly selected context by the source profile enter the feature matrix. "
+        "Target-defining reference measurements and post-hoc operational evidence remain outside learner-visible X.",
         "",
     ]
     (output_dir / "report.md").write_text("\n".join(report), encoding="utf-8")

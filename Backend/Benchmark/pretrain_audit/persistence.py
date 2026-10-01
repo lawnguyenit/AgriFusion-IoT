@@ -31,6 +31,7 @@ def write_audit_artifacts(
     splits: pd.DataFrame,
     feature_quality: pd.DataFrame,
     target_support: pd.DataFrame,
+    eligibility_audit: pd.DataFrame,
     manifest: dict[str, object],
 ) -> None:
     paths = {
@@ -39,12 +40,14 @@ def write_audit_artifacts(
         "selected_splits": output_dir / "selected_splits.parquet",
         "feature_quality": output_dir / "feature_quality.csv",
         "target_support": output_dir / "target_support.csv",
+        "eligibility_audit": output_dir / "eligibility_audit.csv",
     }
     selected_features.to_parquet(paths["selected_features"], index=False)
     labels.to_parquet(paths["selected_labels"], index=False)
     splits.to_parquet(paths["selected_splits"], index=False)
     feature_quality.to_csv(paths["feature_quality"], index=False)
     target_support.to_csv(paths["target_support"], index=False)
+    eligibility_audit.to_csv(paths["eligibility_audit"], index=False)
     manifest["artifacts"] = {
         key: {
             "path": str(path.resolve()),

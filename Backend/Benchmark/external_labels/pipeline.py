@@ -113,11 +113,18 @@ def _build_run_manifest(
         "raw_manifest_path": str(raw_manifest_path.resolve()),
         "raw_manifest_sha256": str(intake_manifest["raw_manifest_sha256"]),
         "target_specs": [_target_manifest(target) for target in profile.targets],
+        "target_defining_reference_sources": [
+            target.measurement_column
+            for target in profile.targets
+            if target.evidence_kind == "TARGET_DEFINING_REFERENCE_MEASUREMENT"
+        ],
+        # Compatibility alias from schema v1; these fields define Y and are not independent criteria.
         "criterion_target_sources": [
             target.measurement_column
             for target in profile.targets
-            if target.evidence_kind == "CERTIFIED_REFERENCE_CRITERION"
+            if target.evidence_kind == "TARGET_DEFINING_REFERENCE_MEASUREMENT"
         ],
+        "independent_criterion": False,
         "criterion_fields_used_as_model_features": False,
         "calibration": calibration,
         "primary_candidate_selected": False,
@@ -136,6 +143,7 @@ def _target_manifest(target: TargetSpec) -> dict[str, str]:
         "input_feature_candidates": "|".join(target.input_feature_candidates),
         "tail_direction": str(target.tail_direction),
         "positive_label": str(target.positive_label),
+        "threshold_scopes": "|".join(target.threshold_scopes),
     }
 
 

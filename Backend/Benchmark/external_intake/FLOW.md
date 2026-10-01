@@ -44,7 +44,10 @@ flowchart TD
 - UCI malformed timestamps and wholly empty source rows are written to the
   exclusion table with distinct reasons. The `-200` sentinel is converted to
   missing in the canonical candidate while the raw file remains unchanged.
-  Analyzer readings are retained as criterion-only fields.
+  Analyzer readings are retained in the legacy `criterion.*` namespace with
+  explicit `reference_measurement` semantics; CO/NOx references define Y, so
+  they are not independent evaluation criteria and never enter X. The adapter's
+  `criterion_only` role is an exclusion-from-X guard.
 - Every processing run writes a new timestamped folder and references exact
   raw hashes. Intake does not generate target labels or model-ready X.
 

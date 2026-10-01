@@ -16,6 +16,17 @@ def main() -> None:
     parser.add_argument("--threshold", type=float, default=0.5)
     parser.add_argument("--seed", type=int, default=20260929)
     parser.add_argument("--threads", type=int, default=1)
+    parser.add_argument(
+        "--require-observable-features",
+        action="store_true",
+        help="Exclude no-X rows from fitting and abstain on them during evaluation.",
+    )
+    parser.add_argument(
+        "--use-balanced-sample-weight",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Override the registered model profile's class-balancing weight policy.",
+    )
     parser.add_argument("--hyperparameters-json", type=Path)
     args = parser.parse_args()
     overrides = None
@@ -35,6 +46,8 @@ def main() -> None:
             random_seed=args.seed,
             thread_count=args.threads,
             hyperparameter_overrides=overrides,
+            use_balanced_sample_weight=args.use_balanced_sample_weight,
+            require_observable_features=args.require_observable_features,
         )
     )
     print(f"status={result.status}")

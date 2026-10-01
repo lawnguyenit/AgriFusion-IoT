@@ -102,5 +102,5 @@ def validate_source(
         raise ValueError("tau_minutes must be non-empty positive durations.")
     if len(set(config.tau_minutes)) != len(config.tau_minutes):
         raise ValueError("tau_minutes must be unique.")
-    if config.min_gap_cadence_fraction <= 0 or config.max_gap_cadence_fraction <= config.min_gap_cadence_fraction:
+    if config.min_gap_cadence_fraction < 0 or config.max_gap_cadence_fraction <= config.min_gap_cadence_fraction:
         raise ValueError("Continuity cadence bounds are invalid.")

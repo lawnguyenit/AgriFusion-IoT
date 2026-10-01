@@ -33,8 +33,14 @@ flowchart TD
     Y --> Z["Immutable external raw release + canonical candidate"]
     Z --> W["Benchmark/external_features"]
     Z --> WL["Benchmark/external_labels: q/τ candidates + support audit"]
+    Z --> ES["Benchmark/external_splits: chronological shared-timestamp blocks"]
+    WL --> SA["Benchmark/external_support_audit: B2 TEMPORAL mapping"]
+    ES --> SA
+    WL --> SA
     W --> U
     WL --> U
+    ES --> U
+    SA --> U
 
     I["CLI: Benchmark/weak_labels/main.py"] --> J["build_weak_labels()"]
     E --> J
@@ -86,7 +92,14 @@ flowchart TD
   - builds source-specific external q/τ candidate labels from allowlisted
     measurements and keeps all candidate assignments separate from features;
     UCI candidates are scoped to timestamps before 2005-03-01 while raw and
-    canonical intake retain the complete source file
+  canonical intake retain the complete source file
+- `Backend/Benchmark/external_splits`
+  - creates an immutable chronological 70/15/15 partition over linked UTC
+    timestamps; shared environment/meter readings stay within one block
+- `Backend/Benchmark/external_support_audit`
+  - applies the user-selected B2 TEMPORAL support mapping to every external
+    q/τ candidate and reports class, event, and episode-cluster support by
+    partition; it does not authorize model fitting
 - `Backend/Benchmark/evaluation_protocols`
   - freezes benchmark framing into a runner contract
 - `Backend/Benchmark/validity_lifecycle`

@@ -14,19 +14,29 @@ flowchart TD
     F2 --> G
     G --> H["Calibration interval: first 21 days from first timestamp"]
     H --> I["For each target, fit threshold on non-missing calibration values only"]
-    I --> J["For each q: tail share → empirical quantile threshold"]
-    J --> K["Mark current observation as tail / non-tail / missing"]
-    K --> L["Count uninterrupted tail run; reset at non-tail or cadence gap"]
-    L --> M["For each τ, compute K = ceil(τ / entity median cadence)"]
-    M --> N{"Assign one nullable binary head"}
+    I --> J{"Threshold scope"}
+    J -->|"Stuard primary"| JP["Per-line calibration ECDF / q cutoff"]
+    J -->|"Pooled sensitivity"| JG["One pooled calibration q cutoff"]
+    JP --> K
+    JG --> K
+    JP --> KV["Mark current observation as tail / non-tail / missing"]
+    JG --> KV
+    KV --> L["Build tail episodes using dataset-specific continuity"]
+    L --> M{"Persistence clock"}
+    M -->|"Stuard"| MP["Elapsed time since run onset ≥ τ; connect gaps ≤ 2×line median; no lower bound"]
+    M -->|"UCI"| MU["K = ceil(τ / median cadence); retain current strict interval"]
+    MP --> N{"Assign one nullable binary head"}
+    MU --> N
     N -->|"known current value outside tail"| NEG["0: current not in tail"]
-    N -->|"tail run reaches K"| POS["1: persistent tail"]
+    N -->|"persistence threshold reached"| POS["1: persistent tail"]
     N -->|"configured Y evidence missing"| UN1["UNRES: MISSING_VALUE"]
-    N -->|"tail run shorter than K"| UN2["UNRES: TAIL_PERSISTENCE_NOT_MET"]
+    N -->|"onset observed but threshold not reached"| UN2["0: PERSISTENCE_NOT_YET_MET"]
+    N -->|"left-censored / insufficient history"| UNP["UNRES: PERSISTENCE_HISTORY_INSUFFICIENT"]
     NEG --> O["Merge candidate columns by sample_id"]
     POS --> O
     UN1 --> O
     UN2 --> O
+    UNP --> O
     O --> P{"How many heads in profile?"}
     P -->|"One head: Stuard"| Q["Joint view: REF / configured positive / UNRES"]
     P -->|"Two heads: UCI CO + NOx"| R["Joint view: REF / CO / NOX / CO+NOX / UNRES"]
@@ -52,23 +62,43 @@ flowchart LR
     MISS -->|"no"| Q{"Is y(t) in fitted q-tail?"}
     Q -->|"no"| ZERO["0 + CURRENT_NOT_IN_TAIL"]
     Q -->|"yes"| RUN["Tail run includes current row and prior contiguous tail rows"]
-    RUN --> GAP{"Every adjacent Δt within entity continuity bounds?"}
-    GAP -->|"no: run reset"| KTEST["Compare reset run length with K"]
-    GAP -->|"yes"| KTEST
-    KTEST --> PASS{"run_length ≥ K?"}
+    RUN --> GAP{"Profile-specific continuity test?"}
+    GAP -->|"no: reset episode"| KTEST["Start new candidate episode"]
+    GAP -->|"yes"| KTEST["Extend elapsed run or observation count"]
+    KTEST --> PASS{"Stuard elapsed ≥ τ; UCI count ≥ K?"}
     PASS -->|"yes"| ONE["1 + PERSISTENT_TAIL"]
-    PASS -->|"no"| UNP["null + TAIL_PERSISTENCE_NOT_MET"]
+    PASS -->|"no, onset observed"| UN2["null + TAIL_PERSISTENCE_NOT_MET_UNRESOLVED"]
+    PASS -->|"no, left-censored / gap / missing history"| UNP["null + PERSISTENCE_HISTORY_INSUFFICIENT"]
     ZERO --> JOIN["Independent target heads remain separate"]
     ONE --> JOIN
+    UN2 --> JOIN
     UNM --> JOIN
     UNP --> JOIN
 ```
 
 | Current profile | Y evidence | Tail direction | q candidates | τ candidates | Cadence result |
 |---|---|---|---|---|---|
-| UCI CO head | `criterion.co_gt_mg_m3` (certified reference criterion) | Upper | 5%, 10%, 15%, 20% | 60, 120, 240 min | Exact hourly cadence gives K=1, 2, 4. |
-| UCI NOx head | `criterion.nox_gt_ppb` (certified reference criterion) | Upper | 5%, 10%, 15%, 20% | 60, 120, 240 min | Exact hourly cadence gives K=1, 2, 4. |
-| Stuard soil-moisture head | `soil_moisture_pct` sensor measurement | Lower | 5%, 10%, 15%, 20% | 1, 2, 6 days | K is computed separately from each line's observed median cadence. |
+| UCI CO head | `criterion.co_gt_mg_m3` (target-defining analyzer reference measurement; not independent criterion) | Upper | 5%, 10%, 15%, 20% | 60, 120, 240 min | Exact hourly cadence gives K=1, 2, 4. |
+| UCI NOx head | `criterion.nox_gt_ppb` (target-defining analyzer reference measurement; not independent criterion) | Upper | 5%, 10%, 15%, 20% | 60, 120, 240 min | Exact hourly cadence gives K=1, 2, 4. |
+| Stuard soil-moisture head | `soil_moisture_pct` sensor measurement | Lower, per-line primary; pooled sensitivity | 5%, 10%, 15%, 20% | 1, 2, 6 days | Elapsed τ; connect gaps ≤ 2×line median; no lower-gap bound. |
+
+Stuard's per-line threshold is primary because lines have distinct moisture
+distributions; pooled thresholds are sensitivity/transport diagnostics. The
+operational anchor is alpha=.10, tau=24 elapsed hours, conditional on the
+applicable support gate. Do not move the anchor after viewing model scores.
+The 1/2/6-day values are persistence sensitivities, not biologically validated
+durations. User-approved Stuard continuity uses `g_max=2×line median`; 1.5× and
+3× are support sensitivities only.
+Persistence labels are causal and trailing; retrospective episode-leading
+labels would be a separate outcome.
+
+For the binary persistent-state target, every observed tail value below τ is
+UNRES, regardless of whether its onset follows an observed non-tail row. A
+tail already present at the source boundary, or resumed after a continuity
+gap/missing observation, remains UNRES until enough continuous evidence
+accumulates. Only an observed value outside the candidate tail is known 0.
+Missing target measurements remain UNRES. The pipeline preserves reason-
+specific statuses and never converts insufficient persistence into zero.
 
 The q threshold and τ/K are two independent policy knobs: q decides which
 measured values count as candidate tail values; τ decides how long a
@@ -81,7 +111,7 @@ negative finding about a claim that was never selected.
 | Desired change | Current owner | What changes in the output |
 |---|---|---|
 | Change dataset target source, meaning, direction, candidate positive name, or default τ | [profiles.py](profiles.py) | New registry/manifest semantics and a new candidate run. |
-| Change default calibration days, q grid, or cadence-gap fractions | [contracts.py](contracts.py) and CLI overrides in [main.py](main.py) | Threshold fit, candidate support, and continuity decisions. |
+| Change default calibration days, q grid, or cadence/persistence policy | [profiles.py](profiles.py), [contracts.py](contracts.py), and CLI overrides in [main.py](main.py) | Threshold fit, candidate support, and continuity decisions. |
 | Change how a continuous run or missing observation maps to 0/1/unknown | [temporal.py](temporal.py) | Per-row target and status values. |
 | Change independent-head combination and `REF`/joint classes | [candidates.py](candidates.py) | Joint state only; independent head columns remain available. |
 | Change the claim evidence, what is unsupported, or why | [CLAIM_DISCOVERY.md](CLAIM_DISCOVERY.md) and the inventory logic under `claim_discovery/` | Review documentation/inventory; this does not currently block the label CLI. |
@@ -96,10 +126,21 @@ to create a new version; compare `candidate_registry.csv`,
 - `CLAIM_DISCOVERY.md` documents a dataset-driven evidence and claim-review
   framework and initial inventories for UCI and Stuard. It is currently a
   human-authored review artifact, not yet an executable discovery gate.
-- Profiles remain dataset-specific. UCI targets now read certified
-  `criterion.co_gt_mg_m3` and `criterion.nox_gt_ppb` as Y evidence; PT08.S1 and
+- Profiles remain dataset-specific. UCI targets read analyzer reference
+  measurements `criterion.co_gt_mg_m3` and `criterion.nox_gt_ppb` as Y
+  evidence; these are target-defining, not independent criteria. PT08.S1 and
   PT08.S3 are separately recorded as candidate X inputs. The earlier UCI
   sensor-tail label runs are historical and must not be used.
+- UCI is external replication of the audit mechanism with two
+  reference-defined heads, not independent criterion validation because those
+  same GT fields define Y. A PT08-target / sealed-GT correspondence design is
+  a separate future branch. The post-February-2005 tail is excluded because it
+  is shorter than one year.
+- Stuard's primary q thresholds are fit separately within each line's
+  calibration ECDF; pooled cutoffs remain sensitivity candidates. Its target
+  is persistent within-line relative-low soil-moisture sensor state, not crop
+  or plant stress. The external support gate and temporal partitions are not
+  yet frozen, so candidates cannot be trained.
 - A claim excluded for insufficient evidence is not assigned a negative or
   `REF` label. `REF` only describes known-negative states for all selected,
   reviewed heads; unknown evidence remains `UNRES`.
@@ -121,9 +162,9 @@ to create a new version; compare `candidate_registry.csv`,
   tails of certified measured CO/NOx concentration as Y. The UCI q labels mean
   relative high-concentration events, not standard exceedances. UCI criterion
   columns remain excluded from X.
-- τ maps to `K=ceil(τ/median cadence)` for each source entity. Cadence gaps
-  outside the in-house nominal 13–17
-  minute interval normalized to the observed entity median break a tail run.
+- Stuard persistence uses elapsed τ and connects a gap up to twice that line's
+  median cadence; its approved rule has no lower-gap bound. UCI retains the
+  previous observation-count mapping and strict cadence interval.
 - For tomato, exploratory τ candidates of 1, 2, and 6 days were added from a
   field study that detected soil-water-stress onset indications at those lags
   across drying cycles. This is not a cultivar/site-specific cutoff. On the
@@ -137,9 +178,9 @@ to create a new version; compare `candidate_registry.csv`,
   its claim horizons. Earlier UCI runs before the February-only scope must not
   be joined with the scoped feature run. Scoped candidate labels are also
   exploratory until their q/τ support and target semantics are reviewed.
-- A positive target needs a current tail value and a continuous run of at
-  least K records. Current non-tail measurements receive 0; missing values and
-  tail runs shorter than K receive null/UNRES. For UCI, both heads may be
+- A positive target needs a current tail value and the profile's persistence
+  threshold. Current non-tail measurements receive 0; missing values and
+  insufficient or left-censored history receive null/UNRES. For UCI, both heads may be
   positive; `REF` requires both head labels to be known 0.
 - Every q/τ pair is preserved as a candidate. There is no primary selection,
   evaluation split, or model fitting in this lane.

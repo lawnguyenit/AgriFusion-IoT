@@ -34,6 +34,12 @@ class ExternalIntakeTests(unittest.TestCase):
         self.assertEqual(candidate.loc[1, "sensor.co"], 120)
         self.assertEqual(audit["target_sensor_columns"], {"co": "sensor.co", "nox": "sensor.nox"})
         self.assertIn("criterion.co_gt_mg_m3", audit["forbidden_model_columns"])
+        self.assertFalse(audit["data_semantics"]["independent_criterion"])
+        self.assertEqual(
+            audit["data_semantics"]["target_defining_reference_measurements"],
+            ["criterion.co_gt_mg_m3", "criterion.nox_gt_ppb"],
+        )
+        self.assertIn("does not mean", audit["data_semantics"]["legacy_role_interpretation"])
         self.assertEqual(audit["timestamp_time_basis"], "local_wall_time_no_timezone_in_source")
 
     def test_stuard_joins_only_prior_water_and_environment_values(self) -> None:

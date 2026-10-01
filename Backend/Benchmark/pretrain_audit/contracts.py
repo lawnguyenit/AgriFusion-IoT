@@ -14,6 +14,9 @@ class PretrainAuditConfig:
     target_columns: tuple[str, ...]
     output_root: Path
     max_missing_fraction: float | None = None
+    support_gate_path: Path | None = None
+    exclude_unknown_targets: bool = False
+    training_label_policy: str = "complete_case"
 
 
 @dataclass(frozen=True)

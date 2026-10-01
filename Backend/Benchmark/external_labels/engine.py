@@ -21,6 +21,19 @@ def build_candidate_labels(
         if not profile.default_tau_minutes:
             raise ValueError(f"No evidence-based tau candidates are registered for {profile.dataset_id!r}.")
         config = replace(config, tau_minutes=profile.default_tau_minutes)
+    config = replace(
+        config,
+        persistence_basis=profile.persistence_basis,
+        min_gap_cadence_fraction=(
+            profile.min_gap_cadence_fraction
+            if config.min_gap_cadence_fraction is None else config.min_gap_cadence_fraction
+        ),
+        max_gap_cadence_fraction=(
+            profile.max_gap_cadence_fraction
+            if config.max_gap_cadence_fraction is None
+            else config.max_gap_cadence_fraction
+        ),
+    )
     frame, entity_key, in_calibration, first_time, calibration_end = prepare_source(
         source, profile, config
     )
@@ -83,17 +96,40 @@ def _calibration_policy(
         "observed_data_end": observed_end.isoformat(),
         "source_scope": source_scope,
         "calibration_days": int(config.calibration_days),
-        "threshold_fit_pooling": "all known target measurements across registered source entities",
+        "threshold_fit_pooling": (
+            "per-entity calibration ECDF primary with pooled sensitivity"
+            if profile.dataset_id == "stuard_tomato_irrigation_2023"
+            else "one calibration ECDF per registered target"
+        ),
         "quantile_interpolation": "linear",
         "tail_shares": list(config.tail_shares),
         "tau_minutes": list(config.tau_minutes),
         "tau_selection_basis": profile.tau_basis,
         "tau_evidence_sources": list(profile.tau_sources),
-        "persistence_mapping": "K_e(tau)=ceil(tau_minutes/median_cadence_minutes_e)",
+        "declared_review_anchor": (
+            {
+                "tail_share": 0.10,
+                "tau_minutes": 1440,
+                "threshold_scope": "per_entity",
+                "status": "CONDITIONAL_ON_EXTERNAL_SUPPORT_GATE",
+                "selection_must_precede_model_scores": True,
+            }
+            if profile.dataset_id == "stuard_tomato_irrigation_2023" else None
+        ),
+        "persistence_mapping": (
+            "elapsed minutes since the first observation in the current tail run >= tau_minutes"
+            if profile.persistence_basis == "elapsed_time"
+            else "K_e(tau)=ceil(tau_minutes/median_cadence_minutes_e)"
+        ),
+        "persistence_basis": profile.persistence_basis,
         "strict_continuity_bounds_fraction_of_median_cadence": [
             config.min_gap_cadence_fraction,
             config.max_gap_cadence_fraction,
         ],
-        "strict_continuity_basis": "in-house 13-17 minute bounds normalized by its nominal 15-minute cadence",
+        "continuity_policy": (
+            f"maximum gap only; no lower-gap bound; g_max={config.max_gap_cadence_fraction:g}x entity median cadence"
+            if profile.dataset_id == "stuard_tomato_irrigation_2023"
+            else "legacy 13/15 to 17/15 median cadence bounds retained for UCI"
+        ),
         "primary_candidate_selected": False,
     }

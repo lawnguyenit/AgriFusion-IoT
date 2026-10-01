@@ -30,6 +30,7 @@ def write_label_artifacts(
     support_audit: pd.DataFrame,
     manifest: dict[str, object],
 ) -> tuple[Path, Path, Path]:
+    output_dir.parent.mkdir(parents=True, exist_ok=True)
     output_dir.mkdir(parents=True, exist_ok=False)
     paths = {
         "candidate_labels": output_dir / "candidate_labels.parquet",
@@ -60,6 +61,13 @@ def write_label_artifacts(
 
 
 def _render_report(manifest: dict[str, object], registry: pd.DataFrame, support: pd.DataFrame) -> str:
+    calibration = manifest["calibration"]
+    persistence_description = (
+        "Positive labels require elapsed time since the current tail-run onset to reach τ; "
+        f"continuity uses {calibration['continuity_policy']}."
+        if calibration.get("persistence_basis") == "elapsed_time"
+        else "Positive labels require a qualifying tail run to reach the cadence-mapped K."
+    )
     lines = [
         f"# External label candidates: {manifest['dataset_id']}",
         "",
@@ -90,7 +98,7 @@ def _render_report(manifest: dict[str, object], registry: pd.DataFrame, support:
     lines.extend(
         [
             "",
-            "Positive labels require a qualifying tail run to reach the cadence-mapped K. "
+            persistence_description + " "
             "A current tail observation without enough continuous history is UNRES; missing target values are also UNRES. "
             "UCI REF is emitted only when both CO and NOx candidate labels are known negative.",
             "",

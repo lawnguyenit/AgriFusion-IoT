@@ -3,7 +3,6 @@ from __future__ import annotations
 import pandas as pd
 
 from .profiles import ExternalLabelProfile, TargetSpec
-from .temporal import persistent_event_count
 
 
 def build_support_rows(
@@ -54,10 +53,16 @@ def build_support_rows(
                     "negative_count": negative_count,
                     "unknown_count": unknown_count,
                     "unknown_missing_count": int(statuses.loc[scoped].eq("MISSING_VALUE").sum()),
-                    "unknown_persistence_count": int(statuses.loc[scoped].eq("TAIL_PERSISTENCE_NOT_MET").sum()),
-                    "positive_event_count": persistent_event_count(
-                        tail_mask.loc[scoped], run_lengths.loc[scoped], required_by_entity[str(entity)]
+                    "unknown_persistence_count": int(statuses.loc[scoped].isin([
+                        "PERSISTENCE_HISTORY_INSUFFICIENT",
+                        "TAIL_PERSISTENCE_NOT_MET_UNRESOLVED",
+                    ]).sum()),
+                    "nonpersistent_unresolved_count": int(
+                        statuses.loc[scoped].eq("TAIL_PERSISTENCE_NOT_MET_UNRESOLVED").sum()
                     ),
+                    # Retain the legacy column while making its former semantic count explicit as zero.
+                    "nonpersistent_negative_count": 0,
+                    "positive_event_count": _positive_event_count(scoped_labels),
                     "positive_prevalence_among_known": (positive_count / known_count) if known_count else pd.NA,
                     "median_cadence_minutes": cadence_by_entity[str(entity)],
                     "persistence_k": required_by_entity[str(entity)],
@@ -66,3 +71,8 @@ def build_support_rows(
                 }
             )
     return rows
+
+
+def _positive_event_count(labels: pd.Series) -> int:
+    positive = labels.eq(1).fillna(False)
+    return int((positive & ~positive.shift(fill_value=False)).sum())

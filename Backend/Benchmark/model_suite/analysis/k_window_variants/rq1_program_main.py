@@ -105,6 +105,8 @@ def _build_primary_variants(representations: dict[str, object]) -> tuple[Configu
 def _build_primary_contrasts(losses: pd.DataFrame, args: argparse.Namespace) -> pd.DataFrame:
     arrows = (
         ("S0_to_S1", "S0_M_t", "S1_X_t"),
+        ("S1_to_S2_add_defining_history", "S1_X_t", "S2_X_t_HM"),
+        ("S2_to_S3_add_supporting_history", "S2_X_t_HM", "S3_X_t_HX"),
         ("B_M_to_S2_same_C", "B_M", "S2_X_t_HM"),
         ("F00_to_F10_add_HX", "S1_X_t", "S3_X_t_HX"),
         ("F00_to_F01_add_WX", "S1_X_t", "F01_X_t_WX"),

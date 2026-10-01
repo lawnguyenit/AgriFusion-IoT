@@ -28,8 +28,8 @@ def load_reviewed_audit(
     declared_targets = tuple(manifest.get("target_columns", []))
     if tuple(target_columns) != declared_targets:
         raise ValueError("Requested target columns must exactly match the ordered targets in the pre-train audit.")
-    if len(target_columns) < 2 or len(set(target_columns)) != len(target_columns):
-        raise ValueError("Select at least two distinct target columns for an independent-head run.")
+    if not target_columns or len(set(target_columns)) != len(target_columns):
+        raise ValueError("Select one or more distinct target columns for an independent binary-head run.")
     files: dict[str, Path] = {}
     for key, filename in (
         ("selected_features", "selected_features.parquet"),
@@ -83,4 +83,5 @@ def load_reviewed_audit(
         "upstream_lineage": manifest.get("upstream_lineage", {}),
         "source_artifacts": manifest.get("source_artifacts", {}),
         "selected_groups": manifest.get("selection", {}).get("selected_groups", []),
+        "training_label_policy": manifest.get("training_label_policy", "complete_case"),
     }

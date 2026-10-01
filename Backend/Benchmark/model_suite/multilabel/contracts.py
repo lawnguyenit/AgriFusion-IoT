@@ -16,6 +16,7 @@ class MultiLabelRunConfig:
     hyperparameter_overrides: dict[str, object] | None = None
     use_balanced_sample_weight: bool | None = None
     evaluation_partitions: tuple[str, ...] = ("validation", "test")
+    require_observable_features: bool = False
 
 
 @dataclass(frozen=True)
