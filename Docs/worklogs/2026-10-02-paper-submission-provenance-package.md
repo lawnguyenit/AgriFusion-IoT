@@ -70,7 +70,7 @@ The user says the scientific core is frozen and wants submission packaging. The 
 
 ## Progress Status
 
-Repository package and official Stuard verification are complete. Table regeneration is complete and matches the V8 paper. Remaining work is the paper-only Git commit, tag and GitHub release asset; Zenodo and journal-specific administration follow afterward.
+Repository package and official Stuard verification are complete. Table regeneration is complete and matches the V8 paper. The paper-only commit and annotated `paper-v1.0` tag are pushed to GitHub on branch `codex/paper-v1.0`. GitHub release creation and asset upload remain pending because the browser GitHub session is signed out and no release-creation API is available in the connected GitHub tools. Zenodo and journal-specific administration follow after release publication.
 
 ## Validation Commands and Results
 
@@ -87,5 +87,5 @@ No canonical schema or model API changed. New Stuard --download calls now fetch 
 ## Remaining Risks and Follow-up Work
 
 - The full Mendeley archive ZIP endpoint was inaccessible; individual raw inputs were downloaded and byte-verified through official Mendeley file URLs.
-- GitHub tag/release has not yet been created. Its commit must exclude IoT_Node/lib/Config/src/Config.h and tmp/. Attach the verified result ZIP with its recorded SHA-256.
+- The `paper-v1.0` tag and branch are published; GitHub Release `paper-v1.0` and upload of the verified result ZIP still need an authenticated GitHub session. The commit excludes IoT_Node/lib/Config/src/Config.h and tmp/. Attach the ZIP with SHA-256 `499bb2fd9ed485073b8d27c40fdc0e01ed825b47db4766afffce7fe7f3d07479`.
 - Journal-specific styling, final figure exports, DOI creation, availability statements, and author declarations remain downstream actions.
