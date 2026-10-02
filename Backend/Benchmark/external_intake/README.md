@@ -1,8 +1,10 @@
 # External dataset intake
 
 `external_intake` preserves and adapts the two external WADE sources into
-versioned, auditable canonical candidates. It does not create research
-labels, model features, splits, or predictions.
+versioned, auditable canonical candidates. Stuard files are downloaded from
+the official Mendeley Data Version 2 file URLs; UCI is downloaded from its
+official repository. Intake does not create research labels, model features,
+splits, or predictions.
 
 ## Supported inputs
 
@@ -28,8 +30,10 @@ and include a typed canonical Parquet file, audit manifest, report, and artifact
 catalog. Existing raw releases are never overwritten; choose a new `release_id`
 for another source snapshot.
 
-The current pack has full UCI and Stuard releases and full-data intake/feature
-runs. UCI has 9,357 valid timestamped rows plus 114 audited blank source rows;
+The tracked source registry pins Stuard to the three Mendeley Version 2 file
+IDs listed in the official DOI record. The current pack has full UCI and Stuard
+releases and full-data intake/feature runs. UCI has 9,357 valid timestamped
+rows plus 114 audited blank source rows;
 the observed last timestamp is later than the date range in the published
 description, so resolve that discrepancy before chronological split design.
 Label generation and temporal split publication remain separate and require

@@ -16,15 +16,15 @@ SOURCE_FILES: dict[str, tuple[SourceFileSpec, ...]] = {
     "stuard_tomato_irrigation_2023": (
         SourceFileSpec(
             "stuard_environmental_data.csv",
-            "https://raw.githubusercontent.com/DevHuang1/precision-irrigation-ml/main/data/real_datasets/unipr_tomato/raw/stuard_environmental_data.csv",
+            "https://data.mendeley.com/public-files/datasets/35wh56287y/files/a7e4beec-ca68-459b-8574-dc1bf99214dd/file_downloaded",
         ),
         SourceFileSpec(
             "stuard_soil_data.csv",
-            "https://raw.githubusercontent.com/DevHuang1/precision-irrigation-ml/main/data/real_datasets/unipr_tomato/raw/stuard_soil_data.csv",
+            "https://data.mendeley.com/public-files/datasets/35wh56287y/files/9cc5e9d8-a54a-488b-80db-35896156e56e/file_downloaded",
         ),
         SourceFileSpec(
             "stuard_water_meter_data.csv",
-            "https://raw.githubusercontent.com/DevHuang1/precision-irrigation-ml/main/data/real_datasets/unipr_tomato/raw/stuard_water_meter_data.csv",
+            "https://data.mendeley.com/public-files/datasets/35wh56287y/files/bd227cef-4611-47c6-9dcd-ca693be36594/file_downloaded",
         ),
     ),
     "uci_air_quality_360": (
@@ -37,14 +37,14 @@ SOURCE_FILES: dict[str, tuple[SourceFileSpec, ...]] = {
 
 DATASET_METADATA: dict[str, dict[str, str]] = {
     "stuard_tomato_irrigation_2023": {
-        "title": "IoT-based Data Collection in a Tomato Cultivation Under Different Irrigation Regimes",
+        "title": "IoT-based Dataset of a Tomato Cultivation Under Different Irrigation Regimes",
         "version": "2",
         "doi": "10.17632/35wh56287y.2",
         "article_doi": "10.1016/j.dib.2025.111521",
         "official_landing_page": "https://data.mendeley.com/datasets/35wh56287y/2",
         "license": "CC BY 4.0",
-        "citation": "Belli, L., Davoli, L., Oddi, G., Preite, L., Galaverni, M., Ganino, T., & Ferrari, G. (2024). IoT-based Data Collection in a Tomato Cultivation Under Different Irrigation Regimes (Version 2) [Data set]. Mendeley Data. https://doi.org/10.17632/35wh56287y.2",
-        "source_copy_url": "https://github.com/DevHuang1/precision-irrigation-ml",
+        "citation": "Belli, L., Davoli, L., Oddi, G., Preite, L., Galaverni, M., Ganino, T., & Ferrari, G. (2024). IoT-based Dataset of a Tomato Cultivation Under Different Irrigation Regimes (Version 2) [Data set]. Mendeley Data. https://doi.org/10.17632/35wh56287y.2",
+        "source_copy_url": "https://data.mendeley.com/datasets/35wh56287y/2",
     },
     "uci_air_quality_360": {
         "title": "Air Quality",
