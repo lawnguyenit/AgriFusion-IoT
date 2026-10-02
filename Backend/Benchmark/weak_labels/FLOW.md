@@ -8,13 +8,15 @@ tổng quát; các phase không được đọc như một function call graph.
 
 The authority path is organized by lifecycle and responsibility:
 
-```text
-contracts
-  → lifecycle/phase_a_readiness
-  → lifecycle/phase_b_contract
-  → semantic evidence/continuity/point/temporal
-  → lifecycle/phase_c_native
-  → provenance and task artifacts
+```mermaid
+flowchart LR
+    contracts[Contracts]
+    readiness[lifecycle/phase_a_readiness]
+    review[lifecycle/phase_b_contract]
+    semantics[Semantic evidence, continuity,<br/>point and temporal assignments]
+    release[lifecycle/phase_c_native]
+    artifacts[Provenance and task artifacts]
+    contracts --> readiness --> review --> semantics --> release --> artifacts
 ```
 
 `compatibility/differential/` contains only comparison tooling for immutable
@@ -148,19 +150,43 @@ boundary.
 
 The native order is:
 
-```text
-canonical validation
-  → deployment/strict adjacency
-  → derived evidence
-  → RuleFiring
-  → point Resolution/Assignment
-  → observed runs
-  → window eligibility
-  → temporal Resolution/Assignment
-  → Same-Y transfer projection
-  → semantic fold projection
-  → differential audit
-  → atomic publication
+```mermaid
+flowchart LR
+    subgraph gate[Contract gate]
+        direction TB
+        validation[Canonical validation]
+        adjacency[Deployment and strict adjacency]
+        evidence[Derived evidence]
+        validation --> adjacency --> evidence
+    end
+
+    subgraph point[Point assignment]
+        direction TB
+        firing[RuleFiring]
+        resolution[Point Resolution and Assignment]
+        runs[Observed runs]
+        eligibility[Window eligibility]
+        firing --> resolution --> runs --> eligibility
+    end
+
+    subgraph temporal[Temporal assignment]
+        direction TB
+        temporalResolution[Temporal Resolution and Assignment]
+        transfer[Same-Y transfer projection]
+        folds[Semantic fold projection]
+        temporalResolution --> transfer --> folds
+    end
+
+    subgraph release[Review and release]
+        direction TB
+        audit[Differential audit]
+        publication[Atomic publication]
+        audit --> publication
+    end
+
+    evidence --> firing
+    eligibility --> temporalResolution
+    folds --> audit
 ```
 
 Native artifacts are task-oriented (`point`, `same_y`, `temporal`) and are

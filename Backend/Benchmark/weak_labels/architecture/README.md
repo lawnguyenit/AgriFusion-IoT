@@ -8,8 +8,15 @@ không tạo thêm một execution pipeline.
 
 ## Đọc theo thứ tự
 
-```text
-00_shared → 10_phase_a → 20_phase_b1 → 30_phase_b2 → 40_phase_c → 90_handoffs
+```mermaid
+flowchart LR
+    shared[00_shared<br/>purpose, glossary, authority]
+    phaseA[10_phase_a<br/>readiness]
+    phaseB1[20_phase_b1<br/>decision pack]
+    phaseB2[30_phase_b2<br/>reviewed contract freeze]
+    phaseC[40_phase_c<br/>native label release]
+    handoffs[90_handoffs<br/>downstream contracts]
+    shared --> phaseA --> phaseB1 --> phaseB2 --> phaseC --> handoffs
 ```
 
 Mỗi phase có `README.md`, `core_flow.mmd`, `support_flow.mmd`,
