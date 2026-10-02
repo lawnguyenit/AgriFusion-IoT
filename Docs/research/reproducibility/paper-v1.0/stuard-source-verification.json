@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "verification_status": "verified_byte_identical",
+  "verified_at": "2026-10-02",
+  "verified_timezone": "Asia/Saigon",
+  "dataset": {
+    "id": "35wh56287y",
+    "version": 2,
+    "title": "IoT-based Dataset of a Tomato Cultivation Under Different Irrigation Regimes",
+    "doi": "10.17632/35wh56287y.2",
+    "official_landing_page": "https://data.mendeley.com/datasets/35wh56287y/2",
+    "metadata_endpoint": "https://data.mendeley.com/public-api/datasets/35wh56287y?version=2",
+    "files_endpoint": "https://data.mendeley.com/public-api/datasets/35wh56287y/files?folder_id=root&version=2&$start=0&$limit=1000",
+    "license": "CC BY 4.0"
+  },
+  "comparison": {
+    "official_files_downloaded_individually": true,
+    "comparison": "SHA-256 and byte size of official Version 2 file downloads versus the raw Stuard CSVs referenced by the current external intake/model runs.",
+    "local_raw_release_id": "stuard_source_20260929",
+    "local_raw_manifest": "Backend/Output_data/wade_external_validation_pack/raw/stuard_tomato_irrigation_2023/stuard_source_20260929/raw_manifest.json",
+    "local_raw_manifest_sha256": "3cdcd205f8a51282f0714c60f507ebc85e5c0ff54296cce151b1daed1d1074dd",
+    "outcome": "All three pipeline input streams are byte-identical to the official Version 2 files. No formatting or data differences were found."
+  },
+  "files": [
+    {
+      "name": "stuard_environmental_data.csv",
+      "mendeley_file_id": "a7e4beec-ca68-459b-8574-dc1bf99214dd",
+      "official_download_url": "https://data.mendeley.com/public-files/datasets/35wh56287y/files/a7e4beec-ca68-459b-8574-dc1bf99214dd/file_downloaded",
+      "size_bytes": 1206822,
+      "official_sha256": "282c2e5366510416e7e9de8c1750cb67d6c773ce0d985aae54206f50a7743ead",
+      "downloaded_official_sha256": "282c2e5366510416e7e9de8c1750cb67d6c773ce0d985aae54206f50a7743ead",
+      "local_pipeline_sha256": "282c2e5366510416e7e9de8c1750cb67d6c773ce0d985aae54206f50a7743ead",
+      "byte_identical": true
+    },
+    {
+      "name": "stuard_soil_data.csv",
+      "mendeley_file_id": "9cc5e9d8-a54a-488b-80db-35896156e56e",
+      "official_download_url": "https://data.mendeley.com/public-files/datasets/35wh56287y/files/9cc5e9d8-a54a-488b-80db-35896156e56e/file_downloaded",
+      "size_bytes": 3500782,
+      "official_sha256": "b6ec194a052863a17c57ad2303e93afe12ea101ffd8773865903e95f2186f9dc",
+      "downloaded_official_sha256": "b6ec194a052863a17c57ad2303e93afe12ea101ffd8773865903e95f2186f9dc",
+      "local_pipeline_sha256": "b6ec194a052863a17c57ad2303e93afe12ea101ffd8773865903e95f2186f9dc",
+      "byte_identical": true
+    },
+    {
+      "name": "stuard_water_meter_data.csv",
+      "mendeley_file_id": "bd227cef-4611-47c6-9dcd-ca693be36594",
+      "official_download_url": "https://data.mendeley.com/public-files/datasets/35wh56287y/files/bd227cef-4611-47c6-9dcd-ca693be36594/file_downloaded",
+      "size_bytes": 3038311,
+      "official_sha256": "aa128bd3d3fc9ca971326870555c9eadd8f76c054611a87b90bc7c45e591057c",
+      "downloaded_official_sha256": "aa128bd3d3fc9ca971326870555c9eadd8f76c054611a87b90bc7c45e591057c",
+      "local_pipeline_sha256": "aa128bd3d3fc9ca971326870555c9eadd8f76c054611a87b90bc7c45e591057c",
+      "byte_identical": true
+    }
+  ],
+  "official_ancillary_files_not_used_as_model_inputs": [
+    "indicators.csv",
+    "README.TXT"
+  ],
+  "limitations": [
+    "The complete Mendeley ZIP archive URL returned AccessDenied in this environment; each of the three official input CSVs was downloaded directly and verified individually.",
+    "This verifies byte provenance for the three raw streams used by the intake pipeline; it does not validate the scientific meaning of derived targets."
+  ]
+}

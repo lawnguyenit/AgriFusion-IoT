@@ -6,7 +6,7 @@
 flowchart TD
     A["CLI input: dataset_id + local directory or --download"] --> B["Validate closed dataset registry"]
     B --> C["Copy/download bytes into a new raw release"]
-    C --> D["raw_manifest.json: source, URL, SHA-256, size"]
+    C --> D["raw_manifest.json: official source URL, SHA-256, size"]
     C --> E{"Select adapter by dataset_id"}
 
     E -->|"UCI Air Quality"| U1["Read AirQualityUCI.csv from ZIP"]
@@ -32,6 +32,10 @@ flowchart TD
 ## Implemented behavior
 
 - The CLI selects a registered external source adapter by `dataset_id`.
+- Stuard `--download` reads the three CSV streams from their official Mendeley
+  Data Version 2 file URLs (dataset DOI `10.17632/35wh56287y.2`). UCI uses its
+  official UCI repository ZIP URL. The exact source URL, size, and SHA-256 are
+  recorded in each new raw release manifest.
 - Raw files are placed in a new release folder before parsing. Files are
   byte-for-byte copies of supplied files or downloaded bytes; checksums and
   source URLs are stored in `raw_manifest.json`.
@@ -66,8 +70,10 @@ so retaining a field here does not make it eligible for X or Y.
 
 - Output is an additive research candidate, not a promoted Core canonical
   dataset and not an active dataset-view source yet.
-- The official UCI source and Stuard GitHub source files have now been
-  downloaded and archived in the pack. Full-data adapter, feature, and
+- The official UCI and Mendeley Stuard source files have been downloaded and
+  archived in the pack. The three local Stuard stream files were byte-verified
+  against Mendeley Version 2 on 2026-10-02; see the paper reproducibility
+  provenance record. Full-data adapter, feature, and
   exploratory candidate-label runs exist; split design and target approval
   remain pending.
 - The processed UCI export has 9,357 timestamped records and 114 blank source

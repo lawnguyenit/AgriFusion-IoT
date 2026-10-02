@@ -75,6 +75,11 @@ python -m Backend.Benchmark.model_suite.cli --help
 Start with [Backend/PIPELINE_FLOW.md](Backend/PIPELINE_FLOW.md) and the
 [benchmark handoff contract](Backend/Benchmark/BENCHMARK_TO_MODEL_SUITE_SPEC.md).
 
+For the frozen WADE paper results, see the
+[paper reproducibility guide](Docs/research/reproducibility/paper-v1.0/README.md).
+It maps the release artifact bundle to manuscript Tables 2–4 and records the
+official Stuard Version 2 source hashes.
+
 ## Frontend quick start
 
 ```powershell
