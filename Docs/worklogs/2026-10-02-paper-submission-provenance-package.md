@@ -70,7 +70,7 @@ The user says the scientific core is frozen and wants submission packaging. The 
 
 ## Progress Status
 
-Repository package and official Stuard verification are complete. Table regeneration is complete and matches the V8 paper. The paper-only commit and annotated `paper-v1.0` tag are pushed to GitHub on branch `codex/paper-v1.0`. GitHub release creation and asset upload remain pending because the browser GitHub session is signed out and no release-creation API is available in the connected GitHub tools. Zenodo and journal-specific administration follow after release publication.
+Repository package and official Stuard verification are complete. Table regeneration is complete and matches the V8 paper. GitHub Release `paper-v1.0` is published with `paper-v1.0-results.zip`; GitHub reports the asset digest matching the recorded SHA-256. The annotated tag resolves to commit `c0fba870a285b6ac0404925bb8f6c8a0495e2da6`. The current paper branch includes a later worklog-only status commit. Zenodo and journal-specific administration remain.
 
 ## Validation Commands and Results
 
@@ -79,6 +79,7 @@ Repository package and official Stuard verification are complete. Table regenera
 - Compared official API SHA-256, downloaded official SHA-256, local raw SHA-256 and byte size; all three inputs match.
 - Ran: python -m Backend.Benchmark.model_suite.reporting.paper_tables_main --bundle Backend/Output_data/three_dataset_web_analysis_20261001/three_dataset_web_analysis_20261001.zip --output-dir <OS-temp>. Passed verification of the 202-file manifest and regenerated Tables 2–4. Table 2 values (including pooled log-loss and fold-mean macro-F1), Table 3 values, and Table 4 nested contrasts match the V8 displayed values.
 - The table rebuild read serialized model outputs; no model fitting, experiment, bootstrap resampling, or test suite was run.
+- Published https://github.com/lawnguyenit/AgriFusion-IoT/releases/tag/paper-v1.0 from the existing tag. Confirmed the displayed target commit is `c0fba870a285b6ac0404925bb8f6c8a0495e2da6`, the attached asset is named `paper-v1.0-results.zip`, and GitHub's displayed asset SHA-256 matches `499bb2fd9ed485073b8d27c40fdc0e01ed825b47db4766afffce7fe7f3d07479`.
 
 ## Compatibility Impact
 
@@ -87,5 +88,5 @@ No canonical schema or model API changed. New Stuard --download calls now fetch 
 ## Remaining Risks and Follow-up Work
 
 - The full Mendeley archive ZIP endpoint was inaccessible; individual raw inputs were downloaded and byte-verified through official Mendeley file URLs.
-- The `paper-v1.0` tag and branch are published; GitHub Release `paper-v1.0` and upload of the verified result ZIP still need an authenticated GitHub session. The commit excludes IoT_Node/lib/Config/src/Config.h and tmp/. Attach the ZIP with SHA-256 `499bb2fd9ed485073b8d27c40fdc0e01ed825b47db4766afffce7fe7f3d07479`.
+- Zenodo DOI, final availability statement, journal-specific styling, final figure exports, and author declarations remain pending. Release target excludes IoT_Node/lib/Config/src/Config.h and tmp/.
 - Journal-specific styling, final figure exports, DOI creation, availability statements, and author declarations remain downstream actions.
