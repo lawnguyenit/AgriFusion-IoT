@@ -4,30 +4,49 @@ AgriFusion-IoT has two connected processing lanes and one presentation
 surface. The lanes share data contracts, but they do not share ownership of
 the same artifacts.
 
-```text
-IoT node / Firebase RTDB / JSON export
-                |
-                v
-Backend Layer0: immutable source evidence and sync state
-                |
-                v
-Backend Layer1: canonical telemetry history and field governance
-                |
-        +-------+--------+
-        |                |
-        v                v
-Operational consumers   Research benchmark lane
-                         dataset_views
-                         -> weak_labels
-                         -> protocol_registry
-                         -> evaluation_protocols
-                         -> validity_lifecycle
-                         -> model_suite
+```mermaid
+flowchart TB
+    subgraph production[Production telemetry lane]
+        source[IoT node, Firebase RTDB,<br/>or JSON export]
+        layer0[Backend Layer0<br/>immutable source evidence and sync state]
+        raw[Layer0 raw artifacts]
+        layer1[Backend Layer1<br/>canonical history and field governance]
+        canonical[Layer1 canonical artifacts]
+        ops[Operational consumers]
+        source --> layer0 --> raw --> layer1 --> canonical --> ops
+    end
 
-Frontend/public reads the separate Firebase `result/*` presentation
-contract. It is currently a demo-first dashboard; it is not a direct
-viewer of Layer1 files.
+    subgraph research[Research benchmark lane]
+        views[dataset_views<br/>feature artifacts]
+        labels[weak_labels<br/>label evidence and assignments]
+        registry[protocol_registry<br/>environment and protocol authority]
+        evaluation[evaluation_protocols<br/>folds and runner manifests]
+        contract[Locked runner contract]
+        lifecycle[validity_lifecycle<br/>readiness and lifecycle audits]
+        models[model_suite<br/>training, predictions, metrics]
+        views --> evaluation
+        labels --> evaluation
+        registry --> evaluation
+        evaluation --> contract
+        contract --> lifecycle
+        contract --> models
+    end
+
+    canonical --> views
+    canonical --> labels
+    canonical --> evaluation
+
+    subgraph frontend[Separate presentation surface]
+        result[Firebase result/* contract<br/>or local demo payload]
+        dashboard[Frontend/public dashboard]
+        result --> dashboard
+    end
 ```
+
+The frontend contract is separate from Layer1: the current tracked backend
+does not publish Firebase `result/*`. For detailed implemented handoffs,
+including optional external-dataset and pre-train audit paths, see the
+[Backend Pipeline Flow](../Backend/PIPELINE_FLOW.md).
 
 ## Operational telemetry lane
 

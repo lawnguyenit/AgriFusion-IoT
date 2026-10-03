@@ -3,11 +3,15 @@
 `IoT_Node` is the ESP32-S3 firmware lane. The current PlatformIO environment
 is `esp32-s3-n16r8` and the active source entrypoint is deliberately thin:
 
-```text
-src/main.cpp
-    -> lib/AppEntry
-        -> diagnostic selector, or
-        -> lib/AppRuntime
+```mermaid
+flowchart TB
+    main[ src/main.cpp ] --> entry[lib/AppEntry]
+    entry -->|diagnostic selector enabled| diagnostics[Serial and sensor diagnostics]
+    entry -->|production path| runtime[lib/AppRuntime]
+    runtime --> opening[Opening<br/>prepare storage, sensors, network, cloud and time]
+    opening --> collection[Collection<br/>sample sensors and assemble packet]
+    collection --> finalization[Finalization<br/>upload, replay or buffer; publish status]
+    finalization --> sleep[Select next wake or sleep interval]
 ```
 
 ## Production path

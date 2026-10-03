@@ -18,30 +18,28 @@ Read in this order:
 
 ## End-to-end map
 
-```text
-IoT Node / Firebase RTDB / JSON export
-                |
-                v
-Backend/Navigation/Core/layer0
-                |
-                v
-Backend/Output_data/Layer0
-                |
-                v
-Backend/Navigation/Core/layer1
-                |
-                v
-Backend/Output_data/Layer1/canonical
-                |
-        +-------+--------+
-        |                |
-        v                v
-Operational use     Backend/Benchmark
-                    dataset views -> weak labels -> protocols
-                    -> lifecycle audits -> model suite
+```mermaid
+flowchart TB
+    subgraph telemetry[Telemetry processing]
+        source[IoT node, Firebase RTDB, or JSON export]
+        layer0[Layer0<br/>raw source evidence]
+        layer1[Layer1<br/>canonical telemetry]
+        operational[Operational consumers]
+        source --> layer0 --> layer1 --> operational
+    end
 
-Frontend/public reads the separate Firebase result/* presentation contract.
+    layer1 --> benchmark[Backend/Benchmark<br/>dataset and evaluation artifacts]
+
+    subgraph presentation[Separate presentation contract]
+        result[Firebase result/*]
+        dashboard[Frontend dashboard<br/>demo by default]
+        result --> dashboard
+    end
 ```
+
+The current tracked backend does not publish `result/*`. See the
+[system architecture](public-docs/architecture.md) for ownership boundaries
+and the [backend flow](Backend/PIPELINE_FLOW.md) for benchmark handoffs.
 
 ## Backend quick start
 

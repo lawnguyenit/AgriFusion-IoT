@@ -30,20 +30,14 @@ The canonical Python namespace for telemetry processing is
 
 ## Telemetry flow
 
-```text
-Firebase RTDB or JSON export
-        |
-        v
-Layer0IngestionPipeline
-        |
-        v
-Backend/Output_data/Layer0/Firebase_data
-        |
-        v
-PreprocessingPipeline
-        |
-        v
-Backend/Output_data/Layer1/canonical
+```mermaid
+flowchart LR
+    source[Firebase RTDB<br/>or JSON export]
+    ingestion[Layer0IngestionPipeline]
+    raw[Backend/Output_data/Layer0/Firebase_data<br/>raw evidence and sync artifacts]
+    canonicalizer[PreprocessingPipeline]
+    canonical[Backend/Output_data/Layer1/canonical<br/>canonical telemetry]
+    source --> ingestion --> raw --> canonicalizer --> canonical
 ```
 
 ### Layer0 owns
@@ -99,19 +93,24 @@ sensor identity overrides and `FIREBASE_KEY_PATH`/`DATABASE_URL` for Firebase.
 
 The research lane consumes frozen Layer1 artifacts:
 
-```text
-Layer1 canonical history
-        |
-        +--> protocol_registry
-        +--> dataset_views
-        +--> weak_labels
-                  |
-                  v
-        evaluation_protocols
-                  |
-        +---------+---------+
-        v                   v
-validity_lifecycle       model_suite
+```mermaid
+flowchart LR
+    canonical[Layer1 canonical artifacts]
+    views[dataset_views<br/>feature artifacts]
+    labels[weak_labels<br/>label artifacts]
+    registry[protocol_registry<br/>protocol authority]
+    evaluation[evaluation_protocols<br/>folds and runner manifests]
+    contract[Locked runner contract]
+    lifecycle[validity_lifecycle<br/>audits]
+    models[model_suite<br/>models and results]
+
+    canonical --> views --> evaluation
+    canonical --> labels --> evaluation
+    canonical --> evaluation
+    registry --> evaluation
+    evaluation --> contract
+    contract --> lifecycle
+    contract --> models
 ```
 
 Read [Benchmark README](Benchmark/README.md),
