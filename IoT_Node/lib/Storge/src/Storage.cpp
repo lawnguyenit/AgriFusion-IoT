@@ -3,14 +3,13 @@
 #include <FS.h>
 #include <LittleFS.h>
 #include <Arduino.h>
-bool setupStorage() {
+void setupStorage() {
     // Mount file system
     if(!LittleFS.begin(true)) { // true = format nếu lỗi
         CUS_DBGLN("[STORAGE] Chua co LittleFS -> Dang Format tao moi...");
-        return false;
+        return;
     }
     CUS_DBGLN("[STORAGE] LittleFS Mount OK");
-    return true;
 }
 
 bool storageFileExists(const char *path) {

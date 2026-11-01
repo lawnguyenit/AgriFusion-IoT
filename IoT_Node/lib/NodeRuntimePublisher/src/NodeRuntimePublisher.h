@@ -8,22 +8,20 @@
 #include "RawTelemetryReporter.h"
 
 struct NodeRuntimeConfig {
-    const char *nodeRootPath = "/Node2";
-    const char *nodeInfoPath = "/Node2/info";
-    const char *nodeLatestPath = "/Node2/latest/current";
-    const char *nodeLatestMetaPath = "/Node2/latest/meta";
-    const char *nodeDebugRootPath = "/debug/Node2";
-    const char *nodeDebugStatusPath = "/debug/Node2/status";
-    const char *nodeDebugTelemetryPath = "/debug/Node2/telemetry";
+    const char *nodeRootPath = "/Node1";
+    const char *nodeInfoPath = "/Node1/info";
+    const char *nodeLivePath = "/Node1/live";
+    const char *nodeStatusEventsPath = "/Node1/status_events";
 
-    const char *nodeId = "Node2";
-    const char *deviceUid = "esp32s3_node2";
-    const char *siteId = "farm_a_zone_2";
+    const char *nodeId = "Node1";
+    const char *deviceUid = "esp32s3_node1";
+    const char *siteId = "farm_a_zone_1";
     const char *powerType = "solar_battery";
     const char *timezone = "Asia/Ho_Chi_Minh";
 
     uint32_t telemetryRetentionDays = 30;
     uint32_t wakeIntervalSec = 60;
+    uint32_t nodeInfoPushIntervalMs = 300000;
     uint32_t probeIntervalMs = 30000;
 };
 
@@ -32,6 +30,12 @@ public:
     explicit NodeRuntimePublisher(const NodeRuntimeConfig &cfg);
 
     void publishSystemStatus(FirebaseData &fbdo, const char *state, const char *detail, uint64_t utcMs);
+
+    void publishNodeInfoIfDue(FirebaseData &fbdo,
+                              const DeviceContext &deviceContext,
+                              const String &fwVersion,
+                              bool force,
+                              uint64_t utcMs);
 
     void publishTelemetryDebug(FirebaseData &fbdo,
                                bool ok,
@@ -50,16 +54,19 @@ public:
 
     void probeTelemetryPathIfNeeded(FirebaseData &fbdo, uint64_t utcMs);
 
-    bool publishLatestIfNewer(FirebaseData &fbdo,
-                              FirebaseJson &record,
-                              bool *updatedLatest,
-                              String *error = nullptr);
+    void publishNodeLive(FirebaseData &fbdo,
+                         const char *payload,
+                         const String &telemetryRefId,
+                         const RawTelemetryRecordContext &ctx,
+                         bool sensorError,
+                         uint64_t utcMs);
 
 private:
     NodeRuntimeConfig _cfg;
     FirebaseJson _statusJson;
     String _lastState;
     uint32_t _statusEventSeq = 0;
+    uint32_t _lastInfoPushMs = 0;
     uint32_t _lastProbeMs = 0;
     bool _probeOk = false;
     uint32_t _telemetryOkCount = 0;

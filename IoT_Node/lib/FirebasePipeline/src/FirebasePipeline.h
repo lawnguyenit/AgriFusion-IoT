@@ -21,7 +21,6 @@ struct FirebasePipelineConfig {
 
 struct TelemetryPushResult {
     bool uploaded = false;
-    bool duplicate = false;
     bool buffered = false;
     bool uploadAttempted = false;
     bool networkReady = false;
@@ -32,11 +31,9 @@ struct TelemetryPushResult {
     bool firebaseReady = false;
     bool tlsError = false;
     bool bufferStoreOk = false;
-    bool latestUpdated = false;
     String stage;
     String detail;
     String refId;
-    String telemetryPath;
     String pipelineState;
 };
 
@@ -52,7 +49,6 @@ struct OfflineReplayResult {
     uint32_t replayedCount = 0;
     uint32_t failedCount = 0;
     uint32_t invalidJsonCount = 0;
-    bool latestUpdated = false;
     String stage;
     String detail;
 };
@@ -89,7 +85,8 @@ public:
 
     FirebaseBootstrapResult begin(FirebaseConfig &firebaseConfig,
                                   FirebaseAuth &firebaseAuth,
-                                  FirebaseData &firebaseData);
+                                  FirebaseData &firebaseData,
+                                  FirebaseData &firebaseOtaData);
 
     bool ready() const;
     bool usesNativeFirebase() const;

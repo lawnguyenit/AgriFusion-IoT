@@ -11,6 +11,3 @@ Responsibilities:
 Scope:
 - intentionally limited to the node's current needs
 - does not try to replace the full Firebase client SDK
-- `getRawJson()` preserves the RTDB response body, including the valid JSON
-  literal `null` returned for a missing path; callers decide existence after
-  parsing the body.

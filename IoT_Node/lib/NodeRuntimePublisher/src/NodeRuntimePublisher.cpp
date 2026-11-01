@@ -2,17 +2,38 @@
 
 #include <Arduino.h>
 #include <ArduinoJson.h>
-#include <time.h>
+#include <cstdlib>
 
 #include "Config.h"
 #include "NetworkBridge.h"
 #include "RtdbRestClient.h"
-
 #if USE_SIM_NETWORK
 #include "SimA7680C.h"
 #endif
 
 namespace {
+float readFloatOr(JsonVariantConst value, float fallback = 0.0f) {
+    if (value.is<float>()) {
+        return value.as<float>();
+    }
+    if (value.is<double>()) {
+        return static_cast<float>(value.as<double>());
+    }
+    if (value.is<long>()) {
+        return static_cast<float>(value.as<long>());
+    }
+    if (value.is<int>()) {
+        return static_cast<float>(value.as<int>());
+    }
+    if (value.is<const char *>()) {
+        const char *s = value.as<const char *>();
+        if (s && *s) {
+            return strtof(s, nullptr);
+        }
+    }
+    return fallback;
+}
+
 bool firebaseChannelReady() {
 #if USE_SIM_NETWORK && APP_FIREBASE_SIM_TRANSPORT_ENABLED
     return networkIsConnected();
@@ -57,188 +78,21 @@ bool writeIntPath(FirebaseData &fbdo, const String &path, int value, String *err
 #endif
 }
 
-bool classifyRtdbJsonBody(const String &rawBody,
-                          String &jsonOut,
-                          bool &exists,
-                          String *error = nullptr) {
-    jsonOut = "";
-    exists = false;
-
-    String body = rawBody;
-    body.trim();
-    if (!body.length()) {
-        if (error) {
-            *error = "rtdb_get_empty_body";
-        }
-        return false;
-    }
-
-    JsonDocument doc;
-    if (deserializeJson(doc, body) != DeserializationError::Ok) {
-        if (error) {
-            *error = "rtdb_get_invalid_json_body";
-        }
-        return false;
-    }
-
-    exists = !doc.as<JsonVariantConst>().isNull();
-    if (exists) {
-        jsonOut = body;
-    }
-    return true;
-}
-
-bool readJsonPath(FirebaseData &fbdo, const String &path, String &jsonOut, bool &exists, String *error = nullptr) {
-    exists = false;
-    jsonOut = "";
-
+bool deletePath(FirebaseData &fbdo, const String &path, String *error = nullptr) {
 #if USE_SIM_NETWORK && APP_FIREBASE_SIM_TRANSPORT_ENABLED
     RtdbRestResponse response;
-    if (!rtdbRestClient().getRawJson(path, response)) {
-        if (response.statusCode == 404) {
-            return true;
-        }
-        if (error) {
-            *error = response.detail;
-        }
-        return false;
+    bool ok = rtdbRestClient().deletePath(path, response);
+    if (!ok && error) {
+        *error = response.detail;
     }
-    if (!classifyRtdbJsonBody(response.body, jsonOut, exists, error)) {
-        if (error && error->length()) {
-            *error = String("path=") + path + " " + *error;
-        }
-        return false;
-    }
-    CUS_DBGF("[FIREBASE][LATEST] read path=%s exists=%d body_bytes=%u http=%d\n",
-             path.c_str(),
-             exists ? 1 : 0,
-             (unsigned)response.body.length(),
-             response.statusCode);
-    if (!exists) {
-        return true;
-    }
-    return true;
+    return ok;
 #else
-    if (!Firebase.getJSON(fbdo, path)) {
-        String err = fbdo.errorReason();
-        String lowered = err;
-        lowered.toLowerCase();
-        if (lowered.indexOf("path not exist") >= 0 || lowered.indexOf("not found") >= 0) {
-            return true;
-        }
-        if (error) {
-            *error = err;
-        }
-        return false;
+    bool ok = Firebase.deleteNode(fbdo, path);
+    if (!ok && error) {
+        *error = fbdo.errorReason();
     }
-    if (!classifyRtdbJsonBody(fbdo.jsonString(), jsonOut, exists, error)) {
-        if (error && error->length()) {
-            *error = String("path=") + path + " " + *error;
-        }
-        return false;
-    }
-    if (!exists) {
-        return true;
-    }
-    return true;
+    return ok;
 #endif
-}
-
-bool parseRecordDoc(FirebaseJson &record, JsonDocument &doc, String *error = nullptr) {
-    String json;
-    record.toString(json, false);
-    if (deserializeJson(doc, json) != DeserializationError::Ok) {
-        if (error) {
-            *error = "invalid_record_json";
-        }
-        return false;
-    }
-    return true;
-}
-
-bool saveRecordDoc(FirebaseJson &record, JsonDocument &doc, String *error = nullptr) {
-    String json;
-    serializeJson(doc, json);
-    if (!record.setJsonData(json)) {
-        if (error) {
-            *error = "record_set_json_fail";
-        }
-        return false;
-    }
-    return true;
-}
-
-bool sampleTimeValid(uint32_t tsSample) {
-    return tsSample >= 1700000000UL;
-}
-
-String dateKeyFromEpoch(uint32_t epochSec) {
-    if (!sampleTimeValid(epochSec)) {
-        return "unsynced";
-    }
-
-    time_t sec = static_cast<time_t>(epochSec);
-    struct tm tmLocal;
-#if defined(_WIN32)
-    localtime_s(&tmLocal, &sec);
-#else
-    localtime_r(&sec, &tmLocal);
-#endif
-    char buf[16];
-    strftime(buf, sizeof(buf), "%Y-%m-%d", &tmLocal);
-    return String(buf);
-}
-
-bool publishLatestMeta(FirebaseData &fbdo,
-                       const NodeRuntimeConfig &cfg,
-                       JsonObjectConst candidate,
-                       String *error) {
-    uint32_t tsSample = static_cast<uint32_t>(candidate["system_record"]["time"]["ts_sample"] | 0UL);
-    if (!sampleTimeValid(tsSample)) {
-        if (error) {
-            *error = "latest_meta_invalid_sample_time";
-        }
-        return false;
-    }
-
-    String eventKey = candidate["system_record"]["identity"]["record_id"] | String((unsigned long)tsSample);
-    String recordPath = candidate["system_record"]["identity"]["record_path"] | String();
-    while (recordPath.startsWith("/")) {
-        recordPath.remove(0, 1);
-    }
-    String metaPath = cfg.nodeLatestMetaPath ? cfg.nodeLatestMetaPath : String(APP_RTDB_PATH_NODE_LATEST_META);
-
-    FirebaseJson meta;
-    meta.set("schema_version", 1);
-    meta.set("node_id", APP_NODE_ID);
-    meta.set("detected_device_uid", APP_NODE_DEVICE_UID);
-    meta.set("detected_site_id", APP_NODE_SITE_ID);
-    meta.set("latest_date_key", dateKeyFromEpoch(tsSample));
-    meta.set("latest_event_key", eventKey);
-    meta.set("latest_path", recordPath);
-    meta.set("ts_device", candidate["system_record"]["time"]["device_uptime_sec"] | 0UL);
-    meta.set("ts_server", static_cast<unsigned long>(tsSample));
-    meta.set("primary_poll_after_sec", (int)(APP_SENSOR_SAMPLE_INTERVAL_MS / 1000UL));
-    meta.set("retry_after_no_change_sec", (int)(APP_SLEEP_FAIL_RETRY_INTERVAL_MS / 1000UL));
-    meta.set("source_type", "firebase");
-    meta.set("source_uri", String("firebase://") + APP_NODE_ID + "/latest/meta");
-    meta.set("updated_at_utc", static_cast<unsigned long>(tsSample));
-
-    if (!writeJsonPath(fbdo, metaPath, meta, error)) {
-        if (error && error->length()) {
-            *error = String("path=") + metaPath + " " + *error;
-        }
-        return false;
-    }
-    return true;
-}
-
-int64_t extractLatestTsSample(const JsonObjectConst &root) {
-    JsonVariantConst tsSample = root["system_record"]["time"]["ts_sample"];
-    if (tsSample.isNull()) {
-        return -1;
-    }
-    return (int64_t)(tsSample.as<long long>());
 }
 }  // namespace
 
@@ -252,65 +106,119 @@ String NodeRuntimePublisher::makeStatusEventKey(uint64_t utcMs) {
     return String(buf);
 }
 
-void NodeRuntimePublisher::publishSystemStatus(FirebaseData &fbdo,
-                                               const char *state,
-                                               const char *detail,
-                                               uint64_t utcMs) {
-#if !APP_RTDB_DEBUG_PUBLISH_ENABLED
-    (void)fbdo;
-    (void)state;
-    (void)detail;
-    (void)utcMs;
-    return;
-#else
+void NodeRuntimePublisher::publishSystemStatus(FirebaseData &fbdo, const char *state, const char *detail, uint64_t utcMs) {
     if (!firebaseChannelReady()) {
         return;
     }
 
     _statusJson.clear();
-    _statusJson.set("state", state ? state : "unknown");
-    _statusJson.set("detail", detail ? detail : "");
     _statusJson.set("online", networkIsConnected());
-
-#if USE_SIM_NETWORK
-    SimNetworkState sim = simReadNetworkState(false);
-    _statusJson.set("signal_dbm", sim.signalDbm);
-    _statusJson.set("signal_csq", sim.signalCsq);
-    _statusJson.set("signal_valid", sim.signalCsq >= 0 && sim.signalCsq != 99);
-    _statusJson.set("local_ip_valid", sim.localIpValid);
-    if (sim.localIpValid) {
-        _statusJson.set("local_ip", sim.localIp);
-        _statusJson.set("local_ip_source", sim.localIpSource);
-    }
-    if (sim.operatorName.length() > 0 &&
-        sim.operatorName.indexOf("ERROR") < 0 &&
-        sim.operatorName.indexOf("+COPS:") < 0) {
-        _statusJson.set("operator", sim.operatorName);
-        _statusJson.set("operator_valid", true);
-    } else {
-        _statusJson.set("operator_valid", false);
-    }
-#else
-    String localIp = networkLocalIp();
-    bool localIpValid = localIp.length() > 0 && localIp != "0.0.0.0";
-    int signalDbm = networkSignalDbm();
-    _statusJson.set("signal_dbm", signalDbm);
-    _statusJson.set("signal_valid", signalDbm != 0);
-    _statusJson.set("local_ip_valid", localIpValid);
-    if (localIpValid) {
-        _statusJson.set("local_ip", localIp);
-        _statusJson.set("local_ip_source", "wifi.localIP");
-    }
-    _statusJson.set("operator_valid", false);
-#endif
-
+    _statusJson.set("battery_v", -1.0);
     _statusJson.set("heap_free", (int)ESP.getFreeHeap());
+    _statusJson.set("rssi", networkSignalDbm());
+    _statusJson.set("heartbeat_age_sec", 0);
+    _statusJson.set("system_state", state);
+    _statusJson.set("state_detail", detail);
     _statusJson.set("ts_device", (int)(millis() / 1000U));
-    if (utcMs > 0) {
-        _statusJson.set("ts_server", static_cast<double>(utcMs / 1000ULL));
+    _statusJson.set("last_sync_ts", utcMs ? static_cast<double>(utcMs / 1000ULL) : 0);
+
+    String healthPath = String(_cfg.nodeLivePath) + "/health/overall";
+    String writeError;
+    if (!writeJsonPath(fbdo, healthPath, _statusJson, &writeError)) {
+        CUS_DBGF("[FIREBASE] Status update fail: %s\n", writeError.c_str());
     }
-    writeJsonPath(fbdo, _cfg.nodeDebugStatusPath, _statusJson);
+
+    String newState = state ? state : "unknown";
+    if (newState == _lastState) {
+        return;
+    }
+
+    FirebaseJson ev;
+    ev.set("component", "system");
+    ev.set("from", _lastState.length() ? _lastState : "unknown");
+    ev.set("to", newState);
+    ev.set("reason", detail ? detail : "");
+    ev.set("ts", utcMs ? static_cast<double>(utcMs / 1000ULL) : static_cast<double>(millis() / 1000U));
+    bool warn = (newState == "degraded" || newState == "sensor_alarm" || newState == "offline_buffering");
+    ev.set("severity", warn ? "warning" : "info");
+    if (utcMs) {
+        ev.set("ts_server_ms", static_cast<double>(utcMs));
+    }
+
+    String statusPath = String(_cfg.nodeStatusEventsPath) + "/" + makeStatusEventKey(utcMs);
+    if (writeJsonPath(fbdo, statusPath, ev)) {
+        _lastState = newState;
+    }
+}
+
+void NodeRuntimePublisher::publishNodeInfoIfDue(FirebaseData &fbdo,
+                                                const DeviceContext &deviceContext,
+                                                const String &fwVersion,
+                                                bool force,
+                                                uint64_t utcMs) {
+    uint32_t now = millis();
+    if (!force && (now - _lastInfoPushMs < _cfg.nodeInfoPushIntervalMs)) {
+        return;
+    }
+    _lastInfoPushMs = now;
+
+    if (!firebaseChannelReady()) {
+        return;
+    }
+
+    JsonDocument infoDoc;
+    infoDoc["schema_version"] = 1;
+
+    JsonObject identity = infoDoc["identity"].to<JsonObject>();
+    identity["node_id"] = _cfg.nodeId;
+    identity["device_uid"] = _cfg.deviceUid;
+    identity["site_id"] = _cfg.siteId;
+
+    JsonObject hardware = infoDoc["hardware"].to<JsonObject>();
+    hardware["board"] = "ESP32-S3";
+    hardware["power_type"] = _cfg.powerType;
+    hardware["reset_count"] = deviceContext.resetReason();
+
+    JsonObject firmware = infoDoc["firmware"].to<JsonObject>();
+    firmware["version"] = fwVersion;
+    firmware["build_id"] = String("build_") + __DATE__ + "_" + __TIME__;
+    firmware["last_update_ts"] = utcMs > 0 ? static_cast<double>(utcMs / 1000ULL) : 0;
+
+    JsonObject config = infoDoc["config"].to<JsonObject>();
+    config["sampling_mode"] = "periodic";
+    config["wake_interval_sec"] = (int)_cfg.wakeIntervalSec;
+    config["timezone"] = _cfg.timezone;
+    config["telemetry_retention_days"] = (int)_cfg.telemetryRetentionDays;
+
+    JsonObject network = infoDoc["network"].to<JsonObject>();
+    network["transport"] = networkTransportName();
+    network["ip"] = networkLocalIp();
+    network["mac"] = "";
+    network["last_rssi"] = networkSignalDbm();
+#if USE_SIM_NETWORK
+    {
+        SimNetworkState sim = simReadNetworkState(false);
+        network["operator"] = sim.operatorName;
+        network["registered"] = sim.networkRegistered;
+        network["attached"] = sim.packetAttached;
+        network["gprs"] = sim.gprsConnected;
+    }
 #endif
+
+    String infoJson;
+    serializeJson(infoDoc, infoJson);
+
+    FirebaseJson out;
+    if (!out.setJsonData(infoJson)) {
+        return;
+    }
+
+    String writeError;
+    if (!writeJsonPath(fbdo, _cfg.nodeInfoPath, out, &writeError)) {
+        CUS_DBGF("[FIREBASE] %s update fail: %s\n", _cfg.nodeInfoPath, writeError.c_str());
+    } else {
+        CUS_DBGF("[FIREBASE] %s updated.\n", _cfg.nodeInfoPath);
+    }
 }
 
 void NodeRuntimePublisher::publishTelemetryDebug(FirebaseData &fbdo,
@@ -318,14 +226,6 @@ void NodeRuntimePublisher::publishTelemetryDebug(FirebaseData &fbdo,
                                                  const String &refOrPath,
                                                  const String &detail,
                                                  uint64_t utcMs) {
-#if !APP_RTDB_DEBUG_PUBLISH_ENABLED
-    (void)fbdo;
-    (void)ok;
-    (void)refOrPath;
-    (void)detail;
-    (void)utcMs;
-    return;
-#else
     if (!firebaseChannelReady()) {
         return;
     }
@@ -335,11 +235,8 @@ void NodeRuntimePublisher::publishTelemetryDebug(FirebaseData &fbdo,
     dbg.set("ref_or_path", refOrPath);
     dbg.set("detail", detail);
     dbg.set("ts_device", (int)(millis() / 1000U));
-    if (utcMs > 0) {
-        dbg.set("ts_server", static_cast<double>(utcMs / 1000ULL));
-    }
-    writeJsonPath(fbdo, String(_cfg.nodeDebugTelemetryPath) + "/last_debug", dbg);
-#endif
+    dbg.set("ts_server", utcMs ? static_cast<double>(utcMs / 1000ULL) : 0);
+    writeJsonPath(fbdo, String(_cfg.nodeLivePath) + "/meta/telemetry_debug", dbg);
 }
 
 void NodeRuntimePublisher::publishTelemetryChannel(FirebaseData &fbdo,
@@ -350,17 +247,6 @@ void NodeRuntimePublisher::publishTelemetryChannel(FirebaseData &fbdo,
                                                    const String &refOrPath,
                                                    const String &detail,
                                                    uint64_t utcMs) {
-#if !APP_RTDB_DEBUG_PUBLISH_ENABLED
-    (void)fbdo;
-    (void)ok;
-    (void)fallbackUsed;
-    (void)tlsError;
-    (void)stage;
-    (void)refOrPath;
-    (void)detail;
-    (void)utcMs;
-    return;
-#else
     if (!firebaseChannelReady()) {
         return;
     }
@@ -384,24 +270,17 @@ void NodeRuntimePublisher::publishTelemetryChannel(FirebaseData &fbdo,
     ch.set("tls_error", tlsError);
     ch.set("last_ref_or_path", refOrPath);
     ch.set("last_detail", detail);
+    ch.set("key_mode", "deterministic_only");
     ch.set("counter_ok", (int)_telemetryOkCount);
     ch.set("counter_fail", (int)_telemetryFailCount);
     ch.set("counter_fallback", (int)_telemetryFallbackCount);
     ch.set("counter_tls_error", (int)_telemetryTlsErrorCount);
     ch.set("ts_device", (int)(millis() / 1000U));
-    if (utcMs > 0) {
-        ch.set("ts_server", static_cast<double>(utcMs / 1000ULL));
-    }
-    writeJsonPath(fbdo, String(_cfg.nodeDebugTelemetryPath) + "/channel", ch);
-#endif
+    ch.set("ts_server", utcMs ? static_cast<double>(utcMs / 1000ULL) : 0);
+    writeJsonPath(fbdo, String(_cfg.nodeLivePath) + "/meta/telemetry_channel", ch);
 }
 
 void NodeRuntimePublisher::probeTelemetryPathIfNeeded(FirebaseData &fbdo, uint64_t utcMs) {
-#if !APP_RTDB_DEBUG_PUBLISH_ENABLED
-    (void)fbdo;
-    (void)utcMs;
-    return;
-#else
     if (_probeOk) {
         return;
     }
@@ -417,94 +296,148 @@ void NodeRuntimePublisher::probeTelemetryPathIfNeeded(FirebaseData &fbdo, uint64
     String writeError;
     if (writeIntPath(fbdo, probePath, (int)(millis() / 1000U), &writeError)) {
         _probeOk = true;
+        deletePath(fbdo, probePath);
         publishTelemetryDebug(fbdo, true, probePath, "probe_ok", utcMs);
+        CUS_DBGF("[FIREBASE] Probe telemetry path OK: %s\n", probePath.c_str());
     } else {
-        publishTelemetryDebug(fbdo, false, probePath, writeError, utcMs);
+        String err = writeError;
+        publishTelemetryDebug(fbdo, false, probePath, err, utcMs);
+        CUS_DBGF("[FIREBASE] Probe telemetry path FAIL: %s -> %s\n", probePath.c_str(), err.c_str());
     }
-#endif
 }
 
-bool NodeRuntimePublisher::publishLatestIfNewer(FirebaseData &fbdo,
-                                                FirebaseJson &record,
-                                                bool *updatedLatest,
-                                                String *error) {
-    if (updatedLatest) {
-        *updatedLatest = false;
-    }
+void NodeRuntimePublisher::publishNodeLive(FirebaseData &fbdo,
+                                           const char *payload,
+                                           const String &telemetryRefId,
+                                           const RawTelemetryRecordContext &ctx,
+                                           bool sensorError,
+                                           uint64_t utcMs) {
     if (!firebaseChannelReady()) {
-        if (error) {
-            *error = "latest_channel_not_ready";
+        return;
+    }
+
+    JsonDocument sourceDoc;
+    if (deserializeJson(sourceDoc, payload) != DeserializationError::Ok) {
+        return;
+    }
+
+    JsonObjectConst src = sourceDoc.as<JsonObjectConst>();
+    JsonDocument liveDoc;
+    liveDoc["schema_version"] = 1;
+
+    JsonObject meta = liveDoc["meta"].to<JsonObject>();
+    meta["last_event_id"] = telemetryRefId;
+    uint32_t tsDeviceSec = ctx.tsDeviceMs / 1000U;
+    meta["last_seen_ts"] = (int)tsDeviceSec;
+    meta["uptime_sec"] = (int)(millis() / 1000U);
+    meta["boot_reason"] = ctx.wakeReason;
+    meta["last_sync_ts"] = utcMs ? static_cast<double>(utcMs / 1000ULL) : 0;
+
+    JsonObject sensors = liveDoc["sensors"].to<JsonObject>();
+    JsonVariantConst packetSrc = src["packet"];
+    if (packetSrc.is<JsonObjectConst>()) {
+        JsonObjectConst packet = packetSrc.as<JsonObjectConst>();
+        JsonVariantConst npkSrc = packet["npk_data"];
+        if (npkSrc.is<JsonObjectConst>()) {
+            JsonObjectConst npk = npkSrc.as<JsonObjectConst>();
+            JsonObject npkOut = sensors["npk"].to<JsonObject>();
+            bool npkOk = npk["read_ok"] | false;
+            bool npkValid = npk["npk_values_valid"] | npkOk;
+            npkOut["n"] = npk["N"] | 0;
+            npkOut["p"] = npk["P"] | 0;
+            npkOut["k"] = npk["K"] | 0;
+            npkOut["ec"] = readFloatOr(npk["ec"], 0.0f);
+            npkOut["ph"] = readFloatOr(npk["ph"], 0.0f);
+            npkOut["temperature_c"] = readFloatOr(npk["temp"], 0.0f);
+            npkOut["humidity_percent"] = readFloatOr(npk["hum"], 0.0f);
+            npkOut["ts_sample"] = (int)tsDeviceSec;
+            npkOut["read_ok"] = npkOk;
+            npkOut["sample_valid"] = npkValid;
+            npkOut["status"] = npkValid ? "ok" : "error";
+            npkOut["quality"] = npkValid ? 0.93 : 0.0;
+            npkOut["error_code"] = npkValid ? "" : (npk["error_code"] | "read_fail");
         }
-        return false;
-    }
 
-    JsonDocument candidateDoc;
-    String parseError;
-    if (!parseRecordDoc(record, candidateDoc, &parseError)) {
-        if (error) {
-            *error = parseError;
-        }
-        return false;
-    }
-
-    JsonObject candidate = candidateDoc.as<JsonObject>();
-    int64_t candidateTs = extractLatestTsSample(candidate);
-    if (candidateTs <= 0) {
-        return true;
-    }
-
-    String currentJson;
-    bool currentExists = false;
-    String readError;
-    if (!readJsonPath(fbdo, _cfg.nodeLatestPath, currentJson, currentExists, &readError)) {
-        if (error) {
-            *error = readError;
-        }
-        return false;
-    }
-
-    int64_t currentTs = -1;
-    if (currentExists) {
-        JsonDocument currentDoc;
-        if (deserializeJson(currentDoc, currentJson) == DeserializationError::Ok) {
-            currentTs = extractLatestTsSample(currentDoc.as<JsonObjectConst>());
+        JsonVariantConst shtSrc = packet["sht30_data"];
+        if (shtSrc.is<JsonObjectConst>()) {
+            JsonObjectConst sht = shtSrc.as<JsonObjectConst>();
+            JsonObject shtOut = sensors["sht30"].to<JsonObject>();
+            bool shtOk = sht["sht_read_ok"] | false;
+            bool shtValid = sht["sht_sample_valid"] | false;
+            shtOut["temperature_c"] = readFloatOr(sht["sht_temp_c"], 0.0f);
+            shtOut["humidity_percent"] = readFloatOr(sht["sht_hum_pct"], 0.0f);
+            shtOut["ts_sample"] = (int)tsDeviceSec;
+            shtOut["read_ok"] = shtOk;
+            shtOut["sample_valid"] = shtValid;
+            shtOut["retry_count"] = sht["sht_retry_count"] | 0;
+            shtOut["read_elapsed_ms"] = sht["sht_read_elapsed_ms"] | 0;
+            shtOut["invalid_streak"] = sht["sht_invalid_streak"] | 0;
+            shtOut["status"] = shtValid ? "ok" : "error";
+            shtOut["quality"] = shtValid ? 0.98 : 0.0;
+            shtOut["error_code"] = shtValid ? "" : (sht["sht_error"] | "read_fail");
         }
     }
 
-    if (currentTs >= candidateTs) {
-        return true;
+    JsonObject modules = liveDoc["modules"].to<JsonObject>();
+    JsonObject sim = modules["sim"].to<JsonObject>();
+    sim["signal_dbm"] = ctx.rssi;
+    sim["ts_sample"] = (int)tsDeviceSec;
+#if USE_SIM_NETWORK
+    {
+        SimNetworkState simState = simReadNetworkState(false);
+        sim["operator"] = simState.operatorName;
+        sim["ip"] = simState.localIp;
+        sim["registered"] = simState.networkRegistered;
+        sim["attached"] = simState.packetAttached;
+        sim["gprs"] = simState.gprsConnected;
+        sim["network_status"] = simState.gprsConnected ? "online" :
+                                (simState.packetAttached || simState.networkRegistered ? "degraded" : "offline");
     }
+#else
+    sim["operator"] = "";
+    sim["ip"] = networkLocalIp();
+    sim["network_status"] = ctx.hasInternet ? "online" : "offline";
+#endif
+    JsonObject gps = modules["gps"].to<JsonObject>();
+    gps["enabled"] = false;
+    gps["status"] = "inactive";
+    gps["ts_sample"] = 0;
 
-    candidate["system_record"]["sync"]["latest_updated"] = true;
-    if (!saveRecordDoc(record, candidateDoc, &parseError)) {
-        if (error) {
-            *error = parseError;
-        }
-        return false;
+    bool npkReadOk = sensors["npk"]["read_ok"] | false;
+    bool npkValid = sensors["npk"]["sample_valid"] | false;
+    bool shtReadOk = sensors["sht30"]["read_ok"] | false;
+    bool shtValid = sensors["sht30"]["sample_valid"] | false;
+    JsonObject health = liveDoc["health"].to<JsonObject>();
+    JsonObject overall = health["overall"].to<JsonObject>();
+    overall["online"] = ctx.hasInternet;
+    overall["battery_v"] = -1.0;
+    overall["heap_free"] = (int)ESP.getFreeHeap();
+    overall["rssi"] = ctx.rssi;
+    overall["heartbeat_age_sec"] = 0;
+    overall["sensor_error"] = sensorError;
+
+    JsonObject hs = health["sensors"].to<JsonObject>();
+    hs["npk"].to<JsonObject>()["read_ok"] = npkReadOk;
+    hs["npk"].to<JsonObject>()["sample_valid"] = npkValid;
+    hs["npk"].to<JsonObject>()["status"] = npkValid ? "ok" : "error";
+    hs["npk"].to<JsonObject>()["last_success_ts"] = npkValid ? (int)tsDeviceSec : 0;
+    hs["sht30"].to<JsonObject>()["read_ok"] = shtReadOk;
+    hs["sht30"].to<JsonObject>()["sample_valid"] = shtValid;
+    hs["sht30"].to<JsonObject>()["status"] = shtValid ? "ok" : "error";
+    hs["sht30"].to<JsonObject>()["last_success_ts"] = shtValid ? (int)tsDeviceSec : 0;
+
+    JsonObject hm = health["modules"].to<JsonObject>();
+    hm["sim"].to<JsonObject>()["status"] = ctx.hasInternet ? "online" : "offline";
+    hm["sim"].to<JsonObject>()["last_success_ts"] = ctx.hasInternet ? (int)tsDeviceSec : 0;
+    hm["gps"].to<JsonObject>()["status"] = "inactive";
+    hm["gps"].to<JsonObject>()["last_success_ts"] = 0;
+
+    String liveJson;
+    serializeJson(liveDoc, liveJson);
+
+    FirebaseJson out;
+    if (!out.setJsonData(liveJson)) {
+        return;
     }
-
-    String writeError;
-    if (!writeJsonPath(fbdo, _cfg.nodeLatestPath, record, &writeError)) {
-        if (error) {
-            *error = String("path=") + _cfg.nodeLatestPath + " " + writeError;
-        }
-        return false;
-    }
-
-    if (!publishLatestMeta(fbdo, _cfg, candidate, &writeError)) {
-        if (error) {
-            *error = writeError;
-        }
-        return false;
-    }
-
-    CUS_DBGF("[FIREBASE] latest current/meta OK current=%s meta=%s event=%s\n",
-             _cfg.nodeLatestPath,
-             _cfg.nodeLatestMetaPath ? _cfg.nodeLatestMetaPath : APP_RTDB_PATH_NODE_LATEST_META,
-             candidate["system_record"]["identity"]["record_id"] | "unknown");
-
-    if (updatedLatest) {
-        *updatedLatest = true;
-    }
-    return true;
+    writeJsonPath(fbdo, _cfg.nodeLivePath, out);
 }

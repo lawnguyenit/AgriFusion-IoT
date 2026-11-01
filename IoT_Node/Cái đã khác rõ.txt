@@ -1,0 +1,70 @@
+Task 1 — phá vòng lặp gate
+
+Tách rõ:
+
+transport_ok
+auth_ok
+publish_gate_ok
+ready
+
+Và không được để ready phụ thuộc vào một publish test mà chính publish test lại bị gate chặn.
+
+Tư duy đúng nên là:
+
+ready = begin_done && transport_ok && auth_ok;
+publish_allowed = ready && publish_gate_ok_optional;
+
+Hoặc ít nhất:
+
+probe readiness không đi qua cùng gate của publish thật
+Task 2 — probe path và publish path phải tách khái niệm
+
+Hiện log cho thấy:
+
+probe HTTP 200
+nhưng publish vẫn chết vì auth not initialized
+
+=> cần tách:
+
+probe_transport()
+publish_telemetry()
+
+Không được để probe đi qua logic publish gate rồi lại dùng kết quả đó để xác định ready.
+
+Task 3 — sau mỗi probe/request, reset sạch HTTP session
+
+Vì request đầu 200, request sau 714.
+Đó là dấu hiệu của:
+
+session reuse bẩn
+context chưa clear
+state modem còn dính request trước
+Task 4 — không để bootstrap sau ghi đè sự thật của probe đầu
+
+Lần đầu đã chứng minh:
+
+rtdb_probe_ok
+http=200
+
+Nhưng bootstrap sau lại đánh transport_ready=0.
+Cần log và state theo kiểu:
+
+last_good_transport
+current_attempt_transport
+sticky_transport_ok
+
+Nếu không, hệ thống sẽ tự phủ định bằng chứng thành công vừa có.
+
+Task 5 — dọn startup sequencing
+
+Ở boot:
+
+modem AT còn bẩn
+NPK timeout
+SHT30 fail
+
+=> nên serialize khởi động:
+
+modem sync xong
+sensor task mới bung mạnh
+hoặc ngược lại, nhưng phải nhất quán

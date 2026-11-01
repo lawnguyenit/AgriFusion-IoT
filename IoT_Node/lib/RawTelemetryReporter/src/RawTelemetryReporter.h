@@ -19,21 +19,8 @@ struct RawTelemetryRecordContext {
     int rssi = 0;
     bool hasInternet = false;
     bool sensorError = false;
-    bool includePartialSensorValues = false;
     uint32_t retryCount = 0;
     uint32_t timeoutMs = 0;
-};
-
-struct TelemetryPublishResult {
-    bool ok = false;
-    bool duplicate = false;
-    bool transportOk = false;
-    bool responseReceived = false;
-    int httpStatus = -1;
-    String stage;
-    String detail;
-    String refId;
-    String path;
 };
 
 class RawTelemetryReporter {
@@ -53,8 +40,9 @@ public:
 
     bool publishRecord(FirebaseData &fbdo,
                        FirebaseJson &record,
-                       TelemetryPublishResult &publishResult,
-                       String &errorDetail);
+                       String *outRawRefId,
+                       String &errorDetail,
+                       bool updateLatest = true);
 
     bool probePublishPath(FirebaseData &fbdo,
                           String *outProbePath,

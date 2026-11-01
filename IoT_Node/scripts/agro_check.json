@@ -1,0 +1,3780 @@
+{
+  "telemetry_writes": [
+    {
+      "path": "/Node2/telemetry/2026-03-19/1773853397_001",
+      "data": {
+        "schema_version": 1,
+        "ts_device": 1773853377,
+        "ts_server": 1773853397,
+        "seq_no": 1,
+        "event_meta": {
+          "cycle_type": "periodic",
+          "wake_reason": "timer",
+          "duration_ms": 178
+        },
+        "packet": {
+          "npk_data": {
+            "sensor_type": "npk7in1",
+            "sensor_id": "npk_7in1_1",
+            "read_ok": true,
+            "error_code": "ok",
+            "error_code_raw": 0,
+            "retry_count": 0,
+            "timeout_ms": 2000,
+            "read_duration_ms": 178,
+            "crc_ok": true,
+            "frame_ok": true,
+            "sample_interval_ms": 3600000,
+            "consecutive_fail_count": 0,
+            "recovered_after_fail": false,
+            "fail_streak_before_recover": 0,
+            "sensor_alarm": false,
+            "npk_values_valid": true,
+            "npk_signal_present": true,
+            "temp": 25.16,
+            "hum": 64.88,
+            "ph": 6.12,
+            "ec": 952,
+            "N": 115,
+            "P": 31,
+            "K": 65,
+            "edge_system": "soil_npk_edge",
+            "edge_system_id": "edge_npk_01",
+            "edge_stream": "npk"
+          },
+          "sht30_data": {
+            "sensor_type": "sht30_air",
+            "sensor_id": "sht30_1",
+            "edge_system": "air_climate_edge",
+            "edge_system_id": "edge_sht30_01",
+            "edge_stream": "sht30",
+            "sht_addr": "0x44",
+            "sht_sda": 8,
+            "sht_scl": 9,
+            "sht_retry_limit": 5,
+            "sht_retry_delay_ms": 120,
+            "sht_max_wait_ms": 1200,
+            "sht_read_ok": true,
+            "sht_sample_valid": true,
+            "sht_temp_c": 25.26,
+            "sht_hum_pct": 78.16,
+            "sht_error": "ok",
+            "sht_retry_count": 0,
+            "sht_read_elapsed_ms": 51,
+            "sht_invalid_streak": 0
+          },
+          "system_data": {
+            "edge_system_primary": "soil_npk_edge",
+            "edge_system_secondary": "air_climate_edge",
+            "edge_system_id_primary": "edge_npk_01",
+            "edge_system_id_secondary": "edge_sht30_01",
+            "wifi_status": 3,
+            "wifi_connected": true,
+            "rssi": -70,
+            "transport": "sim",
+            "npk_alarm": false,
+            "sht_ready": true,
+            "firmware_version": "mock_seed_v1",
+            "running_partition": "ota_0",
+            "ts_device_ms": 1773853377000
+          }
+        },
+        "sensors": {
+          "npk": {
+            "read_ok": true,
+            "sample_valid": true,
+            "status": "ok",
+            "quality": 0.93,
+            "ts_sample": 1773853377,
+            "error_code": ""
+          },
+          "sht30": {
+            "read_ok": true,
+            "sample_valid": true,
+            "status": "ok",
+            "quality": 0.98,
+            "ts_sample": 1773853377,
+            "error_code": ""
+          }
+        },
+        "modules": {
+          "sim": {
+            "operator": "Viettel",
+            "signal_dbm": -70,
+            "network_status": "connected",
+            "ts_sample": 1773853377
+          },
+          "gps": {
+            "enabled": false,
+            "status": "inactive",
+            "ts_sample": 0
+          }
+        },
+        "health": {
+          "overall": {
+            "battery_v": 12.1,
+            "heap_free": 245000,
+            "rssi": -70,
+            "online": true
+          },
+          "npk": {
+            "status": "ok",
+            "quality": 0.93,
+            "error_code": ""
+          },
+          "sht30": {
+            "status": "ok",
+            "quality": 0.98,
+            "error_code": ""
+          },
+          "sim": {
+            "status": "connected",
+            "error_code": ""
+          }
+        },
+        "fallback_used": false,
+        "was_buffered": false,
+        "replayed": false,
+        "_meta_seed": {
+          "node_id": "Node2",
+          "node_name": "Vuon sau rieng A",
+          "site_id": "farm_a_zone_1",
+          "device_uid": "esp32s3_node2",
+          "server_delay_sec": 20
+        }
+      },
+      "category": "telemetry",
+      "timestamp_local": "2026-03-19T00:02:57+07:00"
+    },
+    {
+      "path": "/Node2/telemetry/2026-03-19/1773856984_002",
+      "data": {
+        "schema_version": 1,
+        "ts_device": 1773856932,
+        "ts_server": 1773856984,
+        "seq_no": 2,
+        "event_meta": {
+          "cycle_type": "periodic",
+          "wake_reason": "timer",
+          "duration_ms": 118
+        },
+        "packet": {
+          "npk_data": {
+            "sensor_type": "npk7in1",
+            "sensor_id": "npk_7in1_1",
+            "read_ok": true,
+            "error_code": "ok",
+            "error_code_raw": 0,
+            "retry_count": 0,
+            "timeout_ms": 2000,
+            "read_duration_ms": 118,
+            "crc_ok": true,
+            "frame_ok": true,
+            "sample_interval_ms": 3600000,
+            "consecutive_fail_count": 0,
+            "recovered_after_fail": false,
+            "fail_streak_before_recover": 0,
+            "sensor_alarm": false,
+            "npk_values_valid": true,
+            "npk_signal_present": true,
+            "temp": 25.52,
+            "hum": 63.62,
+            "ph": 6.13,
+            "ec": 983,
+            "N": 112,
+            "P": 33,
+            "K": 68,
+            "edge_system": "soil_npk_edge",
+            "edge_system_id": "edge_npk_01",
+            "edge_stream": "npk"
+          },
+          "sht30_data": {
+            "sensor_type": "sht30_air",
+            "sensor_id": "sht30_1",
+            "edge_system": "air_climate_edge",
+            "edge_system_id": "edge_sht30_01",
+            "edge_stream": "sht30",
+            "sht_addr": "0x44",
+            "sht_sda": 8,
+            "sht_scl": 9,
+            "sht_retry_limit": 5,
+            "sht_retry_delay_ms": 120,
+            "sht_max_wait_ms": 1200,
+            "sht_read_ok": true,
+            "sht_sample_valid": true,
+            "sht_temp_c": 25.39,
+            "sht_hum_pct": 78.55,
+            "sht_error": "ok",
+            "sht_retry_count": 0,
+            "sht_read_elapsed_ms": 41,
+            "sht_invalid_streak": 0
+          },
+          "system_data": {
+            "edge_system_primary": "soil_npk_edge",
+            "edge_system_secondary": "air_climate_edge",
+            "edge_system_id_primary": "edge_npk_01",
+            "edge_system_id_secondary": "edge_sht30_01",
+            "wifi_status": 3,
+            "wifi_connected": true,
+            "rssi": -64,
+            "transport": "sim",
+            "npk_alarm": false,
+            "sht_ready": true,
+            "firmware_version": "mock_seed_v1",
+            "running_partition": "ota_0",
+            "ts_device_ms": 1773856932000
+          }
+        },
+        "sensors": {
+          "npk": {
+            "read_ok": true,
+            "sample_valid": true,
+            "status": "ok",
+            "quality": 0.93,
+            "ts_sample": 1773856932,
+            "error_code": ""
+          },
+          "sht30": {
+            "read_ok": true,
+            "sample_valid": true,
+            "status": "ok",
+            "quality": 0.98,
+            "ts_sample": 1773856932,
+            "error_code": ""
+          }
+        },
+        "modules": {
+          "sim": {
+            "operator": "Viettel",
+            "signal_dbm": -64,
+            "network_status": "connected",
+            "ts_sample": 1773856932
+          },
+          "gps": {
+            "enabled": false,
+            "status": "inactive",
+            "ts_sample": 0
+          }
+        },
+        "health": {
+          "overall": {
+            "battery_v": 12.1,
+            "heap_free": 245000,
+            "rssi": -64,
+            "online": true
+          },
+          "npk": {
+            "status": "ok",
+            "quality": 0.93,
+            "error_code": ""
+          },
+          "sht30": {
+            "status": "ok",
+            "quality": 0.98,
+            "error_code": ""
+          },
+          "sim": {
+            "status": "connected",
+            "error_code": ""
+          }
+        },
+        "fallback_used": false,
+        "was_buffered": false,
+        "replayed": false,
+        "_meta_seed": {
+          "node_id": "Node2",
+          "node_name": "Vuon sau rieng A",
+          "site_id": "farm_a_zone_1",
+          "device_uid": "esp32s3_node2",
+          "server_delay_sec": 52
+        }
+      },
+      "category": "telemetry",
+      "timestamp_local": "2026-03-19T01:02:12+07:00"
+    },
+    {
+      "path": "/Node2/telemetry/2026-03-19/1773860696_003",
+      "data": {
+        "schema_version": 1,
+        "ts_device": 1773860660,
+        "ts_server": 1773860696,
+        "seq_no": 3,
+        "event_meta": {
+          "cycle_type": "periodic",
+          "wake_reason": "timer",
+          "duration_ms": 166
+        },
+        "packet": {
+          "npk_data": {
+            "sensor_type": "npk7in1",
+            "sensor_id": "npk_7in1_1",
+            "read_ok": true,
+            "error_code": "ok",
+            "error_code_raw": 0,
+            "retry_count": 0,
+            "timeout_ms": 2000,
+            "read_duration_ms": 166,
+            "crc_ok": true,
+            "frame_ok": true,
+            "sample_interval_ms": 3600000,
+            "consecutive_fail_count": 0,
+            "recovered_after_fail": false,
+            "fail_streak_before_recover": 0,
+            "sensor_alarm": false,
+            "npk_values_valid": true,
+            "npk_signal_present": true,
+            "temp": 25.82,
+            "hum": 62.77,
+            "ph": 6.13,
+            "ec": 973,
+            "N": 109,
+            "P": 31,
+            "K": 69,
+            "edge_system": "soil_npk_edge",
+            "edge_system_id": "edge_npk_01",
+            "edge_stream": "npk"
+          },
+          "sht30_data": {
+            "sensor_type": "sht30_air",
+            "sensor_id": "sht30_1",
+            "edge_system": "air_climate_edge",
+            "edge_system_id": "edge_sht30_01",
+            "edge_stream": "sht30",
+            "sht_addr": "0x44",
+            "sht_sda": 8,
+            "sht_scl": 9,
+            "sht_retry_limit": 5,
+            "sht_retry_delay_ms": 120,
+            "sht_max_wait_ms": 1200,
+            "sht_read_ok": true,
+            "sht_sample_valid": true,
+            "sht_temp_c": 25.9,
+            "sht_hum_pct": 77.78,
+            "sht_error": "ok",
+            "sht_retry_count": 0,
+            "sht_read_elapsed_ms": 36,
+            "sht_invalid_streak": 0
+          },
+          "system_data": {
+            "edge_system_primary": "soil_npk_edge",
+            "edge_system_secondary": "air_climate_edge",
+            "edge_system_id_primary": "edge_npk_01",
+            "edge_system_id_secondary": "edge_sht30_01",
+            "wifi_status": 3,
+            "wifi_connected": true,
+            "rssi": -63,
+            "transport": "sim",
+            "npk_alarm": false,
+            "sht_ready": true,
+            "firmware_version": "mock_seed_v1",
+            "running_partition": "ota_0",
+            "ts_device_ms": 1773860660000
+          }
+        },
+        "sensors": {
+          "npk": {
+            "read_ok": true,
+            "sample_valid": true,
+            "status": "ok",
+            "quality": 0.93,
+            "ts_sample": 1773860660,
+            "error_code": ""
+          },
+          "sht30": {
+            "read_ok": true,
+            "sample_valid": true,
+            "status": "ok",
+            "quality": 0.98,
+            "ts_sample": 1773860660,
+            "error_code": ""
+          }
+        },
+        "modules": {
+          "sim": {
+            "operator": "Viettel",
+            "signal_dbm": -63,
+            "network_status": "connected",
+            "ts_sample": 1773860660
+          },
+          "gps": {
+            "enabled": false,
+            "status": "inactive",
+            "ts_sample": 0
+          }
+        },
+        "health": {
+          "overall": {
+            "battery_v": 12.1,
+            "heap_free": 245000,
+            "rssi": -63,
+            "online": true
+          },
+          "npk": {
+            "status": "ok",
+            "quality": 0.93,
+            "error_code": ""
+          },
+          "sht30": {
+            "status": "ok",
+            "quality": 0.98,
+            "error_code": ""
+          },
+          "sim": {
+            "status": "connected",
+            "error_code": ""
+          }
+        },
+        "fallback_used": false,
+        "was_buffered": false,
+        "replayed": false,
+        "_meta_seed": {
+          "node_id": "Node2",
+          "node_name": "Vuon sau rieng A",
+          "site_id": "farm_a_zone_1",
+          "device_uid": "esp32s3_node2",
+          "server_delay_sec": 36
+        }
+      },
+      "category": "telemetry",
+      "timestamp_local": "2026-03-19T02:04:20+07:00"
+    },
+    {
+      "path": "/Node2/telemetry/2026-03-19/1773864311_004",
+      "data": {
+        "schema_version": 1,
+        "ts_device": 1773864245,
+        "ts_server": 1773864311,
+        "seq_no": 4,
+        "event_meta": {
+          "cycle_type": "periodic",
+          "wake_reason": "timer",
+          "duration_ms": 176
+        },
+        "packet": {
+          "npk_data": {
+            "sensor_type": "npk7in1",
+            "sensor_id": "npk_7in1_1",
+            "read_ok": true,
+            "error_code": "ok",
+            "error_code_raw": 0,
+            "retry_count": 0,
+            "timeout_ms": 2000,
+            "read_duration_ms": 176,
+            "crc_ok": true,
+            "frame_ok": true,
+            "sample_interval_ms": 3600000,
+            "consecutive_fail_count": 0,
+            "recovered_after_fail": false,
+            "fail_streak_before_recover": 0,
+            "sensor_alarm": false,
+            "npk_values_valid": true,
+            "npk_signal_present": true,
+            "temp": 26.0,
+            "hum": 61.59,
+            "ph": 6.16,
+            "ec": 951,
+            "N": 109,
+            "P": 31,
+            "K": 69,
+            "edge_system": "soil_npk_edge",
+            "edge_system_id": "edge_npk_01",
+            "edge_stream": "npk"
+          },
+          "sht30_data": {
+            "sensor_type": "sht30_air",
+            "sensor_id": "sht30_1",
+            "edge_system": "air_climate_edge",
+            "edge_system_id": "edge_sht30_01",
+            "edge_stream": "sht30",
+            "sht_addr": "0x44",
+            "sht_sda": 8,
+            "sht_scl": 9,
+            "sht_retry_limit": 5,
+            "sht_retry_delay_ms": 120,
+            "sht_max_wait_ms": 1200,
+            "sht_read_ok": true,
+            "sht_sample_valid": true,
+            "sht_temp_c": 26.02,
+            "sht_hum_pct": 73.97,
+            "sht_error": "ok",
+            "sht_retry_count": 0,
+            "sht_read_elapsed_ms": 57,
+            "sht_invalid_streak": 0
+          },
+          "system_data": {
+            "edge_system_primary": "soil_npk_edge",
+            "edge_system_secondary": "air_climate_edge",
+            "edge_system_id_primary": "edge_npk_01",
+            "edge_system_id_secondary": "edge_sht30_01",
+            "wifi_status": 3,
+            "wifi_connected": true,
+            "rssi": -65,
+            "transport": "sim",
+            "npk_alarm": false,
+            "sht_ready": true,
+            "firmware_version": "mock_seed_v1",
+            "running_partition": "ota_0",
+            "ts_device_ms": 1773864245000
+          }
+        },
+        "sensors": {
+          "npk": {
+            "read_ok": true,
+            "sample_valid": true,
+            "status": "ok",
+            "quality": 0.93,
+            "ts_sample": 1773864245,
+            "error_code": ""
+          },
+          "sht30": {
+            "read_ok": true,
+            "sample_valid": true,
+            "status": "ok",
+            "quality": 0.98,
+            "ts_sample": 1773864245,
+            "error_code": ""
+          }
+        },
+        "modules": {
+          "sim": {
+            "operator": "Viettel",
+            "signal_dbm": -65,
+            "network_status": "connected",
+            "ts_sample": 1773864245
+          },
+          "gps": {
+            "enabled": false,
+            "status": "inactive",
+            "ts_sample": 0
+          }
+        },
+        "health": {
+          "overall": {
+            "battery_v": 12.1,
+            "heap_free": 245000,
+            "rssi": -65,
+            "online": true
+          },
+          "npk": {
+            "status": "ok",
+            "quality": 0.93,
+            "error_code": ""
+          },
+          "sht30": {
+            "status": "ok",
+            "quality": 0.98,
+            "error_code": ""
+          },
+          "sim": {
+            "status": "connected",
+            "error_code": ""
+          }
+        },
+        "fallback_used": false,
+        "was_buffered": false,
+        "replayed": false,
+        "_meta_seed": {
+          "node_id": "Node2",
+          "node_name": "Vuon sau rieng A",
+          "site_id": "farm_a_zone_1",
+          "device_uid": "esp32s3_node2",
+          "server_delay_sec": 66
+        }
+      },
+      "category": "telemetry",
+      "timestamp_local": "2026-03-19T03:04:05+07:00"
+    },
+    {
+      "path": "/Node2/telemetry/2026-03-19/1773867882_005",
+      "data": {
+        "schema_version": 1,
+        "ts_device": 1773867834,
+        "ts_server": 1773867882,
+        "seq_no": 5,
+        "event_meta": {
+          "cycle_type": "periodic",
+          "wake_reason": "timer",
+          "duration_ms": 133
+        },
+        "packet": {
+          "npk_data": {
+            "sensor_type": "npk7in1",
+            "sensor_id": "npk_7in1_1",
+            "read_ok": true,
+            "error_code": "ok",
+            "error_code_raw": 0,
+            "retry_count": 0,
+            "timeout_ms": 2000,
+            "read_duration_ms": 133,
+            "crc_ok": true,
+            "frame_ok": true,
+            "sample_interval_ms": 3600000,
+            "consecutive_fail_count": 0,
+            "recovered_after_fail": false,
+            "fail_streak_before_recover": 0,
+            "sensor_alarm": false,
+            "npk_values_valid": true,
+            "npk_signal_present": true,
+            "temp": 26.75,
+            "hum": 61.77,
+            "ph": 6.11,
+            "ec": 931,
+            "N": 111,
+            "P": 34,
+            "K": 67,
+            "edge_system": "soil_npk_edge",
+            "edge_system_id": "edge_npk_01",
+            "edge_stream": "npk"
+          },
+          "sht30_data": {
+            "sensor_type": "sht30_air",
+            "sensor_id": "sht30_1",
+            "edge_system": "air_climate_edge",
+            "edge_system_id": "edge_sht30_01",
+            "edge_stream": "sht30",
+            "sht_addr": "0x44",
+            "sht_sda": 8,
+            "sht_scl": 9,
+            "sht_retry_limit": 5,
+            "sht_retry_delay_ms": 120,
+            "sht_max_wait_ms": 1200,
+            "sht_read_ok": true,
+            "sht_sample_valid": true,
+            "sht_temp_c": 26.35,
+            "sht_hum_pct": 71.7,
+            "sht_error": "ok",
+            "sht_retry_count": 0,
+            "sht_read_elapsed_ms": 50,
+            "sht_invalid_streak": 0
+          },
+          "system_data": {
+            "edge_system_primary": "soil_npk_edge",
+            "edge_system_secondary": "air_climate_edge",
+            "edge_system_id_primary": "edge_npk_01",
+            "edge_system_id_secondary": "edge_sht30_01",
+            "wifi_status": 3,
+            "wifi_connected": true,
+            "rssi": -63,
+            "transport": "sim",
+            "npk_alarm": false,
+            "sht_ready": true,
+            "firmware_version": "mock_seed_v1",
+            "running_partition": "ota_0",
+            "ts_device_ms": 1773867834000
+          }
+        },
+        "sensors": {
+          "npk": {
+            "read_ok": true,
+            "sample_valid": true,
+            "status": "ok",
+            "quality": 0.93,
+            "ts_sample": 1773867834,
+            "error_code": ""
+          },
+          "sht30": {
+            "read_ok": true,
+            "sample_valid": true,
+            "status": "ok",
+            "quality": 0.98,
+            "ts_sample": 1773867834,
+            "error_code": ""
+          }
+        },
+        "modules": {
+          "sim": {
+            "operator": "Viettel",
+            "signal_dbm": -63,
+            "network_status": "connected",
+            "ts_sample": 1773867834
+          },
+          "gps": {
+            "enabled": false,
+            "status": "inactive",
+            "ts_sample": 0
+          }
+        },
+        "health": {
+          "overall": {
+            "battery_v": 12.1,
+            "heap_free": 245000,
+            "rssi": -63,
+            "online": true
+          },
+          "npk": {
+            "status": "ok",
+            "quality": 0.93,
+            "error_code": ""
+          },
+          "sht30": {
+            "status": "ok",
+            "quality": 0.98,
+            "error_code": ""
+          },
+          "sim": {
+            "status": "connected",
+            "error_code": ""
+          }
+        },
+        "fallback_used": false,
+        "was_buffered": false,
+        "replayed": false,
+        "_meta_seed": {
+          "node_id": "Node2",
+          "node_name": "Vuon sau rieng A",
+          "site_id": "farm_a_zone_1",
+          "device_uid": "esp32s3_node2",
+          "server_delay_sec": 48
+        }
+      },
+      "category": "telemetry",
+      "timestamp_local": "2026-03-19T04:03:54+07:00"
+    },
+    {
+      "path": "/Node2/telemetry/2026-03-19/1773871414_006",
+      "data": {
+        "schema_version": 1,
+        "ts_device": 1773871391,
+        "ts_server": 1773871414,
+        "seq_no": 6,
+        "event_meta": {
+          "cycle_type": "periodic",
+          "wake_reason": "timer",
+          "duration_ms": 126
+        },
+        "packet": {
+          "npk_data": {
+            "sensor_type": "npk7in1",
+            "sensor_id": "npk_7in1_1",
+            "read_ok": true,
+            "error_code": "ok",
+            "error_code_raw": 0,
+            "retry_count": 0,
+            "timeout_ms": 2000,
+            "read_duration_ms": 126,
+            "crc_ok": true,
+            "frame_ok": true,
+            "sample_interval_ms": 3600000,
+            "consecutive_fail_count": 0,
+            "recovered_after_fail": false,
+            "fail_streak_before_recover": 0,
+            "sensor_alarm": false,
+            "npk_values_valid": true,
+            "npk_signal_present": true,
+            "temp": 26.99,
+            "hum": 59.72,
+            "ph": 6.17,
+            "ec": 884,
+            "N": 111,
+            "P": 33,
+            "K": 70,
+            "edge_system": "soil_npk_edge",
+            "edge_system_id": "edge_npk_01",
+            "edge_stream": "npk"
+          },
+          "sht30_data": {
+            "sensor_type": "sht30_air",
+            "sensor_id": "sht30_1",
+            "edge_system": "air_climate_edge",
+            "edge_system_id": "edge_sht30_01",
+            "edge_stream": "sht30",
+            "sht_addr": "0x44",
+            "sht_sda": 8,
+            "sht_scl": 9,
+            "sht_retry_limit": 5,
+            "sht_retry_delay_ms": 120,
+            "sht_max_wait_ms": 1200,
+            "sht_read_ok": true,
+            "sht_sample_valid": true,
+            "sht_temp_c": 27.24,
+            "sht_hum_pct": 70.16,
+            "sht_error": "ok",
+            "sht_retry_count": 0,
+            "sht_read_elapsed_ms": 54,
+            "sht_invalid_streak": 0
+          },
+          "system_data": {
+            "edge_system_primary": "soil_npk_edge",
+            "edge_system_secondary": "air_climate_edge",
+            "edge_system_id_primary": "edge_npk_01",
+            "edge_system_id_secondary": "edge_sht30_01",
+            "wifi_status": 3,
+            "wifi_connected": true,
+            "rssi": -63,
+            "transport": "sim",
+            "npk_alarm": false,
+            "sht_ready": true,
+            "firmware_version": "mock_seed_v1",
+            "running_partition": "ota_0",
+            "ts_device_ms": 1773871391000
+          }
+        },
+        "sensors": {
+          "npk": {
+            "read_ok": true,
+            "sample_valid": true,
+            "status": "ok",
+            "quality": 0.93,
+            "ts_sample": 1773871391,
+            "error_code": ""
+          },
+          "sht30": {
+            "read_ok": true,
+            "sample_valid": true,
+            "status": "ok",
+            "quality": 0.98,
+            "ts_sample": 1773871391,
+            "error_code": ""
+          }
+        },
+        "modules": {
+          "sim": {
+            "operator": "Viettel",
+            "signal_dbm": -63,
+            "network_status": "connected",
+            "ts_sample": 1773871391
+          },
+          "gps": {
+            "enabled": false,
+            "status": "inactive",
+            "ts_sample": 0
+          }
+        },
+        "health": {
+          "overall": {
+            "battery_v": 12.1,
+            "heap_free": 245000,
+            "rssi": -63,
+            "online": true
+          },
+          "npk": {
+            "status": "ok",
+            "quality": 0.93,
+            "error_code": ""
+          },
+          "sht30": {
+            "status": "ok",
+            "quality": 0.98,
+            "error_code": ""
+          },
+          "sim": {
+            "status": "connected",
+            "error_code": ""
+          }
+        },
+        "fallback_used": false,
+        "was_buffered": false,
+        "replayed": false,
+        "_meta_seed": {
+          "node_id": "Node2",
+          "node_name": "Vuon sau rieng A",
+          "site_id": "farm_a_zone_1",
+          "device_uid": "esp32s3_node2",
+          "server_delay_sec": 23
+        }
+      },
+      "category": "telemetry",
+      "timestamp_local": "2026-03-19T05:03:11+07:00"
+    },
+    {
+      "path": "/Node2/telemetry/2026-03-19/1773875024_007",
+      "data": {
+        "schema_version": 1,
+        "ts_device": 1773874972,
+        "ts_server": 1773875024,
+        "seq_no": 7,
+        "event_meta": {
+          "cycle_type": "periodic",
+          "wake_reason": "timer",
+          "duration_ms": 172
+        },
+        "packet": {
+          "npk_data": {
+            "sensor_type": "npk7in1",
+            "sensor_id": "npk_7in1_1",
+            "read_ok": true,
+            "error_code": "ok",
+            "error_code_raw": 0,
+            "retry_count": 0,
+            "timeout_ms": 2000,
+            "read_duration_ms": 172,
+            "crc_ok": true,
+            "frame_ok": true,
+            "sample_interval_ms": 3600000,
+            "consecutive_fail_count": 0,
+            "recovered_after_fail": false,
+            "fail_streak_before_recover": 0,
+            "sensor_alarm": false,
+            "npk_values_valid": true,
+            "npk_signal_present": true,
+            "temp": 27.37,
+            "hum": 58.54,
+            "ph": 6.13,
+            "ec": 900,
+            "N": 113,
+            "P": 30,
+            "K": 70,
+            "edge_system": "soil_npk_edge",
+            "edge_system_id": "edge_npk_01",
+            "edge_stream": "npk"
+          },
+          "sht30_data": {
+            "sensor_type": "sht30_air",
+            "sensor_id": "sht30_1",
+            "edge_system": "air_climate_edge",
+            "edge_system_id": "edge_sht30_01",
+            "edge_stream": "sht30",
+            "sht_addr": "0x44",
+            "sht_sda": 8,
+            "sht_scl": 9,
+            "sht_retry_limit": 5,
+            "sht_retry_delay_ms": 120,
+            "sht_max_wait_ms": 1200,
+            "sht_read_ok": true,
+            "sht_sample_valid": true,
+            "sht_temp_c": 27.56,
+            "sht_hum_pct": 68.59,
+            "sht_error": "ok",
+            "sht_retry_count": 0,
+            "sht_read_elapsed_ms": 44,
+            "sht_invalid_streak": 0
+          },
+          "system_data": {
+            "edge_system_primary": "soil_npk_edge",
+            "edge_system_secondary": "air_climate_edge",
+            "edge_system_id_primary": "edge_npk_01",
+            "edge_system_id_secondary": "edge_sht30_01",
+            "wifi_status": 3,
+            "wifi_connected": true,
+            "rssi": -59,
+            "transport": "sim",
+            "npk_alarm": false,
+            "sht_ready": true,
+            "firmware_version": "mock_seed_v1",
+            "running_partition": "ota_0",
+            "ts_device_ms": 1773874972000
+          }
+        },
+        "sensors": {
+          "npk": {
+            "read_ok": true,
+            "sample_valid": true,
+            "status": "ok",
+            "quality": 0.93,
+            "ts_sample": 1773874972,
+            "error_code": ""
+          },
+          "sht30": {
+            "read_ok": true,
+            "sample_valid": true,
+            "status": "ok",
+            "quality": 0.98,
+            "ts_sample": 1773874972,
+            "error_code": ""
+          }
+        },
+        "modules": {
+          "sim": {
+            "operator": "Viettel",
+            "signal_dbm": -59,
+            "network_status": "connected",
+            "ts_sample": 1773874972
+          },
+          "gps": {
+            "enabled": false,
+            "status": "inactive",
+            "ts_sample": 0
+          }
+        },
+        "health": {
+          "overall": {
+            "battery_v": 12.1,
+            "heap_free": 245000,
+            "rssi": -59,
+            "online": true
+          },
+          "npk": {
+            "status": "ok",
+            "quality": 0.93,
+            "error_code": ""
+          },
+          "sht30": {
+            "status": "ok",
+            "quality": 0.98,
+            "error_code": ""
+          },
+          "sim": {
+            "status": "connected",
+            "error_code": ""
+          }
+        },
+        "fallback_used": false,
+        "was_buffered": false,
+        "replayed": false,
+        "_meta_seed": {
+          "node_id": "Node2",
+          "node_name": "Vuon sau rieng A",
+          "site_id": "farm_a_zone_1",
+          "device_uid": "esp32s3_node2",
+          "server_delay_sec": 52
+        }
+      },
+      "category": "telemetry",
+      "timestamp_local": "2026-03-19T06:02:52+07:00"
+    },
+    {
+      "path": "/Node2/telemetry/2026-03-19/1773878833_008",
+      "data": {
+        "schema_version": 1,
+        "ts_device": 1773878799,
+        "ts_server": 1773878833,
+        "seq_no": 8,
+        "event_meta": {
+          "cycle_type": "periodic",
+          "wake_reason": "timer",
+          "duration_ms": 165
+        },
+        "packet": {
+          "npk_data": {
+            "sensor_type": "npk7in1",
+            "sensor_id": "npk_7in1_1",
+            "read_ok": true,
+            "error_code": "ok",
+            "error_code_raw": 0,
+            "retry_count": 0,
+            "timeout_ms": 2000,
+            "read_duration_ms": 165,
+            "crc_ok": true,
+            "frame_ok": true,
+            "sample_interval_ms": 3600000,
+            "consecutive_fail_count": 0,
+            "recovered_after_fail": false,
+            "fail_streak_before_recover": 0,
+            "sensor_alarm": false,
+            "npk_values_valid": true,
+            "npk_signal_present": true,
+            "temp": 27.98,
+            "hum": 59.56,
+            "ph": 6.11,
+            "ec": 850,
+            "N": 109,
+            "P": 33,
+            "K": 70,
+            "edge_system": "soil_npk_edge",
+            "edge_system_id": "edge_npk_01",
+            "edge_stream": "npk"
+          },
+          "sht30_data": {
+            "sensor_type": "sht30_air",
+            "sensor_id": "sht30_1",
+            "edge_system": "air_climate_edge",
+            "edge_system_id": "edge_sht30_01",
+            "edge_stream": "sht30",
+            "sht_addr": "0x44",
+            "sht_sda": 8,
+            "sht_scl": 9,
+            "sht_retry_limit": 5,
+            "sht_retry_delay_ms": 120,
+            "sht_max_wait_ms": 1200,
+            "sht_read_ok": true,
+            "sht_sample_valid": true,
+            "sht_temp_c": 27.94,
+            "sht_hum_pct": 68.23,
+            "sht_error": "ok",
+            "sht_retry_count": 0,
+            "sht_read_elapsed_ms": 52,
+            "sht_invalid_streak": 0
+          },
+          "system_data": {
+            "edge_system_primary": "soil_npk_edge",
+            "edge_system_secondary": "air_climate_edge",
+            "edge_system_id_primary": "edge_npk_01",
+            "edge_system_id_secondary": "edge_sht30_01",
+            "wifi_status": 3,
+            "wifi_connected": true,
+            "rssi": -62,
+            "transport": "sim",
+            "npk_alarm": false,
+            "sht_ready": true,
+            "firmware_version": "mock_seed_v1",
+            "running_partition": "ota_0",
+            "ts_device_ms": 1773878799000
+          }
+        },
+        "sensors": {
+          "npk": {
+            "read_ok": true,
+            "sample_valid": true,
+            "status": "ok",
+            "quality": 0.93,
+            "ts_sample": 1773878799,
+            "error_code": ""
+          },
+          "sht30": {
+            "read_ok": true,
+            "sample_valid": true,
+            "status": "ok",
+            "quality": 0.98,
+            "ts_sample": 1773878799,
+            "error_code": ""
+          }
+        },
+        "modules": {
+          "sim": {
+            "operator": "Viettel",
+            "signal_dbm": -62,
+            "network_status": "connected",
+            "ts_sample": 1773878799
+          },
+          "gps": {
+            "enabled": false,
+            "status": "inactive",
+            "ts_sample": 0
+          }
+        },
+        "health": {
+          "overall": {
+            "battery_v": 12.1,
+            "heap_free": 245000,
+            "rssi": -62,
+            "online": true
+          },
+          "npk": {
+            "status": "ok",
+            "quality": 0.93,
+            "error_code": ""
+          },
+          "sht30": {
+            "status": "ok",
+            "quality": 0.98,
+            "error_code": ""
+          },
+          "sim": {
+            "status": "connected",
+            "error_code": ""
+          }
+        },
+        "fallback_used": false,
+        "was_buffered": false,
+        "replayed": false,
+        "_meta_seed": {
+          "node_id": "Node2",
+          "node_name": "Vuon sau rieng A",
+          "site_id": "farm_a_zone_1",
+          "device_uid": "esp32s3_node2",
+          "server_delay_sec": 34
+        }
+      },
+      "category": "telemetry",
+      "timestamp_local": "2026-03-19T07:06:39+07:00"
+    },
+    {
+      "path": "/Node2/telemetry/2026-03-19/1773882209_009",
+      "data": {
+        "schema_version": 1,
+        "ts_device": 1773882164,
+        "ts_server": 1773882209,
+        "seq_no": 9,
+        "event_meta": {
+          "cycle_type": "periodic",
+          "wake_reason": "timer",
+          "duration_ms": 195
+        },
+        "packet": {
+          "npk_data": {
+            "sensor_type": "npk7in1",
+            "sensor_id": "npk_7in1_1",
+            "read_ok": true,
+            "error_code": "ok",
+            "error_code_raw": 0,
+            "retry_count": 0,
+            "timeout_ms": 2000,
+            "read_duration_ms": 195,
+            "crc_ok": true,
+            "frame_ok": true,
+            "sample_interval_ms": 3600000,
+            "consecutive_fail_count": 0,
+            "recovered_after_fail": false,
+            "fail_streak_before_recover": 0,
+            "sensor_alarm": false,
+            "npk_values_valid": true,
+            "npk_signal_present": true,
+            "temp": 27.66,
+            "hum": 63.49,
+            "ph": 6.14,
+            "ec": 811,
+            "N": 110,
+            "P": 30,
+            "K": 65,
+            "edge_system": "soil_npk_edge",
+            "edge_system_id": "edge_npk_01",
+            "edge_stream": "npk"
+          },
+          "sht30_data": {
+            "sensor_type": "sht30_air",
+            "sensor_id": "sht30_1",
+            "edge_system": "air_climate_edge",
+            "edge_system_id": "edge_sht30_01",
+            "edge_stream": "sht30",
+            "sht_addr": "0x44",
+            "sht_sda": 8,
+            "sht_scl": 9,
+            "sht_retry_limit": 5,
+            "sht_retry_delay_ms": 120,
+            "sht_max_wait_ms": 1200,
+            "sht_read_ok": true,
+            "sht_sample_valid": true,
+            "sht_temp_c": 26.85,
+            "sht_hum_pct": 79.61,
+            "sht_error": "ok",
+            "sht_retry_count": 0,
+            "sht_read_elapsed_ms": 41,
+            "sht_invalid_streak": 0
+          },
+          "system_data": {
+            "edge_system_primary": "soil_npk_edge",
+            "edge_system_secondary": "air_climate_edge",
+            "edge_system_id_primary": "edge_npk_01",
+            "edge_system_id_secondary": "edge_sht30_01",
+            "wifi_status": 3,
+            "wifi_connected": true,
+            "rssi": -59,
+            "transport": "sim",
+            "npk_alarm": false,
+            "sht_ready": true,
+            "firmware_version": "mock_seed_v1",
+            "running_partition": "ota_0",
+            "ts_device_ms": 1773882164000
+          }
+        },
+        "sensors": {
+          "npk": {
+            "read_ok": true,
+            "sample_valid": true,
+            "status": "ok",
+            "quality": 0.93,
+            "ts_sample": 1773882164,
+            "error_code": ""
+          },
+          "sht30": {
+            "read_ok": true,
+            "sample_valid": true,
+            "status": "ok",
+            "quality": 0.98,
+            "ts_sample": 1773882164,
+            "error_code": ""
+          }
+        },
+        "modules": {
+          "sim": {
+            "operator": "Viettel",
+            "signal_dbm": -59,
+            "network_status": "connected",
+            "ts_sample": 1773882164
+          },
+          "gps": {
+            "enabled": false,
+            "status": "inactive",
+            "ts_sample": 0
+          }
+        },
+        "health": {
+          "overall": {
+            "battery_v": 12.1,
+            "heap_free": 245000,
+            "rssi": -59,
+            "online": true
+          },
+          "npk": {
+            "status": "ok",
+            "quality": 0.93,
+            "error_code": ""
+          },
+          "sht30": {
+            "status": "ok",
+            "quality": 0.98,
+            "error_code": ""
+          },
+          "sim": {
+            "status": "connected",
+            "error_code": ""
+          }
+        },
+        "fallback_used": false,
+        "was_buffered": false,
+        "replayed": false,
+        "_meta_seed": {
+          "node_id": "Node2",
+          "node_name": "Vuon sau rieng A",
+          "site_id": "farm_a_zone_1",
+          "device_uid": "esp32s3_node2",
+          "server_delay_sec": 45
+        }
+      },
+      "category": "telemetry",
+      "timestamp_local": "2026-03-19T08:02:44+07:00"
+    },
+    {
+      "path": "/Node2/telemetry/2026-03-19/1773886005_010",
+      "data": {
+        "schema_version": 1,
+        "ts_device": 1773885936,
+        "ts_server": 1773886005,
+        "seq_no": 10,
+        "event_meta": {
+          "cycle_type": "periodic",
+          "wake_reason": "timer",
+          "duration_ms": 151
+        },
+        "packet": {
+          "npk_data": {
+            "sensor_type": "npk7in1",
+            "sensor_id": "npk_7in1_1",
+            "read_ok": true,
+            "error_code": "ok",
+            "error_code_raw": 0,
+            "retry_count": 0,
+            "timeout_ms": 2000,
+            "read_duration_ms": 151,
+            "crc_ok": true,
+            "frame_ok": true,
+            "sample_interval_ms": 3600000,
+            "consecutive_fail_count": 0,
+            "recovered_after_fail": false,
+            "fail_streak_before_recover": 0,
+            "sensor_alarm": false,
+            "npk_values_valid": true,
+            "npk_signal_present": true,
+            "temp": 27.47,
+            "hum": 61.39,
+            "ph": 6.08,
+            "ec": 804,
+            "N": 112,
+            "P": 30,
+            "K": 66,
+            "edge_system": "soil_npk_edge",
+            "edge_system_id": "edge_npk_01",
+            "edge_stream": "npk"
+          },
+          "sht30_data": {
+            "sensor_type": "sht30_air",
+            "sensor_id": "sht30_1",
+            "edge_system": "air_climate_edge",
+            "edge_system_id": "edge_sht30_01",
+            "edge_stream": "sht30",
+            "sht_addr": "0x44",
+            "sht_sda": 8,
+            "sht_scl": 9,
+            "sht_retry_limit": 5,
+            "sht_retry_delay_ms": 120,
+            "sht_max_wait_ms": 1200,
+            "sht_read_ok": true,
+            "sht_sample_valid": true,
+            "sht_temp_c": 27.86,
+            "sht_hum_pct": 78.46,
+            "sht_error": "ok",
+            "sht_retry_count": 0,
+            "sht_read_elapsed_ms": 59,
+            "sht_invalid_streak": 0
+          },
+          "system_data": {
+            "edge_system_primary": "soil_npk_edge",
+            "edge_system_secondary": "air_climate_edge",
+            "edge_system_id_primary": "edge_npk_01",
+            "edge_system_id_secondary": "edge_sht30_01",
+            "wifi_status": 3,
+            "wifi_connected": true,
+            "rssi": -62,
+            "transport": "sim",
+            "npk_alarm": false,
+            "sht_ready": true,
+            "firmware_version": "mock_seed_v1",
+            "running_partition": "ota_0",
+            "ts_device_ms": 1773885936000
+          }
+        },
+        "sensors": {
+          "npk": {
+            "read_ok": true,
+            "sample_valid": true,
+            "status": "ok",
+            "quality": 0.93,
+            "ts_sample": 1773885936,
+            "error_code": ""
+          },
+          "sht30": {
+            "read_ok": true,
+            "sample_valid": true,
+            "status": "ok",
+            "quality": 0.98,
+            "ts_sample": 1773885936,
+            "error_code": ""
+          }
+        },
+        "modules": {
+          "sim": {
+            "operator": "Viettel",
+            "signal_dbm": -62,
+            "network_status": "connected",
+            "ts_sample": 1773885936
+          },
+          "gps": {
+            "enabled": false,
+            "status": "inactive",
+            "ts_sample": 0
+          }
+        },
+        "health": {
+          "overall": {
+            "battery_v": 12.1,
+            "heap_free": 245000,
+            "rssi": -62,
+            "online": true
+          },
+          "npk": {
+            "status": "ok",
+            "quality": 0.93,
+            "error_code": ""
+          },
+          "sht30": {
+            "status": "ok",
+            "quality": 0.98,
+            "error_code": ""
+          },
+          "sim": {
+            "status": "connected",
+            "error_code": ""
+          }
+        },
+        "fallback_used": false,
+        "was_buffered": false,
+        "replayed": false,
+        "_meta_seed": {
+          "node_id": "Node2",
+          "node_name": "Vuon sau rieng A",
+          "site_id": "farm_a_zone_1",
+          "device_uid": "esp32s3_node2",
+          "server_delay_sec": 69
+        }
+      },
+      "category": "telemetry",
+      "timestamp_local": "2026-03-19T09:05:36+07:00"
+    },
+    {
+      "path": "/Node2/telemetry/2026-03-19/1773889353_011",
+      "data": {
+        "schema_version": 1,
+        "ts_device": 1773889336,
+        "ts_server": 1773889353,
+        "seq_no": 11,
+        "event_meta": {
+          "cycle_type": "periodic",
+          "wake_reason": "timer",
+          "duration_ms": 135
+        },
+        "packet": {
+          "npk_data": {
+            "sensor_type": "npk7in1",
+            "sensor_id": "npk_7in1_1",
+            "read_ok": true,
+            "error_code": "ok",
+            "error_code_raw": 0,
+            "retry_count": 0,
+            "timeout_ms": 2000,
+            "read_duration_ms": 135,
+            "crc_ok": true,
+            "frame_ok": true,
+            "sample_interval_ms": 3600000,
+            "consecutive_fail_count": 0,
+            "recovered_after_fail": false,
+            "fail_streak_before_recover": 0,
+            "sensor_alarm": false,
+            "npk_values_valid": true,
+            "npk_signal_present": true,
+            "temp": 28.49,
+            "hum": 57.78,
+            "ph": 6.14,
+            "ec": 794,
+            "N": 113,
+            "P": 31,
+            "K": 70,
+            "edge_system": "soil_npk_edge",
+            "edge_system_id": "edge_npk_01",
+            "edge_stream": "npk"
+          },
+          "sht30_data": {
+            "sensor_type": "sht30_air",
+            "sensor_id": "sht30_1",
+            "edge_system": "air_climate_edge",
+            "edge_system_id": "edge_sht30_01",
+            "edge_stream": "sht30",
+            "sht_addr": "0x44",
+            "sht_sda": 8,
+            "sht_scl": 9,
+            "sht_retry_limit": 5,
+            "sht_retry_delay_ms": 120,
+            "sht_max_wait_ms": 1200,
+            "sht_read_ok": true,
+            "sht_sample_valid": true,
+            "sht_temp_c": 29.48,
+            "sht_hum_pct": 66.03,
+            "sht_error": "ok",
+            "sht_retry_count": 0,
+            "sht_read_elapsed_ms": 36,
+            "sht_invalid_streak": 0
+          },
+          "system_data": {
+            "edge_system_primary": "soil_npk_edge",
+            "edge_system_secondary": "air_climate_edge",
+            "edge_system_id_primary": "edge_npk_01",
+            "edge_system_id_secondary": "edge_sht30_01",
+            "wifi_status": 3,
+            "wifi_connected": true,
+            "rssi": -64,
+            "transport": "sim",
+            "npk_alarm": false,
+            "sht_ready": true,
+            "firmware_version": "mock_seed_v1",
+            "running_partition": "ota_0",
+            "ts_device_ms": 1773889336000
+          }
+        },
+        "sensors": {
+          "npk": {
+            "read_ok": true,
+            "sample_valid": true,
+            "status": "ok",
+            "quality": 0.93,
+            "ts_sample": 1773889336,
+            "error_code": ""
+          },
+          "sht30": {
+            "read_ok": true,
+            "sample_valid": true,
+            "status": "ok",
+            "quality": 0.98,
+            "ts_sample": 1773889336,
+            "error_code": ""
+          }
+        },
+        "modules": {
+          "sim": {
+            "operator": "Viettel",
+            "signal_dbm": -64,
+            "network_status": "connected",
+            "ts_sample": 1773889336
+          },
+          "gps": {
+            "enabled": false,
+            "status": "inactive",
+            "ts_sample": 0
+          }
+        },
+        "health": {
+          "overall": {
+            "battery_v": 12.1,
+            "heap_free": 245000,
+            "rssi": -64,
+            "online": true
+          },
+          "npk": {
+            "status": "ok",
+            "quality": 0.93,
+            "error_code": ""
+          },
+          "sht30": {
+            "status": "ok",
+            "quality": 0.98,
+            "error_code": ""
+          },
+          "sim": {
+            "status": "connected",
+            "error_code": ""
+          }
+        },
+        "fallback_used": false,
+        "was_buffered": false,
+        "replayed": false,
+        "_meta_seed": {
+          "node_id": "Node2",
+          "node_name": "Vuon sau rieng A",
+          "site_id": "farm_a_zone_1",
+          "device_uid": "esp32s3_node2",
+          "server_delay_sec": 17
+        }
+      },
+      "category": "telemetry",
+      "timestamp_local": "2026-03-19T10:02:16+07:00"
+    },
+    {
+      "path": "/Node2/telemetry/2026-03-19/1773892966_012",
+      "data": {
+        "schema_version": 1,
+        "ts_device": 1773892935,
+        "ts_server": 1773892966,
+        "seq_no": 12,
+        "event_meta": {
+          "cycle_type": "periodic",
+          "wake_reason": "timer",
+          "duration_ms": 165
+        },
+        "packet": {
+          "npk_data": {
+            "sensor_type": "npk7in1",
+            "sensor_id": "npk_7in1_1",
+            "read_ok": true,
+            "error_code": "ok",
+            "error_code_raw": 0,
+            "retry_count": 0,
+            "timeout_ms": 2000,
+            "read_duration_ms": 165,
+            "crc_ok": true,
+            "frame_ok": true,
+            "sample_interval_ms": 3600000,
+            "consecutive_fail_count": 0,
+            "recovered_after_fail": false,
+            "fail_streak_before_recover": 0,
+            "sensor_alarm": false,
+            "npk_values_valid": true,
+            "npk_signal_present": true,
+            "temp": 28.2,
+            "hum": 56.27,
+            "ph": 6.14,
+            "ec": 779,
+            "N": 115,
+            "P": 33,
+            "K": 65,
+            "edge_system": "soil_npk_edge",
+            "edge_system_id": "edge_npk_01",
+            "edge_stream": "npk"
+          },
+          "sht30_data": {
+            "sensor_type": "sht30_air",
+            "sensor_id": "sht30_1",
+            "edge_system": "air_climate_edge",
+            "edge_system_id": "edge_sht30_01",
+            "edge_stream": "sht30",
+            "sht_addr": "0x44",
+            "sht_sda": 8,
+            "sht_scl": 9,
+            "sht_retry_limit": 5,
+            "sht_retry_delay_ms": 120,
+            "sht_max_wait_ms": 1200,
+            "sht_read_ok": true,
+            "sht_sample_valid": true,
+            "sht_temp_c": 29.46,
+            "sht_hum_pct": 62.85,
+            "sht_error": "ok",
+            "sht_retry_count": 0,
+            "sht_read_elapsed_ms": 40,
+            "sht_invalid_streak": 0
+          },
+          "system_data": {
+            "edge_system_primary": "soil_npk_edge",
+            "edge_system_secondary": "air_climate_edge",
+            "edge_system_id_primary": "edge_npk_01",
+            "edge_system_id_secondary": "edge_sht30_01",
+            "wifi_status": 3,
+            "wifi_connected": true,
+            "rssi": -67,
+            "transport": "sim",
+            "npk_alarm": false,
+            "sht_ready": true,
+            "firmware_version": "mock_seed_v1",
+            "running_partition": "ota_0",
+            "ts_device_ms": 1773892935000
+          }
+        },
+        "sensors": {
+          "npk": {
+            "read_ok": true,
+            "sample_valid": true,
+            "status": "ok",
+            "quality": 0.93,
+            "ts_sample": 1773892935,
+            "error_code": ""
+          },
+          "sht30": {
+            "read_ok": true,
+            "sample_valid": true,
+            "status": "ok",
+            "quality": 0.98,
+            "ts_sample": 1773892935,
+            "error_code": ""
+          }
+        },
+        "modules": {
+          "sim": {
+            "operator": "Viettel",
+            "signal_dbm": -67,
+            "network_status": "connected",
+            "ts_sample": 1773892935
+          },
+          "gps": {
+            "enabled": false,
+            "status": "inactive",
+            "ts_sample": 0
+          }
+        },
+        "health": {
+          "overall": {
+            "battery_v": 12.1,
+            "heap_free": 245000,
+            "rssi": -67,
+            "online": true
+          },
+          "npk": {
+            "status": "ok",
+            "quality": 0.93,
+            "error_code": ""
+          },
+          "sht30": {
+            "status": "ok",
+            "quality": 0.98,
+            "error_code": ""
+          },
+          "sim": {
+            "status": "connected",
+            "error_code": ""
+          }
+        },
+        "fallback_used": false,
+        "was_buffered": false,
+        "replayed": false,
+        "_meta_seed": {
+          "node_id": "Node2",
+          "node_name": "Vuon sau rieng A",
+          "site_id": "farm_a_zone_1",
+          "device_uid": "esp32s3_node2",
+          "server_delay_sec": 31
+        }
+      },
+      "category": "telemetry",
+      "timestamp_local": "2026-03-19T11:02:15+07:00"
+    },
+    {
+      "path": "/Node2/telemetry/2026-03-19/1773896594_013",
+      "data": {
+        "schema_version": 1,
+        "ts_device": 1773896567,
+        "ts_server": 1773896594,
+        "seq_no": 13,
+        "event_meta": {
+          "cycle_type": "periodic",
+          "wake_reason": "timer",
+          "duration_ms": 179
+        },
+        "packet": {
+          "npk_data": {
+            "sensor_type": "npk7in1",
+            "sensor_id": "npk_7in1_1",
+            "read_ok": true,
+            "error_code": "ok",
+            "error_code_raw": 0,
+            "retry_count": 0,
+            "timeout_ms": 2000,
+            "read_duration_ms": 179,
+            "crc_ok": true,
+            "frame_ok": true,
+            "sample_interval_ms": 3600000,
+            "consecutive_fail_count": 0,
+            "recovered_after_fail": false,
+            "fail_streak_before_recover": 0,
+            "sensor_alarm": false,
+            "npk_values_valid": true,
+            "npk_signal_present": true,
+            "temp": 28.26,
+            "hum": 57.0,
+            "ph": 6.13,
+            "ec": 785,
+            "N": 108,
+            "P": 33,
+            "K": 67,
+            "edge_system": "soil_npk_edge",
+            "edge_system_id": "edge_npk_01",
+            "edge_stream": "npk"
+          },
+          "sht30_data": {
+            "sensor_type": "sht30_air",
+            "sensor_id": "sht30_1",
+            "edge_system": "air_climate_edge",
+            "edge_system_id": "edge_sht30_01",
+            "edge_stream": "sht30",
+            "sht_addr": "0x44",
+            "sht_sda": 8,
+            "sht_scl": 9,
+            "sht_retry_limit": 5,
+            "sht_retry_delay_ms": 120,
+            "sht_max_wait_ms": 1200,
+            "sht_read_ok": true,
+            "sht_sample_valid": true,
+            "sht_temp_c": 29.51,
+            "sht_hum_pct": 65.5,
+            "sht_error": "ok",
+            "sht_retry_count": 0,
+            "sht_read_elapsed_ms": 36,
+            "sht_invalid_streak": 0
+          },
+          "system_data": {
+            "edge_system_primary": "soil_npk_edge",
+            "edge_system_secondary": "air_climate_edge",
+            "edge_system_id_primary": "edge_npk_01",
+            "edge_system_id_secondary": "edge_sht30_01",
+            "wifi_status": 3,
+            "wifi_connected": true,
+            "rssi": -68,
+            "transport": "sim",
+            "npk_alarm": false,
+            "sht_ready": true,
+            "firmware_version": "mock_seed_v1",
+            "running_partition": "ota_0",
+            "ts_device_ms": 1773896567000
+          }
+        },
+        "sensors": {
+          "npk": {
+            "read_ok": true,
+            "sample_valid": true,
+            "status": "ok",
+            "quality": 0.93,
+            "ts_sample": 1773896567,
+            "error_code": ""
+          },
+          "sht30": {
+            "read_ok": true,
+            "sample_valid": true,
+            "status": "ok",
+            "quality": 0.98,
+            "ts_sample": 1773896567,
+            "error_code": ""
+          }
+        },
+        "modules": {
+          "sim": {
+            "operator": "Viettel",
+            "signal_dbm": -68,
+            "network_status": "connected",
+            "ts_sample": 1773896567
+          },
+          "gps": {
+            "enabled": false,
+            "status": "inactive",
+            "ts_sample": 0
+          }
+        },
+        "health": {
+          "overall": {
+            "battery_v": 12.1,
+            "heap_free": 245000,
+            "rssi": -68,
+            "online": true
+          },
+          "npk": {
+            "status": "ok",
+            "quality": 0.93,
+            "error_code": ""
+          },
+          "sht30": {
+            "status": "ok",
+            "quality": 0.98,
+            "error_code": ""
+          },
+          "sim": {
+            "status": "connected",
+            "error_code": ""
+          }
+        },
+        "fallback_used": false,
+        "was_buffered": false,
+        "replayed": false,
+        "_meta_seed": {
+          "node_id": "Node2",
+          "node_name": "Vuon sau rieng A",
+          "site_id": "farm_a_zone_1",
+          "device_uid": "esp32s3_node2",
+          "server_delay_sec": 27
+        }
+      },
+      "category": "telemetry",
+      "timestamp_local": "2026-03-19T12:02:47+07:00"
+    },
+    {
+      "path": "/Node2/telemetry/2026-03-19/1773900316_014",
+      "data": {
+        "schema_version": 1,
+        "ts_device": 1773900231,
+        "ts_server": 1773900316,
+        "seq_no": 14,
+        "event_meta": {
+          "cycle_type": "periodic",
+          "wake_reason": "timer",
+          "duration_ms": 120
+        },
+        "packet": {
+          "npk_data": {
+            "sensor_type": "npk7in1",
+            "sensor_id": "npk_7in1_1",
+            "read_ok": true,
+            "error_code": "ok",
+            "error_code_raw": 0,
+            "retry_count": 0,
+            "timeout_ms": 2000,
+            "read_duration_ms": 120,
+            "crc_ok": true,
+            "frame_ok": true,
+            "sample_interval_ms": 3600000,
+            "consecutive_fail_count": 0,
+            "recovered_after_fail": false,
+            "fail_streak_before_recover": 0,
+            "sensor_alarm": false,
+            "npk_values_valid": true,
+            "npk_signal_present": true,
+            "temp": 28.14,
+            "hum": 57.38,
+            "ph": 6.1,
+            "ec": 795,
+            "N": 109,
+            "P": 31,
+            "K": 67,
+            "edge_system": "soil_npk_edge",
+            "edge_system_id": "edge_npk_01",
+            "edge_stream": "npk"
+          },
+          "sht30_data": {
+            "sensor_type": "sht30_air",
+            "sensor_id": "sht30_1",
+            "edge_system": "air_climate_edge",
+            "edge_system_id": "edge_sht30_01",
+            "edge_stream": "sht30",
+            "sht_addr": "0x44",
+            "sht_sda": 8,
+            "sht_scl": 9,
+            "sht_retry_limit": 5,
+            "sht_retry_delay_ms": 120,
+            "sht_max_wait_ms": 1200,
+            "sht_read_ok": true,
+            "sht_sample_valid": true,
+            "sht_temp_c": 28.86,
+            "sht_hum_pct": 66.29,
+            "sht_error": "ok",
+            "sht_retry_count": 0,
+            "sht_read_elapsed_ms": 57,
+            "sht_invalid_streak": 0
+          },
+          "system_data": {
+            "edge_system_primary": "soil_npk_edge",
+            "edge_system_secondary": "air_climate_edge",
+            "edge_system_id_primary": "edge_npk_01",
+            "edge_system_id_secondary": "edge_sht30_01",
+            "wifi_status": 3,
+            "wifi_connected": true,
+            "rssi": -67,
+            "transport": "sim",
+            "npk_alarm": false,
+            "sht_ready": true,
+            "firmware_version": "mock_seed_v1",
+            "running_partition": "ota_0",
+            "ts_device_ms": 1773900231000
+          }
+        },
+        "sensors": {
+          "npk": {
+            "read_ok": true,
+            "sample_valid": true,
+            "status": "ok",
+            "quality": 0.93,
+            "ts_sample": 1773900231,
+            "error_code": ""
+          },
+          "sht30": {
+            "read_ok": true,
+            "sample_valid": true,
+            "status": "ok",
+            "quality": 0.98,
+            "ts_sample": 1773900231,
+            "error_code": ""
+          }
+        },
+        "modules": {
+          "sim": {
+            "operator": "Viettel",
+            "signal_dbm": -67,
+            "network_status": "connected",
+            "ts_sample": 1773900231
+          },
+          "gps": {
+            "enabled": false,
+            "status": "inactive",
+            "ts_sample": 0
+          }
+        },
+        "health": {
+          "overall": {
+            "battery_v": 12.1,
+            "heap_free": 245000,
+            "rssi": -67,
+            "online": true
+          },
+          "npk": {
+            "status": "ok",
+            "quality": 0.93,
+            "error_code": ""
+          },
+          "sht30": {
+            "status": "ok",
+            "quality": 0.98,
+            "error_code": ""
+          },
+          "sim": {
+            "status": "connected",
+            "error_code": ""
+          }
+        },
+        "fallback_used": false,
+        "was_buffered": false,
+        "replayed": false,
+        "_meta_seed": {
+          "node_id": "Node2",
+          "node_name": "Vuon sau rieng A",
+          "site_id": "farm_a_zone_1",
+          "device_uid": "esp32s3_node2",
+          "server_delay_sec": 85
+        }
+      },
+      "category": "telemetry",
+      "timestamp_local": "2026-03-19T13:03:51+07:00"
+    },
+    {
+      "path": "/Node2/telemetry/2026-03-19/1773903854_015",
+      "data": {
+        "schema_version": 1,
+        "ts_device": 1773903839,
+        "ts_server": 1773903854,
+        "seq_no": 15,
+        "event_meta": {
+          "cycle_type": "periodic",
+          "wake_reason": "timer",
+          "duration_ms": 182
+        },
+        "packet": {
+          "npk_data": {
+            "sensor_type": "npk7in1",
+            "sensor_id": "npk_7in1_1",
+            "read_ok": true,
+            "error_code": "ok",
+            "error_code_raw": 0,
+            "retry_count": 0,
+            "timeout_ms": 2000,
+            "read_duration_ms": 182,
+            "crc_ok": true,
+            "frame_ok": true,
+            "sample_interval_ms": 3600000,
+            "consecutive_fail_count": 0,
+            "recovered_after_fail": false,
+            "fail_streak_before_recover": 0,
+            "sensor_alarm": false,
+            "npk_values_valid": true,
+            "npk_signal_present": true,
+            "temp": 27.62,
+            "hum": 58.05,
+            "ph": 6.1,
+            "ec": 815,
+            "N": 109,
+            "P": 32,
+            "K": 67,
+            "edge_system": "soil_npk_edge",
+            "edge_system_id": "edge_npk_01",
+            "edge_stream": "npk"
+          },
+          "sht30_data": {
+            "sensor_type": "sht30_air",
+            "sensor_id": "sht30_1",
+            "edge_system": "air_climate_edge",
+            "edge_system_id": "edge_sht30_01",
+            "edge_stream": "sht30",
+            "sht_addr": "0x44",
+            "sht_sda": 8,
+            "sht_scl": 9,
+            "sht_retry_limit": 5,
+            "sht_retry_delay_ms": 120,
+            "sht_max_wait_ms": 1200,
+            "sht_read_ok": true,
+            "sht_sample_valid": true,
+            "sht_temp_c": 28.55,
+            "sht_hum_pct": 67.83,
+            "sht_error": "ok",
+            "sht_retry_count": 0,
+            "sht_read_elapsed_ms": 39,
+            "sht_invalid_streak": 0
+          },
+          "system_data": {
+            "edge_system_primary": "soil_npk_edge",
+            "edge_system_secondary": "air_climate_edge",
+            "edge_system_id_primary": "edge_npk_01",
+            "edge_system_id_secondary": "edge_sht30_01",
+            "wifi_status": 3,
+            "wifi_connected": true,
+            "rssi": -69,
+            "transport": "sim",
+            "npk_alarm": false,
+            "sht_ready": true,
+            "firmware_version": "mock_seed_v1",
+            "running_partition": "ota_0",
+            "ts_device_ms": 1773903839000
+          }
+        },
+        "sensors": {
+          "npk": {
+            "read_ok": true,
+            "sample_valid": true,
+            "status": "ok",
+            "quality": 0.93,
+            "ts_sample": 1773903839,
+            "error_code": ""
+          },
+          "sht30": {
+            "read_ok": true,
+            "sample_valid": true,
+            "status": "ok",
+            "quality": 0.98,
+            "ts_sample": 1773903839,
+            "error_code": ""
+          }
+        },
+        "modules": {
+          "sim": {
+            "operator": "Viettel",
+            "signal_dbm": -69,
+            "network_status": "connected",
+            "ts_sample": 1773903839
+          },
+          "gps": {
+            "enabled": false,
+            "status": "inactive",
+            "ts_sample": 0
+          }
+        },
+        "health": {
+          "overall": {
+            "battery_v": 12.1,
+            "heap_free": 245000,
+            "rssi": -69,
+            "online": true
+          },
+          "npk": {
+            "status": "ok",
+            "quality": 0.93,
+            "error_code": ""
+          },
+          "sht30": {
+            "status": "ok",
+            "quality": 0.98,
+            "error_code": ""
+          },
+          "sim": {
+            "status": "connected",
+            "error_code": ""
+          }
+        },
+        "fallback_used": false,
+        "was_buffered": false,
+        "replayed": false,
+        "_meta_seed": {
+          "node_id": "Node2",
+          "node_name": "Vuon sau rieng A",
+          "site_id": "farm_a_zone_1",
+          "device_uid": "esp32s3_node2",
+          "server_delay_sec": 15
+        }
+      },
+      "category": "telemetry",
+      "timestamp_local": "2026-03-19T14:03:59+07:00"
+    },
+    {
+      "path": "/Node2/telemetry/2026-03-19/1773907667_016",
+      "data": {
+        "schema_version": 1,
+        "ts_device": 1773907578,
+        "ts_server": 1773907667,
+        "seq_no": 16,
+        "event_meta": {
+          "cycle_type": "periodic",
+          "wake_reason": "timer",
+          "duration_ms": 141
+        },
+        "packet": {
+          "npk_data": {
+            "sensor_type": "npk7in1",
+            "sensor_id": "npk_7in1_1",
+            "read_ok": true,
+            "error_code": "ok",
+            "error_code_raw": 0,
+            "retry_count": 0,
+            "timeout_ms": 2000,
+            "read_duration_ms": 141,
+            "crc_ok": true,
+            "frame_ok": true,
+            "sample_interval_ms": 3600000,
+            "consecutive_fail_count": 0,
+            "recovered_after_fail": false,
+            "fail_streak_before_recover": 0,
+            "sensor_alarm": false,
+            "npk_values_valid": true,
+            "npk_signal_present": true,
+            "temp": 27.17,
+            "hum": 61.05,
+            "ph": 6.12,
+            "ec": 834,
+            "N": 115,
+            "P": 32,
+            "K": 68,
+            "edge_system": "soil_npk_edge",
+            "edge_system_id": "edge_npk_01",
+            "edge_stream": "npk"
+          },
+          "sht30_data": {
+            "sensor_type": "sht30_air",
+            "sensor_id": "sht30_1",
+            "edge_system": "air_climate_edge",
+            "edge_system_id": "edge_sht30_01",
+            "edge_stream": "sht30",
+            "sht_addr": "0x44",
+            "sht_sda": 8,
+            "sht_scl": 9,
+            "sht_retry_limit": 5,
+            "sht_retry_delay_ms": 120,
+            "sht_max_wait_ms": 1200,
+            "sht_read_ok": true,
+            "sht_sample_valid": true,
+            "sht_temp_c": 28.34,
+            "sht_hum_pct": 72.18,
+            "sht_error": "ok",
+            "sht_retry_count": 0,
+            "sht_read_elapsed_ms": 62,
+            "sht_invalid_streak": 0
+          },
+          "system_data": {
+            "edge_system_primary": "soil_npk_edge",
+            "edge_system_secondary": "air_climate_edge",
+            "edge_system_id_primary": "edge_npk_01",
+            "edge_system_id_secondary": "edge_sht30_01",
+            "wifi_status": 3,
+            "wifi_connected": true,
+            "rssi": -75,
+            "transport": "sim",
+            "npk_alarm": false,
+            "sht_ready": true,
+            "firmware_version": "mock_seed_v1",
+            "running_partition": "ota_0",
+            "ts_device_ms": 1773907578000
+          }
+        },
+        "sensors": {
+          "npk": {
+            "read_ok": true,
+            "sample_valid": true,
+            "status": "ok",
+            "quality": 0.93,
+            "ts_sample": 1773907578,
+            "error_code": ""
+          },
+          "sht30": {
+            "read_ok": true,
+            "sample_valid": true,
+            "status": "ok",
+            "quality": 0.98,
+            "ts_sample": 1773907578,
+            "error_code": ""
+          }
+        },
+        "modules": {
+          "sim": {
+            "operator": "Viettel",
+            "signal_dbm": -75,
+            "network_status": "connected",
+            "ts_sample": 1773907578
+          },
+          "gps": {
+            "enabled": false,
+            "status": "inactive",
+            "ts_sample": 0
+          }
+        },
+        "health": {
+          "overall": {
+            "battery_v": 12.1,
+            "heap_free": 245000,
+            "rssi": -75,
+            "online": true
+          },
+          "npk": {
+            "status": "ok",
+            "quality": 0.93,
+            "error_code": ""
+          },
+          "sht30": {
+            "status": "ok",
+            "quality": 0.98,
+            "error_code": ""
+          },
+          "sim": {
+            "status": "connected",
+            "error_code": ""
+          }
+        },
+        "fallback_used": false,
+        "was_buffered": false,
+        "replayed": false,
+        "_meta_seed": {
+          "node_id": "Node2",
+          "node_name": "Vuon sau rieng A",
+          "site_id": "farm_a_zone_1",
+          "device_uid": "esp32s3_node2",
+          "server_delay_sec": 89
+        }
+      },
+      "category": "telemetry",
+      "timestamp_local": "2026-03-19T15:06:18+07:00"
+    },
+    {
+      "path": "/Node2/telemetry/2026-03-19/1773910978_017",
+      "data": {
+        "schema_version": 1,
+        "ts_device": 1773910933,
+        "ts_server": 1773910978,
+        "seq_no": 17,
+        "event_meta": {
+          "cycle_type": "periodic",
+          "wake_reason": "timer",
+          "duration_ms": 140
+        },
+        "packet": {
+          "npk_data": {
+            "sensor_type": "npk7in1",
+            "sensor_id": "npk_7in1_1",
+            "read_ok": true,
+            "error_code": "ok",
+            "error_code_raw": 0,
+            "retry_count": 0,
+            "timeout_ms": 2000,
+            "read_duration_ms": 140,
+            "crc_ok": true,
+            "frame_ok": true,
+            "sample_interval_ms": 3600000,
+            "consecutive_fail_count": 0,
+            "recovered_after_fail": false,
+            "fail_streak_before_recover": 0,
+            "sensor_alarm": false,
+            "npk_values_valid": true,
+            "npk_signal_present": true,
+            "temp": 25.88,
+            "hum": 65.43,
+            "ph": 6.1,
+            "ec": 827,
+            "N": 110,
+            "P": 29,
+            "K": 66,
+            "edge_system": "soil_npk_edge",
+            "edge_system_id": "edge_npk_01",
+            "edge_stream": "npk"
+          },
+          "sht30_data": {
+            "sensor_type": "sht30_air",
+            "sensor_id": "sht30_1",
+            "edge_system": "air_climate_edge",
+            "edge_system_id": "edge_sht30_01",
+            "edge_stream": "sht30",
+            "sht_addr": "0x44",
+            "sht_sda": 8,
+            "sht_scl": 9,
+            "sht_retry_limit": 5,
+            "sht_retry_delay_ms": 120,
+            "sht_max_wait_ms": 1200,
+            "sht_read_ok": true,
+            "sht_sample_valid": true,
+            "sht_temp_c": 26.25,
+            "sht_hum_pct": 86.58,
+            "sht_error": "ok",
+            "sht_retry_count": 0,
+            "sht_read_elapsed_ms": 36,
+            "sht_invalid_streak": 0
+          },
+          "system_data": {
+            "edge_system_primary": "soil_npk_edge",
+            "edge_system_secondary": "air_climate_edge",
+            "edge_system_id_primary": "edge_npk_01",
+            "edge_system_id_secondary": "edge_sht30_01",
+            "wifi_status": 3,
+            "wifi_connected": true,
+            "rssi": -71,
+            "transport": "sim",
+            "npk_alarm": false,
+            "sht_ready": true,
+            "firmware_version": "mock_seed_v1",
+            "running_partition": "ota_0",
+            "ts_device_ms": 1773910933000
+          }
+        },
+        "sensors": {
+          "npk": {
+            "read_ok": true,
+            "sample_valid": true,
+            "status": "ok",
+            "quality": 0.93,
+            "ts_sample": 1773910933,
+            "error_code": ""
+          },
+          "sht30": {
+            "read_ok": true,
+            "sample_valid": true,
+            "status": "ok",
+            "quality": 0.98,
+            "ts_sample": 1773910933,
+            "error_code": ""
+          }
+        },
+        "modules": {
+          "sim": {
+            "operator": "Viettel",
+            "signal_dbm": -71,
+            "network_status": "connected",
+            "ts_sample": 1773910933
+          },
+          "gps": {
+            "enabled": false,
+            "status": "inactive",
+            "ts_sample": 0
+          }
+        },
+        "health": {
+          "overall": {
+            "battery_v": 12.1,
+            "heap_free": 245000,
+            "rssi": -71,
+            "online": true
+          },
+          "npk": {
+            "status": "ok",
+            "quality": 0.93,
+            "error_code": ""
+          },
+          "sht30": {
+            "status": "ok",
+            "quality": 0.98,
+            "error_code": ""
+          },
+          "sim": {
+            "status": "connected",
+            "error_code": ""
+          }
+        },
+        "fallback_used": false,
+        "was_buffered": false,
+        "replayed": false,
+        "_meta_seed": {
+          "node_id": "Node2",
+          "node_name": "Vuon sau rieng A",
+          "site_id": "farm_a_zone_1",
+          "device_uid": "esp32s3_node2",
+          "server_delay_sec": 45
+        }
+      },
+      "category": "telemetry",
+      "timestamp_local": "2026-03-19T16:02:13+07:00"
+    },
+    {
+      "path": "/Node2/telemetry/2026-03-19/1773914855_018",
+      "data": {
+        "schema_version": 1,
+        "ts_device": 1773914807,
+        "ts_server": 1773914855,
+        "seq_no": 18,
+        "event_meta": {
+          "cycle_type": "periodic",
+          "wake_reason": "timer",
+          "duration_ms": 183
+        },
+        "packet": {
+          "npk_data": {
+            "sensor_type": "npk7in1",
+            "sensor_id": "npk_7in1_1",
+            "read_ok": true,
+            "error_code": "ok",
+            "error_code_raw": 0,
+            "retry_count": 0,
+            "timeout_ms": 2000,
+            "read_duration_ms": 183,
+            "crc_ok": true,
+            "frame_ok": true,
+            "sample_interval_ms": 3600000,
+            "consecutive_fail_count": 0,
+            "recovered_after_fail": false,
+            "fail_streak_before_recover": 0,
+            "sensor_alarm": false,
+            "npk_values_valid": true,
+            "npk_signal_present": true,
+            "temp": 25.63,
+            "hum": 66.88,
+            "ph": 6.07,
+            "ec": 813,
+            "N": 111,
+            "P": 31,
+            "K": 65,
+            "edge_system": "soil_npk_edge",
+            "edge_system_id": "edge_npk_01",
+            "edge_stream": "npk"
+          },
+          "sht30_data": {
+            "sensor_type": "sht30_air",
+            "sensor_id": "sht30_1",
+            "edge_system": "air_climate_edge",
+            "edge_system_id": "edge_sht30_01",
+            "edge_stream": "sht30",
+            "sht_addr": "0x44",
+            "sht_sda": 8,
+            "sht_scl": 9,
+            "sht_retry_limit": 5,
+            "sht_retry_delay_ms": 120,
+            "sht_max_wait_ms": 1200,
+            "sht_read_ok": true,
+            "sht_sample_valid": true,
+            "sht_temp_c": 25.65,
+            "sht_hum_pct": 89.4,
+            "sht_error": "ok",
+            "sht_retry_count": 0,
+            "sht_read_elapsed_ms": 43,
+            "sht_invalid_streak": 0
+          },
+          "system_data": {
+            "edge_system_primary": "soil_npk_edge",
+            "edge_system_secondary": "air_climate_edge",
+            "edge_system_id_primary": "edge_npk_01",
+            "edge_system_id_secondary": "edge_sht30_01",
+            "wifi_status": 3,
+            "wifi_connected": true,
+            "rssi": -76,
+            "transport": "sim",
+            "npk_alarm": false,
+            "sht_ready": true,
+            "firmware_version": "mock_seed_v1",
+            "running_partition": "ota_0",
+            "ts_device_ms": 1773914807000
+          }
+        },
+        "sensors": {
+          "npk": {
+            "read_ok": true,
+            "sample_valid": true,
+            "status": "ok",
+            "quality": 0.93,
+            "ts_sample": 1773914807,
+            "error_code": ""
+          },
+          "sht30": {
+            "read_ok": true,
+            "sample_valid": true,
+            "status": "ok",
+            "quality": 0.98,
+            "ts_sample": 1773914807,
+            "error_code": ""
+          }
+        },
+        "modules": {
+          "sim": {
+            "operator": "Viettel",
+            "signal_dbm": -76,
+            "network_status": "connected",
+            "ts_sample": 1773914807
+          },
+          "gps": {
+            "enabled": false,
+            "status": "inactive",
+            "ts_sample": 0
+          }
+        },
+        "health": {
+          "overall": {
+            "battery_v": 12.1,
+            "heap_free": 245000,
+            "rssi": -76,
+            "online": true
+          },
+          "npk": {
+            "status": "ok",
+            "quality": 0.93,
+            "error_code": ""
+          },
+          "sht30": {
+            "status": "ok",
+            "quality": 0.98,
+            "error_code": ""
+          },
+          "sim": {
+            "status": "connected",
+            "error_code": ""
+          }
+        },
+        "fallback_used": false,
+        "was_buffered": false,
+        "replayed": false,
+        "_meta_seed": {
+          "node_id": "Node2",
+          "node_name": "Vuon sau rieng A",
+          "site_id": "farm_a_zone_1",
+          "device_uid": "esp32s3_node2",
+          "server_delay_sec": 48
+        }
+      },
+      "category": "telemetry",
+      "timestamp_local": "2026-03-19T17:06:47+07:00"
+    },
+    {
+      "path": "/Node2/telemetry/2026-03-19/1773918280_019",
+      "data": {
+        "schema_version": 1,
+        "ts_device": 1773918221,
+        "ts_server": 1773918280,
+        "seq_no": 19,
+        "event_meta": {
+          "cycle_type": "periodic",
+          "wake_reason": "timer",
+          "duration_ms": 133
+        },
+        "packet": {
+          "npk_data": {
+            "sensor_type": "npk7in1",
+            "sensor_id": "npk_7in1_1",
+            "read_ok": true,
+            "error_code": "ok",
+            "error_code_raw": 0,
+            "retry_count": 0,
+            "timeout_ms": 2000,
+            "read_duration_ms": 133,
+            "crc_ok": true,
+            "frame_ok": true,
+            "sample_interval_ms": 3600000,
+            "consecutive_fail_count": 0,
+            "recovered_after_fail": false,
+            "fail_streak_before_recover": 0,
+            "sensor_alarm": false,
+            "npk_values_valid": true,
+            "npk_signal_present": true,
+            "temp": 25.58,
+            "hum": 63.36,
+            "ph": 6.15,
+            "ec": 856,
+            "N": 111,
+            "P": 34,
+            "K": 70,
+            "edge_system": "soil_npk_edge",
+            "edge_system_id": "edge_npk_01",
+            "edge_stream": "npk"
+          },
+          "sht30_data": {
+            "sensor_type": "sht30_air",
+            "sensor_id": "sht30_1",
+            "edge_system": "air_climate_edge",
+            "edge_system_id": "edge_sht30_01",
+            "edge_stream": "sht30",
+            "sht_addr": "0x44",
+            "sht_sda": 8,
+            "sht_scl": 9,
+            "sht_retry_limit": 5,
+            "sht_retry_delay_ms": 120,
+            "sht_max_wait_ms": 1200,
+            "sht_read_ok": true,
+            "sht_sample_valid": true,
+            "sht_temp_c": 26.43,
+            "sht_hum_pct": 78.55,
+            "sht_error": "ok",
+            "sht_retry_count": 0,
+            "sht_read_elapsed_ms": 42,
+            "sht_invalid_streak": 0
+          },
+          "system_data": {
+            "edge_system_primary": "soil_npk_edge",
+            "edge_system_secondary": "air_climate_edge",
+            "edge_system_id_primary": "edge_npk_01",
+            "edge_system_id_secondary": "edge_sht30_01",
+            "wifi_status": 3,
+            "wifi_connected": true,
+            "rssi": -77,
+            "transport": "sim",
+            "npk_alarm": false,
+            "sht_ready": true,
+            "firmware_version": "mock_seed_v1",
+            "running_partition": "ota_0",
+            "ts_device_ms": 1773918221000
+          }
+        },
+        "sensors": {
+          "npk": {
+            "read_ok": true,
+            "sample_valid": true,
+            "status": "ok",
+            "quality": 0.93,
+            "ts_sample": 1773918221,
+            "error_code": ""
+          },
+          "sht30": {
+            "read_ok": true,
+            "sample_valid": true,
+            "status": "ok",
+            "quality": 0.98,
+            "ts_sample": 1773918221,
+            "error_code": ""
+          }
+        },
+        "modules": {
+          "sim": {
+            "operator": "Viettel",
+            "signal_dbm": -77,
+            "network_status": "connected",
+            "ts_sample": 1773918221
+          },
+          "gps": {
+            "enabled": false,
+            "status": "inactive",
+            "ts_sample": 0
+          }
+        },
+        "health": {
+          "overall": {
+            "battery_v": 12.1,
+            "heap_free": 245000,
+            "rssi": -77,
+            "online": true
+          },
+          "npk": {
+            "status": "ok",
+            "quality": 0.93,
+            "error_code": ""
+          },
+          "sht30": {
+            "status": "ok",
+            "quality": 0.98,
+            "error_code": ""
+          },
+          "sim": {
+            "status": "connected",
+            "error_code": ""
+          }
+        },
+        "fallback_used": false,
+        "was_buffered": false,
+        "replayed": false,
+        "_meta_seed": {
+          "node_id": "Node2",
+          "node_name": "Vuon sau rieng A",
+          "site_id": "farm_a_zone_1",
+          "device_uid": "esp32s3_node2",
+          "server_delay_sec": 59
+        }
+      },
+      "category": "telemetry",
+      "timestamp_local": "2026-03-19T18:03:41+07:00"
+    },
+    {
+      "path": "/Node2/telemetry/2026-03-19/1773922027_020",
+      "data": {
+        "schema_version": 1,
+        "ts_device": 1773921999,
+        "ts_server": 1773922027,
+        "seq_no": 20,
+        "event_meta": {
+          "cycle_type": "periodic",
+          "wake_reason": "timer",
+          "duration_ms": 176
+        },
+        "packet": {
+          "npk_data": {
+            "sensor_type": "npk7in1",
+            "sensor_id": "npk_7in1_1",
+            "read_ok": true,
+            "error_code": "ok",
+            "error_code_raw": 0,
+            "retry_count": 0,
+            "timeout_ms": 2000,
+            "read_duration_ms": 176,
+            "crc_ok": true,
+            "frame_ok": true,
+            "sample_interval_ms": 3600000,
+            "consecutive_fail_count": 0,
+            "recovered_after_fail": false,
+            "fail_streak_before_recover": 0,
+            "sensor_alarm": false,
+            "npk_values_valid": true,
+            "npk_signal_present": true,
+            "temp": 25.32,
+            "hum": 63.18,
+            "ph": 6.16,
+            "ec": 915,
+            "N": 112,
+            "P": 34,
+            "K": 68,
+            "edge_system": "soil_npk_edge",
+            "edge_system_id": "edge_npk_01",
+            "edge_stream": "npk"
+          },
+          "sht30_data": {
+            "sensor_type": "sht30_air",
+            "sensor_id": "sht30_1",
+            "edge_system": "air_climate_edge",
+            "edge_system_id": "edge_sht30_01",
+            "edge_stream": "sht30",
+            "sht_addr": "0x44",
+            "sht_sda": 8,
+            "sht_scl": 9,
+            "sht_retry_limit": 5,
+            "sht_retry_delay_ms": 120,
+            "sht_max_wait_ms": 1200,
+            "sht_read_ok": true,
+            "sht_sample_valid": true,
+            "sht_temp_c": 26.45,
+            "sht_hum_pct": 78.86,
+            "sht_error": "ok",
+            "sht_retry_count": 0,
+            "sht_read_elapsed_ms": 43,
+            "sht_invalid_streak": 0
+          },
+          "system_data": {
+            "edge_system_primary": "soil_npk_edge",
+            "edge_system_secondary": "air_climate_edge",
+            "edge_system_id_primary": "edge_npk_01",
+            "edge_system_id_secondary": "edge_sht30_01",
+            "wifi_status": 3,
+            "wifi_connected": true,
+            "rssi": -77,
+            "transport": "sim",
+            "npk_alarm": false,
+            "sht_ready": true,
+            "firmware_version": "mock_seed_v1",
+            "running_partition": "ota_0",
+            "ts_device_ms": 1773921999000
+          }
+        },
+        "sensors": {
+          "npk": {
+            "read_ok": true,
+            "sample_valid": true,
+            "status": "ok",
+            "quality": 0.93,
+            "ts_sample": 1773921999,
+            "error_code": ""
+          },
+          "sht30": {
+            "read_ok": true,
+            "sample_valid": true,
+            "status": "ok",
+            "quality": 0.98,
+            "ts_sample": 1773921999,
+            "error_code": ""
+          }
+        },
+        "modules": {
+          "sim": {
+            "operator": "Viettel",
+            "signal_dbm": -77,
+            "network_status": "connected",
+            "ts_sample": 1773921999
+          },
+          "gps": {
+            "enabled": false,
+            "status": "inactive",
+            "ts_sample": 0
+          }
+        },
+        "health": {
+          "overall": {
+            "battery_v": 12.1,
+            "heap_free": 245000,
+            "rssi": -77,
+            "online": true
+          },
+          "npk": {
+            "status": "ok",
+            "quality": 0.93,
+            "error_code": ""
+          },
+          "sht30": {
+            "status": "ok",
+            "quality": 0.98,
+            "error_code": ""
+          },
+          "sim": {
+            "status": "connected",
+            "error_code": ""
+          }
+        },
+        "fallback_used": false,
+        "was_buffered": false,
+        "replayed": false,
+        "_meta_seed": {
+          "node_id": "Node2",
+          "node_name": "Vuon sau rieng A",
+          "site_id": "farm_a_zone_1",
+          "device_uid": "esp32s3_node2",
+          "server_delay_sec": 28
+        }
+      },
+      "category": "telemetry",
+      "timestamp_local": "2026-03-19T19:06:39+07:00"
+    },
+    {
+      "path": "/Node2/telemetry/2026-03-19/1773925555_021",
+      "data": {
+        "schema_version": 1,
+        "ts_device": 1773925534,
+        "ts_server": 1773925555,
+        "seq_no": 21,
+        "event_meta": {
+          "cycle_type": "periodic",
+          "wake_reason": "timer",
+          "duration_ms": 134
+        },
+        "packet": {
+          "npk_data": {
+            "sensor_type": "npk7in1",
+            "sensor_id": "npk_7in1_1",
+            "read_ok": true,
+            "error_code": "ok",
+            "error_code_raw": 0,
+            "retry_count": 0,
+            "timeout_ms": 2000,
+            "read_duration_ms": 134,
+            "crc_ok": true,
+            "frame_ok": true,
+            "sample_interval_ms": 3600000,
+            "consecutive_fail_count": 0,
+            "recovered_after_fail": false,
+            "fail_streak_before_recover": 0,
+            "sensor_alarm": false,
+            "npk_values_valid": true,
+            "npk_signal_present": true,
+            "temp": 24.87,
+            "hum": 63.68,
+            "ph": 6.13,
+            "ec": 915,
+            "N": 112,
+            "P": 33,
+            "K": 66,
+            "edge_system": "soil_npk_edge",
+            "edge_system_id": "edge_npk_01",
+            "edge_stream": "npk"
+          },
+          "sht30_data": {
+            "sensor_type": "sht30_air",
+            "sensor_id": "sht30_1",
+            "edge_system": "air_climate_edge",
+            "edge_system_id": "edge_sht30_01",
+            "edge_stream": "sht30",
+            "sht_addr": "0x44",
+            "sht_sda": 8,
+            "sht_scl": 9,
+            "sht_retry_limit": 5,
+            "sht_retry_delay_ms": 120,
+            "sht_max_wait_ms": 1200,
+            "sht_read_ok": true,
+            "sht_sample_valid": true,
+            "sht_temp_c": 26.03,
+            "sht_hum_pct": 78.0,
+            "sht_error": "ok",
+            "sht_retry_count": 0,
+            "sht_read_elapsed_ms": 48,
+            "sht_invalid_streak": 0
+          },
+          "system_data": {
+            "edge_system_primary": "soil_npk_edge",
+            "edge_system_secondary": "air_climate_edge",
+            "edge_system_id_primary": "edge_npk_01",
+            "edge_system_id_secondary": "edge_sht30_01",
+            "wifi_status": 3,
+            "wifi_connected": true,
+            "rssi": -73,
+            "transport": "sim",
+            "npk_alarm": false,
+            "sht_ready": true,
+            "firmware_version": "mock_seed_v1",
+            "running_partition": "ota_0",
+            "ts_device_ms": 1773925534000
+          }
+        },
+        "sensors": {
+          "npk": {
+            "read_ok": true,
+            "sample_valid": true,
+            "status": "ok",
+            "quality": 0.93,
+            "ts_sample": 1773925534,
+            "error_code": ""
+          },
+          "sht30": {
+            "read_ok": true,
+            "sample_valid": true,
+            "status": "ok",
+            "quality": 0.98,
+            "ts_sample": 1773925534,
+            "error_code": ""
+          }
+        },
+        "modules": {
+          "sim": {
+            "operator": "Viettel",
+            "signal_dbm": -73,
+            "network_status": "connected",
+            "ts_sample": 1773925534
+          },
+          "gps": {
+            "enabled": false,
+            "status": "inactive",
+            "ts_sample": 0
+          }
+        },
+        "health": {
+          "overall": {
+            "battery_v": 12.1,
+            "heap_free": 245000,
+            "rssi": -73,
+            "online": true
+          },
+          "npk": {
+            "status": "ok",
+            "quality": 0.93,
+            "error_code": ""
+          },
+          "sht30": {
+            "status": "ok",
+            "quality": 0.98,
+            "error_code": ""
+          },
+          "sim": {
+            "status": "connected",
+            "error_code": ""
+          }
+        },
+        "fallback_used": false,
+        "was_buffered": false,
+        "replayed": false,
+        "_meta_seed": {
+          "node_id": "Node2",
+          "node_name": "Vuon sau rieng A",
+          "site_id": "farm_a_zone_1",
+          "device_uid": "esp32s3_node2",
+          "server_delay_sec": 21
+        }
+      },
+      "category": "telemetry",
+      "timestamp_local": "2026-03-19T20:05:34+07:00"
+    },
+    {
+      "path": "/Node2/telemetry/2026-03-19/1773929066_022",
+      "data": {
+        "schema_version": 1,
+        "ts_device": 1773929032,
+        "ts_server": 1773929066,
+        "seq_no": 22,
+        "event_meta": {
+          "cycle_type": "periodic",
+          "wake_reason": "timer",
+          "duration_ms": 115
+        },
+        "packet": {
+          "npk_data": {
+            "sensor_type": "npk7in1",
+            "sensor_id": "npk_7in1_1",
+            "read_ok": true,
+            "error_code": "ok",
+            "error_code_raw": 0,
+            "retry_count": 0,
+            "timeout_ms": 2000,
+            "read_duration_ms": 115,
+            "crc_ok": true,
+            "frame_ok": true,
+            "sample_interval_ms": 3600000,
+            "consecutive_fail_count": 0,
+            "recovered_after_fail": false,
+            "fail_streak_before_recover": 0,
+            "sensor_alarm": false,
+            "npk_values_valid": true,
+            "npk_signal_present": true,
+            "temp": 24.76,
+            "hum": 63.87,
+            "ph": 6.15,
+            "ec": 951,
+            "N": 110,
+            "P": 33,
+            "K": 68,
+            "edge_system": "soil_npk_edge",
+            "edge_system_id": "edge_npk_01",
+            "edge_stream": "npk"
+          },
+          "sht30_data": {
+            "sensor_type": "sht30_air",
+            "sensor_id": "sht30_1",
+            "edge_system": "air_climate_edge",
+            "edge_system_id": "edge_sht30_01",
+            "edge_stream": "sht30",
+            "sht_addr": "0x44",
+            "sht_sda": 8,
+            "sht_scl": 9,
+            "sht_retry_limit": 5,
+            "sht_retry_delay_ms": 120,
+            "sht_max_wait_ms": 1200,
+            "sht_read_ok": true,
+            "sht_sample_valid": true,
+            "sht_temp_c": 25.07,
+            "sht_hum_pct": 79.82,
+            "sht_error": "ok",
+            "sht_retry_count": 0,
+            "sht_read_elapsed_ms": 37,
+            "sht_invalid_streak": 0
+          },
+          "system_data": {
+            "edge_system_primary": "soil_npk_edge",
+            "edge_system_secondary": "air_climate_edge",
+            "edge_system_id_primary": "edge_npk_01",
+            "edge_system_id_secondary": "edge_sht30_01",
+            "wifi_status": 3,
+            "wifi_connected": true,
+            "rssi": -73,
+            "transport": "sim",
+            "npk_alarm": false,
+            "sht_ready": true,
+            "firmware_version": "mock_seed_v1",
+            "running_partition": "ota_0",
+            "ts_device_ms": 1773929032000
+          }
+        },
+        "sensors": {
+          "npk": {
+            "read_ok": true,
+            "sample_valid": true,
+            "status": "ok",
+            "quality": 0.93,
+            "ts_sample": 1773929032,
+            "error_code": ""
+          },
+          "sht30": {
+            "read_ok": true,
+            "sample_valid": true,
+            "status": "ok",
+            "quality": 0.98,
+            "ts_sample": 1773929032,
+            "error_code": ""
+          }
+        },
+        "modules": {
+          "sim": {
+            "operator": "Viettel",
+            "signal_dbm": -73,
+            "network_status": "connected",
+            "ts_sample": 1773929032
+          },
+          "gps": {
+            "enabled": false,
+            "status": "inactive",
+            "ts_sample": 0
+          }
+        },
+        "health": {
+          "overall": {
+            "battery_v": 12.1,
+            "heap_free": 245000,
+            "rssi": -73,
+            "online": true
+          },
+          "npk": {
+            "status": "ok",
+            "quality": 0.93,
+            "error_code": ""
+          },
+          "sht30": {
+            "status": "ok",
+            "quality": 0.98,
+            "error_code": ""
+          },
+          "sim": {
+            "status": "connected",
+            "error_code": ""
+          }
+        },
+        "fallback_used": false,
+        "was_buffered": false,
+        "replayed": false,
+        "_meta_seed": {
+          "node_id": "Node2",
+          "node_name": "Vuon sau rieng A",
+          "site_id": "farm_a_zone_1",
+          "device_uid": "esp32s3_node2",
+          "server_delay_sec": 34
+        }
+      },
+      "category": "telemetry",
+      "timestamp_local": "2026-03-19T21:03:52+07:00"
+    },
+    {
+      "path": "/Node2/telemetry/2026-03-19/1773932777_023",
+      "data": {
+        "schema_version": 1,
+        "ts_device": 1773932749,
+        "ts_server": 1773932777,
+        "seq_no": 23,
+        "event_meta": {
+          "cycle_type": "periodic",
+          "wake_reason": "timer",
+          "duration_ms": 130
+        },
+        "packet": {
+          "npk_data": {
+            "sensor_type": "npk7in1",
+            "sensor_id": "npk_7in1_1",
+            "read_ok": true,
+            "error_code": "ok",
+            "error_code_raw": 0,
+            "retry_count": 0,
+            "timeout_ms": 2000,
+            "read_duration_ms": 130,
+            "crc_ok": true,
+            "frame_ok": true,
+            "sample_interval_ms": 3600000,
+            "consecutive_fail_count": 0,
+            "recovered_after_fail": false,
+            "fail_streak_before_recover": 0,
+            "sensor_alarm": false,
+            "npk_values_valid": true,
+            "npk_signal_present": true,
+            "temp": 24.85,
+            "hum": 64.3,
+            "ph": 6.1,
+            "ec": 949,
+            "N": 115,
+            "P": 33,
+            "K": 70,
+            "edge_system": "soil_npk_edge",
+            "edge_system_id": "edge_npk_01",
+            "edge_stream": "npk"
+          },
+          "sht30_data": {
+            "sensor_type": "sht30_air",
+            "sensor_id": "sht30_1",
+            "edge_system": "air_climate_edge",
+            "edge_system_id": "edge_sht30_01",
+            "edge_stream": "sht30",
+            "sht_addr": "0x44",
+            "sht_sda": 8,
+            "sht_scl": 9,
+            "sht_retry_limit": 5,
+            "sht_retry_delay_ms": 120,
+            "sht_max_wait_ms": 1200,
+            "sht_read_ok": true,
+            "sht_sample_valid": true,
+            "sht_temp_c": 25.14,
+            "sht_hum_pct": 81.49,
+            "sht_error": "ok",
+            "sht_retry_count": 0,
+            "sht_read_elapsed_ms": 41,
+            "sht_invalid_streak": 0
+          },
+          "system_data": {
+            "edge_system_primary": "soil_npk_edge",
+            "edge_system_secondary": "air_climate_edge",
+            "edge_system_id_primary": "edge_npk_01",
+            "edge_system_id_secondary": "edge_sht30_01",
+            "wifi_status": 3,
+            "wifi_connected": true,
+            "rssi": -68,
+            "transport": "sim",
+            "npk_alarm": false,
+            "sht_ready": true,
+            "firmware_version": "mock_seed_v1",
+            "running_partition": "ota_0",
+            "ts_device_ms": 1773932749000
+          }
+        },
+        "sensors": {
+          "npk": {
+            "read_ok": true,
+            "sample_valid": true,
+            "status": "ok",
+            "quality": 0.93,
+            "ts_sample": 1773932749,
+            "error_code": ""
+          },
+          "sht30": {
+            "read_ok": true,
+            "sample_valid": true,
+            "status": "ok",
+            "quality": 0.98,
+            "ts_sample": 1773932749,
+            "error_code": ""
+          }
+        },
+        "modules": {
+          "sim": {
+            "operator": "Viettel",
+            "signal_dbm": -68,
+            "network_status": "connected",
+            "ts_sample": 1773932749
+          },
+          "gps": {
+            "enabled": false,
+            "status": "inactive",
+            "ts_sample": 0
+          }
+        },
+        "health": {
+          "overall": {
+            "battery_v": 12.1,
+            "heap_free": 245000,
+            "rssi": -68,
+            "online": true
+          },
+          "npk": {
+            "status": "ok",
+            "quality": 0.93,
+            "error_code": ""
+          },
+          "sht30": {
+            "status": "ok",
+            "quality": 0.98,
+            "error_code": ""
+          },
+          "sim": {
+            "status": "connected",
+            "error_code": ""
+          }
+        },
+        "fallback_used": false,
+        "was_buffered": false,
+        "replayed": false,
+        "_meta_seed": {
+          "node_id": "Node2",
+          "node_name": "Vuon sau rieng A",
+          "site_id": "farm_a_zone_1",
+          "device_uid": "esp32s3_node2",
+          "server_delay_sec": 28
+        }
+      },
+      "category": "telemetry",
+      "timestamp_local": "2026-03-19T22:05:49+07:00"
+    },
+    {
+      "path": "/Node2/telemetry/2026-03-19/1773936319_024",
+      "data": {
+        "schema_version": 1,
+        "ts_device": 1773936262,
+        "ts_server": 1773936319,
+        "seq_no": 24,
+        "event_meta": {
+          "cycle_type": "periodic",
+          "wake_reason": "timer",
+          "duration_ms": 145
+        },
+        "packet": {
+          "npk_data": {
+            "sensor_type": "npk7in1",
+            "sensor_id": "npk_7in1_1",
+            "read_ok": true,
+            "error_code": "ok",
+            "error_code_raw": 0,
+            "retry_count": 0,
+            "timeout_ms": 2000,
+            "read_duration_ms": 145,
+            "crc_ok": true,
+            "frame_ok": true,
+            "sample_interval_ms": 3600000,
+            "consecutive_fail_count": 0,
+            "recovered_after_fail": false,
+            "fail_streak_before_recover": 0,
+            "sensor_alarm": false,
+            "npk_values_valid": true,
+            "npk_signal_present": true,
+            "temp": 25.06,
+            "hum": 65.81,
+            "ph": 6.15,
+            "ec": 988,
+            "N": 109,
+            "P": 31,
+            "K": 69,
+            "edge_system": "soil_npk_edge",
+            "edge_system_id": "edge_npk_01",
+            "edge_stream": "npk"
+          },
+          "sht30_data": {
+            "sensor_type": "sht30_air",
+            "sensor_id": "sht30_1",
+            "edge_system": "air_climate_edge",
+            "edge_system_id": "edge_sht30_01",
+            "edge_stream": "sht30",
+            "sht_addr": "0x44",
+            "sht_sda": 8,
+            "sht_scl": 9,
+            "sht_retry_limit": 5,
+            "sht_retry_delay_ms": 120,
+            "sht_max_wait_ms": 1200,
+            "sht_read_ok": true,
+            "sht_sample_valid": true,
+            "sht_temp_c": 24.9,
+            "sht_hum_pct": 80.52,
+            "sht_error": "ok",
+            "sht_retry_count": 0,
+            "sht_read_elapsed_ms": 40,
+            "sht_invalid_streak": 0
+          },
+          "system_data": {
+            "edge_system_primary": "soil_npk_edge",
+            "edge_system_secondary": "air_climate_edge",
+            "edge_system_id_primary": "edge_npk_01",
+            "edge_system_id_secondary": "edge_sht30_01",
+            "wifi_status": 3,
+            "wifi_connected": true,
+            "rssi": -71,
+            "transport": "sim",
+            "npk_alarm": false,
+            "sht_ready": true,
+            "firmware_version": "mock_seed_v1",
+            "running_partition": "ota_0",
+            "ts_device_ms": 1773936262000
+          }
+        },
+        "sensors": {
+          "npk": {
+            "read_ok": true,
+            "sample_valid": true,
+            "status": "ok",
+            "quality": 0.93,
+            "ts_sample": 1773936262,
+            "error_code": ""
+          },
+          "sht30": {
+            "read_ok": true,
+            "sample_valid": true,
+            "status": "ok",
+            "quality": 0.98,
+            "ts_sample": 1773936262,
+            "error_code": ""
+          }
+        },
+        "modules": {
+          "sim": {
+            "operator": "Viettel",
+            "signal_dbm": -71,
+            "network_status": "connected",
+            "ts_sample": 1773936262
+          },
+          "gps": {
+            "enabled": false,
+            "status": "inactive",
+            "ts_sample": 0
+          }
+        },
+        "health": {
+          "overall": {
+            "battery_v": 12.1,
+            "heap_free": 245000,
+            "rssi": -71,
+            "online": true
+          },
+          "npk": {
+            "status": "ok",
+            "quality": 0.93,
+            "error_code": ""
+          },
+          "sht30": {
+            "status": "ok",
+            "quality": 0.98,
+            "error_code": ""
+          },
+          "sim": {
+            "status": "connected",
+            "error_code": ""
+          }
+        },
+        "fallback_used": false,
+        "was_buffered": false,
+        "replayed": false,
+        "_meta_seed": {
+          "node_id": "Node2",
+          "node_name": "Vuon sau rieng A",
+          "site_id": "farm_a_zone_1",
+          "device_uid": "esp32s3_node2",
+          "server_delay_sec": 57
+        }
+      },
+      "category": "telemetry",
+      "timestamp_local": "2026-03-19T23:04:22+07:00"
+    }
+  ],
+  "aux_writes": [
+    {
+      "path": "/Node2/info",
+      "data": {
+        "schema_version": 1,
+        "identity": {
+          "node_id": "Node2",
+          "device_uid": "esp32s3_node2",
+          "site_id": "farm_a_zone_1"
+        },
+        "hardware": {
+          "board": "ESP32-S3",
+          "power_type": "solar_battery",
+          "reset_count": 0
+        },
+        "firmware": {
+          "version": "mock_seed_v1",
+          "build_id": "build_mock_seed",
+          "last_update_ts": 1773936319
+        },
+        "config": {
+          "sampling_mode": "periodic",
+          "wake_interval_sec": 3600,
+          "timezone": "Asia/Ho_Chi_Minh",
+          "telemetry_retention_days": 30
+        },
+        "network": {
+          "transport": "sim",
+          "ip": "",
+          "mac": "",
+          "last_rssi": -71
+        }
+      },
+      "category": "info",
+      "timestamp_local": null
+    },
+    {
+      "path": "/Node2/live",
+      "data": {
+        "schema_version": 1,
+        "meta": {
+          "last_event_id": "1773936319_024",
+          "last_seen_ts": 1773936262,
+          "uptime_sec": 0,
+          "boot_reason": "timer",
+          "last_sync_ts": 1773936319,
+          "telemetry_debug": {
+            "ok": true,
+            "ref_or_path": "1773936319_024",
+            "detail": "ok",
+            "ts_device": 1773936262,
+            "ts_server": 1773936319
+          },
+          "telemetry_channel": {
+            "last_stage": "direct_upload",
+            "last_ok": true,
+            "fallback_active": false,
+            "tls_error": false,
+            "last_ref_or_path": "1773936319_024",
+            "last_detail": "ok",
+            "key_mode": "deterministic_only",
+            "counter_ok": 24,
+            "counter_fail": 0,
+            "counter_fallback": 0,
+            "counter_tls_error": 0,
+            "ts_device": 1773936262,
+            "ts_server": 1773936319
+          }
+        },
+        "sensors": {
+          "npk": {
+            "n": 109,
+            "p": 31,
+            "k": 69,
+            "ec": 988,
+            "ph": 6.15,
+            "temperature_c": 25.06,
+            "humidity_percent": 65.81,
+            "ts_sample": 1773936262,
+            "read_ok": true,
+            "sample_valid": true,
+            "status": "ok",
+            "quality": 0.93,
+            "error_code": ""
+          },
+          "sht30": {
+            "temperature_c": 24.9,
+            "humidity_percent": 80.52,
+            "ts_sample": 1773936262,
+            "read_ok": true,
+            "sample_valid": true,
+            "retry_count": 0,
+            "read_elapsed_ms": 40,
+            "invalid_streak": 0,
+            "status": "ok",
+            "quality": 0.98,
+            "error_code": ""
+          }
+        },
+        "modules": {
+          "sim": {
+            "operator": "Viettel",
+            "signal_dbm": -71,
+            "network_status": "connected",
+            "ts_sample": 1773936262
+          },
+          "gps": {
+            "enabled": false,
+            "status": "inactive",
+            "ts_sample": 0
+          }
+        },
+        "health": {
+          "overall": {
+            "online": true,
+            "battery_v": 12.1,
+            "heap_free": 245000,
+            "rssi": -71,
+            "heartbeat_age_sec": 0,
+            "system_state": "online",
+            "state_detail": "rtdb write ok",
+            "ts_device": 1773936262,
+            "last_sync_ts": 1773936319
+          },
+          "sensors": {
+            "npk": {
+              "read_ok": true,
+              "sample_valid": true,
+              "status": "ok",
+              "last_success_ts": 1773936262
+            },
+            "sht30": {
+              "read_ok": true,
+              "sample_valid": true,
+              "status": "ok",
+              "last_success_ts": 1773936262
+            }
+          },
+          "modules": {
+            "sim": {
+              "status": "connected",
+              "last_success_ts": 1773936262
+            },
+            "gps": {
+              "status": "inactive",
+              "last_success_ts": 0
+            }
+          }
+        }
+      },
+      "category": "live",
+      "timestamp_local": null
+    },
+    {
+      "path": "/Node2/live/health/overall",
+      "data": {
+        "online": true,
+        "battery_v": 12.1,
+        "heap_free": 245000,
+        "rssi": -71,
+        "heartbeat_age_sec": 0,
+        "system_state": "online",
+        "state_detail": "rtdb write ok",
+        "ts_device": 1773936262,
+        "last_sync_ts": 1773936319
+      },
+      "category": "live_health_overall",
+      "timestamp_local": null
+    },
+    {
+      "path": "/Node2/live/meta/telemetry_debug",
+      "data": {
+        "ok": true,
+        "ref_or_path": "1773936319_024",
+        "detail": "ok",
+        "ts_device": 1773936262,
+        "ts_server": 1773936319
+      },
+      "category": "telemetry_debug",
+      "timestamp_local": null
+    },
+    {
+      "path": "/Node2/live/meta/telemetry_channel",
+      "data": {
+        "last_stage": "direct_upload",
+        "last_ok": true,
+        "fallback_active": false,
+        "tls_error": false,
+        "last_ref_or_path": "1773936319_024",
+        "last_detail": "ok",
+        "key_mode": "deterministic_only",
+        "counter_ok": 24,
+        "counter_fail": 0,
+        "counter_fallback": 0,
+        "counter_tls_error": 0,
+        "ts_device": 1773936262,
+        "ts_server": 1773936319
+      },
+      "category": "telemetry_channel",
+      "timestamp_local": null
+    },
+    {
+      "path": "/Node2/status_events/1773853397_evt001",
+      "data": {
+        "component": "system",
+        "from": "unknown",
+        "to": "boot",
+        "reason": "network task started",
+        "ts": 1773853397,
+        "severity": "info",
+        "ts_server_ms": 1773853397000
+      },
+      "category": "status_event",
+      "timestamp_local": null
+    },
+    {
+      "path": "/Node2/status_events/1773853398_evt002",
+      "data": {
+        "component": "system",
+        "from": "boot",
+        "to": "online",
+        "reason": "rtdb write ok",
+        "ts": 1773853398,
+        "severity": "info",
+        "ts_server_ms": 1773853398000
+      },
+      "category": "status_event",
+      "timestamp_local": null
+    },
+    {
+      "path": "/ota/status",
+      "data": {
+        "stage": "status",
+        "status": "idle",
+        "detail": "mock_seed_baseline",
+        "request_id": "",
+        "firmware_version": "mock_seed_v1",
+        "running_partition": "ota_0",
+        "uptime_ms": 1773936262000
+      },
+      "category": "ota_status",
+      "timestamp_local": null
+    },
+    {
+      "path": "/ota/history/seed_1773936319",
+      "data": {
+        "stage": "status",
+        "status": "idle",
+        "detail": "mock_seed_baseline",
+        "target_version": "mock_seed_v1",
+        "request_id": "",
+        "firmware_version": "mock_seed_v1",
+        "running_partition": "ota_0",
+        "uptime_ms": 1773936262000
+      },
+      "category": "ota_history",
+      "timestamp_local": null
+    },
+    {
+      "path": "/ota/command",
+      "data": {
+        "enabled": false,
+        "request_id": "",
+        "version": "",
+        "url": "",
+        "md5": "",
+        "force": false
+      },
+      "category": "ota_command",
+      "timestamp_local": null
+    }
+  ]
+}

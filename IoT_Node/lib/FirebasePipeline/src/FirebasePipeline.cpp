@@ -96,59 +96,12 @@ uint32_t replayUtcSec(uint64_t utcMs) {
     return (uint32_t)now;
 }
 
-void setNull(JsonVariant value) {
-    value.set(nullptr);
-}
-
-bool parseRecord(FirebaseJson &record, JsonDocument &doc) {
-    String json;
-    record.toString(json, false);
-    return deserializeJson(doc, json) == DeserializationError::Ok;
-}
-
-bool saveRecord(FirebaseJson &record, JsonDocument &doc) {
-    String json;
-    serializeJson(doc, json);
-    return record.setJsonData(json);
-}
-
-uint32_t extractRecordTsSample(JsonObjectConst root) {
-    JsonVariantConst tsSample = root["system_record"]["time"]["ts_sample"];
-    if (tsSample.isNull()) {
-        return 0;
-    }
-    return static_cast<uint32_t>(tsSample.as<unsigned long>());
-}
-
-bool extractRecordTimeValid(JsonObjectConst root) {
-    return root["system_record"]["time"]["time_valid"] | false;
-}
-
-uint32_t extractRecordSeqNo(JsonObjectConst root) {
-    JsonVariantConst seqNo = root["system_record"]["identity"]["seq_no"];
-    if (seqNo.isNull()) {
-        return 0;
-    }
-    return static_cast<uint32_t>(seqNo.as<unsigned long>());
-}
-
-String canonicalTelemetryRecordId(uint32_t tsSample, uint32_t seqNo) {
-    if (tsSample < 1700000000UL) {
-        return "";
-    }
-    (void)seqNo;
-    // Node1/Layer0 uses the sample timestamp as the event key. The sequence
-    // remains in system_record.identity.seq_no for diagnostics without
-    // changing the peer-compatible RTDB path.
-    return String((unsigned long)tsSample);
-}
-
-String canonicalTelemetryDateKey(uint32_t tsSample) {
-    if (tsSample < 1700000000UL) {
-        return "";
+String replayDateKeyFromEpoch(uint32_t epochSec) {
+    if (epochSec == 0) {
+        return "unsynced";
     }
 
-    time_t sec = (time_t)tsSample;
+    time_t sec = (time_t)epochSec;
     struct tm tmLocal;
 #if defined(_WIN32)
     localtime_s(&tmLocal, &sec);
@@ -160,13 +113,111 @@ String canonicalTelemetryDateKey(uint32_t tsSample) {
     return String(buf);
 }
 
-String canonicalTelemetryPath(uint32_t tsSample, uint32_t seqNo) {
-    String dateKey = canonicalTelemetryDateKey(tsSample);
-    String recordId = canonicalTelemetryRecordId(tsSample, seqNo);
-    if (!dateKey.length() || !recordId.length()) {
-        return "";
+uint32_t replaySlotIndexFromEpoch(uint32_t epochSec) {
+    if (epochSec == 0) {
+        return 0;
     }
-    return String(APP_RTDB_PATH_NODE_TELEMETRY) + "/" + dateKey + "/" + recordId;
+
+    uint32_t slotsPerDay = (uint32_t)APP_TELEMETRY_SEQUENCE_SLOTS_PER_DAY;
+    if (slotsPerDay == 0) {
+        return 0;
+    }
+
+    time_t sec = (time_t)epochSec;
+    struct tm tmLocal;
+#if defined(_WIN32)
+    localtime_s(&tmLocal, &sec);
+#else
+    localtime_r(&sec, &tmLocal);
+#endif
+
+    uint32_t secOfDay = (uint32_t)tmLocal.tm_hour * 3600U +
+                        (uint32_t)tmLocal.tm_min * 60U +
+                        (uint32_t)tmLocal.tm_sec;
+    uint32_t slotLenSec = 86400U / slotsPerDay;
+    if (slotLenSec == 0) {
+        return 0;
+    }
+
+    uint32_t slotIndex = (secOfDay / slotLenSec) + 1U;
+    if (slotIndex > slotsPerDay) {
+        slotIndex = slotsPerDay;
+    }
+    return slotIndex;
+}
+
+String replaySlotLabelFromEpoch(uint32_t epochSec) {
+    if (epochSec == 0) {
+        return "unsynced";
+    }
+
+    uint32_t slotsPerDay = (uint32_t)APP_TELEMETRY_SEQUENCE_SLOTS_PER_DAY;
+    uint32_t slotIndex = replaySlotIndexFromEpoch(epochSec);
+    if (slotsPerDay == 0 || slotIndex == 0) {
+        return "unsynced";
+    }
+
+    time_t sec = (time_t)epochSec;
+    struct tm tmLocal;
+#if defined(_WIN32)
+    localtime_s(&tmLocal, &sec);
+#else
+    localtime_r(&sec, &tmLocal);
+#endif
+
+    char buf[24];
+    snprintf(buf, sizeof(buf), "%02d:%02d slot %lu/%lu",
+             tmLocal.tm_hour,
+             tmLocal.tm_min,
+             (unsigned long)slotIndex,
+             (unsigned long)slotsPerDay);
+    return String(buf);
+}
+
+String replayTimeLabelFromEpoch(uint32_t epochSec) {
+    if (epochSec == 0) {
+        return "unsynced";
+    }
+
+    time_t sec = (time_t)epochSec;
+    struct tm tmLocal;
+#if defined(_WIN32)
+    localtime_s(&tmLocal, &sec);
+#else
+    localtime_r(&sec, &tmLocal);
+#endif
+
+    char buf[8];
+    strftime(buf, sizeof(buf), "%H:%M", &tmLocal);
+    return String(buf);
+}
+
+String replayDateTimeLabelFromEpoch(uint32_t epochSec) {
+    if (epochSec == 0) {
+        return "unsynced";
+    }
+
+    time_t sec = (time_t)epochSec;
+    struct tm tmLocal;
+#if defined(_WIN32)
+    localtime_s(&tmLocal, &sec);
+#else
+    localtime_r(&sec, &tmLocal);
+#endif
+
+    char buf[24];
+    strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", &tmLocal);
+    return String(buf);
+}
+
+String replayTelemetryKey(uint32_t keyTs, uint32_t suffixValue) {
+    if (keyTs >= 1700000000U) {
+        return String((unsigned long)keyTs);
+    }
+
+    char buf[40];
+    snprintf(buf, sizeof(buf), "%lu_%03lu", (unsigned long)keyTs, (unsigned long)(suffixValue % 1000U));
+    return String(buf);
 }
 
 bool restampReplayRecordIfNeeded(FirebaseJson &record, uint64_t utcMs) {
@@ -175,96 +226,56 @@ bool restampReplayRecordIfNeeded(FirebaseJson &record, uint64_t utcMs) {
         return false;
     }
 
+    String json;
+    record.toString(json, false);
     JsonDocument doc;
-    if (!parseRecord(record, doc)) {
+    if (deserializeJson(doc, json) != DeserializationError::Ok) {
         return false;
     }
 
-    JsonObject root = doc.as<JsonObject>();
-    JsonObject timeObject = root["system_record"]["time"].to<JsonObject>();
-    bool timeValid = timeObject["time_valid"] | false;
-    uint32_t tsSample = extractRecordTsSample(root);
-    if (timeValid && tsSample >= 1700000000UL) {
+    JsonObject obj = doc.as<JsonObject>();
+    String dateKey = obj["_date_key"] | "";
+    bool needsRestamp = !dateKey.length() || dateKey == "unsynced";
+    if (!needsRestamp) {
         return false;
     }
 
-    uint32_t seqNo = extractRecordSeqNo(root);
-    String recordId = canonicalTelemetryRecordId(nowSec, seqNo);
-    String recordPath = canonicalTelemetryPath(nowSec, seqNo);
+    uint32_t slotNo = replaySlotIndexFromEpoch(nowSec);
+    obj["_date_key"] = replayDateKeyFromEpoch(nowSec);
+    obj["_event_id"] = replayTelemetryKey(nowSec, slotNo > 0 ? slotNo : 1U);
+    obj["ts_server"] = (int)nowSec;
+    if (!obj["ts_sample"].is<int>() || (obj["ts_sample"] | 0) <= 0) {
+        obj["ts_sample"] = (int)nowSec;
+    }
+    obj.remove("seq_no");
+    obj.remove("slot_no");
+    obj.remove("slot_count_day");
+    obj.remove("slot_label");
+    obj["sample_time_label"] = replayTimeLabelFromEpoch((uint32_t)(obj["ts_sample"] | nowSec));
+    obj["sample_time_local"] = replayDateTimeLabelFromEpoch((uint32_t)(obj["ts_sample"] | nowSec));
+    obj["upload_time_label"] = replayTimeLabelFromEpoch(nowSec);
+    obj["upload_time_local"] = replayDateTimeLabelFromEpoch(nowSec);
+    obj["replayed_time_reconstructed"] = true;
 
-    timeObject["ts_sample"] = (unsigned long)nowSec;
-    timeObject["clock_source"] = "reconstructed_on_replay";
-    timeObject["time_valid"] = true;
-    timeObject["time_reconstructed"] = true;
-
-    JsonObject identity = root["system_record"]["identity"].to<JsonObject>();
-    identity["record_id"] = recordId;
-    identity["record_path"] = recordPath;
-
-    return saveRecord(record, doc);
-}
-
-bool updateUploadState(FirebaseJson &record,
-                       const char *phase,
-                       bool attempted,
-                       bool uploadOk,
-                       const char *stage,
-                       int httpStatus,
-                       int latencyMs,
-                       bool tlsOk,
-                       const String &errorCode,
-                       const String &bufferReason) {
-    JsonDocument doc;
-    if (!parseRecord(record, doc)) {
-        return false;
+    JsonObject packet = obj["packet"].as<JsonObject>();
+    JsonObject system = packet["system_data"].as<JsonObject>();
+    if (!system.isNull()) {
+        system["sample_epoch_sec"] = (int)nowSec;
+        system["sample_time_valid"] = true;
+        system["sample_slot_no"] = (int)slotNo;
+        system["sample_slot_count_day"] = (int)APP_TELEMETRY_SEQUENCE_SLOTS_PER_DAY;
+        system["sample_date_key"] = replayDateKeyFromEpoch(nowSec);
     }
 
-    JsonObject slot = doc["sim_record"]["upload"][phase].to<JsonObject>();
-    slot["attempted"] = attempted;
-    slot["upload_ok"] = uploadOk;
-    slot["upload_stage"] = stage ? stage : "";
-    if (httpStatus >= 0) {
-        slot["http_status"] = httpStatus;
-    } else {
-        setNull(slot["http_status"]);
-    }
-    if (latencyMs >= 0) {
-        slot["upload_latency_ms"] = latencyMs;
-    } else {
-        setNull(slot["upload_latency_ms"]);
-    }
-    slot["tls_ok"] = tlsOk;
-    slot["last_error_code"] = errorCode;
-    slot["buffer_reason_code"] = bufferReason;
-    return saveRecord(record, doc);
-}
-
-bool updateSyncState(FirebaseJson &record,
-                     bool telemetryPersisted,
-                     const String &telemetryPath,
-                     bool buffered,
-                     bool replayed,
-                     bool latestUpdated,
-                     const String &bufferReason,
-                     const String &lastErrorCode) {
-    JsonDocument doc;
-    if (!parseRecord(record, doc)) {
-        return false;
+    JsonObject eventMeta = obj["event_meta"].as<JsonObject>();
+    if (!eventMeta.isNull()) {
+        eventMeta["sample_time_label"] = replayTimeLabelFromEpoch((uint32_t)(obj["ts_sample"] | nowSec));
+        eventMeta["upload_time_label"] = replayTimeLabelFromEpoch(nowSec);
     }
 
-    JsonObject sync = doc["system_record"]["sync"].to<JsonObject>();
-    sync["telemetry_persisted"] = telemetryPersisted;
-    if (telemetryPersisted && telemetryPath.length()) {
-        sync["telemetry_record_path"] = telemetryPath;
-    } else {
-        setNull(sync["telemetry_record_path"]);
-    }
-    sync["buffered"] = buffered;
-    sync["replayed"] = replayed;
-    sync["latest_updated"] = latestUpdated;
-    sync["buffer_reason_code"] = bufferReason;
-    sync["last_error_code"] = lastErrorCode;
-    return saveRecord(record, doc);
+    String out;
+    serializeJson(doc, out);
+    return record.setJsonData(out);
 }
 }  // namespace
 
@@ -307,7 +318,8 @@ void FirebasePipeline::updateReadyFlag() {
 
 FirebaseBootstrapResult FirebasePipeline::begin(FirebaseConfig &firebaseConfig,
                                                 FirebaseAuth &firebaseAuth,
-                                                FirebaseData &firebaseData) {
+                                                FirebaseData &firebaseData,
+                                                FirebaseData &firebaseOtaData) {
     FirebaseBootstrapResult result;
     CUS_DBGLN("[FIREBASE] Dang khoi tao RTDB...");
     _ready = false;
@@ -364,6 +376,7 @@ FirebaseBootstrapResult FirebasePipeline::begin(FirebaseConfig &firebaseConfig,
     return result;
 #else
     firebaseData.stopWiFiClient();
+    firebaseOtaData.stopWiFiClient();
     Firebase.reset(&firebaseConfig);
     firebaseConfig = FirebaseConfig();
     firebaseAuth = FirebaseAuth();
@@ -375,7 +388,9 @@ FirebaseBootstrapResult FirebasePipeline::begin(FirebaseConfig &firebaseConfig,
 #endif
 
     firebaseData.setBSSLBufferSize(_cfg.tlsRxBufferSize, _cfg.tlsTxBufferSize);
+    firebaseOtaData.setBSSLBufferSize(_cfg.tlsRxBufferSize, _cfg.tlsTxBufferSize);
     firebaseData.setResponseSize(2048);
+    firebaseOtaData.setResponseSize(2048);
 
     firebaseConfig.database_url = _cfg.databaseUrl;
     firebaseConfig.token_status_callback = firebaseTokenStatusLogger;
@@ -553,7 +568,6 @@ RawTelemetryRecordContext FirebasePipeline::buildRecordContext(DeviceContext &de
     ctx.rssi = networkSignalDbm();
     ctx.hasInternet = hasInternet;
     ctx.sensorError = sensorError;
-    ctx.includePartialSensorValues = APP_PUBLISH_PARTIAL_SENSOR_VALUES != 0;
     return ctx;
 }
 
@@ -622,8 +636,13 @@ String FirebasePipeline::buildAuthSetupSummary(bool usingLegacyAuth,
 bool FirebasePipeline::bufferRawRecord(FirebaseJson &record,
                                        const char *reason,
                                        bool &offlineReplayPending) {
-    String reasonCode = (reason && strlen(reason)) ? String(reason) : String("offline");
-    updateSyncState(record, false, "", true, false, false, reasonCode, reasonCode);
+    record.set("fallback_used", true);
+    record.set("was_buffered", true);
+    record.set("replayed", false);
+    record.set("buffered_at_ms", (int)millis());
+    if (reason && strlen(reason)) {
+        record.set("buffer_reason", reason);
+    }
 
     String line;
     record.toString(line, false);
@@ -681,6 +700,10 @@ TelemetryPushResult FirebasePipeline::pushPayloadDetailed(FirebaseData &firebase
         return result;
     }
 
+    record.set("fallback_used", false);
+    record.set("was_buffered", false);
+    record.set("replayed", false);
+
     ensurePublishReady(firebaseData, utcMs);
     result.transportReady = _transportReady;
     result.beginDone = _beginDone;
@@ -688,14 +711,61 @@ TelemetryPushResult FirebasePipeline::pushPayloadDetailed(FirebaseData &firebase
     result.publishEnabled = _publishEnabled;
     result.firebaseReady = ready();
     result.pipelineState = stateSummary();
-
     bool canUpload = result.networkReady &&
                      result.transportReady &&
                      result.beginDone &&
                      result.authInitialized &&
                      result.publishEnabled;
+    if (canUpload) {
+        result.uploadAttempted = true;
+        String telemetryRefId;
+        if (_rawTelemetryReporter.publishRecord(firebaseData, record, &telemetryRefId, err, false)) {
+            _nodeRuntimePublisher.publishNodeLive(firebaseData,
+                                                  payload,
+                                                  telemetryRefId,
+                                                  ctx,
+                                                  sensorError,
+                                                  utcMs);
+            if (shouldPublishSuccessDiagnostics()) {
+                publishTelemetryDebug(firebaseData, true, telemetryRefId, "ok", utcMs);
+                publishTelemetryChannel(firebaseData, true, false, false, "direct_upload", telemetryRefId, "ok", utcMs);
+            }
+            CUS_DBGF("[FIREBASE] Node telemetry OK ref=%s\n", telemetryRefId.c_str());
+            result.uploaded = true;
+            result.stage = "uploaded";
+            result.detail = "ok";
+            result.refId = telemetryRefId;
+            return result;
+        }
 
-    if (!result.networkReady) {
+        result.tlsError = isTlsTransportError(err);
+        if (isAuthInitializationError(err)) {
+            _authInitialized = false;
+            _publishEnabled = false;
+            updateReadyFlag();
+            result.transportReady = _transportReady;
+            result.beginDone = _beginDone;
+            result.authInitialized = _authInitialized;
+            result.publishEnabled = _publishEnabled;
+            result.firebaseReady = ready();
+            result.pipelineState = stateSummary();
+            result.stage = "publish_blocked_auth_not_initialized";
+            result.detail = err + " | " + result.pipelineState;
+        } else {
+            result.stage = "publish_error";
+            result.detail = err;
+        }
+        publishTelemetryDebug(firebaseData, false, "publish_record", err, utcMs);
+        publishTelemetryChannel(firebaseData,
+                                false,
+                                true,
+                                result.tlsError,
+                                "direct_fail_buffered",
+                                "publish_record",
+                                err,
+                                utcMs);
+        CUS_DBGF("[FIREBASE] Node telemetry upload LOI: %s\n", err.c_str());
+    } else if (!result.networkReady) {
         result.stage = "network_down";
         result.detail = "networkIsConnected=false";
     } else if (!result.transportReady) {
@@ -710,159 +780,51 @@ TelemetryPushResult FirebasePipeline::pushPayloadDetailed(FirebaseData &firebase
     } else if (!result.publishEnabled) {
         result.stage = "publish_blocked_gate_not_ready";
         result.detail = result.pipelineState;
+    } else {
+        result.stage = "firebase_not_ready";
+        result.detail = result.pipelineState;
     }
 
-    if (canUpload) {
-        result.uploadAttempted = true;
-        TelemetryPublishResult publishResult;
-        uint32_t uploadStartMs = millis();
-
-        updateUploadState(record, "direct", true, true, "direct_upload", -1, -1, true, "", "");
-        updateSyncState(record, false, "", false, false, false, "", "");
-
-        err = "";
-        bool telemetryPublished = _rawTelemetryReporter.publishRecord(firebaseData, record, publishResult, err);
-        CUS_DBGF("[FIREBASE][TELEMETRY] result ok=%d duplicate=%d path=%s ref=%s http=%d stage=%s detail=%s elapsed=%lu ms\n",
-                 telemetryPublished ? 1 : 0,
-                 publishResult.duplicate ? 1 : 0,
-                 publishResult.path.c_str(),
-                 publishResult.refId.c_str(),
-                 publishResult.httpStatus,
-                 publishResult.stage.c_str(),
-                 (err.length() ? err : publishResult.detail).c_str(),
-                 (unsigned long)(millis() - uploadStartMs));
-
-        if (telemetryPublished) {
-            int uploadLatencyMs = (int)(millis() - uploadStartMs);
-            updateUploadState(record,
-                              "direct",
-                              true,
-                              true,
-                              "direct_upload",
-                              publishResult.httpStatus,
-                              uploadLatencyMs,
-                              !result.tlsError,
-                              "",
-                              "");
-            updateSyncState(record, true, publishResult.path, false, false, false, "", "");
-
-            String latestError;
-            bool latestUpdated = false;
-            if (!_nodeRuntimePublisher.publishLatestIfNewer(firebaseData, record, &latestUpdated, &latestError)) {
-                CUS_DBGF("[FIREBASE] latest update fail: %s\n", latestError.c_str());
-            }
-
-            result.uploaded = true;
-            result.latestUpdated = latestUpdated;
-            result.stage = "uploaded";
-            result.detail = latestUpdated ? "ok_latest_updated" : "ok_latest_unchanged";
-            result.refId = publishResult.refId;
-            result.telemetryPath = publishResult.path;
-            if (shouldPublishSuccessDiagnostics()) {
-                publishTelemetryDebug(firebaseData, true, publishResult.path, result.detail, utcMs);
-                publishTelemetryChannel(firebaseData, true, false, false, "direct_upload", publishResult.path, result.detail, utcMs);
-            }
-            return result;
-        }
-
-        int uploadLatencyMs = (int)(millis() - uploadStartMs);
-        result.tlsError = isTlsTransportError(err) || isTlsTransportError(publishResult.detail);
-        result.refId = publishResult.refId;
-        result.telemetryPath = publishResult.path;
-
-        if (publishResult.duplicate) {
-            updateUploadState(record,
-                              "direct",
-                              true,
-                              false,
-                              "duplicate_key",
-                              publishResult.httpStatus,
-                              uploadLatencyMs,
-                              !result.tlsError,
-                              "duplicate_key",
-                              "");
-            updateSyncState(record, true, publishResult.path, false, false, false, "", "duplicate_key");
-
-            String latestError;
-            bool latestUpdated = false;
-            if (!_nodeRuntimePublisher.publishLatestIfNewer(firebaseData, record, &latestUpdated, &latestError)) {
-                CUS_DBGF("[FIREBASE] latest update after duplicate fail: %s\n", latestError.c_str());
-            }
-
-            result.uploaded = true;
-            result.duplicate = true;
-            result.latestUpdated = latestUpdated;
-            result.stage = "duplicate_key";
-            result.detail = "telemetry_record_exists";
-            publishTelemetryDebug(firebaseData, true, publishResult.path, result.detail, utcMs);
-            publishTelemetryChannel(firebaseData, true, false, false, "duplicate_key", publishResult.path, result.detail, utcMs);
-            return result;
-        }
-
-        if (isAuthInitializationError(err)) {
-            _authInitialized = false;
-            _publishEnabled = false;
-            updateReadyFlag();
-            result.transportReady = _transportReady;
-            result.beginDone = _beginDone;
-            result.authInitialized = _authInitialized;
-            result.publishEnabled = _publishEnabled;
-            result.firebaseReady = ready();
-            result.pipelineState = stateSummary();
-            result.stage = "publish_blocked_auth_not_initialized";
-            result.detail = err.length() ? err : result.pipelineState;
-        } else {
-            result.stage = publishResult.stage.length() ? publishResult.stage : "publish_error";
-            result.detail = err.length() ? err : publishResult.detail;
-        }
-
-        String directErrorCode = result.stage.length() ? result.stage : String("publish_error");
-        updateUploadState(record,
-                          "direct",
-                          true,
-                          false,
-                          result.stage.c_str(),
-                          publishResult.httpStatus,
-                          uploadLatencyMs,
-                          !result.tlsError,
-                          directErrorCode,
-                          directErrorCode);
-        updateSyncState(record, false, "", false, false, false, directErrorCode, directErrorCode);
-
-        publishTelemetryDebug(firebaseData, false, "publish_record", result.detail, utcMs);
-        publishTelemetryChannel(firebaseData,
-                                false,
-                                true,
-                                result.tlsError,
-                                "direct_fail_buffered",
-                                publishResult.path.length() ? publishResult.path : String("publish_record"),
-                                result.detail,
-                                utcMs);
-        CUS_DBGF("[FIREBASE] Node telemetry upload LOI: %s\n", result.detail.c_str());
+    const char *bufferReason = nullptr;
+    if (result.stage == "publish_error") {
+        bufferReason = err.c_str();
+    } else if (result.stage == "publish_blocked_auth_not_initialized") {
+        bufferReason = "publish_blocked_auth_not_initialized";
+    } else if (result.stage == "publish_blocked_gate_not_ready") {
+        bufferReason = "publish_blocked_gate_not_ready";
+    } else if (result.stage == "publish_blocked_transport_not_ready") {
+        bufferReason = "publish_blocked_transport_not_ready";
+    } else if (result.stage == "publish_blocked_begin_not_done") {
+        bufferReason = "publish_blocked_begin_not_done";
+    } else if (result.stage == "firebase_not_ready") {
+        bufferReason = "firebase_not_ready";
+    } else if (result.stage == "network_down") {
+        bufferReason = "network_down";
+    } else {
+        bufferReason = "offline";
     }
 
-    String bufferReason = result.stage.length() ? result.stage : String("offline");
-    if (!result.uploadAttempted) {
-        updateUploadState(record, "direct", false, false, result.stage.c_str(), -1, -1, false, "", bufferReason);
-        updateSyncState(record, false, "", false, false, false, bufferReason, bufferReason);
-    }
-
-    result.bufferStoreOk = bufferRawRecord(record, bufferReason.c_str(), offlineReplayPending);
+    result.bufferStoreOk = bufferRawRecord(record, bufferReason, offlineReplayPending);
     result.buffered = result.bufferStoreOk;
     if (!result.bufferStoreOk) {
         result.stage = "buffer_store_fail";
-        result.detail = result.detail.length() ? (result.detail + " | saveOfflineData=false") : "saveOfflineData=false";
+        if (result.detail.length()) {
+            result.detail += " | saveOfflineData=false";
+        } else {
+            result.detail = "saveOfflineData=false";
+        }
     }
-
-    publishTelemetryDebug(firebaseData, false, "offline_buffer", result.stage, utcMs);
-    publishTelemetryChannel(firebaseData,
-                            false,
-                            true,
-                            result.tlsError,
-                            "offline_buffer",
-                            "offline_buffer",
-                            result.stage,
-                            utcMs);
+    if (!canUpload) {
+        publishTelemetryDebug(firebaseData, false, "offline_buffer", result.stage, utcMs);
+        publishTelemetryChannel(firebaseData,
+                                false,
+                                true,
+                                false,
+                                "offline_buffer",
+                                "offline_buffer",
+                                result.stage,
+                                utcMs);
+    }
 
     return result;
 }
@@ -929,9 +891,6 @@ OfflineReplayResult FirebasePipeline::replayOfflineIfAnyDetailed(FirebaseData &f
     }
 
     String remaining;
-    bool haveLatestCandidate = false;
-    uint32_t latestCandidateTs = 0;
-    FirebaseJson latestCandidateRecord;
     while (in.available()) {
         String line = in.readStringUntil('\n');
         line.trim();
@@ -946,117 +905,33 @@ OfflineReplayResult FirebasePipeline::replayOfflineIfAnyDetailed(FirebaseData &f
             continue;
         }
 
+        record.set("was_buffered", true);
+        record.set("replayed", true);
+        record.set("fallback_used", true);
+        record.set("replayed_at_ms", (int)millis());
         restampReplayRecordIfNeeded(record, utcMs);
 
-        TelemetryPublishResult publishResult;
+        String rawRefId;
         String err;
-        uint32_t uploadStartMs = millis();
-        updateUploadState(record, "replay", true, true, "replay_upload", -1, -1, true, "", "");
-        updateSyncState(record, false, "", false, true, false, "", "");
-
-        if (_rawTelemetryReporter.publishRecord(firebaseData, record, publishResult, err)) {
-            int uploadLatencyMs = (int)(millis() - uploadStartMs);
-            updateUploadState(record,
-                              "replay",
-                              true,
-                              true,
-                              "replay_upload",
-                              publishResult.httpStatus,
-                              uploadLatencyMs,
-                              true,
-                              "",
-                              "");
-            updateSyncState(record, true, publishResult.path, false, true, false, "", "");
+        if (_rawTelemetryReporter.publishRecord(firebaseData, record, &rawRefId, err, false)) {
             result.replayedCount++;
-
-            JsonDocument replayDoc;
-            if (parseRecord(record, replayDoc)) {
-                uint32_t candidateTs = extractRecordTsSample(replayDoc.as<JsonObjectConst>());
-                if (candidateTs > latestCandidateTs) {
-                    latestCandidateTs = candidateTs;
-                    String recordJson;
-                    record.toString(recordJson, false);
-                    latestCandidateRecord.setJsonData(recordJson);
-                    haveLatestCandidate = candidateTs >= 1700000000UL;
-                }
-            }
-
-            publishTelemetryChannel(firebaseData, true, true, false, "replay_upload", publishResult.path, "ok", utcMs);
-            continue;
-        }
-
-        int uploadLatencyMs = (int)(millis() - uploadStartMs);
-        if (publishResult.duplicate) {
-            updateUploadState(record,
-                              "replay",
-                              true,
-                              false,
-                              "duplicate_key",
-                              publishResult.httpStatus,
-                              uploadLatencyMs,
-                              true,
-                              "duplicate_key",
-                              "");
-            updateSyncState(record, true, publishResult.path, false, true, false, "", "duplicate_key");
-            result.replayedCount++;
-
-            JsonDocument replayDoc;
-            if (parseRecord(record, replayDoc)) {
-                uint32_t candidateTs = extractRecordTsSample(replayDoc.as<JsonObjectConst>());
-                if (candidateTs > latestCandidateTs) {
-                    latestCandidateTs = candidateTs;
-                    String recordJson;
-                    record.toString(recordJson, false);
-                    latestCandidateRecord.setJsonData(recordJson);
-                    haveLatestCandidate = candidateTs >= 1700000000UL;
-                }
-            }
-
-            publishTelemetryChannel(firebaseData, true, true, false, "replay_duplicate", publishResult.path, "duplicate_key", utcMs);
-            continue;
-        }
-
-        {
+            publishTelemetryChannel(firebaseData, true, true, false, "replay_upload", rawRefId, "ok", utcMs);
+        } else {
             result.failedCount++;
-            String errorCode = publishResult.stage.length() ? publishResult.stage : String("replay_fail");
-            updateUploadState(record,
-                              "replay",
-                              true,
-                              false,
-                              errorCode.c_str(),
-                              publishResult.httpStatus,
-                              uploadLatencyMs,
-                              !isTlsTransportError(err),
-                              errorCode,
-                              errorCode);
-            updateSyncState(record, false, "", true, false, false, errorCode, errorCode);
-
-            result.detail = err.length() ? err : publishResult.detail;
+            result.detail = err;
             publishTelemetryChannel(firebaseData,
                                     false,
                                     true,
-                                    isTlsTransportError(result.detail),
+                                    isTlsTransportError(err),
                                     "replay_fail",
-                                    publishResult.path.length() ? publishResult.path : String("publish_record"),
-                                    result.detail,
+                                    "publish_record",
+                                    err,
                                     utcMs);
-            String remainingLine;
-            record.toString(remainingLine, false);
-            remaining += remainingLine;
+            remaining += line;
             remaining += '\n';
         }
     }
     in.close();
-
-    if (haveLatestCandidate) {
-        String latestError;
-        bool latestUpdated = false;
-        if (_nodeRuntimePublisher.publishLatestIfNewer(firebaseData, latestCandidateRecord, &latestUpdated, &latestError)) {
-            result.latestUpdated = latestUpdated;
-        } else if (latestError.length()) {
-            result.detail = result.detail.length() ? (result.detail + " | latest=" + latestError) : ("latest=" + latestError);
-        }
-    }
 
     if (!remaining.length()) {
         result.cleanupOk = LittleFS.remove(_cfg.offlineRawFile);
