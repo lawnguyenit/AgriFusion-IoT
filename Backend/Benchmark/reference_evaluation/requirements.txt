@@ -1,0 +1,7 @@
+# Numerical versions of the previously executed reference environment.
+# Use a dedicated local Python 3.12 environment; actual versions are recorded.
+numpy==2.3.5
+pandas==2.2.3
+scikit-learn==1.8.0
+scipy==1.17.0
+joblib==1.5.3

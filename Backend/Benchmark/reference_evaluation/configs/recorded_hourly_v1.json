@@ -1,0 +1,469 @@
+{
+  "schema_version": "1.0",
+  "study_id": "ref_eval_recorded_hourly_v1",
+  "date": "2026-11-01",
+  "timezone_for_run_metadata": "Asia/Saigon",
+  "status": "implemented_payload_for_local_execution_no_new_source_results",
+  "authority": {
+    "research_protocol": "reference_material/next_study_protocol.json",
+    "research_protocol_library_id": "libfile_8abf7e6f292c8191846f815967011007",
+    "extension": "Explicit proposed implementation settings; lock and hash before new-source model fitting. Preserve previous protocols and results."
+  },
+  "research_question": "When do incomplete or imperfect recorded temporal references support a correct finite-pool model comparison, and what information is missing when they do not?",
+  "scope": {
+    "primary_contract": "A: no query during evaluation; operational END on recorded reference",
+    "query_methods": "disabled_in_v1; enable only under a separately specified archive/oracle/cost contract",
+    "physical_event_validation": false,
+    "new_algorithm_claim": false,
+    "primary_pair": {
+      "model_a": "SOFT_EM_HGB",
+      "model_b": "COMPLETE_HGB"
+    },
+    "secondary_pool": [
+      "COMPLETE_HGB",
+      "SOFT_EM_HGB",
+      "MARKOV",
+      "CONSTANT",
+      "LOGISTIC_COMPLETE_H6",
+      "HGB_COMPLETE_H24"
+    ],
+    "primary_estimand": "mean paired binary Brier difference on one fixed scored pool",
+    "later_assessment": "separate descriptive loss/regret after selection; no guaranteed future ranking"
+  },
+  "paths": {
+    "new_code_root": "Backend/Benchmark/reference_evaluation",
+    "output_root": "Backend/Output_data/reference_evaluation",
+    "config_destination": "Backend/Benchmark/reference_evaluation/configs/recorded_hourly_v1.json",
+    "worklog": "Docs/worklogs/2026-11-01-reference-evaluation-local.md",
+    "drive_parent_folder_id": "1P2VAb8Nn3lST4V1tXEBdPzCDjslkkf8q",
+    "drive_handoff_folder_id": "1x_oIi5rvLwSJhl-ynotEqR5XgpocPkRP",
+    "drive_result_folder_proposed": "AgriFushion_Local/Reference_Evaluation_v1"
+  },
+  "sources": [
+    {
+      "dataset_id": "beijing_multi_site_501",
+      "role": "new_candidate_source",
+      "landing_url": "https://archive.ics.uci.edu/dataset/501/beijing",
+      "download_url": "https://archive.ics.uci.edu/static/public/501/beijing%2Bmulti%2Bsite%2Bair%2Bquality%2Bdata.zip",
+      "doi": "10.24432/C5RK5G",
+      "variable": "PM2.5",
+      "entity_column": "station",
+      "raw_cadence": "hourly",
+      "time_basis": "preserve source recorded wall time; do not invent UTC",
+      "member_selection": "Only the 12 official PRSA station CSVs in PRSA2017_Data_20130301-20170228.zip; resolve nested ZIP; exclude unrelated data.csv/test.csv examples.",
+      "hourly_transform": "identity on the official hourly reference; duplicate station/time keys fail audit",
+      "independent_source_count": 1
+    },
+    {
+      "dataset_id": "appliances_energy_374",
+      "role": "new_candidate_source",
+      "landing_url": "https://archive.ics.uci.edu/dataset/374/appliances+energy+prediction",
+      "download_url": "https://archive.ics.uci.edu/static/public/374/appliances%2Benergy%2Bprediction.zip",
+      "doi": "10.24432/C5VC8G",
+      "variable": "RH_1",
+      "entity_constant": "house_1",
+      "raw_cadence": "10 minutes",
+      "time_basis": "preserve recorded wall time and document timezone uncertainty",
+      "member_selection": "energydata_complete.csv",
+      "hourly_transform": {
+        "bins": "[h,h+1 hour), labeled at h+1 hour",
+        "aggregation": "mean RH_1 of exactly six distinct expected 10-minute slots with finite values",
+        "incomplete_bin": "unknown; no interpolation to manufacture reference",
+        "provenance": [
+          "source_row_ids",
+          "source_min_timestamp",
+          "source_max_timestamp",
+          "bin_start",
+          "bin_end",
+          "aggregation_version"
+        ]
+      },
+      "excluded_predictors": [
+        "rv1",
+        "rv2",
+        "airport weather as reference truth"
+      ],
+      "independent_source_count": 1
+    }
+  ],
+  "existing_sources": {
+    "Jena": "development/reproduction fixture only; previously explored",
+    "AgriFusion": "application and provenance audit only in v1; Node1 historical canonical has 4681 rows; not a new physical reference",
+    "uci_air_quality_360": "historical source; not Beijing 501",
+    "Stuard": "historical source; not counted as either new candidate"
+  },
+  "time_grid_and_target": {
+    "grid": "one recorded hour per entity",
+    "K": 3,
+    "threshold": {
+      "quantile": 0.75,
+      "fit_partition": "full recorded train before train masking",
+      "comparison": "strictly greater",
+      "scope": "source/entity-specific",
+      "shared_information": true
+    },
+    "F": "1 if recorded canonical variable > train-only q75, else 0; genuinely unavailable variable remains unknown",
+    "END": "Y_t=1 iff F[t-3]=F[t-2]=F[t-1]=1 and F[t]=0",
+    "primary_reference_pool": "all sufficiently long contiguous genuinely recorded finite-reference segments in each partition; no outcome-based thinning",
+    "real_gap_policy": "keep unknowns in audit; segment at a genuinely missing reference/grid discontinuity; do not treat a gap as observed F=0",
+    "physical_duration_claim": false,
+    "warmup_per_segment": 24,
+    "scoring": "all remaining origins common to every candidate; do not shorten cohorts by method"
+  },
+  "splits": {
+    "partition_order": [
+      "train",
+      "development",
+      "selection",
+      "assessment"
+    ],
+    "fractions_of_sorted_unique_source_times": [
+      0.6,
+      0.15,
+      0.125,
+      0.125
+    ],
+    "boundary_rule": "floor cumulative unique-time counts; publish actual cutpoints and assignments before fitting",
+    "shared_across_entities": true,
+    "purge": "no raw dependency row ID shared across partitions; exclude first 24 recorded positions of every segment/partition from scored origins",
+    "no_refit_after_selection": true,
+    "development_use": "choose one static development-only default; no HPO in v1",
+    "source_support_gate": {
+      "hard": [
+        "unique valid entity/time keys",
+        "nonempty four partitions and eligible selection/assessment pools",
+        "both train END classes available to required supervised fits",
+        "all input/dependency/time leakage checks pass"
+      ],
+      "limited_support_flag": "selection or assessment has fewer than 10 distinct positive END episodes; this is an operational flag, not a statistical sufficiency theorem",
+      "action": "retain audits and descriptive results; do not change q/K/splits to rescue a source; fail only incompatible stages and continue other sources"
+    }
+  },
+  "information_roles": {
+    "forecaster": "recorded, unmasked past values only; no current value, future value, END label or rule depth as input",
+    "evaluator": "fixed forecasts, observed possibly corrupted states, grid, program, declared budget, shared train rule and permitted development evidence",
+    "audit_only": "full reference, generated corruption locations, true loss/winner and later-assessment outcomes",
+    "threshold_exception": "q75 is a shared program parameter calibrated on recorded train only, not an estimator learned from masked reference",
+    "assessment_policy": "frozen model selected using selection partition only; report later outcomes after the choice"
+  },
+  "training": {
+    "mask_policy": "mcar30",
+    "training_mask_seeds": [
+      11,
+      22,
+      33
+    ],
+    "warmup_visible": true,
+    "median_and_scale": "fit on observed training values only",
+    "H6_features": "6 lagged values forward-filled using observed history, 6 past missing flags, one age feature; 13 columns; no current value",
+    "H24_features": "24 past values, 24 past missing flags, one age feature; 49 columns; same target and information policy",
+    "age": "retain old cap 70 recorded steps for compatibility; no rule-run depth",
+    "hgb": {
+      "max_iter": 100,
+      "max_leaf_nodes": 7,
+      "learning_rate": 0.05,
+      "l2_regularization": 1,
+      "min_samples_leaf": 30,
+      "early_stopping": false
+    },
+    "COMPLETE_HGB": "fit on END labels whose four defining operands are observed",
+    "SOFT_EM_HGB": "same H6 features; fit expected binary log loss by duplicated 0/1 samples with weights 1-q and q from train-only Markov posterior",
+    "MARKOV": "first-order binary transition/prior estimated from observed train; predict END causally before observing F_t",
+    "CONSTANT": "prevalence among complete training END labels, recorded explicitly",
+    "LOGISTIC_COMPLETE_H6": {
+      "C": 1,
+      "max_iter": 2000,
+      "class_weight": null,
+      "labels": "same complete training labels",
+      "features": "same H6"
+    },
+    "HGB_COMPLETE_H24": "same complete training labels and HGB parameters; longer predeclared causal history",
+    "markov_EM": {
+      "max_iterations": 25,
+      "tolerance": 1e-7,
+      "transition_pseudocount": 0.5
+    },
+    "empty_or_single_class": "explicit failed_support/degenerate status; do not silently call a constant fallback a fitted HGB",
+    "model_random_seed": "training_mask_seed",
+    "hpo": false,
+    "development_default": {
+      "input_mask": "mcar30",
+      "seed": 701,
+      "reference": "recorded development truth allowed for this predefined static baseline",
+      "choice": "minimum development Brier; ties follow candidate order; freeze per source/train seed"
+    }
+  },
+  "evaluation_masks": {
+    "coupling": "same mask removes numeric predictor observations and reference states; scores are fixed once generated for a cell",
+    "policies": [
+      "full_control",
+      "mcar30",
+      "mcar50",
+      "block30",
+      "mnar_state"
+    ],
+    "mask_seeds": [
+      11,
+      22,
+      33,
+      44,
+      55
+    ],
+    "full_control_seed": 0,
+    "full_control_repetitions": 1,
+    "block30": "one uniformly placed contiguous missing block of ceil(0.30 * scored-length) per segment",
+    "mnar_state": {
+      "hide_probability_if_F0": 0.15,
+      "hide_probability_if_F1": 0.75,
+      "propensity_to_evaluator": false
+    },
+    "warmup_visible": true,
+    "seed_derivation": "stable SHA256 of study/source/entity/partition/training-mask-seed/policy/mask-seed/role; publish the resulting integer seeds; do not use Python built-in hash",
+    "independent_datasets": false
+  },
+  "comparison": {
+    "brier": "(p-y)^2; binary unscaled",
+    "delta": "mean[(p_a-y)^2-(p_b-y)^2]",
+    "joint_objective": "C + sum_t[-2*(p_a-p_b)*END_t]/N; C=mean(p_a^2-p_b^2)",
+    "numerical_tolerance": 1e-12,
+    "verdict": {
+      "A_BETTER": "upper < -tolerance",
+      "B_BETTER": "lower > tolerance",
+      "INCONCLUSIVE": "otherwise, including ties"
+    },
+    "R0_scope": "all 15 pairs, both selection and assessment; later-assessment verdicts are descriptive and cannot select the earlier model",
+    "methods": [
+      "complete_case_point",
+      "logically_known_subset_point",
+      "iid_prior_preserving_known_labels",
+      "markov_expected_paired_brier",
+      "rectangle_paired_bounds",
+      "joint_paired_bounds",
+      "separate_risk_intervals"
+    ],
+    "mandatory_action_baselines": [
+      "always choose each of six candidates",
+      "development-only static default",
+      "Markov expected-loss selector",
+      "pair joint + fallback COMPLETE",
+      "pair joint + fallback SOFT_EM",
+      "pool joint + development-only fallback"
+    ],
+    "pool_certificate": "one model certified better than every other candidate under the common feasible set, otherwise inconclusive",
+    "empty_subset": "NA with n=0, never zero risk",
+    "regret": "selection finite-pool regret and later-assessment regret separate, on the same scored cohort; decided-only loss must show its denominator"
+  },
+  "reference_error_sensitivity": {
+    "scope": "primary pair only in v1; all ordinary evaluation cells",
+    "R_grid": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      8,
+      16
+    ],
+    "budget_unit": "at most R wrong observed binary F states across the entire source+partition pool, across all its segments/sites",
+    "missing_state_cost": 0,
+    "observed_state_flip_cost": 1,
+    "prediction_policy": "freeze original cell probabilities while varying R; include warmup observed states in the budget",
+    "DP": "rolling run-depth x exact-error frontier per segment; convolve one global budget; obtain all R in one max-R pass",
+    "report": "first tested budget losing a certificate; if grid has gaps report an interval, not an exact minimum; also R/n_observed",
+    "sensors": "R is a declared adversarial sensitivity assumption, not measured hardware error"
+  },
+  "synthetic_corruption_stress": {
+    "scope": "primary pair, training mask seed 11, mask seed 11, policies mcar30/block30, both periods and sources",
+    "C_grid": [
+      1,
+      3
+    ],
+    "R_grid": [
+      0,
+      1,
+      3,
+      8
+    ],
+    "construction": "flip exactly C uniformly selected observed reference F states globally after masking; freeze forecaster scores; locations visible only to audit",
+    "inside_contract": "R>=actual flipped observed state count; require true loss inside bounds",
+    "outside_contract": "R<C; record out_of_contract, do not assert coverage guarantees",
+    "interpretation": "synthetic archive-reference error only, not physical sensor calibration"
+  },
+  "generic_solver": {
+    "scope": "primary pair, selection only, training mask seed 11, mask seed 11, mcar30 and block30, both sources",
+    "R_grid": [
+      0,
+      3
+    ],
+    "directions": [
+      "min",
+      "max"
+    ],
+    "expected_solve_count_if_both_sources_pass": 16,
+    "time_limit_seconds_per_solve": 10,
+    "mip_rel_gap": 1e-9,
+    "objective_scaling": "solve summed loss; normalize once on reporting",
+    "same_information": true,
+    "retain": [
+      "status",
+      "incumbent",
+      "dual_bound",
+      "gap",
+      "wall_seconds",
+      "witness_validity",
+      "variables",
+      "constraints"
+    ],
+    "timeout": "retain it; do not replace an optimum with an incumbent; a conservative dual bound may support a verdict if correctly transformed and numerically checked",
+    "comparison": "match optimal values against DP within 1e-8 on normalized Brier; no timeout filtering or automatic stronger-solver retry"
+  },
+  "resources": {
+    "threads": 2,
+    "parallel_fit_jobs": 1,
+    "requires_GPU": false,
+    "cache": "fit once per exact data/rule/split/train-mask/features/params/code/environment signature; reuse scores for evaluation methods and R",
+    "smoke": "toy oracle + earliest train/development segments only; one train seed and one MCAR30 mask; no tuning from smoke outcomes",
+    "checkpoint_unit": "source/train-seed/partition/policy/mask-seed/method/budget",
+    "failure_policy": "preserve partial outputs and fail the affected stage; do not suppress errors to mark complete"
+  },
+  "validation_gates": [
+    "independent brute-force END enumeration versus DP for short traces at R=0 and R>0",
+    "two-segment global-budget check; no accidental R-per-segment implementation",
+    "full control R0 collapses bounds to exact paired loss",
+    "joint interval inside rectangle and separate-risk difference intervals, under their matching contracts",
+    "bounds nested as R increases; p-array checksum fixed",
+    "changing hidden values with the same mask leaves features unchanged",
+    "changing current/future values leaves an earlier forecast unchanged",
+    "no shared raw dependency IDs across partitions or entities",
+    "same scored keys for all compared methods; predictions finite and within [0,1]",
+    "truth only used in audit/reporting; simulated MNAR propensities not supplied to evaluators",
+    "solver witnesses recomputed independently; keep timeouts and failures",
+    "resume with changed signatures refuses cache reuse; immutable completed output directories"
+  ],
+  "storage": {
+    "fast_read": [
+      "STUDY_STATUS.md",
+      "RUN_INDEX.csv",
+      "ARTIFACT_INDEX.csv",
+      "SOURCE_INDEX.json",
+      "LATEST.json"
+    ],
+    "per_run_required": [
+      "run_manifest.json",
+      "config.resolved.json",
+      "command.json",
+      "environment.json",
+      "source_snapshot.json",
+      "stdout.log",
+      "stderr.log",
+      "SUMMARY.md",
+      "metrics.json",
+      "artifact_index.csv"
+    ],
+    "tables": [
+      "support_audit.csv",
+      "mask_summary.csv",
+      "model_risks.csv",
+      "pair_bounds.csv",
+      "selection_results.csv",
+      "certificate_summary.csv",
+      "reference_error_sensitivity.csv",
+      "synthetic_corruption.csv",
+      "generic_solver_results.csv",
+      "runtime.csv"
+    ],
+    "record_level": "partitioned Parquet/NPZ, with schema/array-key index and checksums; truth kept in an audit-only area",
+    "code": "snapshot or exact commit + dirty patch + checksum inventory; HEAD alone is insufficient",
+    "execution_status_values": [
+      "planned",
+      "running",
+      "complete",
+      "failed",
+      "blocked_missing_input",
+      "not_applicable"
+    ],
+    "scientific_support_status_values": [
+      "not_audited",
+      "adequate_for_declared_scope",
+      "limited_support",
+      "failed_support"
+    ],
+    "status_compatibility": "Keep execution completion separate from scientific support; limited support does not trigger endless execution retries.",
+    "complete_marker": "READY.json written last, only after required checks pass; failed/limited stages remain explicit",
+    "drive_sync": "upload readable summaries/indexes plus new immutable artifacts only; raw source stored once; verify upload metadata and write a delivery receipt; no automatic whole-project ZIP per run"
+  },
+  "stages": [
+    {
+      "id": "P0",
+      "name": "local implementation and evidence preservation",
+      "gate": "existing evidence untouched; new lane/help/config implemented"
+    },
+    {
+      "id": "P1",
+      "name": "source intake, reference, splits and support audit",
+      "gate": "actual source/key/time/missingness/dependency reports saved"
+    },
+    {
+      "id": "P2",
+      "name": "correctness and legacy fixture checks",
+      "gate": "DP/oracle/causality/provenance tests pass; old fixture sensitivity 5,4,1,0 at R0..3"
+    },
+    {
+      "id": "P3",
+      "name": "small smoke on train/development only",
+      "gate": "all stages create valid, traceable outputs; no performance-based retuning"
+    },
+    {
+      "id": "P4",
+      "name": "main fixed-pool evaluation",
+      "gate": "all fixed controls, six models, R0 pairs and same-cohort results retained"
+    },
+    {
+      "id": "P5",
+      "name": "reference error sensitivity and specified corruption stress",
+      "gate": "conditional validity checks, nested bounds and fixed scores"
+    },
+    {
+      "id": "P6",
+      "name": "same-information generic solver comparison",
+      "gate": "all 16 planned solves accounted for if supported, including timeouts"
+    },
+    {
+      "id": "P7",
+      "name": "report, checkpoint and Drive handoff",
+      "gate": "human summary + structured tables + immutable artifact links + upload receipt"
+    }
+  ],
+  "implementation": {
+    "version": "1.0.0",
+    "artifact_schema": "csv_npz_v1",
+    "upstream_spec_library_id": "libfile_7d6af5b2d5788191942797e803cb1a87",
+    "scientific_choices_changed": false
+  },
+  "runtime": {
+    "local_archives": {},
+    "reference_fixture_dir": "Backend/Output_data/reference_evaluation/legacy_fixture_inputs"
+  },
+  "cli_contract": {
+    "module": "Backend.Benchmark.reference_evaluation.main",
+    "subcommands": [
+      "audit",
+      "validate",
+      "smoke",
+      "fit",
+      "evaluate",
+      "sensitivity",
+      "solver",
+      "report",
+      "export",
+      "all"
+    ],
+    "arguments": [
+      "--config",
+      "--output-root",
+      "--resume"
+    ],
+    "network": "only audit --download may fetch official source releases; no Firebase calls",
+    "warning": "CLI is implemented in this payload; verify installation with --help and validate before any real-data fitting."
+  }
+}
