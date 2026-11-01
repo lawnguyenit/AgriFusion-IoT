@@ -1,7 +1,7 @@
 # Reference evaluation local — implemented and tested; full Drive sync pending
 
 ## Task Objective
-Install and execute the supplied additive reference_evaluation study locally, preserve older lanes/evidence, and deliver inspectable checkpoints.
+Install/execute the supplied additive lane and deliver inspectable checkpoints. Current continuation: publish the existing final report as loose CSV/MD/JSON files on Drive, correcting the preflight-only presentation without rerunning experiments.
 
 ## User Intent
 User approved C0–C4 with “thôi vậy triển khai local đi” on 2026-11-01. This authorizes the dedicated environment, official downloads, locked preflight/main study and result synchronization. No authorization to change scientific settings, production firmware/Core, historical labels/splits, or publish the private V9 manuscript.
@@ -21,7 +21,7 @@ The lane is installed at Backend/Benchmark/reference_evaluation. Execution root 
 - Actual Windows code fingerprint:2f435e0dfcbe8220aac9d0f2db0ac9c7965669159dbdcaa78dfef6b2f69ef067; config868261e939b028c17c33f319d78a178f5261edb76ba4002b2f4251421c2e6fec; environment4e755ea143367f356117cdfaf77a0ced45df08a042c856db447a357acf0e0f0b. Use the recorded inventory, not Git commit alone, as executed-source authority.
 
 ## Unresolved Questions
-Full main delivery to Drive is not verified. Connector returned429 upload_protection_limit_exceeded, explicitly requesting retry in3 hours. Edge CDP Emulation.setFocusEmulationEnabled timed out twice; native Edge accessibility was unavailable. No app input, authentication change or sharing change was performed. Local execution is complete; remote delivery is partial. Scientific adequacy remains limited for Appliances; no physical/novel-method/future-ranking claim follows from plan completion.
+The final readable report is published and verified. Full remote native-artifact coverage remains partial after connector upload throttling. Edge file upload works after the user personally enabled file-URL access. Scientific adequacy remains limited for Appliances; no physical/novel-method/future-ranking claim follows from plan completion.
 
 ## Assumptions
 Scientific settings remain the delivered locked config. All masks/sites/seeds are dependent study conditions, not independent datasets. Output-root venv/cache/raw archives are not included in delivery. Documentation config.status retains its original delivery-origin wording; actual execution status is in manifests/current graph/report.
@@ -34,7 +34,9 @@ Scientific settings remain the delivered locked config. All masks/sites/seeds ar
 - Drive target: https://drive.google.com/drive/folders/1jZq5t9gNNe_W1Tk8V9mtALmWpq885lNM.448 transport objects have verified metadata/size; this is not complete coverage of the final study.229 attempted objects failed with upload throttling; additional units finished afterward. See drive_delivery_partial_final.json for exact IDs and failed attempted paths.
 
 ## Implementation Plan
-C0 installation/environment:complete. C1 full audit/validate/smoke:complete. C2 preflight delivery:verified with lossless connector transport exceptions. C3 locked main:complete. C4 independent local validation:complete; final packaging/documentation/Git checkpoint finalized in this task. Full remote main sync remains blocked by connector quota and unavailable browser control. Resume only missing/changed deliveries using recorded IDs/hashes once access is available; do not rerun training merely to retry upload.
+Current readable-report delivery: verify final READY and table coverage; stage byte-identical final CSVs and a clearly separate reader guide; upload into report/current_graph__71b84c1ff33cc2a3; publish a report-level pointer and update the root study-status note while keeping remote artifact coverage explicitly partial. Preserve preflight history and all immutable local run bytes. If connector quota persists, attempt the already-authorized Edge upload without changing sharing/authentication.
+
+C0 installation/environment:complete. C1 full audit/validate/smoke:complete. C2 preflight delivery:verified with lossless connector transport exceptions. C3 locked main:complete. C4 independent local validation:complete; final packaging/documentation/Git checkpoint finalized in this task. Readable report delivery is verified; full remote native-artifact sync remains partial. Browser control is available. Resume only missing/changed deliveries using recorded IDs/hashes once access is available; do not rerun training merely to retry upload.
 
 ## Architectural Decisions
 Dependency direction is CLI→orchestration→separate source/preparation/model/evaluator/solver owners, with numerical contracts/math separated from storage and reporting. Evaluator objects omit full truth; selection is frozen before downstream truth audit. END uses three preceding positive recorded-hour states followed by current0, train/entity q75, splits60/15/12.5/12.5, six fixed candidates, train seeds11/22/33, one job/two threads and a single global source/partition R budget. Scientific settings and existing persistent formats are unchanged (csv_npz_v1).
@@ -42,9 +44,12 @@ Dependency direction is CLI→orchestration→separate source/preparation/model/
 Delivery adapters do not alter original READY bytes: connector100MiB/file and zero-byte rejection required gzip for two audit CSVs and an empty-file ZIP with original hashes. Main per-file metadata traffic was too slow, so complete units were bundled as ARTIFACTS.zip+SUMMARY, preserving/restoring paths through MAIN_TRANSPORT_MANIFEST. Some earlier loose objects coexist remotely; they are not an independent authority. The final local export preserves the original uncompressed source-defined tree and is authoritative for the full study.
 
 ## Progress Status
-Approved and implemented locally. Preflight/full study tested and local checkpoint independently verified. User acceptance pending. Full Drive main delivery blocked; do not report it as complete. No production deployment, firmware flash, Firebase write or historical model refit occurred.
+Readable-report continuation complete: 18 loose CSV/MD/JSON files published at https://drive.google.com/drive/folders/1VSJyW3tAHaTEOdZSmVL_s-3SV2B8ybWn. All 18 filenames/byte sizes match local staging. model_risks.csv has1512 rows/all six models; selection_results.csv2016 rows; pair_bounds.csv3780 rows. report/LATEST_FINAL.md and eight root status/index files were uploaded, existing files replaced as new versions preserving IDs and sharing. Nine pointer/root filenames and byte sizes verified. Preflight retained. No fitting/evaluation command was run in this continuation.
+
+Approved and implemented locally. Preflight/full study tested and local checkpoint independently verified. User acceptance pending. Readable report delivery verified; full native-artifact tree remains partial and must not be described as complete. No production deployment, firmware flash, Firebase write or historical model refit occurred.
 
 ## Validation Commands and Results
+- Readable publication: final READY checked (21 files, zero mismatches); staged report copies preserve original bytes. Edge chooser uploaded18 report files, one report pointer and eight root files. Drive list_folder metadata readback matched all27 names/byte sizes; receipt D:/Project/reference-evaluation-ops-20261101/readable_delivery_verified.json. Remote content hashes were not re-downloaded. No code/schema changes or experiments rerun.
 - INSTALL_LOCAL.py --repo D:/Project/AgriFusion-IoT --check, then install:exit0,52 creates, worklog preserved. Installed-byte verification36/36 passed; CLI --help passed.
 - uv python install3.12 installed3.12.12; dedicated venv dependencies installed; pip check passed.
 - monitor_launch.py preflight --install-deps --download invoked the delivered RUN_LOCAL.py with actual3.12 executable:exit0,489.7985s including environment setup; full P2 and smoke verified.
