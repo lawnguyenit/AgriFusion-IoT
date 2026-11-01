@@ -6,8 +6,8 @@
 
 // ================= [CẤU HÌNH WIFI] =================
 // Thay đổi tên và mật khẩu Wifi của bạn tại đây
-#define WIFI_SSID       "3 DUOI"
-#define WIFI_PASSWORD   "44440000"
+#define WIFI_SSID "YOUR_WIFI_SSID" // local value excluded from backup
+#define WIFI_PASSWORD "YOUR_WIFI_PASSWORD" // local value excluded from backup
 
 // Thời gian chờ kết nối tối đa khi khởi động (giây)
 #define WIFI_TIMEOUT_MS 20000 
