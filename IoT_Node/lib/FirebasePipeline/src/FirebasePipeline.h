@@ -52,6 +52,8 @@ struct OfflineReplayResult {
     uint32_t replayedCount = 0;
     uint32_t failedCount = 0;
     uint32_t invalidJsonCount = 0;
+    uint32_t heldTimeCount = 0;
+    uint32_t deferredCount = 0;
     bool latestUpdated = false;
     String stage;
     String detail;

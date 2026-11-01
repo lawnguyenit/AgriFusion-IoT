@@ -261,7 +261,7 @@ void NpkMatrixTest::printSummary() {
 
 void NpkMatrixTest::restoreConfiguredTransport() {
     activateTransport(0);
-    CUS_DBGLN("[NPK][MATRIX] Configured UART profile restored; MyNPK is rebound by the main harness.");
+    CUS_DBGLN("[NPK][MATRIX] Configured UART profile restored.");
 }
 
 void NpkMatrixTest::run() {

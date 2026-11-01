@@ -85,17 +85,6 @@ void firebaseTokenStatusLogger(token_info_t info) {
              info.error.message.c_str());
 }
 
-uint32_t replayUtcSec(uint64_t utcMs) {
-    if (utcMs > 0) {
-        return (uint32_t)(utcMs / 1000ULL);
-    }
-    time_t now = time(nullptr);
-    if (now < 1700000000) {
-        return 0;
-    }
-    return (uint32_t)now;
-}
-
 void setNull(JsonVariant value) {
     value.set(nullptr);
 }
@@ -122,86 +111,6 @@ uint32_t extractRecordTsSample(JsonObjectConst root) {
 
 bool extractRecordTimeValid(JsonObjectConst root) {
     return root["system_record"]["time"]["time_valid"] | false;
-}
-
-uint32_t extractRecordSeqNo(JsonObjectConst root) {
-    JsonVariantConst seqNo = root["system_record"]["identity"]["seq_no"];
-    if (seqNo.isNull()) {
-        return 0;
-    }
-    return static_cast<uint32_t>(seqNo.as<unsigned long>());
-}
-
-String canonicalTelemetryRecordId(uint32_t tsSample, uint32_t seqNo) {
-    if (tsSample < 1700000000UL) {
-        return "";
-    }
-    (void)seqNo;
-    // Node1/Layer0 uses the sample timestamp as the event key. The sequence
-    // remains in system_record.identity.seq_no for diagnostics without
-    // changing the peer-compatible RTDB path.
-    return String((unsigned long)tsSample);
-}
-
-String canonicalTelemetryDateKey(uint32_t tsSample) {
-    if (tsSample < 1700000000UL) {
-        return "";
-    }
-
-    time_t sec = (time_t)tsSample;
-    struct tm tmLocal;
-#if defined(_WIN32)
-    localtime_s(&tmLocal, &sec);
-#else
-    localtime_r(&sec, &tmLocal);
-#endif
-    char buf[16];
-    strftime(buf, sizeof(buf), "%Y-%m-%d", &tmLocal);
-    return String(buf);
-}
-
-String canonicalTelemetryPath(uint32_t tsSample, uint32_t seqNo) {
-    String dateKey = canonicalTelemetryDateKey(tsSample);
-    String recordId = canonicalTelemetryRecordId(tsSample, seqNo);
-    if (!dateKey.length() || !recordId.length()) {
-        return "";
-    }
-    return String(APP_RTDB_PATH_NODE_TELEMETRY) + "/" + dateKey + "/" + recordId;
-}
-
-bool restampReplayRecordIfNeeded(FirebaseJson &record, uint64_t utcMs) {
-    uint32_t nowSec = replayUtcSec(utcMs);
-    if (nowSec == 0) {
-        return false;
-    }
-
-    JsonDocument doc;
-    if (!parseRecord(record, doc)) {
-        return false;
-    }
-
-    JsonObject root = doc.as<JsonObject>();
-    JsonObject timeObject = root["system_record"]["time"].to<JsonObject>();
-    bool timeValid = timeObject["time_valid"] | false;
-    uint32_t tsSample = extractRecordTsSample(root);
-    if (timeValid && tsSample >= 1700000000UL) {
-        return false;
-    }
-
-    uint32_t seqNo = extractRecordSeqNo(root);
-    String recordId = canonicalTelemetryRecordId(nowSec, seqNo);
-    String recordPath = canonicalTelemetryPath(nowSec, seqNo);
-
-    timeObject["ts_sample"] = (unsigned long)nowSec;
-    timeObject["clock_source"] = "reconstructed_on_replay";
-    timeObject["time_valid"] = true;
-    timeObject["time_reconstructed"] = true;
-
-    JsonObject identity = root["system_record"]["identity"].to<JsonObject>();
-    identity["record_id"] = recordId;
-    identity["record_path"] = recordPath;
-
-    return saveRecord(record, doc);
 }
 
 bool updateUploadState(FirebaseJson &record,
@@ -748,14 +657,16 @@ TelemetryPushResult FirebasePipeline::pushPayloadDetailed(FirebaseData &firebase
 
             String latestError;
             bool latestUpdated = false;
-            if (!_nodeRuntimePublisher.publishLatestIfNewer(firebaseData, record, &latestUpdated, &latestError)) {
+            bool latestOk = _nodeRuntimePublisher.publishLatestIfNewer(firebaseData, record, &latestUpdated, &latestError);
+            if (!latestOk) {
                 CUS_DBGF("[FIREBASE] latest update fail: %s\n", latestError.c_str());
             }
 
             result.uploaded = true;
             result.latestUpdated = latestUpdated;
             result.stage = "uploaded";
-            result.detail = latestUpdated ? "ok_latest_updated" : "ok_latest_unchanged";
+            result.detail = latestOk ? (latestUpdated ? String("ok_latest_updated") : String("ok_latest_unchanged"))
+                                     : String("telemetry_saved_latest_failed | ") + latestError;
             result.refId = publishResult.refId;
             result.telemetryPath = publishResult.path;
             if (shouldPublishSuccessDiagnostics()) {
@@ -785,7 +696,8 @@ TelemetryPushResult FirebasePipeline::pushPayloadDetailed(FirebaseData &firebase
 
             String latestError;
             bool latestUpdated = false;
-            if (!_nodeRuntimePublisher.publishLatestIfNewer(firebaseData, record, &latestUpdated, &latestError)) {
+            bool latestOk = _nodeRuntimePublisher.publishLatestIfNewer(firebaseData, record, &latestUpdated, &latestError);
+            if (!latestOk) {
                 CUS_DBGF("[FIREBASE] latest update after duplicate fail: %s\n", latestError.c_str());
             }
 
@@ -793,7 +705,8 @@ TelemetryPushResult FirebasePipeline::pushPayloadDetailed(FirebaseData &firebase
             result.duplicate = true;
             result.latestUpdated = latestUpdated;
             result.stage = "duplicate_key";
-            result.detail = "telemetry_record_exists";
+            result.detail = latestOk ? String("telemetry_record_exists")
+                                     : String("telemetry_exists_latest_failed | ") + latestError;
             publishTelemetryDebug(firebaseData, true, publishResult.path, result.detail, utcMs);
             publishTelemetryChannel(firebaseData, true, false, false, "duplicate_key", publishResult.path, result.detail, utcMs);
             return result;
@@ -932,6 +845,8 @@ OfflineReplayResult FirebasePipeline::replayOfflineIfAnyDetailed(FirebaseData &f
     bool haveLatestCandidate = false;
     uint32_t latestCandidateTs = 0;
     FirebaseJson latestCandidateRecord;
+    uint32_t replayAttempts = 0;
+    bool deferNetwork = false;
     while (in.available()) {
         String line = in.readStringUntil('\n');
         line.trim();
@@ -941,12 +856,33 @@ OfflineReplayResult FirebasePipeline::replayOfflineIfAnyDetailed(FirebaseData &f
 
         FirebaseJson record;
         if (!record.setJsonData(line)) {
-            CUS_DBGLN("[STORAGE] Bo qua dong JSON loi trong offline_data.");
+            CUS_DBGLN("[STORAGE] Giu lai dong JSON loi trong offline_data de kiem tra.");
             result.invalidJsonCount++;
+            remaining += line;
+            remaining += '\n';
             continue;
         }
 
-        restampReplayRecordIfNeeded(record, utcMs);
+        JsonDocument queuedDoc;
+        if (!parseRecord(record, queuedDoc) ||
+            !extractRecordTimeValid(queuedDoc.as<JsonObjectConst>()) ||
+            extractRecordTsSample(queuedDoc.as<JsonObjectConst>()) < 1700000000UL ||
+            (queuedDoc["system_record"]["time"]["time_reconstructed"] | false)) {
+            ++result.heldTimeCount;
+            remaining += line;
+            remaining += '\n';
+            continue;
+        }
+        // Bound modem work per wake; preserve unattempted entries exactly.
+        if (deferNetwork || replayAttempts >= 4) {
+            ++result.deferredCount;
+            remaining += line;
+            remaining += '\n';
+            continue;
+        }
+        ++replayAttempts;
+        CUS_DBGF("[FIREBASE][REPLAY] attempt=%lu ts=%lu\n", (unsigned long)replayAttempts,
+                 (unsigned long)extractRecordTsSample(queuedDoc.as<JsonObjectConst>()));
 
         TelemetryPublishResult publishResult;
         String err;
@@ -1018,6 +954,7 @@ OfflineReplayResult FirebasePipeline::replayOfflineIfAnyDetailed(FirebaseData &f
 
         {
             result.failedCount++;
+            deferNetwork = true;
             String errorCode = publishResult.stage.length() ? publishResult.stage : String("replay_fail");
             updateUploadState(record,
                               "replay",
@@ -1060,12 +997,16 @@ OfflineReplayResult FirebasePipeline::replayOfflineIfAnyDetailed(FirebaseData &f
 
     if (!remaining.length()) {
         result.cleanupOk = LittleFS.remove(_cfg.offlineRawFile);
-        offlineReplayPending = false;
+        offlineReplayPending = !result.cleanupOk && storageFileExists(_cfg.offlineRawFile);
     } else {
-        File out = LittleFS.open(_cfg.offlineRawFile, "w");
+        String stagingPath = String(_cfg.offlineRawFile) + ".replay.tmp";
+        File out = LittleFS.open(stagingPath, "w");
         if (out) {
-            out.print(remaining);
+            size_t written = out.print(remaining);
+            out.flush();
             out.close();
+            result.rewriteOk = written == remaining.length() &&
+                               LittleFS.rename(stagingPath, _cfg.offlineRawFile);
         } else {
             result.rewriteOk = false;
         }
@@ -1082,7 +1023,7 @@ OfflineReplayResult FirebasePipeline::replayOfflineIfAnyDetailed(FirebaseData &f
         if (!result.detail.length()) {
             result.detail = "cannot rewrite remaining offline file";
         }
-    } else if (!result.cleanupOk && !result.hasRemaining) {
+    } else if (!result.cleanupOk) {
         result.stage = "replay_cleanup_fail";
         if (!result.detail.length()) {
             result.detail = "cannot remove offline file";
@@ -1092,9 +1033,12 @@ OfflineReplayResult FirebasePipeline::replayOfflineIfAnyDetailed(FirebaseData &f
     } else if (result.invalidJsonCount > 0 && result.replayedCount == 0) {
         result.stage = "replay_invalid_json_only";
         result.detail = "all pending lines invalid";
+    } else if (result.heldTimeCount || result.deferredCount) {
+        result.stage = "replay_pending";
+        if (!result.detail.length()) result.detail = "held_time_unknown_or_reconstructed; deferred_entries_preserved";
     } else if (result.replayedCount > 0) {
         result.stage = "replay_ok";
-        result.detail = "offline records uploaded";
+        if (!result.detail.length()) result.detail = "offline records uploaded";
     } else {
         result.stage = "replay_no_valid_records";
         if (!result.detail.length()) {

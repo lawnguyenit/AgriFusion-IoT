@@ -36,3 +36,16 @@ The idempotency GET is interpreted as JSON: RTDB's `null` response for a new
 dated path permits the telemetry write. Empty or malformed GET bodies are
 treated as a failed pre-write check, so `latest` is not advanced without a
 confirmed dated record.
+
+Wake finalization uploads the live sample before replay. A successful dated PUT
+remains successful if latest publication or backlog replay fails; the detail
+explicitly identifies latest failure. Replay attempts at most four network
+records per call and defers the remaining records after the first failure.
+Unknown-time and previously reconstructed-time records remain in the existing
+local queue, unchanged, counted as `held_time`; they are never assigned the
+current sample timestamp. `deferred` counts entries not attempted in this call.
+Successful/duplicate confirmed events leave the queue, while failed, malformed
+and held entries are preserved. Queue replacement is staged and checked before
+rename; originals survive a failed replacement. These held records require
+explicit time recovery; they do not trigger fake fresh events or block a live
+sample. Numeric timestamp keys and Node2 RTDB paths remain compatible.

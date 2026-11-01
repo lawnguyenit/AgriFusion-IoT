@@ -28,3 +28,11 @@ a separate DS18B20 sensor branch.
 The diagnostic also reports the idle DQ level and a reset/presence result. If
 presence is detected but ROM search returns no valid address, it tries a
 single-device `SKIP ROM` read as a compatibility fallback.
+
+To run the bench test, set only `APP_DS18B20_TEST_MODE=1` in `Config.h`, with
+the other diagnostic selectors at 0. Use the standard `esp32-s3-n16r8`
+environment in the PlatformIO UI to Build/Upload; `DEBUG_MODE=1` enables the
+serial log at 115200 baud. A good run reports a found device with a valid ROM
+CRC, then `scratchpad_crc=1`, `range_ok=1`, and a plausible `temp` in the
+`[DS18B20][READ]` / `[DS18B20][RESULT]` lines. Set the selector back to 0 when
+the bench test is complete to restore production behavior.

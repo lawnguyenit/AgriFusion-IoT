@@ -123,6 +123,8 @@ bool classifyRtdbJsonBody(const String &rawBody,
     JsonDocument doc;
     DeserializationError parseError = deserializeJson(doc, body);
     if (parseError != DeserializationError::Ok) {
+        CUS_DBGF("[FIREBASE][GET] invalid_json bytes=%u parse=%s\n",
+                 (unsigned)body.length(), parseError.c_str());
         errorDetail = "rtdb_get_invalid_json_body";
         return false;
     }
@@ -423,6 +425,8 @@ void populateSoilRecord(JsonObject sensorRecord,
         npkPayload, "hum_value_valid", "field_value_validity", "hum", !npkPayload["hum"].isNull());
     const bool phValid = payloadFieldBool(
         npkPayload, "ph_value_valid", "field_value_validity", "ph", !npkPayload["ph"].isNull());
+    const bool phDefaulted = payloadFieldBool(
+        npkPayload, "ph_defaulted_zero", "field_defaulted_zero", "ph", false);
     const bool ecValid = payloadFieldBool(
         npkPayload, "ec_value_valid", "field_value_validity", "ec", !npkPayload["ec"].isNull());
     const bool nValid = payloadFieldBool(
@@ -456,7 +460,7 @@ void populateSoilRecord(JsonObject sensorRecord,
         } else {
             setNull(values["soil_moisture_pct"]);
         }
-        if (phValid || diagnosticFieldIsValid(valueValidity, fieldValidity, "ph")) {
+        if (phValid || phDefaulted || diagnosticFieldIsValid(valueValidity, fieldValidity, "ph")) {
             values["soil_ph"] = npkPayload["ph"];
         } else {
             setNull(values["soil_ph"]);
@@ -510,6 +514,7 @@ void populateSoilRecord(JsonObject sensorRecord,
     readStatus["soil_moisture_source"] = payloadFieldString(npkPayload, "hum_source", "field_source", "hum");
     readStatus["ph_protocol_ok"] = payloadFieldBool(npkPayload, "ph_protocol_ok", "field_validity", "ph", false);
     readStatus["ph_valid"] = phValid;
+    readStatus["ph_defaulted_zero"] = phDefaulted;
     readStatus["ph_state"] = npkPayload["ph_state"] | "unknown";
     readStatus["ec_valid"] = ecValid;
     readStatus["ec_source"] = payloadFieldString(npkPayload, "ec_source", "field_source", "ec");

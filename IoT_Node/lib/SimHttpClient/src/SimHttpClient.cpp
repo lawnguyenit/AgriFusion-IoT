@@ -1,4 +1,5 @@
 #include "SimHttpClient.h"
+#include "HttpReadFrame.h"
 
 #include "Config.h"
 #include "SimA7680C.h"
@@ -38,10 +39,15 @@ bool responseHasAny(const String &response, const char *const *patterns, size_t 
     if (!patterns) {
         return false;
     }
-    for (size_t i = 0; i < count; ++i) {
-        if (patterns[i] && response.indexOf(patterns[i]) >= 0) {
-            return true;
+    int start = 0;
+    int end = 0;
+    while ((end = response.indexOf('\n', start)) >= 0) {
+        String line = response.substring(start, end);
+        line.trim();
+        for (size_t i = 0; i < count; ++i) {
+            if (patterns[i] && httpAtLineMatches(line.c_str(), patterns[i])) return true;
         }
+        start = end + 1;
     }
     return false;
 }
@@ -85,7 +91,7 @@ String runHttpAtWaitPatterns(const String &cmd,
         while (SerialAT.available()) {
             response += static_cast<char>(SerialAT.read());
         }
-        if (responseHasAny(response, patterns, patternCount)) {
+        if (response.endsWith("\n") && responseHasAny(response, patterns, patternCount)) {
             break;
         }
         yieldToScheduler();
@@ -156,36 +162,19 @@ bool looksLikeServerHttpStatus(int statusCode) {
     return statusCode >= 100 && statusCode < 600;
 }
 
-String readHttpBodyChunk(size_t offset, size_t size) {
-    String cmd = String("+HTTPREAD=") + String((unsigned long)offset) + "," + String((unsigned long)size);
-    return runHttpAt(cmd, 20000);
-}
-
-String extractHttpReadPayload(const String &response) {
-    int headerPos = response.indexOf("+HTTPREAD:");
-    if (headerPos < 0) {
-        return "";
+bool readHttpBodyChunk(size_t offset, size_t size, String &payload) {
+    drainSerialAT();
+    SerialAT.printf("AT+HTTPREAD=%lu,%lu\r\n", (unsigned long)offset, (unsigned long)size);
+    HttpReadFrame frame(size);
+    uint32_t started = millis();
+    while (millis() - started < 20000UL && !frame.done() && !frame.failed()) {
+        while (SerialAT.available() && !frame.done() && !frame.failed()) {
+            char byte = static_cast<char>(SerialAT.read());
+            if (frame.feed(byte)) payload += byte;
+        }
+        yieldToScheduler();
     }
-    int lineEnd = response.indexOf('\n', headerPos);
-    if (lineEnd < 0 || lineEnd + 1 >= response.length()) {
-        return "";
-    }
-
-    String payload = response.substring(lineEnd + 1);
-    int okPos = payload.lastIndexOf("\r\nOK");
-    int newlineOkPos = payload.lastIndexOf("\nOK");
-    int carriageOkPos = payload.lastIndexOf("\rOK");
-    if (newlineOkPos > okPos) {
-        okPos = newlineOkPos;
-    }
-    if (carriageOkPos > okPos) {
-        okPos = carriageOkPos;
-    }
-    if (okPos >= 0) {
-        payload = payload.substring(0, okPos);
-    }
-    payload.trim();
-    return payload;
+    return frame.done() && !frame.failed() && frame.received() == payload.length() && payload.length() > 0;
 }
 }  // namespace
 
@@ -285,24 +274,13 @@ bool SimHttpClient::perform(const SimHttpRequest &request, SimHttpResponse &resp
         size_t chunk = request.readChunkBytes > 0 ? request.readChunkBytes : 512;
         while (offset < (size_t)response.dataLen) {
             size_t toRead = ((size_t)response.dataLen - offset) > chunk ? chunk : ((size_t)response.dataLen - offset);
-            String rawChunk = readHttpBodyChunk(offset, toRead);
-            response.bodyResponse += compactResponse(rawChunk);
-            String payload = extractHttpReadPayload(rawChunk);
-            size_t remaining = (size_t)response.dataLen - offset;
-            if (payload.length() > remaining) {
-                // The modem trailer is not part of the server body. Bound the
-                // accumulated body by HTTPACTION's declared byte count even
-                // when a module returns the trailer without a line separator.
-                payload = payload.substring(0, remaining);
+            String payload;
+            if (!readHttpBodyChunk(offset, toRead, payload)) {
+                response.bodyResponse = String("offset=") + offset + " received=" + payload.length();
+                break;
             }
             response.body += payload;
-            if (!payload.length()) {
-                break;
-            }
             offset += payload.length();
-            if (payload.length() < toRead) {
-                break;
-            }
         }
     }
 
@@ -312,9 +290,14 @@ bool SimHttpClient::perform(const SimHttpRequest &request, SimHttpResponse &resp
     response.httpOk = response.responseReceived &&
                       response.statusCode >= 200 &&
                       response.statusCode < 300;
-    response.ok = response.httpOk;
+    const bool bodyComplete = !request.readBody || response.dataLen == 0 ||
+                              response.body.length() == static_cast<size_t>(response.dataLen);
+    response.ok = response.httpOk && bodyComplete;
 
-    if (response.httpOk) {
+    if (!bodyComplete) {
+        response.stage = "http_body_incomplete";
+        response.detail = String("expected=") + response.dataLen + " received=" + response.body.length() + " " + response.bodyResponse;
+    } else if (response.httpOk) {
         response.stage = "http_ok";
         response.detail = String("status=") + String(response.statusCode) + " len=" + String(response.dataLen);
     } else if (response.responseReceived) {

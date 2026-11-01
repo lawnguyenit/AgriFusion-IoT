@@ -4,7 +4,13 @@
 
 #include "Config.h"
 
-#if APP_ALL_SENSORS_TEST_MODE
+#if APP_SIM_UART_LOOPBACK_TEST_MODE
+#include "SimUartLoopbackProbe.h"
+#elif APP_SIM_NODE2_TEST_MODE
+#include "SimNode2Probe.h"
+#elif APP_NPK_MATRIX_TEST_MODE
+#include "NpkMatrixProbe.h"
+#elif APP_ALL_SENSORS_TEST_MODE
 #include "AllSensorsProbe.h"
 #elif APP_SOIL_MOISTURE_TEST_MODE
 #include "SoilMoistureProbe.h"
@@ -28,7 +34,13 @@ void appEntrySetup() {
     delay(300);
 #endif
 
-#if APP_ALL_SENSORS_TEST_MODE
+#if APP_SIM_UART_LOOPBACK_TEST_MODE
+    simUartLoopbackProbeBegin();
+#elif APP_SIM_NODE2_TEST_MODE
+    simNode2ProbeBegin();
+#elif APP_NPK_MATRIX_TEST_MODE
+    npkMatrixProbeBegin();
+#elif APP_ALL_SENSORS_TEST_MODE
     allSensorsProbeBegin();
 #elif APP_SOIL_MOISTURE_TEST_MODE
     soilMoistureProbeBegin();
@@ -44,7 +56,13 @@ void appEntrySetup() {
 }
 
 void appEntryLoop() {
-#if APP_ALL_SENSORS_TEST_MODE
+#if APP_SIM_UART_LOOPBACK_TEST_MODE
+    simUartLoopbackProbeLoop();
+#elif APP_SIM_NODE2_TEST_MODE
+    simNode2ProbeLoop();
+#elif APP_NPK_MATRIX_TEST_MODE
+    vTaskDelete(nullptr);
+#elif APP_ALL_SENSORS_TEST_MODE
     allSensorsProbeLoop();
     delay(20);
 #elif APP_SOIL_MOISTURE_TEST_MODE

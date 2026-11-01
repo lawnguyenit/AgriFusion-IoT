@@ -62,11 +62,13 @@ String buildReplayDiagSummary(const OfflineReplayResult &result) {
     char buf[192];
     snprintf(buf,
              sizeof(buf),
-             "stage=%s replayed=%lu failed=%lu invalid=%lu remain=%d",
+             "stage=%s replayed=%lu failed=%lu invalid=%lu held_time=%lu deferred=%lu pending_file=%d",
              result.stage.c_str(),
              (unsigned long)result.replayedCount,
              (unsigned long)result.failedCount,
              (unsigned long)result.invalidJsonCount,
+             (unsigned long)result.heldTimeCount,
+             (unsigned long)result.deferredCount,
              result.hasRemaining ? 1 : 0);
     return String(buf);
 }
@@ -75,6 +77,7 @@ bool isReplayResultInteresting(const OfflineReplayResult &result) {
     return result.replayedCount > 0 ||
            result.failedCount > 0 ||
            result.invalidJsonCount > 0 ||
+           result.heldTimeCount > 0 || result.deferredCount > 0 ||
            result.stage == "replay_open_fail" ||
            result.stage == "replay_rewrite_fail" ||
            result.stage == "replay_cleanup_fail" ||
@@ -251,7 +254,7 @@ CollectionResult AppRuntime::runCollectionPhase() {
     result.ok = collectSingleSample(result.payload, result.sensorAlarm);
     result.elapsedMs = millis() - startMs;
     result.detail = result.ok ? "sample_built" : "sample_build_failed";
-    APP_LOG_SENSOR("Phase collection done: ok=%d alarm=%d elapsed=%lu ms.\n",
+    APP_LOG_SENSOR("Phase collection done: packet_built=%d sensor_alarm=%d elapsed=%lu ms.\n",
                    result.ok ? 1 : 0,
                    result.sensorAlarm ? 1 : 0,
                    (unsigned long)result.elapsedMs);
@@ -292,18 +295,7 @@ FinalizationResult AppRuntime::runFinalizationPhase(const OpeningResult &opening
     if (result.cloudReady) {
         publishSystemStatusCached("opening_complete", "wake cycle cloud ready", true);
 
-        if (_offlineReplayPending) {
-            OfflineReplayResult replay = _firebasePipeline.replayOfflineIfAnyDetailed(_firebaseData,
-                                                                                      _offlineReplayPending,
-                                                                                      utcEpochMsIfSynced());
-            _replayInvalidJsonCount += replay.invalidJsonCount;
-            if (isReplayResultInteresting(replay)) {
-                APP_LOG_CLOUD("Replay offline: %s detail=%s\n",
-                              buildReplayDiagSummary(replay).c_str(),
-                              replay.detail.c_str());
-            }
-        }
-
+        APP_LOG_CLOUD("LIVE sample upload begin; backlog handled after live success.\n");
         uint32_t uploadStartMs = millis();
         TelemetryPushResult pushed = _firebasePipeline.pushPayloadDetailed(
             _firebaseData,
@@ -322,13 +314,14 @@ FinalizationResult AppRuntime::runFinalizationPhase(const OpeningResult &opening
         result.stage = pushed.stage;
         result.detail = pushed.detail;
         if (pushed.uploaded) {
-            APP_LOG_CLOUD("Phase finalization upload OK in %lu ms ref=%s telemetry_path=%s stage=%s duplicate=%d latest_updated=%d.\n",
+            APP_LOG_CLOUD("Phase finalization upload OK in %lu ms ref=%s telemetry_path=%s stage=%s duplicate=%d latest_updated=%d detail=%s.\n",
                           (unsigned long)uploadElapsedMs,
                           pushed.refId.c_str(),
                           pushed.telemetryPath.c_str(),
                           pushed.stage.c_str(),
                           pushed.duplicate ? 1 : 0,
-                          pushed.latestUpdated ? 1 : 0);
+                          pushed.latestUpdated ? 1 : 0,
+                          pushed.detail.c_str());
             publishSystemStatusCached(collection.sensorAlarm ? "sensor_alarm" : "online",
                                       collection.sensorAlarm ? "wake upload sensor alarm" : "wake upload ok",
                                       true);
@@ -342,6 +335,18 @@ FinalizationResult AppRuntime::runFinalizationPhase(const OpeningResult &opening
                           pushed.pipelineState.c_str());
             result.reason = "upload_buffered";
             result.sleepMs = APP_SLEEP_FAIL_RETRY_INTERVAL_MS;
+        }
+
+        if (pushed.uploaded && _offlineReplayPending) {
+            OfflineReplayResult replay = _firebasePipeline.replayOfflineIfAnyDetailed(_firebaseData,
+                                                                                      _offlineReplayPending,
+                                                                                      utcEpochMsIfSynced());
+            _replayInvalidJsonCount += replay.invalidJsonCount;
+            if (isReplayResultInteresting(replay)) {
+                APP_LOG_CLOUD("Replay offline: %s detail=%s\n",
+                              buildReplayDiagSummary(replay).c_str(),
+                              replay.detail.c_str());
+            }
         }
 
         result.sleepRequested = true;
@@ -759,6 +764,14 @@ bool AppRuntime::collectSingleSample(String &payloadOut, bool &sensorAlarmOut) {
                                                  recoveredAfterFail,
                                                  failStreakBeforeRecover,
                                                  sensorAlarm);
+
+    // NPK JSON retains its own alarm; aggregate health is node-level.
+    sensorAlarm = sensorAlarm || !shtSampleValid ||
+                  (DS18B20_PIPELINE_ENABLED && !ds18b20SampleValid) ||
+                  (SOIL_MOISTURE_PIPELINE_ENABLED && !soilMoistureReading.sampleValid);
+    APP_LOG_SENSOR("Sample health: npk_read=%d sht_valid=%d soil_temp_valid=%d soil_hum_valid=%d.\n",
+                   data.readOk ? 1 : 0, shtSampleValid ? 1 : 0,
+                   ds18b20SampleValid ? 1 : 0, soilMoistureReading.sampleValid ? 1 : 0);
 
     payloadOut = _packetBuilder.buildCombinedNodePacket(npkJson,
                                                         shtJson,

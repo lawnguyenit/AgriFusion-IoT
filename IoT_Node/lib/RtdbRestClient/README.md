@@ -14,3 +14,6 @@ Scope:
 - `getRawJson()` preserves the RTDB response body, including the valid JSON
   literal `null` returned for a missing path; callers decide existence after
   parsing the body.
+
+SIM transport body-length failure is reported as `rtdb_body_incomplete` with
+expected/received byte counts, distinct from authentication or JSON errors.

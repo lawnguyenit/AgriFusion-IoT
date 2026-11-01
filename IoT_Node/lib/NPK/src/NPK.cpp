@@ -72,10 +72,17 @@ void inferEcFromNpk(NPK_Data &data) {
         return;
     }
 
-    data.ecEstimateFloat = NPK_EC_INFERENCE_INTERCEPT +
-                           NPK_EC_INFERENCE_N_COEFFICIENT * data.n +
-                           NPK_EC_INFERENCE_P_COEFFICIENT * data.p +
-                           NPK_EC_INFERENCE_K_COEFFICIENT * data.k;
+    if (data.n == 0 && data.p == 0 && data.k == 0) {
+        // The historical fit has a positive intercept, but its calibration
+        // data contains no all-zero nutrient sample. Honor the explicit
+        // all-zero policy without refitting or extrapolating the coefficients.
+        data.ecEstimateFloat = 0.0f;
+    } else {
+        data.ecEstimateFloat = NPK_EC_INFERENCE_INTERCEPT +
+                               NPK_EC_INFERENCE_N_COEFFICIENT * data.n +
+                               NPK_EC_INFERENCE_P_COEFFICIENT * data.p +
+                               NPK_EC_INFERENCE_K_COEFFICIENT * data.k;
+    }
     data.ec = static_cast<int>(lroundf(data.ecEstimateFloat));
     if (data.ec < 0) {
         data.ec = 0;
@@ -237,6 +244,9 @@ NPK_Data MyNPK::read() {
         result.kValueValid = true;
         result.phStatus = legacyRead.status;
         result.phAttempts = legacyRead.attempts;
+        result.ph = 0.0f;
+        result.phValueValid = false;
+        result.phDefaultedToZero = true;
         result.npkStatus = legacyRead.status;
         result.npkAttempts = legacyRead.attempts;
         result.readDurationMs = millis() - readStartMs;
@@ -282,10 +292,11 @@ NPK_Data MyNPK::read() {
     result.phAttempts = phRead.attempts;
     if (phRead.status == ModbusMaster::ku8MBSuccess) {
         result.rawPh = _node.getResponseBuffer(0);
-        result.ph = result.rawPh / 10.0f;
         result.phReadOk = true;
-        result.phValueValid = isPlausiblePh(result.ph);
     }
+    result.ph = 0.0f;
+    result.phValueValid = false;
+    result.phDefaultedToZero = true;
 
     const RegisterReadResult npkRead =
         readHoldingRegistersWithRetry(_node, NPK_REG_NPK, NPK_REG_NPK_COUNT);
@@ -319,15 +330,11 @@ NPK_Data MyNPK::read() {
     // Report the first failed confirmed group. If both groups succeed, this
     // is the standard Modbus success code. A failed legacy probe is retained
     // separately and does not turn a successful sparse fallback into a fault.
-    result.errorCodeRaw = phRead.status != ModbusMaster::ku8MBSuccess
-                              ? phRead.status
-                              : npkRead.status;
-    result.readOk = (phRead.status == ModbusMaster::ku8MBSuccess) &&
-                    (npkRead.status == ModbusMaster::ku8MBSuccess);
+    result.errorCodeRaw = npkRead.status;
+    result.readOk = npkRead.status == ModbusMaster::ku8MBSuccess;
     result.error = !result.readOk;
 
-    result.crcOk = isCompleteProtocolFrame(phRead.status) &&
-                   isCompleteProtocolFrame(npkRead.status);
+    result.crcOk = isCompleteProtocolFrame(npkRead.status);
     result.frameOk = result.crcOk;
 
     if (result.readOk) {
@@ -385,7 +392,7 @@ String MyNPK::makeJsonFromData(const NPK_Data &data,
                           (data.humValueValid && data.hum > 0.01f);
     bool allValueFieldsValid = (data.tempValueValid || data.tempDefaultedToZero) &&
                                (data.humValueValid || data.humDefaultedToZero) &&
-                               data.phValueValid && data.ecValueValid &&
+                               (data.phValueValid || data.phDefaultedToZero) && data.ecValueValid &&
                                data.nValueValid && data.pValueValid &&
                                data.kValueValid;
     bool npkValuesValid = data.readOk && allValueFieldsValid && nutrientSignal;
@@ -443,7 +450,9 @@ String MyNPK::makeJsonFromData(const NPK_Data &data,
                               : (data.humDefaultedToZero
                                      ? "unsupported_default_zero"
                                      : (data.humReadOk ? "modbus_register" : "unavailable"));
-    fieldSource["ph"] = data.phReadOk ? "modbus_register" : "unavailable";
+    fieldSource["ph"] = data.phDefaultedToZero
+                             ? "unsupported_default_zero"
+                             : (data.phReadOk ? "modbus_register" : "unavailable");
     fieldSource["ec"] = data.ecDerivedFromNpk
                              ? "npk_proxy_derived"
                              : (data.ecReadOk ? "modbus_register" : "unavailable");
@@ -454,7 +463,7 @@ String MyNPK::makeJsonFromData(const NPK_Data &data,
     JsonObject defaultedZero = doc["field_defaulted_zero"].to<JsonObject>();
     defaultedZero["temp"] = data.tempDefaultedToZero;
     defaultedZero["hum"] = data.humDefaultedToZero;
-    defaultedZero["ph"] = false;
+    defaultedZero["ph"] = data.phDefaultedToZero;
     defaultedZero["N"] = false;
     defaultedZero["P"] = false;
     defaultedZero["K"] = false;
@@ -482,7 +491,9 @@ String MyNPK::makeJsonFromData(const NPK_Data &data,
     conversion["ec"] = data.ecDerivedFromNpk
                            ? NPK_EC_INFERENCE_FORMULA_VERSION
                            : "raw_register";
-    conversion["ph"] = "raw_register/10.0";
+    conversion["ph"] = data.phDefaultedToZero
+                            ? "unsupported_default_zero"
+                            : "raw_register/10.0";
     conversion["N"] = "raw_register";
     conversion["P"] = "raw_register";
     conversion["K"] = "raw_register";
@@ -510,9 +521,12 @@ String MyNPK::makeJsonFromData(const NPK_Data &data,
     doc["hum_defaulted_zero"] = data.humDefaultedToZero;
     doc["ph_protocol_ok"] = data.phReadOk;
     doc["ph_value_valid"] = data.phValueValid;
-    doc["ph_state"] = !data.phReadOk
-                           ? "no_response"
-                           : (data.phValueValid ? "valid" : "frame_ok_value_invalid");
+    doc["ph_state"] = data.phDefaultedToZero
+                           ? "unsupported_default_zero"
+                           : (!data.phReadOk
+                                  ? "no_response"
+                                  : (data.phValueValid ? "valid" : "frame_ok_value_invalid"));
+    doc["ph_defaulted_zero"] = data.phDefaultedToZero;
     doc["ec_protocol_ok"] = data.ecReadOk;
     doc["ec_value_valid"] = data.ecValueValid;
     doc["ec_source"] = data.ecDerivedFromNpk
@@ -659,7 +673,7 @@ String MyNPK::makeJsonFromData(const NPK_Data &data,
     } else {
         doc["hum"] = nullptr;
     }
-    if (data.phReadOk) doc["ph"] = data.ph; else doc["ph"] = nullptr;
+    if (data.phReadOk || data.phDefaultedToZero) doc["ph"] = data.ph; else doc["ph"] = nullptr;
     if (data.ecReadOk || data.ecDerivedFromNpk) doc["ec"] = data.ec; else doc["ec"] = nullptr;
     if (data.nReadOk) doc["N"] = data.n; else doc["N"] = nullptr;
     if (data.pReadOk) doc["P"] = data.p; else doc["P"] = nullptr;

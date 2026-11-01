@@ -31,20 +31,26 @@
 // APP_RUN_CONTINUOUS can still be enabled for a continuous bench profile.
 // APP_RUN_CONTINUOUS: 1 = chay lien tuc, 0 = wake-do-gui-ngu.
 // APP_SIM_PURE_TEST_MODE: bat khi chi muon test SIM, bo qua toan bo runtime sensor/cloud.
-// APP_SHT30_TEST_MODE: bat khi chi muon test rieng SHT30 qua Sht30Service, bo qua runtime chinh.
+// APP_SIM_UART_LOOPBACK_TEST_MODE: gui pattern tu SIM TX cua ESP va doc lai tren SIM RX cua ESP; khong giao tiep modem/mang.
+// APP_SIM_NODE2_TEST_MODE: test SIM + mot lan ghi scalar vao debug path Node2, khong chay sensor/runtime.
+// APP_NPK_MATRIX_TEST_MODE: chay ma tran Modbus NPK chi-doc mot lan luc boot.
+// APP_SHT30_TEST_MODE: bat probe I2C/raw-frame SHT30 rieng, bo qua runtime chinh.
 // APP_DS18B20_TEST_MODE: bat khi chi muon test rieng DS18B20 qua OneWire, bo qua runtime chinh.
 // APP_SOIL_MOISTURE_TEST_MODE: bat khi chi muon test moisture sensor v1.2 analog.
 // APP_ALL_SENSORS_TEST_MODE: bat khi test serial-only toan bo NPK, moisture, DS18B20, SHT30.
 // APP_RAW_TRUTH_PROBE_MODE: bat khi can bai test raw transport/time cap thap, khong vao flow app that.
 #define APP_RUN_CONTINUOUS 0         // 1 = chay lien tuc, 0 = che do wake-do-gui-ngu
 #define APP_SIM_PURE_TEST_MODE 0     // 1 = bo qua AppRuntime, chay che do test SIM thuan de chan doan mang
+#define APP_SIM_UART_LOOPBACK_TEST_MODE 0 // 1 = test vong UART2 GPIO17 TX -> GPIO16 RX, khong can modem
+#define APP_SIM_NODE2_TEST_MODE 0    // 1 = diagnostic SIM probe; 0 = chay production AppRuntime
+#define APP_NPK_MATRIX_TEST_MODE 0   // 1 = bo qua AppRuntime, chay ma tran test NPK chi-doc; 0 = production neu cac probe khac deu tat
 #define APP_SHT30_TEST_MODE 0        // 1 = bo qua AppRuntime, chay che do test rieng SHT30
 #define APP_DS18B20_TEST_MODE 0      // 1 = bo qua AppRuntime, chay che do test rieng DS18B20
 #define APP_SOIL_MOISTURE_TEST_MODE 0 // 1 = bo qua AppRuntime, chay che do test moisture rieng
 #define APP_ALL_SENSORS_TEST_MODE 0   // production AppRuntime path
 #define APP_RAW_TRUTH_PROBE_MODE 0   // 1 = chay harness raw transport/time, 0 = de du phong cho app runtime sau nay
 
-#if (APP_SIM_PURE_TEST_MODE + APP_SHT30_TEST_MODE + APP_DS18B20_TEST_MODE + APP_SOIL_MOISTURE_TEST_MODE + APP_ALL_SENSORS_TEST_MODE + APP_RAW_TRUTH_PROBE_MODE) > 1
+#if (APP_SIM_PURE_TEST_MODE + APP_SIM_UART_LOOPBACK_TEST_MODE + APP_SIM_NODE2_TEST_MODE + APP_NPK_MATRIX_TEST_MODE + APP_SHT30_TEST_MODE + APP_DS18B20_TEST_MODE + APP_SOIL_MOISTURE_TEST_MODE + APP_ALL_SENSORS_TEST_MODE + APP_RAW_TRUTH_PROBE_MODE) > 1
   #error "Chi duoc bat mot che do diagnostic/test tai mot thoi diem"
 #endif
 
@@ -59,7 +65,7 @@
 #define APP_NODE_TZ_CONFIG             "ICT-7"              // chuoi cau hinh timezone cho NTP
 #define APP_TELEMETRY_RETENTION_DAYS   30                   // so ngay metadata/telemetry duoc danh dau luu tru
 #define APP_BOARD_MODEL                "ESP32-S3"           // model board hien tai
-#define APP_SIM_MODULE_MODEL           "A7682S"             // model module SIM hien tai
+#define APP_SIM_MODULE_MODEL           "A7680C"             // model module SIM hien tai
 #define APP_CONFIG_VERSION             "cfg_v2"             // version config runtime duoc build cung firmware
 #define APP_CALIBRATION_VERSION        "calib_v2"           // phien ban calibration cong khai, khong mo ta cach sensor tao EC
 
@@ -99,9 +105,9 @@
 #define APP_EDGE_SYSTEM_ID_SHT         "edge_sht30"         // id he thong SHT30 trong payload
 
 // ================= [OTA] =================
-#define APP_RTDB_PATH_OTA_STATUS       "/ops/Node1/ota_state" // path ghi trang thai OTA hien tai
-#define APP_RTDB_PATH_OTA_HISTORY      "/debug/Node1/ota_events" // path luu lich su su kien OTA
-#define APP_RTDB_PATH_OTA_COMMAND      "/control/Node1/ota_commands" // path doc lenh OTA tu cloud
+#define APP_RTDB_PATH_OTA_STATUS       "/ops/Node2/ota_state" // path ghi trang thai OTA hien tai
+#define APP_RTDB_PATH_OTA_HISTORY      "/debug/Node2/ota_events" // path luu lich su su kien OTA
+#define APP_RTDB_PATH_OTA_COMMAND      "/control/Node2/ota_commands" // path doc lenh OTA tu cloud
 
 #define APP_OTA_POLL_INTERVAL_MS       60000UL              // chu ky kiem tra lenh OTA
 #define APP_OTA_CONFIRM_HEALTH_MS      60000UL              // thoi gian node phai chay on truoc khi confirm OTA
@@ -159,7 +165,7 @@
 #define APP_NPK_UART_RESET_FAIL_INTERVAL   2                     // cu bao nhieu lan fail thi reset lai UART NPK
 #define APP_SHT30_RETRY_INIT_MS            10000UL               // thoi gian moi lan thu init lai SHT30
 #define APP_SHT30_INIT_ATTEMPTS            3U                    // so lan thu init lien tiep moi khi danh thuc/can force init SHT30
-#define APP_SHT30_INIT_RETRY_DELAY_MS      180UL                 // do tre giua cac lan init SHT30 trong 1 dot
+#define APP_SHT30_INIT_RETRY_DELAY_MS      1000UL                 // do tre giua cac lan init SHT30 trong 1 dot
 #define APP_SHT30_FORCE_REINIT_STREAK      2U                    // bao nhieu chu ky doc loi lien tiep thi danh dau can init lai
 #define APP_SHT30_WIRE_CLOCK_HZ            10000UL               // low-speed I2C da dung o phase 1, phu hop day dai
 #define APP_SHT30_WIRE_TIMEOUT_MS          20UL                  // timeout I2C
@@ -167,12 +173,7 @@
 #define APP_SHT30_SOFT_RESET_WAIT_MS       10UL                  // cho sau lenh soft reset 0x30A2
 #define APP_SHT30_MEASUREMENT_WAIT_MS      20UL                  // cho conversion sau lenh 0x2400
 #define APP_SHT30_RETRY_SETTLE_DELAY_MS    20UL                  // cho them truoc retry sau reset
-#define APP_SHT30_TEST_INTERVAL_MS         5000UL                // chu ky lap lai bai test SHT30
-#define APP_SHT30_TEST_BOOT_PROBES         10U                   // so lan init+probe bat buoc lien tiep trong 1 dot
-#define APP_SHT30_TEST_BOOT_DELAY_MS       300UL                 // khoang cach ngan giua cac lan init lien tiep
-#define APP_SHT30_TEST_RAW_READ_COUNT      6U                    // so lan doc raw lien tiep sau khi bus phan hoi
-#define APP_SHT30_TEST_RAW_READ_DELAY_MS   500UL                 // khoang cach giua cac raw read
-#define APP_SHT30_TEST_SCAN_FULL_BUS       1                     // 1 = scan 0x03..0x77, 0 = chi ping 0x44/0x45
+#define APP_SHT30_TEST_INTERVAL_MS         1000UL                // cho 1 giay sau moi dong log ket qua truoc lan do tiep
 #define APP_SHT30_TEST_ALT_ADDR            0x45                  // dia chi thay the chi dung de chan doan
 
 // ================= [LOG LABELS] =================
@@ -281,18 +282,17 @@
 #define SOIL_MOISTURE_TEST_INTERVAL_MS    1000UL
 #define SOIL_MOISTURE_SAMPLE_COUNT        32U
 #define SOIL_MOISTURE_SAMPLE_GAP_MS       2U
-// Provisional relative profile, not field calibration or VWC. The official
-// example uses 520/260 on a 10-bit Arduino ADC. These are scaled to 12-bit
-// ESP32 ADC values (approximately 1041/2082) and their direction follows the
-// observed unit, whose raw value increased when placed in water. The observed
-// 920/2525 values are not used as calibration endpoints.
+// Provisional v1.2 reference profile, not field calibration or VWC. The
+// ShillehTek ESP32 12-bit example uses about 3000 (dry air) / 1200 (submerged).
+// The user's air observation (raw~2967, 2508mV) agrees with the dry-air value.
+// Verify the wet endpoint against this exact unit before using the index.
 #define SOIL_MOISTURE_CALIBRATION_IS_DEFAULT 1
-#define SOIL_MOISTURE_CALIBRATION_PROFILE "manufacturer_example_scaled_12bit_direction_adjusted"
-#define SOIL_MOISTURE_CALIBRATION_SOURCE  "manufacturer_two_point_relative_provisional"
+#define SOIL_MOISTURE_CALIBRATION_PROFILE "v1_2_esp32_reference_air3000_water1200"
+#define SOIL_MOISTURE_CALIBRATION_SOURCE  "shillehtek_v1_2_esp32_manual_example_provisional"
 #define SOIL_MOISTURE_MANUFACTURER_DRY_10BIT 520
 #define SOIL_MOISTURE_MANUFACTURER_WET_10BIT 260
-#define SOIL_MOISTURE_AIR_ADC             1041
-#define SOIL_MOISTURE_WATER_ADC           2082
+#define SOIL_MOISTURE_AIR_ADC             3000
+#define SOIL_MOISTURE_WATER_ADC           1200
 #define SOIL_MOISTURE_PIPELINE_ENABLED    1
 #define SOIL_MOISTURE_CALIBRATION_TARGET_DEPTH_CM 10.0f
 #define SOIL_MOISTURE_INSTALL_DEPTH_CM_MIN 10.0f
@@ -317,3 +317,17 @@
 #define DS18B20_SINGLE_DROP_FALLBACK   1
 
 #endif
+
+
+// #define DS18B20_DATA_PIN              21
+
+// #define SOIL_MOISTURE_ADC_PIN             1U
+
+// #define SHT30_SDA_PIN   6                   // chan SDA I2C cua SHT30
+// #define SHT30_SCL_PIN   7                   // chan SCL I2C cua SHT30
+
+// #define NPK_TX_PIN      5                   // TX cua ESP noi sang RX cam bien NPK
+// #define NPK_RX_PIN      4                   // RX cua ESP noi sang TX cam bien NPK
+
+// #define SIM_TX_PIN      17                  // TX cua ESP noi sang RX cua SIM
+// #define SIM_RX_PIN      16                  // RX cua ESP noi sang TX cua SIM

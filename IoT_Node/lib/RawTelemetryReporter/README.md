@@ -21,11 +21,14 @@ calibrated/provisional moisture-v1.2 replacement is mapped to the existing
 field. Both retain compact source/validity metadata in `read_status`.
 Uncalibrated or failed moisture remains null while its raw ADC/error evidence
 is retained. EC inferred from N/P/K remains in the normal `soil_ec_us_cm`
-field. A valid Modbus frame with an implausible decoded value (for example pH
-`0.0`) remains visible as protocol/read evidence but is kept null as a
-canonical measurement. Older payloads without per-field validity fall back to
-the legacy maps. This prevents valid N/P/K/EC fields from being discarded
-merely because pH is semantically invalid.
+field. A valid Modbus frame with an implausible decoded value remains visible
+as protocol/read evidence but is kept null as a canonical measurement. The
+confirmed Node2 unsupported-pH policy is an explicit exception: `soil_ph=0`
+is copied as a policy default while `read_status.ph_valid=false` and
+`read_status.ph_defaulted_zero=true` distinguish it from a measurement. Older
+payloads without per-field validity fall back to the legacy maps. This
+prevents valid N/P/K/EC fields from being discarded merely because pH is
+unavailable.
 
 The production reporter writes a compact `read_status`: field-level validity,
 source, pH protocol/value state, EC measurement kind, moisture calibration
@@ -52,3 +55,7 @@ Main file:
 Used by:
 - `FirebasePipeline`
 - `NodeRuntimePublisher`
+
+A malformed GET logs its byte count and ArduinoJson parse error without dumping
+telemetry contents. A complete HTTP 200 response remains subject to JSON
+validation; an incomplete modem body is rejected by the transport first.

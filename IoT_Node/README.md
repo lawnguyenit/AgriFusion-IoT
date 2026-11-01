@@ -14,6 +14,8 @@ flowchart TB
     finalization --> sleep[Select next wake or sleep interval]
 ```
 
+See [FLOW.md](FLOW.md) for production status and replay semantics.
+
 ## Production path
 
 With diagnostic selectors disabled, `AppRuntime` runs the configured wake
@@ -60,9 +62,20 @@ and [lib/AppRuntime/README.md](lib/AppRuntime/README.md).
 ## Diagnostic modes
 
 `Config.h` contains mutually exclusive compile-time selectors for SIM,
-SHT30, DS18B20, moisture, combined-sensor and raw-truth probes. These modes
-are for serial/hardware diagnosis and do not automatically prove that the
+NPK, SHT30, DS18B20, moisture, combined-sensor and raw-truth probes. The
+current production setup leaves all diagnostic selectors off, so the standard
+`esp32-s3-n16r8` PlatformIO environment starts the Node2 `AppRuntime` wake
+cycle. Set `APP_NPK_MATRIX_TEST_MODE=1` to run the serial-only, read-only NPK
+Modbus matrix; return it to 0 after that test. `APP_SIM_NODE2_TEST_MODE`
+remains an opt-in probe that writes to `/debug/Node2/telemetry_probe` without
+sensor collection. Production telemetry uses `/Node2/telemetry`, with current
+and polling metadata at `/Node2/latest/current` and `/Node2/latest/meta`. The
+other sensor probes are serial/hardware diagnostics and do not prove the
 production wake cycle is field-ready.
+
+`lib/Sht30RawProbe/` currently contains a separate direct-Wire diagnostic
+source, but `AppEntry` does not select or invoke it. Its README records this
+unintegrated status and the exact commands currently implemented.
 
 ## Verification boundary
 

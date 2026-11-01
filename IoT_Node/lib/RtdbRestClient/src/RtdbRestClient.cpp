@@ -11,6 +11,9 @@ String normalizePath(const String &path) {
 }
 
 String classifyHttpFailureStage(const SimHttpResponse &http) {
+    if (http.stage == "http_body_incomplete") {
+        return "rtdb_body_incomplete";
+    }
     if (!http.transportOk) {
         return "rtdb_transport_fail";
     }

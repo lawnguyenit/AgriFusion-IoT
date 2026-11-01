@@ -12,6 +12,14 @@ Responsibilities:
 Use case:
 - serve as the low-level transport for RTDB REST calls over SIM without relying on TinyGSM
 
-HTTP-read payload extraction removes the modem's `OK` trailer for CRLF, LF, or
-CR line endings and bounds the accumulated body by the modem-reported HTTP
-body length, so a JSON body such as `null` reaches the RTDB caller intact.
+HTTPREAD now uses `HttpReadFrame` and reads declared payload bytes exactly. The
+initial `OK` is an acknowledgement; completion follows the length-delimited
+payload and `+HTTPREAD: 0` or trailing `OK`. Chunk whitespace and embedded
+OK/ERROR text are preserved. Partial bodies fail with `http_body_incomplete`
+(expected/received counts), even if the server returned HTTP 200. Header/action
+AT replies match complete result lines: the text `OK` in `HTTP/1.1 200 OK`
+does not terminate HTTPHEAD early. Framing follows the
+SIMCom A76XX AT manual HTTPREAD section. Focused portable C++ checks:
+`test/host/http_read_frame_test.cpp`.
+
+Protocol reference: [SIMCom A76XX AT command manual, HTTPREAD](https://dfimg.dfrobot.com/60c1e008bddfc41c3293de80/wiki/7d2bd4a846a64ee7c14fbb3844242579.pdf).

@@ -38,11 +38,13 @@ Read-map order:
 
 `field_validity` means that the corresponding register transaction returned a
 valid protocol response. `field_value_validity` means that the decoded value
-passes the current semantic range checks. In particular, a pH response with
-raw `0x0000` becomes decoded `0.0`, remains visible in raw/test diagnostics,
-but is marked `ph_state=frame_ok_value_invalid` and is not promoted into the
-canonical soil values by the diagnostic reporter. A timeout is instead shown
-as `ph_state=no_response`.
+passes the current semantic range checks. The confirmed Node2 sensor has no
+usable pH channel: firmware writes `ph=0` as a policy default, marks
+`ph_defaulted_zero=true` and `ph_value_valid=false`, and does not require the
+pH transaction for a valid N/P/K sample. Raw pH register/status evidence is
+retained for diagnostics when available. The policy zero is copied into the
+canonical value with its default marker in `read_status`; it is not classified
+as a pH measurement.
 
 `npk_values_valid` becomes true only when the selected map read succeeded, all
 measured fields are semantically valid, either a configured unsupported
@@ -70,7 +72,11 @@ The current Layer1 calibration used by Node2 is:
 EC = round(104.537608 + 0.33430017*N + 0.92924061*P + 0.99130859*K)
 ```
 
-This is a project calibration/proxy, not a new Modbus register conversion.
+When `N=P=K=0`, firmware returns `EC=0` as an explicit boundary policy;
+otherwise it applies the fit above. This exact all-zero point is outside the
+Node1 calibration support, so it is a requested policy rule rather than an
+empirically validated extension of the fit. This is a project proxy, not a new
+Modbus register conversion.
 The public NPK JSON intentionally exposes only the ordinary EC field and
 `raw_register` conversion shape used by phase 1; the internal calibration
 implementation is not serialized as an EC-source/formula diagnostic.

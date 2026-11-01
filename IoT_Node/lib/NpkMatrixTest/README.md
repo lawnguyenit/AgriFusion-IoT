@@ -34,3 +34,15 @@ decoded value is physically meaningful. Test with the probe powered and
 inserted into soil when validating soil measurements. The matrix never writes
 configuration registers, does not change production pin settings, and must
 not be used as the production sensor implementation.
+
+To run this NPK-only bench test, set `APP_NPK_MATRIX_TEST_MODE=1` in
+`Config.h` and leave all other diagnostic selectors at 0. The standard
+`esp32-s3-n16r8` PlatformIO environment runs the one-shot matrix during boot;
+there is no custom upload target. UART is the configured `9600 8N1` profile
+with ESP RX on GPIO4 and ESP TX on GPIO5. The matrix first uses slave ID 1,
+then expands read-only candidates if it finds no response. `SUCCESS_VALID_FRAME`
+and the corresponding `[NPK][MATRIX][RESULT]` raw words are the strongest
+transport evidence. `RESPONSE_EXCEPTION` is evidence that a device answered,
+but not that the requested register map is valid. Use the sensor's rated power
+and the existing RS485 transceiver wiring; this firmware does not establish
+the new sensor's supply-voltage requirement.

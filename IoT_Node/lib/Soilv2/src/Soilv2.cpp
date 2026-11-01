@@ -61,11 +61,11 @@ SoilData SoilV2::read() {
 
     result.percent = per;
     if (per < 30) {
-        result.state = "KHO (Can tuoi)";
+        result.state = "KHO (chi so tham chieu)";
     } else if (per < 70) {
-        result.state = "AM (Tot)";
+        result.state = "AM (chi so tham chieu)";
     } else {
-        result.state = "UOT (Ngap)";
+        result.state = "UOT (chi so tham chieu)";
     }
 
     return result;

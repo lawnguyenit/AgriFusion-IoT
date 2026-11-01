@@ -53,7 +53,7 @@ struct SimConnectivityReport {
     String detail;
 };
 
-bool setupSIM();
+bool setupSIM(bool waitForBootSettle = true);
 bool checkNetwork();
 void checkInfo();
 void dumpSimState(const char *stage = nullptr, bool force = false);

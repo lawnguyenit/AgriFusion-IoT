@@ -6,7 +6,6 @@
 #include "Config.h"
 
 namespace {
-constexpr uint16_t kSoftResetCommand = 0x30A2;
 constexpr uint16_t kMeasureHighRepeatCommand = 0x2400;
 constexpr uint8_t kMeasurementFrameBytes = 6U;
 
@@ -183,7 +182,7 @@ bool Sht30Service::tryInit(bool force) {
     _lastInitError = "starting";
     clearMeasurementDiagnostics();
 
-    ensureWireReady(force);
+    ensureWireReady(false);
     if (!isAddressReachable(false)) {
         _ready = false;
         _lastInitError = "bus_missing";
@@ -201,15 +200,9 @@ bool Sht30Service::tryInit(bool force) {
     _ready = false;
     for (uint8_t attempt = 1; attempt <= (uint8_t)APP_SHT30_INIT_ATTEMPTS; ++attempt) {
         _lastInitAttempts = attempt;
-        uint8_t resetError = 0xFF;
-        bool resetOk = sendCommand(kSoftResetCommand, resetError);
-        if (resetOk) {
-            delay(APP_SHT30_SOFT_RESET_WAIT_MS);
-        }
-
         float probeTemperature = NAN;
         float probeHumidity = NAN;
-        bool probeReadOk = resetOk && readRawMeasurement(&probeTemperature, &probeHumidity);
+        bool probeReadOk = readRawMeasurement(&probeTemperature, &probeHumidity);
         _lastInitProbeReadOk = probeReadOk;
         _lastInitProbeTemperature = probeTemperature;
         _lastInitProbeHumidity = probeHumidity;
@@ -229,9 +222,7 @@ bool Sht30Service::tryInit(bool force) {
         }
 
         _ready = false;
-        if (!resetOk) {
-            _lastInitError = "reset_failed";
-        } else if (!probeReadOk) {
+        if (!probeReadOk) {
             _lastInitError = _lastMeasurementError;
         } else {
             _lastInitError = (_lastRawTemperature == 0 && _lastRawHumidity == 0)
@@ -347,8 +338,8 @@ String Sht30Service::buildJsonPayload(const char *sensorType,
         doc["sht_read_elapsed_ms"] = 0;
         doc["sht_invalid_streak"] = _consecutiveInvalidCount;
         if (valuesAvailable) {
-            doc["sht_temp_c"] = observedTemperature;
-            doc["sht_hum_pct"] = observedHumidity;
+            doc["sht_temp_c"] = nullptr;
+            doc["sht_hum_pct"] = nullptr;
             doc["sht_observed_temp_c"] = observedTemperature;
             doc["sht_observed_hum_pct"] = observedHumidity;
         } else {
@@ -400,15 +391,6 @@ String Sht30Service::buildJsonPayload(const char *sensorType,
                 break;
             }
 
-            if (attempts < maxReadAttempts) {
-                uint8_t resetError = 0xFF;
-                if (sendCommand(kSoftResetCommand, resetError)) {
-                    delay(APP_SHT30_SOFT_RESET_WAIT_MS);
-                } else {
-                    lastError = "reset_failed";
-                }
-                delay(APP_SHT30_RETRY_SETTLE_DELAY_MS);
-            }
             uint32_t afterReadMs = millis() - startMs;
             if (attempts < maxReadAttempts && (afterReadMs + retryDelayMs) < maxWaitMs) {
                 delay(retryDelayMs);
@@ -426,8 +408,10 @@ String Sht30Service::buildJsonPayload(const char *sensorType,
             // Keep decoded transport observations even when semantic range
             // validation rejects them. Canonical values remain null; the
             // observed fields make a -45/0 frame auditable downstream.
-            doc["sht_temp_c"] = t;
-            doc["sht_hum_pct"] = h;
+            if (valid) doc["sht_temp_c"] = t;
+            else doc["sht_temp_c"] = nullptr;
+            if (valid) doc["sht_hum_pct"] = h;
+            else doc["sht_hum_pct"] = nullptr;
             doc["sht_observed_temp_c"] = t;
             doc["sht_observed_hum_pct"] = h;
         } else {

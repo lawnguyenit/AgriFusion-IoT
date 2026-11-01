@@ -63,6 +63,7 @@ struct NPK_Data {
     bool tempFromExternalSensor;
     bool humDefaultedToZero;
     bool humFromExternalSensor;
+    bool phDefaultedToZero;
     bool externalHumReadOk;
     bool externalHumSampleValid;
     bool externalHumCalibrationValid;

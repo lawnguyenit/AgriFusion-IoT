@@ -32,3 +32,11 @@ Main file:
 Important config:
 - `SHT30_*`
 - `APP_SHT30_RETRY_INIT_MS`
+
+Production initialization now follows the passing Sht30Probe sequence: initialize
+Wire once, send `0x2400`, wait for conversion, read six bytes and verify CRC.
+`tryInit(force)` bypasses the retry throttle, without resetting Wire or sending
+soft reset before each attempt. Init retries are spaced by 1000 ms; measurement
+retries retain the configured delay. Zero frames remain invalid. Standard
+`sht_temp_c`/`sht_hum_pct` are null for invalid samples; diagnostic observed/raw
+fields retain the rejected evidence. Device validation is still required.

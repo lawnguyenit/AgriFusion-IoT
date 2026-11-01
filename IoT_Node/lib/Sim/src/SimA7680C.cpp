@@ -728,7 +728,7 @@ void dumpSimState(const char *stage, bool force) {
     CUS_DBGLN("[SIM][STATE] ===========================");
 }
 
-bool setupSIM() {
+bool setupSIM(bool waitForBootSettle) {
     SerialAT.begin(SIM_BAUDRATE, SERIAL_8N1, SIM_RX_PIN, SIM_TX_PIN);
     SerialAT.setTimeout(50);
     gLastResolvedIp = "0.0.0.0";
@@ -736,9 +736,11 @@ bool setupSIM() {
     gLastIpRefreshMs = 0;
 
     CUS_DBGLN("\n[SIM] --- BAT DAU KHOI DONG ---");
-    if (SIM_BOOT_WAIT_MS > 0) {
+    if (waitForBootSettle && SIM_BOOT_WAIT_MS > 0) {
         CUS_DBGF("[SIM] Cho modem on dinh sau cap nguon %lu ms\n", (unsigned long)SIM_BOOT_WAIT_MS);
         yieldToScheduler(SIM_BOOT_WAIT_MS);
+    } else {
+        CUS_DBGLN("[SIM] Bo qua boot settle; modem duoc giu nguon trong retry.");
     }
     CUS_DBGF("[SIM] Cho modem phan hoi toi da %lu ms\n", (unsigned long)SIM_AT_RESPONSE_TIMEOUT_MS);
 
@@ -747,7 +749,13 @@ bool setupSIM() {
         CUS_DBGLN(" -> FAIL");
         CUS_DBGF("[SIM] -> KHONG CO TIN HIEU: khong co phan hoi tren UART trong %lu ms.\n",
                  (unsigned long)SIM_AT_RESPONSE_TIMEOUT_MS);
-        dumpSimState("init_fail", true);
+        // The AT handshake already proved the UART is unresponsive. Do not
+        // issue more AT queries here; each would wait for another timeout.
+        CUS_DBGLN("\n[SIM][STATE] ===== MODEM SNAPSHOT =====");
+        CUS_DBGLN("[SIM][STATE] stage=init_fail");
+        CUS_DBGLN("[SIM][STATE] sim=NOT_READY csq=-1 dbm=0 signal_valid=0 net=0 gprs=0 attach=0 ip=0.0.0.0 ip_valid=0 ip_source=uart_unresponsive");
+        CUS_DBGLN("[SIM][STATE] operator=<no response>");
+        CUS_DBGLN("[SIM][STATE] ===========================");
         return false;
     }
     CUS_DBGLN(" -> OK");
