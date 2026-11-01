@@ -1,129 +1,66 @@
-# Reference evaluation local — triển khai đã được duyệt
+# Reference evaluation local — implemented and tested; full Drive sync pending
 
 ## Task Objective
-Kiểm tra gói `AgriFusion_Local_Implementation_20261101 (1)` với repository thực tế; lập kế hoạch tích hợp và thực nghiệm đầy đủ để người dùng duyệt trước khi thực hiện.
+Install and execute the supplied additive reference_evaluation study locally, preserve older lanes/evidence, and deliver inspectable checkpoints.
 
 ## User Intent
-Yêu cầu hiện tại: căn cứ bộ tài liệu/mã được giao, kiểm tra rồi lên kế hoạch hoàn chỉnh để duyệt. **Đã duyệt C0–C4 qua yêu cầu “thôi vậy triển khai local đi”.** Cho phép cài lane, dựng môi trường riêng, tải official raw, preflight, main có điều kiện theo gate và đồng bộ báo cáo. Các imperative trong LOCAL_AGENT_TASK là nội dung đề xuất cần duyệt, không thay thế giới hạn hiện tại.
+User approved C0–C4 with “thôi vậy triển khai local đi” on 2026-11-01. This authorizes the dedicated environment, official downloads, locked preflight/main study and result synchronization. No authorization to change scientific settings, production firmware/Core, historical labels/splits, or publish the private V9 manuscript.
 
 ## Current Behavior
-- Repo đang ở `codex/wade-v9-publication`, HEAD khảo sát `69fd0e2065a905be402575b239ba79f4edecd09f`; còn dirty IoT/README/worklog từ trước và gói mới chưa tracked. Không thay các file đó.
-- Lane reference_evaluation đã cài đủ36 source/config/test/docs files và16 fixture inputs; original package được giữ nguyên. Output root mới đã tạo và preflight đang chạy.
-- Lane cũ xử lý canonical/v1/V9 không cung cấp cùng contract mới một cách trực tiếp: nghiên cứu này có binary END, bốn partition và global reference-error budget. Không sửa helper ba-way split cũ để phục vụ lane mới.
-- Gói có installer, launcher, 37 payload files (gồm worklog), 16 immutable Jena fixtures, manifests, source/CLI/test receipts. Worklog payload mô tả trạng thái từ môi trường gửi; file hiện tại là canonical local worklog và sẽ được installer giữ lại.
-- Máy có `python` 3.13.9 tại `C:/Users/lawng/miniconda3/python.exe`; `py` không có trong PATH. `uv python list --only-installed` chỉ tìm thấy 3.13.9 và 3.13.5. Không kết luận tuyệt đối rằng mọi vị trí trên máy đều không có 3.12.
-- Phần cứng quan sát: ~31.7 GiB RAM, 32 logical processors, ổ D còn ~121.5 GiB. Đây không phải phép đo peak memory/runtime của study.
+The lane is installed at Backend/Benchmark/reference_evaluation. Execution root remains D:/Project/AgriFusion-IoT on codex/wade-v9-publication; execution HEAD was69fd0e2 and source bytes are separately frozen. A safe backup worktree/branch codex/reference-evaluation-local-20261101 starts at public b194b39, excluding private V9 ancestry. Source milestone46bd89f and preflight record5966f8e were pushed normally. The main launcher completed exit0; current report is Backend/Output_data/reference_evaluation/report/current_graph__71b84c1ff33cc2a3. Complete local export is Backend/Output_data/reference_evaluation/drive_sync.
 
 ## Confirmed Facts
-- SHA256 đọc độc lập: PACKAGE_MANIFEST 80/80, PAYLOAD_MANIFEST 37/37, FIXTURE_MANIFEST 16/16 khớp; không thực thi installer.
-- 38 entries trong tested source inventory khớp byte (gồm hai package parents). Hai `Backend/__init__.py` và `Backend/Benchmark/__init__.py` local khớp bản đã kiểm; không cần overwrite parent.
-- Kiểm tĩnh destination: 37 payload paths chưa có, không có conflict hiện tại. Đã AST-parse 31 Python files của lane/tests bằng stdlib; không import hay chạy module của gói. Đây chỉ là kiểm cú pháp bằng Python 3.13, không phải Windows/Python 3.12 correctness validation.
-- Receipts của gói ghi 28 tests, 0 failures/errors/skips, 0 HGB/logistic fits; `legacy_fixture_verified=false`, `full_P2_gate=false`. Đây là bằng chứng lịch sử Linux/Python 3.12, chưa được tái hiện tại máy local.
-- Gói tách source/preparation/features/Markov/fitting/evaluation/DP/solver/storage/reporting; module lớn nhất storage.py khoảng 360 dòng, không cần viết lại toàn bộ pipeline.
-- `RUN_LOCAL.py` tạo venv và log/receipt trong output root, chạy child process với cwd repo; không tự upload Drive. CLI có resume và graph/signature; một orchestrator tại một thời điểm.
+- Installer --check/install passed:36 lane files and16 fixture inputs created; canonical existing worklog preserved. Installed lane hashes match payload. Original package remains unchanged.
+- Dedicated Python3.12.12, NumPy2.3.5, pandas2.2.3, sklearn1.8.0, SciPy1.17.0, joblib1.5.3 installed under ignored output-root _venv; pip check passed. Conda base was not modified. Actual transitive versions are recorded.
+- Official Beijing raw:420768 canonical rows, adequate_for_declared_scope; scored train/development/selection/assessment=221516/51868/41362/45421. Appliances:3290 canonical rows, limited_support; corresponding scored counts1950/469/387/387. Both hard gates pass. Complete-label training positives after masking are only5/6/6 for Appliances, so support limitations remain material.
+- Preflight exit0:28 correctness tests,0 failures/errors/skips,0 HGB/logistic fits in correctness suite. Full P2 true. Legacy no-refit fixture counts at R0..3 are5/4/1/0;20 legacy MILP solves:14 optimal,6 time-limited, all returned witnesses valid and optimal values match DP. Four actual supervised toy fits passed separately.
+- Main exit0 and full_plan_complete=true:6 fit units=24 supervised fits,126 evaluation units,3780 R0 pair rows,126 sensitivity units,16 generic solver units,1 final report. Main solver statuses:10 optimal and6 time-limited. Timeouts were retained, not recast as optima.
+- Active graph has279 nodes:2 audit+1 validate+1 smoke+6 fit+126 evaluate+126 sensitivity+16 solver+1 report. Historical preflight report remains as immutable evidence outside the active report pointer.
+- Independent persisted-output validation passed:5319 READY-declared file hashes/sizes,8 selected NPZ contract checks, cohort/interval/R0 orientation/nesting/truth containment and solver checks; errors=[]; no refit/tuning was performed by this checker.
+- Original tracked-file hash comparison found only PROJECT_MAP.md and PROJECT_STATUS.md changed by this task. Original application/firmware/Core bytes remain unchanged; new lane is additive.
+- Actual Windows code fingerprint:2f435e0dfcbe8220aac9d0f2db0ac9c7965669159dbdcaa78dfef6b2f69ef067; config868261e939b028c17c33f319d78a178f5261edb76ba4002b2f4251421c2e6fec; environment4e755ea143367f356117cdfaf77a0ced45df08a042c856db447a357acf0e0f0b. Use the recorded inventory, not Git commit alone, as executed-source authority.
 
 ## Unresolved Questions
-- Python3.12.12 và năm pinned dependencies đã cài thành công trên Windows; pip check đạt. Full runtime validation vẫn đang chạy.
-- Hai nguồn đã tải/audit: Beijing420768 canonical rows, hard gate đạt/adequate; Appliances3290 rows, hard gate đạt nhưng limited_support. Các fit theo train-mask seed vẫn cần kiểm support riêng.
-- 28 correctness tests pass local (0 failures/errors/skips và0 HGB/logistic fits); full legacy fixture/MILP gate đạt; toy smoke4 supervised fits đạt.
-- Runtime, peak memory, kích thước export thật và kết quả selection/assessment chưa biết. Không đưa ETA fit dựa trên unit tests nhỏ.
-- Người dùng đã duyệt triển khai local; vẫn không được sửa q/K/splits/candidate pool để cứu kết quả.
+Full main delivery to Drive is not verified. Connector returned429 upload_protection_limit_exceeded, explicitly requesting retry in3 hours. Edge CDP Emulation.setFocusEmulationEnabled timed out twice; native Edge accessibility was unavailable. No app input, authentication change or sharing change was performed. Local execution is complete; remote delivery is partial. Scientific adequacy remains limited for Appliances; no physical/novel-method/future-ranking claim follows from plan completion.
 
 ## Assumptions
-- Người dùng đã duyệt triển khai local toàn quy trình C0–C4; các gate bắt buộc vẫn giữ nguyên.
-- Giữ Python 3.12 như môi trường tham chiếu; đề xuất dùng `uv` đã có để provisioning sau duyệt, không đổi Python hệ thống/Conda base.
-- Dùng output root mặc định đang chưa tồn tại, fixture đặt đúng root mặc định. Nếu cần config khác/chọn archive offline, chốt trước lần launch đầu và dùng output root riêng khi thay config.
-- Phạm vi v1 là contract A, no-query, recorded-reference. Không bổ sung contract B/query oracle, claim physical event, novelty hay guarantee future ranking.
+Scientific settings remain the delivered locked config. All masks/sites/seeds are dependent study conditions, not independent datasets. Output-root venv/cache/raw archives are not included in delivery. Documentation config.status retains its original delivery-origin wording; actual execution status is in manifests/current graph/report.
 
 ## Affected Modules and Files
-| Chủ sở hữu | Phạm vi sau khi được duyệt |
-|---|---|
-| Package installer/launcher | Giữ gói đầu vào nguyên byte; chạy bằng đường dẫn absolute và ghi source hash. Không copy imported parent references lên repo |
-| `Backend/Benchmark/reference_evaluation` | Cài 36 file lane/config/tests/docs còn lại từ payload; chỉ sửa nếu lỗi được tái hiện và trong phạm vi compatibility/correctness đã duyệt |
-| `sources.py`, `preparation.py`, `targets.py` | Official intake, raw lineage, hourly canonical, split/threshold/END/support audit riêng |
-| `features.py`, `markov.py`, `fitting.py` | Causal forecast, train-only preprocessing/Markov, fixed candidates |
-| `evaluation.py`, `bounds.py`, `decisions.py`, `audit.py`, `sensitivity.py`, `solver*.py` | Fixed cohort/scores, paired losses, global R, downstream truth, error/corruption/solver evidence |
-| `main.py`, `pipeline.py`, `stages.py`, `storage.py`, `reporting.py` | Orchestration, immutable attempts, graph/cache, receipts, reports/export |
-| `Backend/Output_data/reference_evaluation` | New raw releases, fixture, `_venv`, runs, code snapshots, launch receipts, drive_sync; đã Git ignore |
-| `PROJECT_MAP.md`, `PROJECT_STATUS.md`, worklog này | Cập nhật implemented/tested/not run; không đổi unknown provenance cũ. Cập nhật lane README/FLOW nếu control flow thực sự phải sửa |
-| Google Drive | Chỉ tree export của lane mới vào `AgriFushion_Local/Reference_Evaluation_v1`; có remote IDs/readback và upload receipts riêng |
-
-Không tác động firmware, Firebase, Core raw/canonical, old targets/splits, frozen results, manuscript V9, frontend hoặc lane model cũ.
+- Installed36 files under Backend/Benchmark/reference_evaluation: contracts/config/targets; sources/preparation; features/Markov/fitting; evaluation/bounds/decisions/audit/sensitivity/solver; CLI/pipeline/stages/storage/reporting; tests and README/FLOW. No application-code repairs were required.
+- Output root Backend/Output_data/reference_evaluation owns new raw releases, fixtures, venv, unit evidence, source snapshots, invocation/launch receipts, graph/indexes and export.
+- PROJECT_MAP.md, PROJECT_STATUS.md and this canonical worklog own current state. Historical RUN_INDEX.csv at repository root remains the old handoff census; the new lane has its own live RUN_INDEX.csv.
+- D:/Project/reference-evaluation-ops-20261101 contains operational monitors, transport adapters, independent checker, baseline hashes and delivery receipts. These are outside the scientific source snapshot.
+- Drive target: https://drive.google.com/drive/folders/1jZq5t9gNNe_W1Tk8V9mtALmWpq885lNM.448 transport objects have verified metadata/size; this is not complete coverage of the final study.229 attempted objects failed with upload throttling; additional units finished afterward. See drive_delivery_partial_final.json for exact IDs and failed attempted paths.
 
 ## Implementation Plan
-
-### C0 — khóa baseline và môi trường, sau khi duyệt
-1. Kiểm lại git status, source/fixture hashes, destinations và output-root absence; nếu có thay đổi đồng thời thì so lại trước khi cài.
-2. Chọn checkout/branch riêng `codex/reference-evaluation-local-20261101` từ ancestor đã được xác minh an toàn để push. Không checkout đè workspace dirty hoặc mang private V9 ancestor lên GitHub. Giữ repo gốc là execution root; có thể stage source/docs có phạm vi vào checkout sạch để backup nếu cần.
-3. Provision Python 3.12 bằng `uv python install 3.12` nếu không có interpreter phù hợp; ghi version executable và receipt. Không cài vào Conda base. Dùng interpreter 3.12 absolute khi gọi các lệnh bên dưới; không dùng `py -3.12` đang thiếu.
-4. Chạy `INSTALL_LOCAL.py --repo D:/Project/AgriFusion-IoT --check`, kiểm kết quả không ghi file; sau đó chạy installer thật. Expected 36 lane files +16 fixture mới, worklog này được giữ. Xác nhận hash sau copy và không có out-of-scope diff.
-5. Hoàn tất lane docs/config/requirements trước launch đầu. Cài năm pin NumPy 2.3.5, pandas 2.2.3, sklearn 1.8.0, SciPy 1.17.0, joblib 1.5.3 trong `_venv`. Ghi Python/OS/numerical versions và `pip check`. Lỗi dependency/path sẽ được ghi và sửa compatibility có kiểm chứng; không âm thầm đổi scientific config.
-
-### C1 — preflight: audit → full validation → smoke
-Lệnh dự kiến từ repo root (executable 3.12 được chọn ở C0):
-
-```powershell
-& '<python312.exe>' 'D:/Project/AgriFusion-IoT/AgriFusion_Local_Implementation_20261101 (1)/RUN_LOCAL.py' --repo D:/Project/AgriFusion-IoT --stage preflight --install-deps --download
-```
-
-- Download hai official archives được config chỉ rõ, lưu immutable checksum/provenance; không tải Firebase/Jena mới. Beijing dùng PM2.5 của 12 station files chính thức; Appliances dùng RH_1 và đủ sáu finite slots/giờ. Ghi missingness, hourly bins, raw IDs, timezone uncertainty.
-- Audit bốn chronological partitions và actual cutpoints/assignments; train-only thresholds; duplicate/entity/time/dependency checks; segment tại real gaps; warmup 24. Missing raw không đổi thành F=0.
-- Chạy full `validate` gồm suite không forecaster fits và legacy no-refit fixture checks. Gate: full_P2=true; counts R0..3 =5/4/1/0; returned solver witnesses hợp lệ và optimal values khớp DP. Timeout phải giữ đúng trạng thái, không gọi incumbent là optimum. Tests count có thể tăng nếu phải thêm regression cho bug thật.
-- Chạy smoke bốn supervised toy fits (3 HGB+1 logistic); kiểm prefix train/development của nguồn đã audit, không tune theo selection/assessment. Gate: finite causal inputs, đúng cohort/model order, full-control bounds collapse, smoke READY đúng checksum.
-- Kiểm hợp lệ cho từng source: hard gate là mọi partition có cohort và train có đủ classes; limited support khi selection hoặc assessment có <10 positive END episodes là cảnh báo vận hành, không phải theorem về sample size. Required fit sau masking cũng có thể fail support riêng seed.
-
-### C2 — checkpoint preflight và quyền đi tiếp
-- Mở STUDY_STATUS, RUN_INDEX, ACTIVE_GRAPH, ARTIFACT_INDEX, SOURCE_INDEX, audits, full validate test_results, smoke SUMMARY, snapshots, resolved config, exact commands/exit codes và launch receipts.
-- Đối chiếu source+config+environment signature, không dùng Linux unit-only receipt làm P2 local. P2/smoke lỗi thì không main fit. Audit source lỗi thì giữ failed record; chỉ tiếp tục nguồn độc lập đủ gate, ghi rõ không hoàn thành full two-source plan.
-- `report`/`export` của launcher tạo drive_sync. Export lại sau khi invocation kết thúc nếu cần thu receipt cuối; bootstrap_launches nằm ngoài export mặc định nên đính kèm launch receipts/logs có chọn lọc, không khẳng định exporter đã tự đưa chúng lên Drive.
-- Đồng bộ checkpoint và xác minh remote IDs/bytes/checksums nếu API trả checksum. Không upload `_venv`, cache, credentials, raw archive lớn hoặc nén lại repo.
-- Nếu duyệt toàn kế hoạch và gates đạt thì đi C3; nếu người dùng chỉ duyệt preflight thì dừng tại đây để review. Mọi thay đổi scientific scope vẫn cần duyệt riêng.
-
-### C3 — main study giữ nguyên contract
-```powershell
-& '<python312.exe>' 'D:/Project/AgriFusion-IoT/AgriFusion_Local_Implementation_20261101 (1)/RUN_LOCAL.py' --repo D:/Project/AgriFusion-IoT --stage all
-```
-
-Launcher dùng `_venv` đã dựng; audit/validate/smoke lặp lại với resume cho exact matching units. Không gọi `--install-deps` lại giữa main nếu không cần vì environment fingerprint là một phần cache identity.
-
-Scientific settings được đề xuất duyệt nguyên trạng:
-- END_t=1 iff F[t-3:t-1] đều 1 và F[t]=0; F=1 iff recorded variable > q75 train theo entity; đây là operational reference, không physical truth.
-- Split global unique recorded timestamps theo 60%/15%/12.5%/12.5%: train/development/selection/assessment, chung across entities; không refit sau selection.
-- Sáu candidates: COMPLETE_HGB, SOFT_EM_HGB, MARKOV, CONSTANT, LOGISTIC_COMPLETE_H6, HGB_COMPLETE_H24. Không HPO/early stopping; ba train-mask seeds 11/22/33; 2 threads, một fit/orchestrator đồng thời; không GPU.
-- Full control một lần + MCAR30, MCAR50, block30, MNAR-state ×5 mask seeds 11/22/33/44/55. Mỗi source×train-seed có21 cells; hai nguồn×ba seeds=126 cells, mỗi cell có selection và assessment, 15 pairs/period=3780 pair rows R0 nếu đủ support.
-- Main tối đa24 supervised fits:18 HGB+6 logistic, ngoài Markov/constant và4 toy fits. Không đếm model seed/mask/site thành independent datasets.
-- R sensitivity cho primary pair trên fixed predictions, grid0/1/2/3/4/8/16; **một budget chung cho toàn source+partition**, không budget mỗi segment. Corruption theo scope/grid đã config, không đổi probabilities khi tăng R.
-- Generic MILP:16 predeclared solves nếu đủ hai nguồn;10 giây/solve là solver limit, không phải deadline cho whole study. Giữ status/incumbent/dual/gap/witness/runtime, không tự retry solver mạnh hơn hay bỏ timeouts để đẹp bảng.
-- Giữ all fixed-model action baselines, development default, fallback, ties và uncertainty reasons; selection finite-pool regret và later assessment regret báo riêng.
-
-### C4 — kiểm kết quả, checkpoint, bàn giao
-- Kiểm đủ cases hoặc thiếu có lý do; same scored keys cho mọi method; finite probabilities, no current/future truth leakage; R0 full-control exact; joint bound containment/nesting; fixed probability hashes; solver witness/budget recheck.
-- Giữ failed/limited-support attempts và return codes. Lỗi không được đổi thành complete; timeout/inconclusive là outcome hợp lệ theo contract. Xác minh full_plan_complete bằng actual ACTIVE_GRAPH, không chỉ exit0. Có đủ 126 evaluate +126 sensitivity +16 solves vẫn không tự chứng minh scientific adequacy.
-- Đo wall time, disk và peak working set/process tree khi chạy trên Windows bằng giám sát ngoài computation, ghi cách đo; lane hiện chưa có phép đo peak RAM chuyên biệt. Chưa đo được thì unknown, không dựng số từ RAM máy.
-- Export checkpoint đầy đủ vào Drive cùng thư mục kết quả; upload incremental theo manifest, giữ relative paths, thêm actual upload receipts. Chỉ nói upload thành công khi connector readback đạt; exporter local không tự chứng nhận remote.
-- Cập nhật PROJECT_MAP/STATUS và cùng worklog này. Commit milestones source/integration fixes/docs theo scope; push từ branch không có private V9 ancestor, không push output/fixtures/secrets/venv. Không public manuscript hoặc tạo Release. Ghi hash/branch/push status rõ.
+C0 installation/environment:complete. C1 full audit/validate/smoke:complete. C2 preflight delivery:verified with lossless connector transport exceptions. C3 locked main:complete. C4 independent local validation:complete; final packaging/documentation/Git checkpoint finalized in this task. Full remote main sync remains blocked by connector quota and unavailable browser control. Resume only missing/changed deliveries using recorded IDs/hashes once access is available; do not rerun training merely to retry upload.
 
 ## Architectural Decisions
-Không viết lại module hoặc trộn lane này vào production/external adapters cũ chỉ để reuse tên. Dependency direction: CLI→orchestration→source/preparation/fit/evaluation/sensitivity/solver; math/contracts độc lập; storage persistence/provenance; reporting/export downstream. Truth chỉ downstream audit sau khi decisions đã freeze. Named components là module có thể test riêng. Nếu phát hiện bug sẽ sửa nhỏ và thêm regression đúng invariant; thay target/split/feature information/candidate/R semantics phải quay lại hỏi trước.
+Dependency direction is CLI→orchestration→separate source/preparation/model/evaluator/solver owners, with numerical contracts/math separated from storage and reporting. Evaluator objects omit full truth; selection is frozen before downstream truth audit. END uses three preceding positive recorded-hour states followed by current0, train/entity q75, splits60/15/12.5/12.5, six fixed candidates, train seeds11/22/33, one job/two threads and a single global source/partition R budget. Scientific settings and existing persistent formats are unchanged (csv_npz_v1).
+
+Delivery adapters do not alter original READY bytes: connector100MiB/file and zero-byte rejection required gzip for two audit CSVs and an empty-file ZIP with original hashes. Main per-file metadata traffic was too slow, so complete units were bundled as ARTIFACTS.zip+SUMMARY, preserving/restoring paths through MAIN_TRANSPORT_MANIFEST. Some earlier loose objects coexist remotely; they are not an independent authority. The final local export preserves the original uncompressed source-defined tree and is authoritative for the full study.
 
 ## Progress Status
-`requested`: khảo sát và lên kế hoạch. `proposed`: C0–C4 ở trên. `approved`: C0–C4 ngày 2026-11-01. `implemented locally`: đã cài lane/fixtures; CLI --help và installed hashes đạt. Python3.12.12 đã provision; preflight hoàn tất exit0 trong venv riêng; main bắt đầu theo approved gates. `verified locally`: integrity/AST/static compatibility, installed hashes, CLI và Python provisioning; full P2 và toy smoke đã đạt local; source hard gates đạt với Appliances limited_support. `historically tested`:28 tests của gói. `accepted`: chưa. Trong lượt này chỉ thêm worklog kế hoạch; không sửa application code hoặc gói đầu vào.
+Approved and implemented locally. Preflight/full study tested and local checkpoint independently verified. User acceptance pending. Full Drive main delivery blocked; do not report it as complete. No production deployment, firmware flash, Firebase write or historical model refit occurred.
 
 ## Validation Commands and Results
-- Read-only Get-Content/rg/git status/log, stdlib SHA256/JSON/AST inspection: kết quả ở Confirmed Facts.
-- `py -0p`: không tìm thấy launcher; `uv python list --only-installed`: thấy3.13.9/3.13.5; Python dùng kiểm stdlib3.13.9.
-- Đọc Get-CimInstance/Get-PSDrive để biết phần cứng/disk, không stress/benchmark.
-- Chưa chạy INSTALL_LOCAL, RUN_LOCAL, pip/uv provisioning, pytest/unittest, validate/smoke/all, downloader hoặc Drive upload.
+- INSTALL_LOCAL.py --repo D:/Project/AgriFusion-IoT --check, then install:exit0,52 creates, worklog preserved. Installed-byte verification36/36 passed; CLI --help passed.
+- uv python install3.12 installed3.12.12; dedicated venv dependencies installed; pip check passed.
+- monitor_launch.py preflight --install-deps --download invoked the delivered RUN_LOCAL.py with actual3.12 executable:exit0,489.7985s including environment setup; full P2 and smoke verified.
+- monitor_launch.py all:exit0,3855.0876s (64m15s). Maximum2-second sampled process-tree RSS sum857456640 bytes (~818MiB). Shared pages can be double-counted; this is not a continuous global physical-memory peak. Preflight sampled max508039168 bytes.
+- check_checkpoint.py initially had a Path subscripting typo in the external checker, corrected without changing any study code/artifact. Recheck exit0:5319 files,3780 pair rows,8 NPZ samples, no errors; checkpoint_validation.json records details.
+- Original tracked hashes compared:only the two intended project documentation files changed. No broader regressions were required because shared contracts/old application code were not modified.
+- Connector uploads verified per object by metadata byte-size readback; original/transport hashes are recorded locally. No remote re-download hash assertion is made.429 quota failures and two Edge timeouts are retained as delivery limitations.
 
 ## Compatibility Impact
-Đề xuất additive `csv_npz_v1`; không migrate persistent schema cũ. Templates và original package được giữ nguyên. Exact source snapshot quan trọng hơn commit vì repo dirty. Fingerprint chứa cả lane README/FLOW/JSON/TXT và imported parent bytes; finalize trước launch, cập nhật worklog ngoài lane không đổi lane fingerprint. Không sửa dependency/môi trường giữa run để tránh vô hiệu hóa cache âm thầm.
+Additive lane only; old source/data/schemas retained. Historical incomplete provenance remains unknown. Exact command, source/config/input/environment signatures and READY hashes accompany the new runs. Lane README/FLOW/source/config were not edited during execution. Backup commits use a separate worktree so execution Git metadata remains stable. Cross-platform consumers must normalize Windows relative path separators; archive member paths use POSIX separators.
 
 ## Remaining Risks and Follow-up Work
-Python/dependency Windows chưa validate; real-source support và runtime chưa đo; disk/export size có thể tăng. Full P2 không phải efficacy/novelty gate. Review chỉ tĩnh không chứng nhận numerical correctness toàn bộ implementation. Nếu manifest/conflict/import gate lỗi, dừng tích hợp liên quan, giữ evidence và so sánh trước sửa. Triển khai C0–C4 theo duyệt; dừng dependent work nếu gate không đạt.
+- Complete missing Drive delivery after upload access recovers, or upload the complete local export directly in Drive; never claim current partial remote tree is the final checkpoint.
+- Appliances remains limited_support, including very few positive complete training labels. Full-plan completion does not override this caveat.
+- Resume across a changed execution Git HEAD is not certified by this run: storage writes code_snapshots/<code_sha>/SNAPSHOT.json with Git metadata; an otherwise identical source inventory may produce different snapshot metadata after a commit and conflict with immutable exported bytes. Keep the current execution checkout stable for exact resumes; review/fix that metadata transition with a focused regression before relying on it. No such transition occurred here.
+- User review/acceptance and any paper/public-release decision remain separate. No rerun, target tuning or scientific scope expansion is required to retry delivery.
 
-## Progress Log
-- 2026-11-01: người dùng duyệt triển khai local; lưu original tracked-file hashes ngoài repo trước tích hợp.
-- C0 đạt: installer --check và install exit0,52 files created và worklog giữ nguyên;36 lane hashes khớp; Python3.12.12 installed. Safe source commit46bd89f đã push. External monitor ghi2-second sampled process-tree RSS, không gọi đó là exact continuous peak.
-- C1: pip check đạt; official raw archived với hashes; Beijing scored train/development/selection/assessment=221516/51868/41362/45421, Appliances=1950/469/387/387. Local correctness28/28 đạt; đang chờ full legacy fixture gate.
-- C1/C2 đạt: preflight489.80s gồm dựng venv/pip, audits, full validation và smoke/report/export. Local28 tests pass; full_P2=true; Jena5/4/1/0,20 MILP solves (14 optimal/6 time-limited), all returned witnesses valid và all optimal values match DP. Sampled RSS sum max508039168 bytes (không phải continuous physical peak). Main được phép chạy; không thay config/semantics.
-- Delivery adapter: connector từ chối0-byte files và giới hạn100MiB/file. Giữ original export nguyên byte; gzip151127549-byte canonical.csv và130493831-byte canonical_before_audit.csv riêng, đưa empty originals vào ZERO_BYTE_FILES.zip; TRANSPORT_MANIFEST ghi original hashes/path và cách khôi phục. Main đã hoàn tất6 fit units=24 supervised fits và đang evaluate; scientific config giữ nguyên.
+## Final Local Package
+Complete native export/package verified: reference-evaluation-20261101-complete.zip,115006856 bytes,5686 files, SHA256 c349540b7ba25f7f9884d8fe436d06a2c3a5993cdd947e9f4285432eb6cec16a. Native export hashes and ZIP CRC pass. Two lossless80MiB-or-smaller parts plus DELIVERY_PARTS.json are prepared for the connector100MiB limit; upload remains blocked by quota. No automatic future retry is scheduled.
