@@ -1,0 +1,42 @@
+{
+  "study_id": "ref_eval_mechanism_confirmation_20261102_v1",
+  "mechanisms": {
+    "length": 256, "warmup": 24, "K": [1, 3, 6],
+    "persistence": [0.55, 0.8, 0.95], "alpha": [0.25, 1.0],
+    "seeds": [11, 22, 33, 44, 55], "hidden_fraction": 0.3,
+    "masks": ["fixed_count_random", "random_block", "high_I_block", "low_I_block"],
+    "synthetic_names": ["SYN_CONSTANT", "SYN_MARKOV_TRUE", "SYN_IID", "SYN_SMOOTH", "SYN_SOFT_RUN", "SYN_DELAYED"],
+    "schedule": "constant=.5*persistence**(K-1)*(1-persistence); true=all past K ones*(1-persistence); iid=all past K ones*.5; smooth=mean(past6)**K*(1-persistence); soft_run=mean(pastK)**K*(1-persistence); delayed=all previous K before last step ones*(1-persistence); alpha interpolation toward constant",
+    "primary_positions": [1, 0], "diagnostic_R": [0, 1, 3],
+    "delta_grid": [0, 0.0001, 0.0005, 0.001, 0.005, 0.01, 0.05, 0.1, 1.0],
+    "discovery_seeds": [11,22,33], "discovery_persistence": [0.55,0.8],
+    "heldout_seeds": [44,55], "heldout_persistence": [0.95],
+    "hypothesis": "Median high-I minus low-I joint primary interval width is positive within matched trace/K/alpha/block length; require positive discovery and heldout medians; retain all counterexamples",
+    "tolerance": 1e-12,
+    "feasible_information": "observed reference constraints only; fixed causal forecast histories are not additional inversion constraints"
+  },
+  "confirmation": {
+    "source_id": 235,
+    "url": "https://archive.ics.uci.edu/static/public/235/individual%2Bhousehold%2Belectric%2Bpower%2Bconsumption.zip",
+    "variable": "Global_active_power", "units": "kW",
+    "hour_rule": "exactly 60 distinct valid recorded minute timestamps, no interpolation; otherwise unknown",
+    "clock": "recorded naive archive clock, no inferred timezone or DST repair",
+    "K": 3, "quantile": 0.75, "warmup": 24,
+    "folds": [
+      {"id":"F1", "train_end":"2008-01-01", "development_end":"2008-04-01", "selection_end":"2008-07-01", "assessment_end":"2009-01-01"},
+      {"id":"F2", "train_end":"2008-07-01", "development_end":"2008-10-01", "selection_end":"2009-01-01", "assessment_end":"2009-07-01"},
+      {"id":"F3", "train_end":"2009-01-01", "development_end":"2009-04-01", "selection_end":"2009-07-01", "assessment_end":"2010-01-01"}
+    ],
+    "training_seeds": [11,22,33], "reference_seeds": [11,22,33],
+    "input_regimes": ["full", "mcar30"], "reference_policies": ["full_control", "mcar30", "block30"],
+    "support_min_positive": 20, "support_min_negative": 20,
+    "maximum_supervised_fits": 36, "evaluation_cells": 126,
+    "K_sensitivity": false, "hyperparameter_search": false,
+    "witness_scope": "primary pair, each fold at training11/input_mcar30/reference_mcar30_seed11, both periods; R0 only",
+    "tie_rule": "alphabetical model name among G within 1e-12 of minimum",
+    "mechanism_test": "Within block30, fixed fold/training seed/input regime/partition: select highest and lowest hidden primary I_s sum among reference seeds11/22/33, ties lowest seed; compare joint primary width. Counts/geometry/p fixed. Require positive median contrast in selection and assessment for claimed directional transfer; keep all ties/reversals. No extra evaluation or fits.",
+    "source_prior_outcome_use": "used_or_unknown_user_reported_20261102; protocol-locked extension, not independent confirmation"
+  },
+  "P5": {"open_only_if": "specific justified learner/rule transfer question remains after P3/P4 and budget explicitly locked", "extra_fits_authorized_in_this_lock": 0},
+  "P6": {"language":"Vietnamese", "formats":["docx","pdf"], "publication":"private author review only", "private_V9_source_used":false}
+}
