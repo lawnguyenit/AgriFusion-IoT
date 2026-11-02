@@ -35,6 +35,14 @@ Discovery/heldout groups and gate are declared in protocol before main.
 G uses all15 pairs at R0; R1/3 outputs are primary-pair diagnostics only.
 No forecaster fit is permitted during P3.
 
+Historical full_20261102_v1 case.json primary_verdict inherited the stored
+SYN_CONSTANT minus SYN_MARKOV_TRUE pair orientation, opposite the declared
+primary orientation. Widths/G/gates/witnesses/sensitivity were already correct.
+Do not rewrite historical READY. The delivered tables/P3/primary_orientation_mapping.csv
+normalizes that metadata; readable mechanism_cases includes original and corrected
+verdict plus explicit model_a/model_b. Current code writes the declared orientation
+for future runs. This is a metadata compatibility correction, not a rerun or refit.
+
 P4 refuses to run unless P3's frozen gate passes. Source235 is aggregated only
 from60 distinct finite valid minute measurements; missing bins stay unknown.
 Recorded naive clock is preserved, with no inferred DST or timezone repair.

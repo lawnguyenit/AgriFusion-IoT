@@ -93,5 +93,18 @@ class NextTests(unittest.TestCase):
             (p/'data.txt').write_text('changed')
             with self.assertRaises(ValueError):verify(p)
 
+    def test_primary_metadata_uses_declared_orientation(self):
+        from ..p3 import case
+        from ..journal import read
+        from ...reference_evaluation.contracts import verdict
+        import csv
+        with TemporaryDirectory() as tmp:
+            unit,row=case(Journal(tmp),.8,3,1.,11,'fixed_count_random',48,'test_case')
+            with (unit/'primary_sensitivity.csv').open(encoding='utf-8',newline='') as f:
+                r=next(r for r in csv.DictReader(f) if r['R_global']=='0')
+            self.assertEqual(row['primary_model_a'],r['model_a'])
+            self.assertEqual(row['primary_model_b'],r['model_b'])
+            self.assertEqual(row['primary_verdict'],verdict(float(r['joint_lower']),float(r['joint_upper'])))
+
 
 if __name__=='__main__':unittest.main()

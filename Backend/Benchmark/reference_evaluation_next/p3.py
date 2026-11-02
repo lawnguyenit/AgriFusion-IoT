@@ -6,6 +6,7 @@ from contextlib import ExitStack
 import argparse,json
 import numpy as np
 from ..reference_evaluation.evaluation import save_inputs,primary_sensitivity
+from ..reference_evaluation.contracts import verdict
 from ..reference_evaluation_p2.witness import trace_pool
 from ..reference_evaluation_p2.validation import score_witness,labels,recheck_saved
 from ..reference_evaluation_p2.persistence import save_witness
@@ -45,7 +46,8 @@ def case(journal,persistence,k,alpha,seed,policy,length,stage):
                  'rectangle_width':primary['rectangle_upper']-primary['rectangle_lower'],
                  'separate_width':primary['separate_upper']-primary['separate_lower'],
                  'joint_G_star':next(r['G_star'] for r in decisions if r['approach']=='joint'),
-                 'primary_verdict':primary['verdict'],'source_run_id':out.name,
+                 'primary_model_a':c['synthetic_names'][1],'primary_model_b':c['synthetic_names'][0],
+                 'primary_verdict':verdict(low,high,c['tolerance']),'source_run_id':out.name,
                  'synthetic_not_trained_forecasters':True}
             write(out/'case.json',row)
             write(out/'synthetic_aliases.json',{'internal_positions_only':dict(zip(['COMPLETE_HGB','SOFT_EM_HGB','MARKOV','CONSTANT','LOGISTIC_COMPLETE_H6','HGB_COMPLETE_H24'],c['synthetic_names'])),'note':'No learner trained; internal names are six-slot serialization aliases only'})
