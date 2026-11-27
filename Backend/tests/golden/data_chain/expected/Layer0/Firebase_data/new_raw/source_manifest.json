@@ -1,0 +1,19 @@
+{
+  "configured_node_id": "Node2",
+  "configured_node_slug": "node2",
+  "detected_identity": {
+    "device_uid": "esp32-synthetic-0001",
+    "node_id": "Node2",
+    "site_id": "Synthetic Site"
+  },
+  "latest_date_key": "2026-09-02",
+  "latest_event_key": "1788321600",
+  "latest_ts_server": 1788321602,
+  "schema_version": 1,
+  "snapshot_mode": "canonical_v2",
+  "source_sha256": "0505b962bd6e2c9772cec0841fa85e12abc812b5083376d9270cfdde0e54149c",
+  "source_type": "json-export",
+  "source_uri": "<INPUT_DIR>/input_export.json",
+  "telemetry_date_count": 2,
+  "telemetry_record_count": 27
+}

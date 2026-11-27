@@ -1,0 +1,9 @@
+{
+  "name": "agrifusion-frontend",
+  "private": true,
+  "type": "module",
+  "description": "Static dashboard. No dependencies; package.json only marks public/*.js as ES modules so node:test can import them.",
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  }
+}

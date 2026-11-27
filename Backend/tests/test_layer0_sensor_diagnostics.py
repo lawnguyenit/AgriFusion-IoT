@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from Backend.Navigation.Core.layer0.sources.base import NormalizedSnapshotMixin
+from agrifusion.ingest.sources.base import NormalizedSnapshotMixin
 
 
 class Layer0SensorDiagnosticsTests(unittest.TestCase):

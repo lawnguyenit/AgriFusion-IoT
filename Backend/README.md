@@ -12,21 +12,23 @@ not mutate Layer0 evidence or canonical Layer1 outputs in place.
 ## Actual package layout
 
 ```text
+src/agrifusion/                     installable telemetry package (pip install -e .)
+|-- cli.py                          CLI: `agrifusion` / `python -m agrifusion`
+|-- settings/                       env, paths, BackendSettings
+|-- io/                             storage / JSON / table helpers
+|-- ingest/                         Layer0: source ingestion and raw artifacts
+|-- canonical/                      Layer1: canonical telemetry processing
+`-- cloud/                          Firebase RTDB client
 Backend/
-|-- main.py                         telemetry CLI
-|-- Config/                         settings, paths and storage helpers
-|-- Navigation/Core/                canonical Layer0/Layer1 implementation
-|   |-- infrastructure/              Firebase adapter
-|   |-- layer0/                      source ingestion and raw artifacts
-|   |-- layer1/                      canonical telemetry processing
-|   `-- layer2/                      reusable downstream feature builders
-|-- Benchmark/                      research dataset/evaluation lanes
-|-- Output_data/                    generated local artifacts
-`-- tests/                          backend contract and processing tests
+|-- Benchmark/                      research dataset/evaluation lanes (not packaged)
+|-- main.py                         deprecated shim for `python -m Backend.main`
+`-- tests/                          contract and processing tests
+output/                             generated local artifacts (gitignored)
 ```
 
-The canonical Python namespace for telemetry processing is
-`Backend.Navigation.Core`. The old `Backend.Core` path is not supported.
+The Python namespace for telemetry processing is `agrifusion`
+(`agrifusion.ingest`, `agrifusion.canonical`, ...). The old
+`Backend.Navigation.Core` and `Backend.Config` paths no longer exist.
 
 ## Telemetry flow
 
@@ -34,9 +36,9 @@ The canonical Python namespace for telemetry processing is
 flowchart LR
     source[Firebase RTDB<br/>or JSON export]
     ingestion[Layer0IngestionPipeline]
-    raw[Backend/Output_data/Layer0/Firebase_data<br/>raw evidence and sync artifacts]
+    raw[output/Layer0/Firebase_data<br/>raw evidence and sync artifacts]
     canonicalizer[PreprocessingPipeline]
-    canonical[Backend/Output_data/Layer1/canonical<br/>canonical telemetry]
+    canonical[output/Layer1/canonical<br/>canonical telemetry]
     source --> ingestion --> raw --> canonicalizer --> canonical
 ```
 
@@ -47,8 +49,8 @@ flowchart LR
 - immutable raw snapshots, history and source manifests;
 - replayable local evidence.
 
-Read [Layer0 README](Navigation/Core/layer0/README.md) and
-[Layer0 flow](Navigation/Core/layer0/FLOW.md).
+Read [Layer0 README](../src/agrifusion/ingest/README.md) and
+[Layer0 flow](../src/agrifusion/ingest/FLOW.md).
 
 ### Layer1 owns
 
@@ -58,34 +60,34 @@ Read [Layer0 README](Navigation/Core/layer0/README.md) and
 - field catalog and governance metadata;
 - canonical persistence, quality reports and compatibility views.
 
-Read [Layer1 README](Navigation/Core/layer1/README.md) and
-[Layer1 flow](Navigation/Core/layer1/FLOW.md).
+Read [Layer1 README](../src/agrifusion/canonical/README.md) and
+[Layer1 flow](../src/agrifusion/canonical/FLOW.md).
 
 ## CLI
 
 Run from the repository root:
 
 ```powershell
-python -m Backend.main --help
+agrifusion --help
 ```
 
 Examples:
 
 ```powershell
 # Fetch current/full history and process Layer0 -> Layer1.
-python -m Backend.main --source firebase --node-id Node2 --full-history
+agrifusion --source firebase --node-id Node2 --full-history
 
 # Use an exported RTDB JSON document.
-python -m Backend.main --source json-export --input-json C:\path\export.json --node-id Node2 --full-history
+agrifusion --source json-export --input-json C:\path\export.json --node-id Node2 --full-history
 
 # Rebuild Layer1 from existing local Layer0 artifacts.
-python -m Backend.main --only-layer1
+agrifusion --only-layer1
 
 # Ingestion only.
-python -m Backend.main --only-layer0 --source firebase --node-id Node2
+agrifusion --only-layer0 --source firebase --node-id Node2
 ```
 
-Runtime configuration comes from `Backend/.env` and CLI overrides. Important
+Runtime configuration comes from `.env` at the repository root (legacy `Backend/.env` is still read as a fallback) and CLI overrides. Important
 settings include `EXPORT_SOURCE`, `EXPORT_NODE_ID`, `EXPORT_INPUT_JSON`,
 sensor identity overrides and `FIREBASE_KEY_PATH`/`DATABASE_URL` for Firebase.
 
@@ -121,12 +123,12 @@ Read [Benchmark README](Benchmark/README.md),
 
 The main local outputs are:
 
-- `Output_data/Layer0/Firebase_data/**` — raw snapshots, history, sync state
+- `output/Layer0/Firebase_data/**` — raw snapshots, history, sync state
   and manifests;
-- `Output_data/Layer1/canonical/**` — canonical history, latest snapshot and
+- `output/Layer1/canonical/**` — canonical history, latest snapshot and
   feature catalog;
-- `Output_data/Layer1/segments/**` — continuity segmentation;
-- `Output_data/Layer1/quality_reports/**` — data-quality and audit reports;
+- `output/Layer1/segments/**` — continuity segmentation;
+- `output/Layer1/quality_reports/**` — data-quality and audit reports;
 - benchmark run directories under the relevant lane's artifact root.
 
 These outputs are derived evidence, not source code. Keep the raw source
@@ -145,10 +147,10 @@ python -m unittest Backend.tests.test_model_suite
 
 ## Boundaries
 
-- `Backend/Config` is shared backend infrastructure, not a research-label
-  owner.
-- `Backend/Navigation/Core` preserves observed/provenance data and does not
-  create benchmark targets.
+- `agrifusion.settings` and `agrifusion.io` are shared infrastructure, not a
+  research-label owner.
+- `agrifusion.ingest` / `agrifusion.canonical` preserve observed/provenance
+  data and do not create benchmark targets.
 - `Backend/Benchmark` owns labels, splits, leakage controls, training and
   scientific interpretation.
 - The static frontend reads a separate `result/*` presentation contract; the

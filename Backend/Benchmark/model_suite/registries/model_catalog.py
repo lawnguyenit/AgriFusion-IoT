@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from Backend.Config.paths import BACKEND_PATHS
+from agrifusion.settings.paths import BACKEND_PATHS
 from Backend.Benchmark.model_suite.contracts import ModelProfile
 
 

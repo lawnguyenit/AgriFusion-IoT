@@ -1,0 +1,57 @@
+# Allowed import edges between top-level packages (src/agrifusion/* and Backend/Benchmark/*).
+# Format: `<importer> -> <imported>   # optional comment`. Nodes: see Backend/tests/architecture_graph.py.
+# Backend/tests/test_architecture_import_graph.py fails when the code has an edge NOT listed here.
+# Removing an edge from the code is always fine (stale lines only produce a warning); delete the line then.
+# Adding an edge needs a deliberate decision: regenerate with
+#   python Backend/tests/architecture/update_allowlist.py
+# and justify the new line in the commit message.
+
+Backend -> cli
+Benchmark.common -> Benchmark.shared
+Benchmark.common -> settings
+Benchmark.dataset_views -> Benchmark.common
+Benchmark.dataset_views -> Benchmark.shared
+Benchmark.dataset_views -> io
+Benchmark.dataset_views -> settings
+Benchmark.evaluation_protocols -> Benchmark.common
+Benchmark.evaluation_protocols -> Benchmark.dataset_views
+Benchmark.evaluation_protocols -> Benchmark.model_suite   # cycle with model_suite -> evaluation_protocols: to remove in s5d
+Benchmark.evaluation_protocols -> Benchmark.protocol_registry
+Benchmark.evaluation_protocols -> Benchmark.shared
+Benchmark.evaluation_protocols -> Benchmark.weak_labels
+Benchmark.evaluation_protocols -> settings
+Benchmark.external_features -> Benchmark.dataset_views
+Benchmark.external_support_audit -> Benchmark.external_labels
+Benchmark.model_suite -> Benchmark.evaluation_protocols   # cycle with evaluation_protocols -> model_suite: to remove in s5d
+Benchmark.model_suite -> Benchmark.shared
+Benchmark.model_suite -> Benchmark.weak_labels
+Benchmark.model_suite -> settings
+Benchmark.pretrain_audit -> Benchmark.dataset_views
+Benchmark.protocol_registry -> Benchmark.common
+Benchmark.protocol_registry -> Benchmark.shared
+Benchmark.protocol_registry -> settings
+Benchmark.source_intake -> canonical
+Benchmark.source_intake -> io
+Benchmark.source_intake -> settings
+Benchmark.validity_lifecycle -> Benchmark.common
+Benchmark.validity_lifecycle -> Benchmark.dataset_views
+Benchmark.validity_lifecycle -> Benchmark.evaluation_protocols
+Benchmark.validity_lifecycle -> Benchmark.model_suite
+Benchmark.validity_lifecycle -> Benchmark.protocol_registry
+Benchmark.validity_lifecycle -> Benchmark.shared
+Benchmark.validity_lifecycle -> Benchmark.weak_labels
+Benchmark.weak_labels -> Benchmark.common
+Benchmark.weak_labels -> Benchmark.dataset_views
+Benchmark.weak_labels -> Benchmark.protocol_registry
+Benchmark.weak_labels -> Benchmark.shared
+Benchmark.weak_labels -> io
+Benchmark.weak_labels -> settings
+canonical -> io
+canonical -> settings
+cli -> canonical
+cli -> cloud
+cli -> ingest
+cli -> settings
+cloud -> settings
+ingest -> io
+ingest -> settings

@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import unittest
+from zoneinfo import ZoneInfo
 
-from Backend.Navigation.Core.layer1.contracts import SourceRecord
-from Backend.Navigation.Core.layer1.processors.common import normalize_buffer_reason
-from Backend.Navigation.Core.layer1.processors.context import (
+from agrifusion.canonical.contracts import SourceRecord
+from agrifusion.canonical.processors.common import normalize_buffer_reason
+from agrifusion.canonical.processors.context import (
     build_record_and_context_fields,
     extract_raw_buffer_reason,
 )
@@ -49,7 +50,11 @@ class Layer1ContextProcessorTests(unittest.TestCase):
             },
         )
 
-        context_fields = build_record_and_context_fields(source_record)
+        context_fields = build_record_and_context_fields(
+            source_record,
+            timezone=ZoneInfo("Asia/Ho_Chi_Minh"),
+            fallback_node_id=None,
+        )
 
         self.assertEqual(extract_raw_buffer_reason(source_record), raw_reason)
         self.assertEqual(context_fields["delivery.buffer_reason"], "http_action_fail")
@@ -77,7 +82,11 @@ class Layer1ContextProcessorTests(unittest.TestCase):
             },
         )
 
-        context_fields = build_record_and_context_fields(source_record)
+        context_fields = build_record_and_context_fields(
+            source_record,
+            timezone=ZoneInfo("Asia/Ho_Chi_Minh"),
+            fallback_node_id=None,
+        )
 
         self.assertEqual(context_fields["network.local_ip"], "10.235.16.185")
         self.assertTrue(context_fields["network.local_ip_valid"])
@@ -110,7 +119,11 @@ class Layer1ContextProcessorTests(unittest.TestCase):
             },
         )
 
-        context_fields = build_record_and_context_fields(source_record)
+        context_fields = build_record_and_context_fields(
+            source_record,
+            timezone=ZoneInfo("Asia/Ho_Chi_Minh"),
+            fallback_node_id=None,
+        )
 
         self.assertIsNone(context_fields["network.local_ip"])
         self.assertFalse(context_fields["network.local_ip_valid"])
@@ -120,6 +133,24 @@ class Layer1ContextProcessorTests(unittest.TestCase):
         self.assertIsNone(context_fields["network.operator"])
         self.assertFalse(context_fields["network.operator_valid"])
         self.assertNotIn("network.public_ip", context_fields)
+
+    def test_missing_node_id_without_fallback_raises(self) -> None:
+        source_record = SourceRecord(
+            source_name="firebase",
+            event_key="1",
+            date_key="2026-07-01",
+            source_kind="history",
+            source_path="",
+            payload={"ts_sample": 1770001000, "ts_server": 1770001080},
+        )
+        with self.assertRaisesRegex(ValueError, "no node id"):
+            build_record_and_context_fields(
+                source_record, timezone=ZoneInfo("Asia/Ho_Chi_Minh"), fallback_node_id=None
+            )
+        fields = build_record_and_context_fields(
+            source_record, timezone=ZoneInfo("Asia/Ho_Chi_Minh"), fallback_node_id="Node2"
+        )
+        self.assertEqual(fields["record.node_id"], "Node2")
 
 
 if __name__ == "__main__":

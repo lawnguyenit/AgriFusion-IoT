@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./style.css?v=20260625-runtime-ui" />
+  <link rel="stylesheet" href="./style.css?v=20261127-result-contract" />
 </head>
 <body>
   <div class="page-backdrop" aria-hidden="true"></div>
@@ -49,8 +49,7 @@
                 <button class="chip-btn" type="button" data-range="12h">12 giờ</button>
                 <button class="chip-btn" type="button" data-range="24h">24 giờ</button>
                 <button class="chip-btn" type="button" data-range="7d">7 ngày</button>
-                <button class="chip-btn" type="button" data-range="30d">30 ngày</button>
-                <button class="chip-btn" type="button" data-range="all">Từ đầu đến nay</button>
+                <button class="chip-btn" type="button" data-range="all">Toàn bộ dữ liệu đang giữ</button>
               </div>
             </div>
 
@@ -117,7 +116,6 @@
           <div class="insight-panel__tabs">
             <button class="chip-btn chip-btn--tab is-active" type="button" data-side-view="summary">Tóm tắt</button>
             <button class="chip-btn chip-btn--tab" type="button" data-side-view="snapshot">Snapshot</button>
-            <button class="chip-btn chip-btn--tab" type="button" data-side-view="prediction">Dự đoán</button>
           </div>
 
           <section class="insight-view" id="summaryView">
@@ -125,7 +123,7 @@
             <h2 id="focusTitle">Không khí</h2>
             <div class="focus-panel__value" id="focusValue">--</div>
             <p class="focus-panel__description" id="focusDescription">
-              Chọn một nhóm để xem chuỗi thời gian thực, xu hướng, trạng thái hiện tại và phần phân tích do server trả về.
+              Chọn một nhóm để xem chuỗi thời gian, xu hướng và giá trị mới nhất do backend publish.
             </p>
             <div class="focus-stats" id="focusStats"></div>
           </section>
@@ -144,46 +142,12 @@
             <div class="snapshot-grid" id="snapshotGrid" aria-label="Ảnh chụp thông số hiện tại"></div>
           </section>
 
-          <section class="insight-view insight-view--hidden" id="predictionView">
-            <p class="section-label">Kết quả AI / server</p>
-            <h2 id="predictionTitle">Dự đoán và cảnh báo</h2>
-            <p class="focus-panel__description" id="predictionDescription">
-              Khi server trả về chuỗi tương lai, biểu đồ chính sẽ mở rộng trục thời gian, thêm nét đứt và dải tin cậy.
-            </p>
-            <div class="prediction-card-grid" id="predictionCardGrid">
-              <article class="prediction-card">
-                <span class="focus-stat__label">Trạng thái phân tích</span>
-                <strong class="focus-stat__value" id="predictionStatusText">Chưa có dữ liệu</strong>
-              </article>
-              <article class="prediction-card">
-                <span class="focus-stat__label">Tầm dự báo</span>
-                <strong class="focus-stat__value" id="predictionRangeText">--</strong>
-              </article>
-              <article class="prediction-card">
-                <span class="focus-stat__label">Điểm bất thường</span>
-                <strong class="focus-stat__value" id="predictionAnomalyText">0</strong>
-              </article>
-              <article class="prediction-card">
-                <span class="focus-stat__label">Mô hình / nguồn</span>
-                <strong class="focus-stat__value" id="predictionModelText">--</strong>
-              </article>
-            </div>
-            <section class="recommendation-card recommendation-card--prediction">
-              <div class="recommendation-card__head">
-                <p class="section-label">Khuyến nghị từ server</p>
-                <span class="recommendation-card__badge" id="predictionLevelBadge">Phân tích</span>
-              </div>
-              <div class="recommendation-card__body" id="predictionRecommendation">
-                Chưa có phân tích hành động từ server.
-              </div>
-            </section>
-          </section>
         </aside>
       </div>
     </section>
   </div>
 
-  <script src="./config.js?v=20260625-runtime-ui"></script>
-  <script type="module" src="./app.js?v=20260625-runtime-ui"></script>
+  <script src="./config.js?v=20261127-result-contract"></script>
+  <script type="module" src="./app.js?v=20261127-result-contract"></script>
 </body>
 </html>

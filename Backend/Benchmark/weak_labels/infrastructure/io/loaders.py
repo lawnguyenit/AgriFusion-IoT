@@ -5,11 +5,12 @@ from pathlib import Path
 
 import pandas as pd
 
+from agrifusion.io.storage import read_table
 from Backend.Benchmark.weak_labels.infrastructure.shared.helpers import resolve_local_timestamp_series
 
 
 def load_canonical_history(path: Path) -> pd.DataFrame:
-    dataframe = pd.read_csv(path).convert_dtypes()
+    dataframe = read_table(path).convert_dtypes()
     required = ("record.id", "record.ts_sample", "record.segment_id")
     missing = [column for column in required if column not in dataframe.columns]
     if missing:

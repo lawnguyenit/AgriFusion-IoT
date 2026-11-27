@@ -1,26 +1,4 @@
-# Core external services
-firebase-admin
-python-dotenv
-openmeteo-requests
-requests-cache
-retry-requests
-
-# Data processing
-numpy
-pandas
-scikit-learn
-joblib
-
-# Reporting / chart export
-matplotlib
-
-# Model families currently referenced by the repo
-xgboost
-pytorch-tabnet
-
-# Typing / developer support
-pandas-stubs
-
-# Note:
-# torch is used by several benchmark branches and should be installed
-# separately from the official PyTorch channel to match CPU/CUDA.
+# Dependencies are declared in pyproject.toml (single source of truth).
+# Run from the repository root:
+#   python -m pip install -r Backend/requirements.txt     # = pip install -e ".[research]"
+-e .[research]

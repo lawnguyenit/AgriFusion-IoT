@@ -1,0 +1,7 @@
+{
+  "last_processed_event_key": "1788321600",
+  "last_processed_server_ts": 1788321602,
+  "processed_record_count": 27,
+  "processor_name": "canonical_compat_npk",
+  "schema_version": 2
+}

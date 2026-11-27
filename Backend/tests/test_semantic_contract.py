@@ -14,7 +14,7 @@ from Backend.Benchmark.weak_labels.lifecycle.phase_b_contract.resolution import 
 ROOT = Path(__file__).resolve().parents[2]
 PHASE_A = ROOT / "Backend" / "Benchmark" / "weak_labels" / "artifacts" / "legacy" / "phase_a_readiness_legacy" / "phase_a_readiness_20260731_003845"
 REGISTRY = ROOT / "Backend" / "Benchmark" / "protocol_registry" / "artifacts" / "protocol_registry_20260731_003841"
-CANONICAL = ROOT / "Backend" / "Output_data" / "Layer1" / "canonical" / "telemetry_history.csv"
+CANONICAL = ROOT / "output" / "Layer1" / "canonical" / "telemetry_history.csv"
 
 
 class SemanticContractUnitTests(unittest.TestCase):

@@ -10,14 +10,14 @@ if str(ROOT_DIR) not in sys.path:
 
 from Backend.Benchmark.common.paths import EVALUATION_PROTOCOLS_ROOT
 from Backend.Benchmark.evaluation_protocols import EvaluationProtocolConfig, build_evaluation_protocols
-from Backend.Config.paths import BACKEND_PATHS
+from agrifusion.settings.paths import BACKEND_PATHS
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Build evaluation-protocol artifacts by joining canonical telemetry, dataset views, and a native label release."
     )
-    parser.add_argument("--canonical-history", type=Path, default=BACKEND_PATHS.layer1_dir / "canonical" / "telemetry_history.csv")
+    parser.add_argument("--canonical-history", type=Path, default=BACKEND_PATHS.layer1_dir / "canonical" / "telemetry_history.parquet")
     parser.add_argument("--protocol-registry-run-dir", type=Path, required=True)
     parser.add_argument(
         "--protocol-stage-id",

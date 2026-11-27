@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -159,8 +160,8 @@ class ValidityLifecycleTests(unittest.TestCase):
 
     def test_report_rendering_includes_mermaid_and_stage_answers(self) -> None:
         config = ValidityLifecycleConfig(
-            evaluation_protocol_run_dir=Path("D:/fake"),
-            output_root=Path("D:/fake-out"),
+            evaluation_protocol_run_dir=Path(tempfile.gettempdir()) / "agri-fake-eval",
+            output_root=Path(tempfile.gettempdir()) / "agri-fake-out",
             environment_specs=default_environment_specs(),
         )
         support_df = pd.DataFrame(

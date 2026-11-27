@@ -1,0 +1,2 @@
+source_path,canonical_names,count
+derived:local_hour_phase,record.hour_cos|record.hour_sin,2

@@ -1,0 +1,292 @@
+{
+  "date_key": "2026-09-01",
+  "event_key": "1788264000",
+  "path": "Node2/telemetry/2026-09-01/1788264000",
+  "record": {
+    "packet": {
+      "npk_data": {
+        "K": 94,
+        "K_source": null,
+        "K_value_valid": null,
+        "N": 36,
+        "N_source": null,
+        "N_value_valid": null,
+        "P": 19,
+        "P_source": null,
+        "P_value_valid": null,
+        "consecutive_fail_count": 0,
+        "crc_ok": true,
+        "ec": 436,
+        "ec_measurement_kind": "raw_conductivity",
+        "ec_protocol_ok": null,
+        "ec_source": "sensor",
+        "ec_value_valid": null,
+        "error_code": "",
+        "error_code_raw": 0,
+        "frame_ok": true,
+        "hum": 56.5,
+        "hum_calibration_profile": null,
+        "hum_calibration_status": null,
+        "hum_install_depth_cm_max": null,
+        "hum_install_depth_cm_min": null,
+        "hum_protocol_ok": null,
+        "hum_raw_adc": null,
+        "hum_source": null,
+        "hum_value_semantics": null,
+        "hum_value_valid": null,
+        "hum_voltage_mv": null,
+        "npk_values_valid": true,
+        "ph": 6.45,
+        "ph_protocol_ok": true,
+        "ph_source": null,
+        "ph_state": "ok",
+        "ph_value_valid": null,
+        "read_duration_ms": 220,
+        "read_ok": true,
+        "recovered_after_fail": false,
+        "retry_count": 0,
+        "sensor_id": "soil_7in1_01",
+        "sensor_type": "soil_multi_sensor",
+        "temp": 27.0,
+        "temp_protocol_ok": null,
+        "temp_source": null,
+        "temp_value_valid": null,
+        "timeout_ms": 1000
+      },
+      "sht30_data": {
+        "sensor_id": "air_sht30_01",
+        "sensor_type": "air_temp_humidity",
+        "sht_error": "",
+        "sht_frame_ok": null,
+        "sht_hum_crc_ok": null,
+        "sht_hum_pct": 66.25,
+        "sht_i2c_address_ack": true,
+        "sht_i2c_error": 0,
+        "sht_invalid_streak": 0,
+        "sht_observed_hum_pct": null,
+        "sht_observed_temp_c": null,
+        "sht_raw_hum": null,
+        "sht_raw_temp": null,
+        "sht_read_elapsed_ms": 31,
+        "sht_read_ok": true,
+        "sht_retry_count": 0,
+        "sht_sample_valid": true,
+        "sht_temp_c": 27.35,
+        "sht_temp_crc_ok": null,
+        "sht_value_valid": true,
+        "sht_values_available": true,
+        "sht_values_recorded_with_error": false
+      },
+      "system_data": {
+        "sample_date_key": "2026-09-01",
+        "sample_epoch_sec": 1788264000,
+        "sample_time_valid": true,
+        "send_state": "persisted",
+        "transport": "wifi"
+      }
+    },
+    "sample_time_local": "2026-09-01T19:00:00+07:00",
+    "schema_version": 2,
+    "sensor_record": {
+      "air_sht30_01": {
+        "read_status": {
+          "error_code": "",
+          "i2c_address_ack": true,
+          "i2c_error": 0,
+          "invalid_streak": 0,
+          "read_elapsed_ms": 31,
+          "read_ok": true,
+          "retry_count": 0,
+          "sample_valid": true,
+          "value_valid": true,
+          "values_available": true,
+          "values_recorded_with_error": false
+        },
+        "sensor_type": "air_temp_humidity",
+        "values": {
+          "air_rh_pct": 66.25,
+          "air_temp_c": 27.35
+        }
+      },
+      "soil_7in1_01": {
+        "read_status": {
+          "consecutive_fail_count": 0,
+          "crc_ok": true,
+          "ec_measurement_kind": "raw_conductivity",
+          "ec_source": "sensor",
+          "ec_valid": true,
+          "error_code": "",
+          "frame_ok": true,
+          "k_proxy_valid": true,
+          "n_proxy_valid": true,
+          "p_proxy_valid": true,
+          "partial_values_included": false,
+          "ph_protocol_ok": true,
+          "ph_state": "ok",
+          "ph_valid": true,
+          "raw_error_code": 0,
+          "read_elapsed_ms": 220,
+          "read_map": "synthetic_map_v1",
+          "read_ok": true,
+          "recovered_after_fail": false,
+          "retry_count": 0,
+          "sample_valid": true,
+          "soil_moisture_calibration_profile": "synthetic_profile",
+          "soil_moisture_calibration_status": "uncalibrated",
+          "soil_moisture_source": "sensor",
+          "soil_moisture_valid": true,
+          "soil_moisture_value_semantics": "relative_index",
+          "soil_temp_source": "sensor",
+          "soil_temp_valid": true,
+          "timeout_ms": 1000
+        },
+        "sensor_type": "soil_multi_sensor",
+        "values": {
+          "soil_ec_us_cm": 436,
+          "soil_k_proxy": 94,
+          "soil_moisture_pct": 56.5,
+          "soil_n_proxy": 36,
+          "soil_p_proxy": 19,
+          "soil_ph": 6.45,
+          "soil_temp_c": 27.0
+        }
+      }
+    },
+    "sensors": {
+      "npk": {
+        "error_code": "",
+        "read_ok": true,
+        "sample_valid": true,
+        "sensor_id": "soil_7in1_01",
+        "sensor_type": "soil_multi_sensor",
+        "status": "ok"
+      },
+      "sht30": {
+        "error_code": "",
+        "read_ok": true,
+        "sample_valid": true,
+        "sensor_id": "air_sht30_01",
+        "sensor_type": "air_temp_humidity",
+        "status": "ok"
+      }
+    },
+    "sim_record": {
+      "network": {
+        "attached": true,
+        "ip_valid": true,
+        "local_ip": "192.0.2.10",
+        "local_ip_source": "wifi.localIP",
+        "local_ip_valid": true,
+        "operator": null,
+        "operator_valid": false,
+        "pdp_active": true,
+        "rat": null,
+        "registered": true,
+        "signal_csq": null,
+        "signal_dbm": -63,
+        "signal_valid": true
+      },
+      "transport": "wifi",
+      "upload": {
+        "direct": {
+          "attempted": false,
+          "buffer_reason_code": "",
+          "http_status": null,
+          "last_error_code": "",
+          "payload_bytes": 1500,
+          "tls_ok": null,
+          "upload_latency_ms": null,
+          "upload_ok": false,
+          "upload_stage": "not_attempted"
+        },
+        "replay": {
+          "attempted": false,
+          "buffer_reason_code": "",
+          "http_status": null,
+          "last_error_code": "",
+          "payload_bytes": 1500,
+          "tls_ok": null,
+          "upload_latency_ms": null,
+          "upload_ok": false,
+          "upload_stage": "not_replayed"
+        },
+        "target": "firebase_rtdb"
+      }
+    },
+    "system_record": {
+      "cycle": {
+        "cycle_duration_ms": 251,
+        "cycle_type": "periodic",
+        "record_type": "telemetry",
+        "sleep_planned_sec": 3600,
+        "wake_reason": "timer"
+      },
+      "debug_mode": false,
+      "device_health": {
+        "buffer_queue_len": null,
+        "heap_free": 209870,
+        "reset_count": null,
+        "reset_reason": "deepsleep",
+        "storage_free_bytes": null,
+        "watchdog_count": null
+      },
+      "firmware": {
+        "build_id": "synthetic",
+        "calibration_version": "cal-1",
+        "config_version": "cfg-1",
+        "firmware_version": "0.0.0-synthetic",
+        "running_partition": "app0"
+      },
+      "identity": {
+        "boot_id": "boot-001",
+        "device_uid": "esp32-synthetic-0001",
+        "node_id": "Node2",
+        "record_id": "1788264000",
+        "record_path": "/Node2/telemetry/2026-09-01/1788264000",
+        "seq_no": 14,
+        "site_id": "Synthetic Site"
+      },
+      "integrity": {
+        "duplicate_policy": "deterministic_key",
+        "overwrite_protected": true,
+        "payload_crc_ok": null,
+        "record_hash": null
+      },
+      "manual_edit": false,
+      "power": {
+        "battery_mv": null,
+        "battery_pct": null,
+        "brownout_count": null,
+        "charge_state": null,
+        "panel_mv": null,
+        "power_type": "mains"
+      },
+      "schema_version": 2,
+      "source_level": "raw_telemetry",
+      "sync": {
+        "buffer_reason_code": "",
+        "buffered": false,
+        "last_error_code": "",
+        "latest_updated": true,
+        "replayed": false,
+        "telemetry_persisted": true,
+        "telemetry_record_path": "Node2/telemetry/2026-09-01/1788264000"
+      },
+      "synthetic": false,
+      "time": {
+        "clock_source": "network_time",
+        "device_uptime_sec": 10840,
+        "sample_interval_sec": 3600,
+        "time_reconstructed": false,
+        "time_valid": true,
+        "timezone": "Asia/Ho_Chi_Minh",
+        "ts_sample": 1788264000,
+        "ts_server": 1788264002
+      }
+    },
+    "ts_device": 1788264000,
+    "ts_sample": 1788264000,
+    "ts_server": 1788264002,
+    "upload_time_local": "2026-09-01T19:00:02+07:00"
+  }
+}

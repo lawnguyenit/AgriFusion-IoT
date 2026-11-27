@@ -10,7 +10,7 @@ def resolve_code_commit(repo_root: Path) -> str:
     try:
         head_value = head_path.read_text(encoding="utf-8").strip()
         if head_value.startswith("ref: "):
-            ref_path = repo_root / ".git" / head_value.split(" ", 1)[1].strip().replace("/", "\\")
+            ref_path = repo_root / ".git" / Path(*head_value.split(" ", 1)[1].strip().split("/"))
             if ref_path.exists():
                 return ref_path.read_text(encoding="utf-8").strip()
         return head_value

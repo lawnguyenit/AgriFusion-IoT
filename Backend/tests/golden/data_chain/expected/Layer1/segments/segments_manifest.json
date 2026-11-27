@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "segment_count": 1,
+  "segments": [
+    {
+      "canonical_format": "parquet:pyarrow",
+      "end_record_id": "Node2:2026-09-02:1788321600",
+      "end_ts_sample": 1788321600,
+      "expected_interval_sec": 3600,
+      "history_path": "<OUT>/Layer1/segments/node2_seg_0001/canonical/telemetry_history.parquet",
+      "latest_path": "<OUT>/Layer1/segments/node2_seg_0001/canonical/telemetry_latest.json",
+      "node_id": "Node2",
+      "row_count": 27,
+      "segment_id": "node2_seg_0001",
+      "segment_index": 1,
+      "start_record_id": "Node2:2026-09-01:1788217200",
+      "start_ts_sample": 1788217200,
+      "views_root": "<OUT>/Layer1/segments/node2_seg_0001/views"
+    }
+  ]
+}

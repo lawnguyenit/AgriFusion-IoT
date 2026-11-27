@@ -9,9 +9,10 @@ different owners and release gates.
 
 ## Naming note
 
-- Older high-level docs often refer to the processing lane as `Core`.
-- In the current workspace, that code lives under
+- Older high-level docs refer to the processing lane as `Core` or
   `Backend/Navigation/Core/`.
+- In the current workspace, that code is the installable package
+  `src/agrifusion/` (`ingest` = Layer0, `canonical` = Layer1).
 - When reading the implementation, follow the actual directory tree in
   the workspace.
 
@@ -19,10 +20,10 @@ different owners and release gates.
 
 ```mermaid
 flowchart TD
-    A["CLI: Backend/main.py"] --> B["Layer0IngestionPipeline.run()"]
-    B --> C["Raw artifacts in Backend/Output_data/Layer0"]
+    A["CLI: agrifusion (src/agrifusion/cli.py)"] --> B["Layer0IngestionPipeline.run()"]
+    B --> C["Raw artifacts in output/Layer0"]
     C --> D["PreprocessingPipeline.run()"]
-    D --> E["Canonical Layer1 artifacts in Backend/Output_data/Layer1"]
+    D --> E["Canonical Layer1 artifacts in output/Layer1"]
 
     F["CLI: Benchmark/dataset_views/main.py"] --> G["materialize_dataset_views()"]
     E --> G
@@ -73,14 +74,14 @@ flowchart TD
 
 ## What each stage owns
 
-- `Backend/main.py`
+- `src/agrifusion/cli.py`
   - orchestrates Layer0 and Layer1 only
   - does not run benchmark lanes
-- `Backend/Navigation/Core/layer0`
+- `src/agrifusion/ingest`
   - fetches or loads raw telemetry
   - decides sync behavior
   - persists immutable evidence
-- `Backend/Navigation/Core/layer1`
+- `src/agrifusion/canonical`
   - builds canonical telemetry history
   - attaches continuity and temporal fields
   - writes reports and compatibility outputs
@@ -201,13 +202,13 @@ This is the current connection order:
 ## Handoff files that matter
 
 - Layer0 -> Layer1
-  - `Backend/Output_data/Layer0/Firebase_data/history/**`
-  - `Backend/Output_data/Layer0/Firebase_data/new_raw/**`
+  - `output/Layer0/Firebase_data/history/**`
+  - `output/Layer0/Firebase_data/new_raw/**`
 - Layer1 -> benchmark lanes
-  - `Backend/Output_data/Layer1/canonical/telemetry_history.csv|parquet`
-  - `Backend/Output_data/Layer1/canonical/feature_catalog.csv`
-  - `Backend/Output_data/Layer1/manifest.json`
-  - `Backend/Output_data/Layer1/segments/segments_manifest.json`
+  - `output/Layer1/canonical/telemetry_history.parquet`
+  - `output/Layer1/canonical/feature_catalog.csv`
+  - `output/Layer1/manifest.json`
+  - `output/Layer1/segments/segments_manifest.json`
 - `dataset_views` -> `evaluation_protocols`
   - `artifacts/<run_id>/shared/row_index.*`
   - `artifacts/<run_id>/views/<view_id>/X.parquet`
@@ -280,9 +281,9 @@ flowchart LR
 
 ## Read order for a new maintainer
 
-1. `Backend/main.py`
-2. `Backend/Navigation/Core/layer0/FLOW.md`
-3. `Backend/Navigation/Core/layer1/FLOW.md`
+1. `src/agrifusion/cli.py`
+2. `src/agrifusion/ingest/FLOW.md`
+3. `src/agrifusion/canonical/FLOW.md`
 4. `Backend/Benchmark/dataset_views/FLOW.md`
 5. `Backend/Benchmark/weak_labels/FLOW.md`
 6. `Backend/Benchmark/evaluation_protocols/FLOW.md`

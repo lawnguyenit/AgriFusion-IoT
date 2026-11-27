@@ -11,7 +11,7 @@ hardware evidence remain separate from this public orientation layer.
 3. [Backend pipeline](../Backend/README.md)
 4. [Backend flow](../Backend/PIPELINE_FLOW.md)
 5. [Benchmark workspace](../Backend/Benchmark/README.md)
-6. [Firmware](../IoT_Node/README.md)
+6. [Firmware](../firmware/README.md)
 7. [Frontend dashboard](../Frontend/README.md)
 
 ## Source-of-truth rule

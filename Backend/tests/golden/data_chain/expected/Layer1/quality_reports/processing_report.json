@@ -1,0 +1,55 @@
+{
+  "buffer_reason_audit_row_count": 1,
+  "buffered_replay_count": 1,
+  "canonical_format": "parquet:pyarrow",
+  "canonical_record_count": 27,
+  "demo_record_count": 0,
+  "duplicate_record_id_count": 0,
+  "excluded_record_count": 0,
+  "fallback_count": 0,
+  "field_count_by_status": {
+    "ACTIVE": 76,
+    "DERIVED": 25,
+    "EXCLUDED": 3,
+    "RAW_ONLY": 14,
+    "UNKNOWN": 1
+  },
+  "input_record_count": 27,
+  "npk_fault_count": 1,
+  "npk_packet_missing_count": 0,
+  "output_paths": {
+    "buffer_reason_audit": "<OUT>/Layer1/quality_reports/buffer_reason_audit.csv",
+    "canonical_history": "<OUT>/Layer1/canonical/telemetry_history.parquet",
+    "canonical_latest": "<OUT>/Layer1/canonical/telemetry_latest.json",
+    "duplicate_fields": "<OUT>/Layer1/quality_reports/duplicate_fields.csv",
+    "excluded_records": "<OUT>/Layer1/excluded/excluded_records.csv",
+    "feature_catalog": "<OUT>/Layer1/canonical/feature_catalog.csv",
+    "field_coverage": "<OUT>/Layer1/quality_reports/field_coverage.csv",
+    "field_variance": "<OUT>/Layer1/quality_reports/field_variance.csv",
+    "missingness": "<OUT>/Layer1/quality_reports/missingness.csv",
+    "segment_manifest": "<OUT>/Layer1/segments/segments_manifest.json",
+    "views_root": "<OUT>/Layer1/views"
+  },
+  "reset_or_power_on_count": 0,
+  "row_count_check": 27,
+  "segment_count": 1,
+  "segments": [
+    {
+      "end_record_id": "Node2:2026-09-02:1788321600",
+      "end_ts_sample": 1788321600,
+      "expected_interval_sec": 3600,
+      "node_id": "Node2",
+      "row_count": 27,
+      "segment_id": "node2_seg_0001",
+      "segment_index": 1,
+      "start_record_id": "Node2:2026-09-01:1788217200",
+      "start_ts_sample": 1788217200
+    }
+  ],
+  "sht_fault_count": 1,
+  "sht_packet_missing_count": 0,
+  "timestamp_parse_error_count": 0,
+  "warnings": [
+    "Canonical fields missing catalog entries: npk.ec_protocol_ok"
+  ]
+}

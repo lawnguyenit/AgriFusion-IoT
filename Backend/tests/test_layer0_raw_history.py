@@ -6,9 +6,9 @@ import unittest
 from datetime import datetime, timezone
 from pathlib import Path
 
-from Backend.Config.runtime import BackendSettings
-from Backend.Navigation.Core.layer0.sources.firebase import FirebaseSourceAdapter
-from Backend.Navigation.Core.layer0.stores.telemetry_store import write_full_history_raw_snapshots
+from agrifusion.settings.runtime import BackendSettings
+from agrifusion.ingest.sources.firebase import FirebaseSourceAdapter
+from agrifusion.ingest.stores.telemetry_store import write_full_history_raw_snapshots
 
 
 class Layer0RawHistoryTests(unittest.TestCase):
@@ -19,7 +19,7 @@ class Layer0RawHistoryTests(unittest.TestCase):
             def pull_data(self, *, node_path: str):
                 return payload
 
-        settings = BackendSettings(backend_dir=Path(tempfile.gettempdir()), node_id="Node1")
+        settings = BackendSettings(project_root=Path(tempfile.gettempdir()), node_id="Node1")
         adapter = FirebaseSourceAdapter(FirebaseClient(), settings)
         adapter._mode = "legacy_paths"
 
@@ -27,7 +27,7 @@ class Layer0RawHistoryTests(unittest.TestCase):
 
     def test_raw_history_preserves_long_firmware_evidence_without_overwrite(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
-            settings = BackendSettings(backend_dir=Path(temp_dir), node_id="Node1")
+            settings = BackendSettings(project_root=Path(temp_dir), node_id="Node1")
             payload = {
                 "2026-09-01": {
                 "0001:firmware": {

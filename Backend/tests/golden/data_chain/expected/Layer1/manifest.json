@@ -1,0 +1,31 @@
+{
+  "canonical_record_count": 27,
+  "demo_record_count": 0,
+  "excluded_record_count": 0,
+  "filtered_out_records": 0,
+  "output_paths": {
+    "buffer_reason_audit_path": "<OUT>/Layer1/quality_reports/buffer_reason_audit.csv",
+    "canonical_history_path": "<OUT>/Layer1/canonical/telemetry_history.parquet",
+    "canonical_latest_path": "<OUT>/Layer1/canonical/telemetry_latest.json",
+    "duplicate_fields_path": "<OUT>/Layer1/quality_reports/duplicate_fields.csv",
+    "excluded_records_path": "<OUT>/Layer1/excluded/excluded_records.csv",
+    "feature_catalog_path": "<OUT>/Layer1/canonical/feature_catalog.csv",
+    "field_coverage_path": "<OUT>/Layer1/quality_reports/field_coverage.csv",
+    "field_variance_path": "<OUT>/Layer1/quality_reports/field_variance.csv",
+    "missingness_path": "<OUT>/Layer1/quality_reports/missingness.csv",
+    "processing_report_path": "<OUT>/Layer1/quality_reports/processing_report.json",
+    "segment_manifest_path": "<OUT>/Layer1/segments/segments_manifest.json"
+  },
+  "pipeline": "layer1_canonical_preprocessing",
+  "processed_source_records": 27,
+  "schema_version": 2,
+  "targets": {
+    "canonical": 27,
+    "npk": 27,
+    "sht30": 27
+  },
+  "total_new_snapshots": 27,
+  "warnings": [
+    "Canonical fields missing catalog entries: npk.ec_protocol_ok"
+  ]
+}

@@ -367,7 +367,7 @@ def _build_sensorless_runs(source: pd.DataFrame) -> tuple[pd.DataFrame, dict[str
     ordered = _prepare_temporal_source(source)
     state = ordered["node_id"].astype("string") + "|" + ordered["sensorless"].astype("string")
     ordered["state_transition"] = state.ne(state.shift(1)).fillna(True)
-    ordered["state_run_id"] = ordered["state_transition"].cumsum()
+    ordered["state_run_id"] = ordered["state_transition"].astype("int64").cumsum()
     sensorless = ordered.loc[ordered["sensorless"]].copy()
     if sensorless.empty:
         return pd.DataFrame(), {
