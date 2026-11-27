@@ -8,12 +8,12 @@ import shutil
 import pandas as pd
 
 from agrifusion_research.core.evaluation_protocols.pipeline.reporting import write_benchmark_readiness_report
-from agrifusion_research.core.evaluation_protocols.pipeline.smoke_support import (
+from agrifusion_research.core.model_suite.protocol_training.stage_frames import (
     build_frozen_target_run_frames,
     build_pooled_prediction_summary,
     build_stage_run_frames,
 )
-from agrifusion_research.core.evaluation_protocols.pipeline.training_support import (
+from agrifusion_research.core.model_suite.protocol_training.xgboost_job import (
     XGBOOST_IMPORT_ERROR,
     run_xgboost_training_job,
     xgb,

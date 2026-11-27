@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from agrifusion_research.core.evaluation_protocols.pipeline.smoke_support import build_stage_run_frames
+from agrifusion_research.core.model_suite.protocol_training.stage_frames import build_stage_run_frames
 from agrifusion_research.core.weak_labels.analysis.temporal_target_views import (
     EVENT_UNDETERMINED,
     LOW_LABEL,

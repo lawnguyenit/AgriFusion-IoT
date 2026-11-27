@@ -4,7 +4,7 @@ import json
 
 import pandas as pd
 
-from agrifusion_research.core.evaluation_protocols.pipeline.metrics import summarize_protocol_classification
+from agrifusion_research.core.model_suite.evaluation.metrics import summarize_protocol_classification
 
 
 def build_stage_run_frames(

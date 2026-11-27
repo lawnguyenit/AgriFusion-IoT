@@ -9,7 +9,7 @@ from agrifusion_research.core.evaluation_protocols.diagnostics import (
     annotate_core_fold_status,
     build_v2_coverage_artifacts,
 )
-from agrifusion_research.core.evaluation_protocols.pipeline.metrics import summarize_protocol_classification
+from agrifusion_research.core.model_suite.evaluation.metrics import summarize_protocol_classification
 
 
 class EvaluationProtocolDiagnosticsTests(unittest.TestCase):

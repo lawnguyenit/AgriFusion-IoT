@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from agrifusion_research.core.evaluation_protocols.pipeline.smoke_support import (
+from agrifusion_research.core.model_suite.protocol_training.stage_frames import (
     build_frozen_target_run_frames as _build_frozen_target_run_frames,
 )
-from agrifusion_research.core.evaluation_protocols.pipeline.smoke_support import build_stage_run_frames as _build_stage_run_frames
+from agrifusion_research.core.model_suite.protocol_training.stage_frames import build_stage_run_frames as _build_stage_run_frames
 from agrifusion_research.core.model_suite.utils.config_loader import load_json_yaml
 
 

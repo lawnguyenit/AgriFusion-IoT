@@ -70,14 +70,13 @@ class ArchitectureImportGraphTests(unittest.TestCase):
                     undocumented.append(f"{edge[0]} -> {edge[1]}")
         self.assertEqual(undocumented, [], "Cycle edges need a '# ... to remove in <stage>' comment")
 
-    def test_known_cycle_is_present(self) -> None:
-        allowed = load_allowlist()
-        for edge in (
-            ("core.evaluation_protocols", "core.model_suite"),
-            ("core.model_suite", "core.evaluation_protocols"),
-        ):
-            self.assertIn(edge, allowed)
-            self.assertIn("to remove in s5d", allowed[edge])
+    def test_no_import_cycles(self) -> None:
+        """s5d removed the last cycle (evaluation_protocols <-> model_suite); keep it that way."""
+        self.assertEqual(mutual_pairs(set(build_edges())), [])
+
+    def test_evaluation_protocols_does_not_import_model_suite(self) -> None:
+        """evaluation_protocols defines protocol/fold contracts; model fitting lives in model_suite."""
+        self.assertNotIn(("core.evaluation_protocols", "core.model_suite"), set(build_edges()))
 
     def test_graph_detects_a_new_edge(self) -> None:
         """Guard the guard: the comparison reports an edge missing from the allow-list."""

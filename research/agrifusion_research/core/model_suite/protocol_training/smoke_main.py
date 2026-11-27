@@ -9,7 +9,7 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from agrifusion_research.core.common.paths import EVALUATION_PROTOCOLS_ROOT
-from agrifusion_research.core.evaluation_protocols.pipeline.full import run_full_training
+from agrifusion_research.core.model_suite.protocol_training.smoke import run_smoke_training
 
 
 def _default_latest_protocol_run() -> Path:
@@ -22,7 +22,7 @@ def _default_latest_protocol_run() -> Path:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Run the full primary benchmark from an evaluation_protocols runner manifest."
+        description="Run staged smoke training from an evaluation_protocols primary runner manifest."
     )
     parser.add_argument("--protocol-run-dir", type=Path, default=None)
     return parser.parse_args()
@@ -31,11 +31,11 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     protocol_run_dir = args.protocol_run_dir.resolve() if args.protocol_run_dir is not None else _default_latest_protocol_run().resolve()
-    result = run_full_training(protocol_run_dir)
-    print("evaluation_protocols full training complete")
+    result = run_smoke_training(protocol_run_dir)
+    print("evaluation_protocols smoke training complete")
     print(f"Protocol run: {protocol_run_dir}")
-    print(f"Full output dir: {result.output_dir}")
-    print(f"Ready for full benchmark: {result.readiness_report['ready_for_full_benchmark']}")
+    print(f"Smoke output dir: {result.output_dir}")
+    print(f"Ready for smoke train: {result.readiness_report['ready_for_smoke_train']}")
 
 
 if __name__ == "__main__":

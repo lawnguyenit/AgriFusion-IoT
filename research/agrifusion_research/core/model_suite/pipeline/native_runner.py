@@ -15,7 +15,7 @@ from agrifusion_research.core.model_suite.registries import resolve_model_profil
 from agrifusion_research.core.model_suite.reporting.plots import write_classification_plots
 from agrifusion_research.core.model_suite.utils.preprocessing import hash_sample_ids
 from agrifusion_research.core.model_suite.validation import run_rule_controls
-from agrifusion_research.core.evaluation_protocols.pipeline.smoke_support import build_prediction_rows
+from agrifusion_research.core.model_suite.protocol_training.stage_frames import build_prediction_rows
 
 
 def run_protocol_model_job(
