@@ -10,8 +10,8 @@ import numpy as np
 import pandas as pd
 
 from agrifusion_research.core.model_suite.registries import build_estimator, resolve_model_profile
-from .inputs import load_reviewed_audit, file_sha256
-from .metrics import binary_metrics
+from agrifusion_research.core.model_suite.multilabel.inputs import load_reviewed_audit, file_sha256
+from agrifusion_research.core.model_suite.multilabel.metrics import binary_metrics
 from .stuard_controls import _paired_day_log_loss_contrast
 
 

@@ -12,8 +12,8 @@ import pandas as pd
 from agrifusion_research.core.model_suite.registries import build_estimator, resolve_model_profile
 from agrifusion_research.core.model_suite.utils.preprocessing import fit_preprocessing_bundle, hash_sample_ids
 
-from .inputs import load_reviewed_audit, file_sha256
-from .metrics import binary_metrics
+from agrifusion_research.core.model_suite.multilabel.inputs import load_reviewed_audit, file_sha256
+from agrifusion_research.core.model_suite.multilabel.metrics import binary_metrics
 
 
 @dataclass(frozen=True)

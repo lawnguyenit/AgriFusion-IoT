@@ -9,7 +9,7 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from agrifusion_research.core.common.paths import WEAK_LABELS_ROOT
-from agrifusion_research.core.weak_labels.lifecycle.phase_a_readiness import PhaseAReadinessConfig, build_phase_a_readiness
+from agrifusion_research.experiments.weak_labels_phases.phase_a_readiness import PhaseAReadinessConfig, build_phase_a_readiness
 from agrifusion.settings.paths import BACKEND_PATHS
 
 

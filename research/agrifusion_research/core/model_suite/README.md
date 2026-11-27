@@ -210,7 +210,7 @@ python research\agrifusion_research\core\model_suite\cli.py --smoke-protocol-run
 Run the five-test history robustness and claim-audit suite:
 
 ```powershell
-python research\agrifusion_research\core\model_suite\analysis\k_window_variants\robustness_main.py
+python research\agrifusion_research\experiments\k_window_variants\robustness_main.py
 ```
 
 The suite writes `k_robustness_audit_<run_id>` with pure-lag versus metadata
@@ -223,7 +223,7 @@ changes upstream labels or canonical feature artifacts.
 Run the ordered representation progression (Fold 01, fixed seed, XGBoost):
 
 ```powershell
-python research\agrifusion_research\core\model_suite\analysis\k_window_variants\ordered_main.py
+python research\agrifusion_research\experiments\k_window_variants\ordered_main.py
 ```
 
 This writes `ordered_history_progression_<run_id>/` and trains the five
@@ -235,7 +235,7 @@ context summaries and excludes acquisition/history-quality metadata.
 Run the corrected nested RQ1 progression with paired risk contrasts:
 
 ```powershell
-python research\agrifusion_research\core\model_suite\analysis\k_window_variants\rq1_main.py
+python research\agrifusion_research\experiments\k_window_variants\rq1_main.py
 ```
 
 This writes `rq1_nested_progression_<run_id>/` and evaluates
@@ -250,7 +250,7 @@ nested.
 Run the structured RQ1 experimental program:
 
 ```powershell
-python research\agrifusion_research\core\model_suite\analysis\k_window_variants\rq1_program_main.py --bootstrap-reps 1000
+python research\agrifusion_research\experiments\k_window_variants\rq1_program_main.py --bootstrap-reps 1000
 ```
 
 This writes `rq1_structured_program_<run_id>/` and runs the named `D/C/H_D/H_C`
@@ -264,7 +264,7 @@ the new Firebase candidate is not mixed into the locked labeled benchmark.
 Run the reviewer-control follow-up:
 
 ```powershell
-python research\agrifusion_research\core\model_suite\analysis\k_window_variants\rq1_review_controls_main.py --threads 1
+python research\agrifusion_research\experiments\k_window_variants\rq1_review_controls_main.py --threads 1
 ```
 
 This writes `rq1_review_controls_<run_id>/` with `T_raw_timing` versus
@@ -276,7 +276,7 @@ protocol assignments and therefore are not frozen K2/K4 protocol releases.
 Run the WADE controlled-world calibration:
 
 ```powershell
-python -m agrifusion_research.core.model_suite.analysis.wade_calibration.main --n-samples 8000 --seeds 20260923 20260924 20260925 --bootstrap-reps 500 --threads 1
+python -m agrifusion_research.experiments.wade_calibration.main --n-samples 8000 --seeds 20260923 20260924 20260925 --bootstrap-reps 500 --threads 1
 ```
 
 This writes `wade_controlled_worlds_<run_id>/` and tests four known mechanisms
@@ -297,7 +297,7 @@ Compare the two trained target views on the successful-run prefix cohort
 `G = {d_t < K, L_r >= K}`:
 
 ```powershell
-python research\agrifusion_research\core\model_suite\analysis\main.py `
+python research\agrifusion_research\experiments\posthoc_model_analysis\main.py `
   --model-run-dir D:\AgriFusion-IoT\output\research\model_suite\artifacts\<PAIRED_MODEL_RUN_ID> `
   --target-views-artifact-dir D:\AgriFusion-IoT\output\research\weak_labels\artifacts\phase_c\<TARGET_VIEWS_ARTIFACT_ID> `
   --profile temporal_event_online_3h
@@ -310,7 +310,7 @@ and diagnostic; future values are never passed as features.
 Run the post-hoc focal analysis on the existing online-target predictions:
 
 ```powershell
-python research\agrifusion_research\core\model_suite\analysis\main.py `
+python research\agrifusion_research\experiments\posthoc_model_analysis\main.py `
   --model-run-dir D:\AgriFusion-IoT\output\research\model_suite\artifacts\<PAIRED_MODEL_RUN_ID> `
   --run-depth-target-views-artifact-dir D:\AgriFusion-IoT\output\research\weak_labels\artifacts\phase_c\<TARGET_VIEWS_ARTIFACT_ID> `
   --profile temporal_event_online_3h `
@@ -324,7 +324,7 @@ online/event predictions. It does not create a five-class model; the five
 strata are audit metadata over the existing three outputs:
 
 ```powershell
-python research\agrifusion_research\core\model_suite\analysis\main.py `
+python research\agrifusion_research\experiments\posthoc_model_analysis\main.py `
   --model-run-dir D:\AgriFusion-IoT\output\research\model_suite\artifacts\<PAIRED_MODEL_RUN_ID> `
   --provenance-strata-target-views-artifact-dir D:\AgriFusion-IoT\output\research\weak_labels\artifacts\phase_c\<TARGET_VIEWS_ARTIFACT_ID> `
   --profile temporal_event_online_3h `
@@ -340,7 +340,7 @@ Join an existing temporal prediction artifact to the derived UNRES origins
 without retraining or rerunning inference:
 
 ```powershell
-python research\agrifusion_research\core\model_suite\analysis\main.py `
+python research\agrifusion_research\experiments\posthoc_model_analysis\main.py `
   --model-run-dir D:\AgriFusion-IoT\output\research\model_suite\artifacts\<MODEL_RUN_ID> `
   --unres-origin-artifact-dir D:\AgriFusion-IoT\output\research\weak_labels\artifacts\phase_c\<UNRES_ORIGIN_ARTIFACT_ID>
 ```
@@ -360,7 +360,7 @@ comparison models are wanted.
 Run the configured R/K representation matrix (Fold 01, fixed seed, XGBoost):
 
 ```powershell
-python research\agrifusion_research\core\model_suite\analysis\k_window_variants\configured_main.py
+python research\agrifusion_research\experiments\k_window_variants\configured_main.py
 ```
 
 The schedule is explicit and reproducible: K1 uses R00 and R11; K3 online and

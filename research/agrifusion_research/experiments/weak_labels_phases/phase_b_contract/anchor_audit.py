@@ -4,10 +4,10 @@ from pathlib import Path
 
 import pandas as pd
 
-from agrifusion_research.core.weak_labels.lifecycle.phase_b_contract.boundary_audit import (
+from agrifusion_research.experiments.weak_labels_phases.phase_b_contract.boundary_audit import (
     build_boundary_audit,
 )
-from agrifusion_research.core.weak_labels.lifecycle.phase_b_contract.candidate_runs import (
+from agrifusion_research.experiments.weak_labels_phases.phase_b_contract.candidate_runs import (
     build_candidate_low_frame,
     load_e1_geometry_frame,
 )

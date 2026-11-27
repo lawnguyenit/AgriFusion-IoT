@@ -11,10 +11,10 @@ không dùng alias `K_collapse`.
 So sánh hai profile trước khi review B2:
 
 ```powershell
-python research\agrifusion_research\core\weak_labels\lifecycle\phase_b_contract\main.py compare-folds `
+python research\agrifusion_research\experiments\weak_labels_phases\phase_b_contract\main.py compare-folds `
   --phase-b1-run-dir <phase_b1_run_dir> `
-  --seven-day-profile research\agrifusion_research\core\weak_labels\lifecycle\phase_b_contract\config\qk_synchronized_7d.yaml `
-  --five-day-profile research\agrifusion_research\core\weak_labels\lifecycle\phase_b_contract\config\qk_synchronized_5d.yaml `
+  --seven-day-profile research\agrifusion_research\experiments\weak_labels_phases\phase_b_contract\config\qk_synchronized_7d.yaml `
+  --five-day-profile research\agrifusion_research\experiments\weak_labels_phases\phase_b_contract\config\qk_synchronized_5d.yaml `
   --output <comparison_output_dir>
 ```
 
@@ -24,7 +24,7 @@ cần review quyết định fold chính thức; không tự điều chỉnh bou
 Template review:
 
 ```powershell
-python research\agrifusion_research\core\weak_labels\lifecycle\phase_b_contract\main.py template `
+python research\agrifusion_research\experiments\weak_labels_phases\phase_b_contract\main.py template `
   --phase-b1-run-dir <phase_b1_run_dir> `
   --selection-config <selected_profile.yaml> `
   --output <review_decision.yaml>

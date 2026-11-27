@@ -14,8 +14,8 @@ from agrifusion_research.core.model_suite.multilabel import MultiLabelRunConfig,
 from agrifusion_research.core.model_suite.multilabel.runner import _derive_joint_predictions
 from agrifusion_research.core.model_suite.multilabel.entity_metrics import build_entity_metrics
 from agrifusion_research.core.model_suite.multilabel.temporal_bootstrap import build_temporal_bootstrap_metrics
-from agrifusion_research.core.model_suite.multilabel.stuard_controls import StuardControlConfig, run_stuard_control_arms
-from agrifusion_research.core.model_suite.multilabel.stuard_acquisition_controls import run_stuard_acquisition_controls
+from agrifusion_research.experiments.stuard_controls.stuard_controls import StuardControlConfig, run_stuard_control_arms
+from agrifusion_research.experiments.stuard_controls.stuard_acquisition_controls import run_stuard_acquisition_controls
 
 
 class MultiLabelRunnerTests(unittest.TestCase):

@@ -41,8 +41,8 @@ class WeakLabelsReorganizationTests(unittest.TestCase):
             self.assertEqual(source_files, [], name)
 
     def test_lifecycle_public_apis_are_importable(self) -> None:
-        phase_a = importlib.import_module("agrifusion_research.core.weak_labels.lifecycle.phase_a_readiness")
-        phase_b = importlib.import_module("agrifusion_research.core.weak_labels.lifecycle.phase_b_contract")
+        phase_a = importlib.import_module("agrifusion_research.experiments.weak_labels_phases.phase_a_readiness")
+        phase_b = importlib.import_module("agrifusion_research.experiments.weak_labels_phases.phase_b_contract")
         phase_c = importlib.import_module("agrifusion_research.core.weak_labels.lifecycle.phase_c_native")
         self.assertTrue(callable(phase_a.build_phase_a_readiness))
         self.assertTrue(callable(phase_b.build_phase_b_decision_pack))

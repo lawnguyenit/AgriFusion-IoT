@@ -9,9 +9,9 @@ ROOT_DIR = Path(__file__).resolve().parents[5]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from agrifusion_research.core.model_suite.analysis.k_window_variants.reporting import write_analysis_outputs
-from agrifusion_research.core.model_suite.analysis.k_window_variants.runner import build_variant_definitions, run_variants
-from agrifusion_research.core.model_suite.analysis.k_window_variants.targets import load_temporal_target_frame
+from agrifusion_research.experiments.k_window_variants.reporting import write_analysis_outputs
+from agrifusion_research.experiments.k_window_variants.runner import build_variant_definitions, run_variants
+from agrifusion_research.experiments.k_window_variants.targets import load_temporal_target_frame
 from agrifusion_research.core.common.digests import file_sha256
 from agrifusion_research.core.common.artifacts import create_run_directory
 

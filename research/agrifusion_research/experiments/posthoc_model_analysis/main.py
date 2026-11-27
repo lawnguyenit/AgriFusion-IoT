@@ -11,19 +11,19 @@ ROOT_DIR = Path(__file__).resolve().parents[4]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from agrifusion_research.core.model_suite.analysis.unres_origin_prediction_join import (
+from agrifusion_research.experiments.posthoc_model_analysis.unres_origin_prediction_join import (
     DEFAULT_FEATURE_VIEW_IDS,
     UnresOriginPredictionJoinConfig,
     build_unres_origin_prediction_join,
 )
-from agrifusion_research.core.model_suite.analysis.event_online_comparison import (
+from agrifusion_research.experiments.posthoc_model_analysis.event_online_comparison import (
     build_event_online_comparison,
 )
-from agrifusion_research.core.model_suite.analysis.online_run_depth_stratification import (
+from agrifusion_research.experiments.posthoc_model_analysis.online_run_depth_stratification import (
     OnlineRunDepthStratificationConfig,
     build_online_run_depth_stratification,
 )
-from agrifusion_research.core.model_suite.analysis.provenance_strata_analysis import (
+from agrifusion_research.experiments.posthoc_model_analysis.provenance_strata_analysis import (
     ProvenanceStrataAnalysisConfig,
     build_provenance_strata_analysis,
 )

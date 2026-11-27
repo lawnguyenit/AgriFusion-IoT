@@ -11,21 +11,21 @@ ROOT_DIR = Path(__file__).resolve().parents[5]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from agrifusion_research.core.model_suite.analysis.k_window_variants.history import FeatureBundle, build_causal_history_bundle
-from agrifusion_research.core.model_suite.analysis.k_window_variants.ordered_reporting import write_ordered_outputs
-from agrifusion_research.core.model_suite.analysis.k_window_variants.ordered_representations import (
+from agrifusion_research.experiments.k_window_variants.history import FeatureBundle, build_causal_history_bundle
+from agrifusion_research.experiments.k_window_variants.ordered_reporting import write_ordered_outputs
+from agrifusion_research.experiments.k_window_variants.ordered_representations import (
     ORDERED_REPRESENTATION_IDS,
     build_ordered_representation_bundles,
 )
-from agrifusion_research.core.model_suite.analysis.k_window_variants.representations import build_representation_bundles
-from agrifusion_research.core.model_suite.analysis.k_window_variants.robustness_audit import (
+from agrifusion_research.experiments.k_window_variants.representations import build_representation_bundles
+from agrifusion_research.experiments.k_window_variants.robustness_audit import (
     build_threshold_history_oracle,
     summarize_threshold_oracle,
 )
-from agrifusion_research.core.model_suite.analysis.k_window_variants.robustness_features import build_history_audit_representations
-from agrifusion_research.core.model_suite.analysis.k_window_variants.runner import load_feature_matrix
-from agrifusion_research.core.model_suite.analysis.k_window_variants.semantic_targets import load_online_event_target_frame
-from agrifusion_research.core.model_suite.analysis.k_window_variants.configured_runner import ConfiguredVariant, run_configured_variants
+from agrifusion_research.experiments.k_window_variants.robustness_features import build_history_audit_representations
+from agrifusion_research.experiments.k_window_variants.runner import load_feature_matrix
+from agrifusion_research.experiments.k_window_variants.semantic_targets import load_online_event_target_frame
+from agrifusion_research.experiments.k_window_variants.configured_runner import ConfiguredVariant, run_configured_variants
 from agrifusion_research.core.common.artifacts import create_run_directory
 from agrifusion_research.core.common.digests import file_sha256
 

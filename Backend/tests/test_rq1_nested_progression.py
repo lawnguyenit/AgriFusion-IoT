@@ -5,8 +5,8 @@ import unittest
 import numpy as np
 import pandas as pd
 
-from agrifusion_research.core.model_suite.analysis.k_window_variants.rq1_representations import build_rq1_nested_representations
-from agrifusion_research.core.model_suite.analysis.k_window_variants.rq1_statistics import (
+from agrifusion_research.experiments.k_window_variants.rq1_representations import build_rq1_nested_representations
+from agrifusion_research.experiments.k_window_variants.rq1_statistics import (
     add_temporal_order_columns,
     build_paired_contrasts,
     build_per_anchor_losses,

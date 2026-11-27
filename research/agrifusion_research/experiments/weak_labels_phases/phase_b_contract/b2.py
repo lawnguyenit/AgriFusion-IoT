@@ -15,7 +15,7 @@ from agrifusion_research.core.common.digests import file_sha256, stable_digest
 from agrifusion_research.core.protocol_registry import load_protocol_registry
 from agrifusion_research.core.common.artifacts import write_json, write_yaml
 from agrifusion_research.core.weak_labels.contracts.native import NativeContract
-from agrifusion_research.core.weak_labels.lifecycle.phase_b_contract.contracts import (
+from agrifusion_research.experiments.weak_labels_phases.phase_b_contract.contracts import (
     PhaseB2Config,
     PhaseB2Error,
     PhaseB2Result,
@@ -40,7 +40,7 @@ def freeze_phase_b_contract(config: PhaseB2Config) -> PhaseB2Result:
         final_dir = output_root / run_id
         os.replace(staging, final_dir)
         _reverify_and_mark(final_dir)
-        from agrifusion_research.core.weak_labels.lifecycle.phase_b_contract.pipeline import (
+        from agrifusion_research.experiments.weak_labels_phases.phase_b_contract.pipeline import (
             build_frozen_protocol_registry,
         )
 

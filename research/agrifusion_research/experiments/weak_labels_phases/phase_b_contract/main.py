@@ -8,7 +8,7 @@ ROOT_DIR = Path(__file__).resolve().parents[5]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from agrifusion_research.core.weak_labels.lifecycle.phase_b_contract import (
+from agrifusion_research.experiments.weak_labels_phases.phase_b_contract import (
     PhaseB2Config,
     PhaseBConfig,
     build_phase_b_decision_pack,
@@ -16,7 +16,7 @@ from agrifusion_research.core.weak_labels.lifecycle.phase_b_contract import (
     build_phase_b2_review_template,
     freeze_phase_b_contract,
 )
-from agrifusion_research.core.weak_labels.lifecycle.phase_b_contract.fold_comparison import (
+from agrifusion_research.experiments.weak_labels_phases.phase_b_contract.fold_comparison import (
     build_fold_policy_comparison,
 )
 

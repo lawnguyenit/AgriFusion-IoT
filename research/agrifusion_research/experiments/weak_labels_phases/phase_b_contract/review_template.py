@@ -10,7 +10,7 @@ import pandas as pd
 import yaml
 
 from agrifusion_research.core.common.digests import file_sha256
-from agrifusion_research.core.weak_labels.lifecycle.phase_b_contract.candidate_contracts import (
+from agrifusion_research.experiments.weak_labels_phases.phase_b_contract.candidate_contracts import (
     build_candidate_contract_bundle,
 )
 

@@ -1,2 +1,1 @@
-"""Explicit Phase A/B/C lifecycle entry points."""
-
+"""Weak-label lifecycle: phase C native engine. Phases A/B: experiments/weak_labels_phases."""

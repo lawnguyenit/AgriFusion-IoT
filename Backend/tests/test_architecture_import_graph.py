@@ -78,6 +78,21 @@ class ArchitectureImportGraphTests(unittest.TestCase):
         """evaluation_protocols defines protocol/fold contracts; model fitting lives in model_suite."""
         self.assertNotIn(("core.evaluation_protocols", "core.model_suite"), set(build_edges()))
 
+    def test_core_never_imports_external_or_experiments(self) -> None:
+        """Dependencies flow experiments -> external -> core -> agrifusion, never back."""
+        offending = [
+            f"{src} -> {dst}" for (src, dst) in build_edges()
+            if src.split(".")[0] == "core" and dst.split(".")[0] in {"external", "experiments", "research"}
+        ]
+        self.assertEqual(offending, [])
+
+    def test_external_never_imports_experiments(self) -> None:
+        offending = [
+            f"{src} -> {dst}" for (src, dst) in build_edges()
+            if src.split(".")[0] == "external" and dst.split(".")[0] in {"experiments", "research"}
+        ]
+        self.assertEqual(offending, [])
+
     def test_graph_detects_a_new_edge(self) -> None:
         """Guard the guard: the comparison reports an edge missing from the allow-list."""
         actual = {("ingest", "core.model_suite"): ["x.py:1"], **{e: ["y.py:1"] for e in load_allowlist()}}

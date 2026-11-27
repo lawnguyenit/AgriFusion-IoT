@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from agrifusion_research.core.weak_labels.lifecycle.phase_b_contract import PhaseBConfig, build_phase_b_decision_pack
-from agrifusion_research.core.weak_labels.lifecycle.phase_b_contract.resolution import build_point_contract_replay
+from agrifusion_research.experiments.weak_labels_phases.phase_b_contract import PhaseBConfig, build_phase_b_decision_pack
+from agrifusion_research.experiments.weak_labels_phases.phase_b_contract.resolution import build_point_contract_replay
 
 
 ROOT = Path(__file__).resolve().parents[2]

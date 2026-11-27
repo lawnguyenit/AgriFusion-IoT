@@ -23,10 +23,10 @@ from agrifusion_research.core.gates.validity_lifecycle.contracts import Validity
 from agrifusion_research.core.gates.validity_lifecycle.pipeline.build import (
     _validate_protocol_registry_link,
 )
-from agrifusion_research.core.weak_labels.lifecycle.phase_a_readiness import PhaseAReadinessConfig, build_phase_a_readiness
-from agrifusion_research.core.weak_labels.lifecycle.phase_a_readiness.canonical import _logical_measurement_fingerprints
-from agrifusion_research.core.weak_labels.lifecycle.phase_a_readiness.continuity import build_causal_dependency_audit
-from agrifusion_research.core.weak_labels.lifecycle.phase_a_readiness.evidence import (
+from agrifusion_research.experiments.weak_labels_phases.phase_a_readiness import PhaseAReadinessConfig, build_phase_a_readiness
+from agrifusion_research.experiments.weak_labels_phases.phase_a_readiness.canonical import _logical_measurement_fingerprints
+from agrifusion_research.experiments.weak_labels_phases.phase_a_readiness.continuity import build_causal_dependency_audit
+from agrifusion_research.experiments.weak_labels_phases.phase_a_readiness.evidence import (
     build_candidate_evidence,
     build_rule_applicability,
 )
@@ -338,9 +338,8 @@ class PhaseAReadinessTests(unittest.TestCase):
             REPO_ROOT
             / "research"
             / "agrifusion_research"
-            / "core"
-            / "weak_labels"
-            / "lifecycle"
+            / "experiments"
+            / "weak_labels_phases"
             / "phase_a_readiness"
             / "pipeline.py"
         ).read_text(encoding="utf-8")

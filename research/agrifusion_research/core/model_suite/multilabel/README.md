@@ -53,7 +53,7 @@ outputs are needed in a different experiment.
 
 Stuard line/regime diagnostics use the fixed audited split and observable
 training cohort; they do not refit targets or choose another split. Run
-`python -m agrifusion_research.core.model_suite.multilabel.stuard_controls_main`
+`python -m agrifusion_research.experiments.stuard_controls.stuard_controls_main`
 with the ready audit, target, and sensor-only prediction artifact to produce
 global train-prior, line train-prior, sensor-only, and line-plus-sensor arms.
 The line categories are learned from train only. The control manifest records

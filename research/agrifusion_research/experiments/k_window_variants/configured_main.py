@@ -11,12 +11,12 @@ ROOT_DIR = Path(__file__).resolve().parents[5]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from agrifusion_research.core.model_suite.analysis.k_window_variants.configured_reporting import write_configured_outputs
-from agrifusion_research.core.model_suite.analysis.k_window_variants.configured_runner import build_configured_variants, run_configured_variants
-from agrifusion_research.core.model_suite.analysis.k_window_variants.history import FeatureBundle, build_causal_history_bundle
-from agrifusion_research.core.model_suite.analysis.k_window_variants.representations import build_representation_bundles
-from agrifusion_research.core.model_suite.analysis.k_window_variants.runner import load_feature_matrix
-from agrifusion_research.core.model_suite.analysis.k_window_variants.semantic_targets import load_online_event_target_frame
+from agrifusion_research.experiments.k_window_variants.configured_reporting import write_configured_outputs
+from agrifusion_research.experiments.k_window_variants.configured_runner import build_configured_variants, run_configured_variants
+from agrifusion_research.experiments.k_window_variants.history import FeatureBundle, build_causal_history_bundle
+from agrifusion_research.experiments.k_window_variants.representations import build_representation_bundles
+from agrifusion_research.experiments.k_window_variants.runner import load_feature_matrix
+from agrifusion_research.experiments.k_window_variants.semantic_targets import load_online_event_target_frame
 from agrifusion_research.core.common.artifacts import create_run_directory
 from agrifusion_research.core.common.digests import file_sha256
 
@@ -171,7 +171,7 @@ def main() -> None:
 
 
 def _load_k1_frame(*, native_release_dir: Path, protocol_run_dir: Path) -> tuple[pd.DataFrame, dict[str, object]]:
-    from agrifusion_research.core.model_suite.analysis.k_window_variants.targets import load_temporal_target_frame
+    from agrifusion_research.experiments.k_window_variants.targets import load_temporal_target_frame
 
     return load_temporal_target_frame(native_release_dir=native_release_dir, protocol_run_dir=protocol_run_dir)
 

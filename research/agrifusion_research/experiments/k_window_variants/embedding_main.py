@@ -12,11 +12,11 @@ ROOT_DIR = Path(__file__).resolve().parents[5]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from agrifusion_research.core.model_suite.analysis.k_window_variants.embedding import build_causal_sequence_bundle
-from agrifusion_research.core.model_suite.analysis.k_window_variants.embedding_reporting import write_embedding_outputs
-from agrifusion_research.core.model_suite.analysis.k_window_variants.embedding_runner import run_embedding_variants
-from agrifusion_research.core.model_suite.analysis.k_window_variants.runner import load_feature_matrix
-from agrifusion_research.core.model_suite.analysis.k_window_variants.semantic_targets import load_online_event_target_frame
+from agrifusion_research.experiments.k_window_variants.embedding import build_causal_sequence_bundle
+from agrifusion_research.experiments.k_window_variants.embedding_reporting import write_embedding_outputs
+from agrifusion_research.experiments.k_window_variants.embedding_runner import run_embedding_variants
+from agrifusion_research.experiments.k_window_variants.runner import load_feature_matrix
+from agrifusion_research.experiments.k_window_variants.semantic_targets import load_online_event_target_frame
 from agrifusion_research.core.common.artifacts import create_run_directory
 
 

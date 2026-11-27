@@ -11,23 +11,23 @@ ROOT_DIR = Path(__file__).resolve().parents[5]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from agrifusion_research.core.model_suite.analysis.k_window_variants.configured_runner import ConfiguredVariant
-from agrifusion_research.core.model_suite.analysis.k_window_variants.history import FeatureBundle, build_causal_history_bundle
-from agrifusion_research.core.model_suite.analysis.k_window_variants.representations import build_representation_bundles
-from agrifusion_research.core.model_suite.analysis.k_window_variants.robustness_runner import build_temporal_fold_frames, run_temporal_cv, summarize_cv_metrics
-from agrifusion_research.core.model_suite.analysis.k_window_variants.rq1_program_reporting import write_program_outputs
-from agrifusion_research.core.model_suite.analysis.k_window_variants.rq1_program_representations import (
+from agrifusion_research.experiments.k_window_variants.configured_runner import ConfiguredVariant
+from agrifusion_research.experiments.k_window_variants.history import FeatureBundle, build_causal_history_bundle
+from agrifusion_research.experiments.k_window_variants.representations import build_representation_bundles
+from agrifusion_research.experiments.k_window_variants.robustness_runner import build_temporal_fold_frames, run_temporal_cv, summarize_cv_metrics
+from agrifusion_research.experiments.k_window_variants.rq1_program_reporting import write_program_outputs
+from agrifusion_research.experiments.k_window_variants.rq1_program_representations import (
     CORE_IDS,
     PROBE_IDS,
     PROBE_LABELS,
     add_persistence_probe_target,
     build_program_representations,
 )
-from agrifusion_research.core.model_suite.analysis.k_window_variants.rq1_program_runner import ProbeVariant, run_probe_temporal_cv, summarize_probe_metrics
-from agrifusion_research.core.model_suite.analysis.k_window_variants.rq1_program_statistics import build_factorial_contrasts, build_module_a_group_metrics, build_snapshot_alias_pairs
-from agrifusion_research.core.model_suite.analysis.k_window_variants.rq1_statistics import add_temporal_order_columns, build_paired_contrasts, build_per_anchor_losses
-from agrifusion_research.core.model_suite.analysis.k_window_variants.runner import load_feature_matrix
-from agrifusion_research.core.model_suite.analysis.k_window_variants.semantic_targets import load_online_event_target_frame
+from agrifusion_research.experiments.k_window_variants.rq1_program_runner import ProbeVariant, run_probe_temporal_cv, summarize_probe_metrics
+from agrifusion_research.experiments.k_window_variants.rq1_program_statistics import build_factorial_contrasts, build_module_a_group_metrics, build_snapshot_alias_pairs
+from agrifusion_research.experiments.k_window_variants.rq1_statistics import add_temporal_order_columns, build_paired_contrasts, build_per_anchor_losses
+from agrifusion_research.experiments.k_window_variants.runner import load_feature_matrix
+from agrifusion_research.experiments.k_window_variants.semantic_targets import load_online_event_target_frame
 from agrifusion_research.core.common.artifacts import create_run_directory
 from agrifusion_research.core.common.digests import file_sha256
 
@@ -60,8 +60,8 @@ def main() -> None:
     window_bundle = FeatureBundle(window_frame.loc[:, ["sample_id", *window_names]].copy(), window_names, {"representation": "window_summaries"})
     history_bundle = build_causal_history_bundle(snapshot_frame=snapshot_frame, snapshot_feature_names=snapshot_names, window_frame=window_frame, window_feature_names=window_names, row_index=row_index, max_lags=args.max_lags)
     base = build_representation_bundles(snapshot_bundle=snapshot_bundle, window_bundle=window_bundle, history_bundle=history_bundle)
-    from agrifusion_research.core.model_suite.analysis.k_window_variants.robustness_features import build_history_audit_representations
-    from agrifusion_research.core.model_suite.analysis.k_window_variants.rq1_representations import build_rq1_nested_representations
+    from agrifusion_research.experiments.k_window_variants.robustness_features import build_history_audit_representations
+    from agrifusion_research.experiments.k_window_variants.rq1_representations import build_rq1_nested_representations
     audit = build_history_audit_representations(representations=base, disruption_seed=args.seed)
     nested = build_rq1_nested_representations(base_representations=base, audit_representations=audit)
     program = build_program_representations(snapshot_bundle=snapshot_bundle, window_bundle=window_bundle, history_bundle=history_bundle, nested=nested, row_index=row_index, window_audit=window_audit, negative_seed=args.seed)

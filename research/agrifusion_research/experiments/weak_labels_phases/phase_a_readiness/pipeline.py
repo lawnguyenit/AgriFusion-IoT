@@ -10,29 +10,29 @@ from agrifusion_research.core.common.digests import file_sha256
 from agrifusion_research.core.common.provenance import resolve_code_commit
 from agrifusion_research.core.protocol_registry import authorize_operation, load_protocol_registry
 from agrifusion_research.core.common.artifacts import create_run_directory, write_json, write_yaml
-from agrifusion_research.core.weak_labels.lifecycle.phase_a_readiness.canonical import load_canonical_audit_inputs
-from agrifusion_research.core.weak_labels.lifecycle.phase_a_readiness.continuity import (
+from agrifusion_research.experiments.weak_labels_phases.phase_a_readiness.canonical import load_canonical_audit_inputs
+from agrifusion_research.experiments.weak_labels_phases.phase_a_readiness.continuity import (
     attach_observed_low_runs,
     build_causal_dependency_audit,
     build_continuity_audit,
 )
-from agrifusion_research.core.weak_labels.lifecycle.phase_a_readiness.contracts import (
+from agrifusion_research.experiments.weak_labels_phases.phase_a_readiness.contracts import (
     PhaseAReadinessConfig,
     PhaseAReadinessResult,
 )
-from agrifusion_research.core.weak_labels.lifecycle.phase_a_readiness.evidence import (
+from agrifusion_research.experiments.weak_labels_phases.phase_a_readiness.evidence import (
     build_candidate_evidence,
     build_candidate_resolution_report,
     build_evidence_inventory,
     build_rule_applicability,
 )
-from agrifusion_research.core.weak_labels.lifecycle.phase_a_readiness.gate import build_readiness_payload
-from agrifusion_research.core.weak_labels.lifecycle.phase_a_readiness.persistence import (
+from agrifusion_research.experiments.weak_labels_phases.phase_a_readiness.gate import build_readiness_payload
+from agrifusion_research.experiments.weak_labels_phases.phase_a_readiness.persistence import (
     build_artifact_catalog,
     persist_readiness_artifacts,
     write_artifact_guide,
 )
-from agrifusion_research.core.weak_labels.lifecycle.phase_a_readiness.thresholds import build_threshold_diagnostics
+from agrifusion_research.experiments.weak_labels_phases.phase_a_readiness.thresholds import build_threshold_diagnostics
 
 
 def build_phase_a_readiness(config: PhaseAReadinessConfig) -> PhaseAReadinessResult:

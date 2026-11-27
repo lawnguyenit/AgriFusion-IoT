@@ -5,7 +5,7 @@ import math
 import pandas as pd
 
 from agrifusion_research.core.protocol_registry.contracts import ProtocolRegistry
-from agrifusion_research.core.weak_labels.lifecycle.phase_a_readiness.continuity import STRICT_POLICY_ID
+from agrifusion_research.experiments.weak_labels_phases.phase_a_readiness.continuity import STRICT_POLICY_ID
 
 
 THERMAL_THRESHOLD_KPA = 2.5

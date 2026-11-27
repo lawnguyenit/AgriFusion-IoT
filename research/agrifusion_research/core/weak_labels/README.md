@@ -63,7 +63,7 @@ Phase lifecycle documentation:
 Run it explicitly:
 
 ```powershell
-python research\agrifusion_research\core\weak_labels\lifecycle\phase_a_readiness\main.py `
+python research\agrifusion_research\experiments\weak_labels_phases\phase_a_readiness\main.py `
   --protocol-registry-run-dir <registry_run_dir> `
   --canonical-history Backend\Output_data\Layer1\canonical\telemetry_history.csv `
   --layer1-manifest Backend\Output_data\Layer1\manifest.json `
@@ -184,9 +184,9 @@ Typical downstream use:
 Create a reviewer-owned B2 template from the B1 evidence first:
 
 ```powershell
-python research\agrifusion_research\core\weak_labels\lifecycle\phase_b_contract\main.py template `
+python research\agrifusion_research\experiments\weak_labels_phases\phase_b_contract\main.py template `
   --phase-b1-run-dir <phase_b1_run_dir> `
-  --selection-config research\agrifusion_research\core\weak_labels\lifecycle\phase_b_contract\config\qk_synchronized_7d.yaml `
+  --selection-config research\agrifusion_research\experiments\weak_labels_phases\phase_b_contract\config\qk_synchronized_7d.yaml `
   --output-dir <review_package_dir>
 ```
 
@@ -209,10 +209,10 @@ remains available only as a migration compatibility mode.
 Compare the synchronized fold policies before selecting the B2 profile:
 
 ```powershell
-python research\agrifusion_research\core\weak_labels\lifecycle\phase_b_contract\main.py compare-folds `
+python research\agrifusion_research\experiments\weak_labels_phases\phase_b_contract\main.py compare-folds `
   --phase-b1-run-dir <phase_b1_run_dir> `
-  --seven-day-profile research\agrifusion_research\core\weak_labels\lifecycle\phase_b_contract\config\qk_synchronized_7d.yaml `
-  --five-day-profile research\agrifusion_research\core\weak_labels\lifecycle\phase_b_contract\config\qk_synchronized_5d.yaml `
+  --seven-day-profile research\agrifusion_research\experiments\weak_labels_phases\phase_b_contract\config\qk_synchronized_7d.yaml `
+  --five-day-profile research\agrifusion_research\experiments\weak_labels_phases\phase_b_contract\config\qk_synchronized_5d.yaml `
   --output <fold_comparison_dir>
 ```
 
@@ -224,7 +224,7 @@ continuity, window, and expected-difference contracts. Missing inputs do not
 receive defaults and cannot produce a frozen contract.
 
 ```powershell
-python research\agrifusion_research\core\weak_labels\lifecycle\phase_b_contract\main.py freeze `
+python research\agrifusion_research\experiments\weak_labels_phases\phase_b_contract\main.py freeze `
   --phase-a-run-dir <phase_a_run_dir> `
   --phase-b1-run-dir <phase_b1_run_dir> `
   --protocol-registry-run-dir <phase_a_registry_run_dir> `

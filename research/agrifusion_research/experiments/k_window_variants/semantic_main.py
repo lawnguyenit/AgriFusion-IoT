@@ -11,11 +11,11 @@ ROOT_DIR = Path(__file__).resolve().parents[5]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from agrifusion_research.core.model_suite.analysis.k_window_variants.history import build_causal_history_bundle
-from agrifusion_research.core.model_suite.analysis.k_window_variants.runner import load_feature_matrix
-from agrifusion_research.core.model_suite.analysis.k_window_variants.semantic_reporting import write_semantic_outputs
-from agrifusion_research.core.model_suite.analysis.k_window_variants.semantic_runner import build_semantic_variants, run_semantic_variants
-from agrifusion_research.core.model_suite.analysis.k_window_variants.semantic_targets import load_online_event_target_frame
+from agrifusion_research.experiments.k_window_variants.history import build_causal_history_bundle
+from agrifusion_research.experiments.k_window_variants.runner import load_feature_matrix
+from agrifusion_research.experiments.k_window_variants.semantic_reporting import write_semantic_outputs
+from agrifusion_research.experiments.k_window_variants.semantic_runner import build_semantic_variants, run_semantic_variants
+from agrifusion_research.experiments.k_window_variants.semantic_targets import load_online_event_target_frame
 from agrifusion_research.core.common.artifacts import create_run_directory
 from agrifusion_research.core.common.digests import file_sha256
 
@@ -112,7 +112,7 @@ def main() -> None:
 
 
 def _snapshot_bundle(frame, feature_names):
-    from agrifusion_research.core.model_suite.analysis.k_window_variants.history import FeatureBundle
+    from agrifusion_research.experiments.k_window_variants.history import FeatureBundle
 
     return FeatureBundle(
         frame=frame.loc[:, ["sample_id", *feature_names]].copy(),

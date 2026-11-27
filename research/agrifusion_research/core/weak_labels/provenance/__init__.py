@@ -1,6 +1,5 @@
 """Provenance and deterministic identity facade."""
 
-from agrifusion_research.core.weak_labels.provenance.artifact_catalog import build_artifact_catalog
 from agrifusion_research.core.weak_labels.provenance.identities import canonicalize_payload, deterministic_id
 from agrifusion_research.core.weak_labels.provenance.lineage import build_label_source_dependency, build_lineage_record
 from agrifusion_research.core.weak_labels.provenance.release import (
@@ -12,7 +11,6 @@ from agrifusion_research.core.weak_labels.provenance.release import (
 build_deterministic_id = deterministic_id
 
 __all__ = [
-    "build_artifact_catalog",
     "build_deterministic_id",
     "build_label_source_dependency",
     "build_lineage_record",

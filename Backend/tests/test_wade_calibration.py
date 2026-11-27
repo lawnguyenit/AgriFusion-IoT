@@ -4,8 +4,8 @@ import unittest
 
 import pandas as pd
 
-from agrifusion_research.core.model_suite.analysis.wade_calibration.representations import build_representations
-from agrifusion_research.core.model_suite.analysis.wade_calibration.worlds import WORLD_IDS, generate_world
+from agrifusion_research.experiments.wade_calibration.representations import build_representations
+from agrifusion_research.experiments.wade_calibration.worlds import WORLD_IDS, generate_world
 
 
 class WadeCalibrationTests(unittest.TestCase):

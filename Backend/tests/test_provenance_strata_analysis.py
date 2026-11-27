@@ -2,7 +2,7 @@ import json
 
 import pandas as pd
 
-from agrifusion_research.core.model_suite.analysis.provenance_strata_analysis_data import (
+from agrifusion_research.experiments.posthoc_model_analysis.provenance_strata_analysis_data import (
     LOW_LABEL,
     REF_LABEL,
     UNRES_LABEL,
