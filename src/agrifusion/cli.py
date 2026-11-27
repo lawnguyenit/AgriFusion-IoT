@@ -308,6 +308,12 @@ def run_layer1(settings: BackendSettings, source_loader: Any | None = None) -> N
 
 
 def main() -> None:
+    import sys
+
+    if sys.argv[1:2] == ["publish"]:
+        from agrifusion.publish.cli import run as run_publish
+
+        raise SystemExit(run_publish(sys.argv[2:]))
     args = parse_args()
     settings = build_runtime_settings(args)
 

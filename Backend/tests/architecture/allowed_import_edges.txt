@@ -51,7 +51,11 @@ canonical -> settings
 cli -> canonical
 cli -> cloud
 cli -> ingest
+cli -> publish
 cli -> settings
 cloud -> settings
 ingest -> io
 ingest -> settings
+publish -> cloud
+publish -> io
+publish -> settings
