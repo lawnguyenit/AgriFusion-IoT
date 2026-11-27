@@ -31,6 +31,7 @@ by a passing unit test.
 
 - Install: `python -m pip install -e ".[dev,research]"`
 - Golden data chain (JSON export -> Layer0 -> Layer1): `test_golden_data_chain.py`, see `golden/data_chain/README.md` for how to update it on purpose.
+- Firmware contract (firmware -> ingest -> canonical) and ingest determinism: `test_firmware_ingest_contract.py` (fixture `fixtures/firmware_contract.py`); record store: `test_ingest_record_store.py`.
 - Import-graph guard: `test_architecture_import_graph.py`, allow-list in `architecture/allowed_import_edges.txt`.
 - Optional packages (`torch`, `pytabkit`) are not installed in CI; the tests that need them are skipped with a reason.
 - CI: `.github/workflows/test.yml` (Python 3.11 and 3.12).

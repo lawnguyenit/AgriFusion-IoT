@@ -27,24 +27,22 @@ flowchart TD
 
     G --> H{"duplicate_source?"}
     H -- "No" --> I["Write latest_meta + source audit artifacts"]
-    H -- "Yes" --> N["Skip current/history writes"]
+    H -- "Yes" --> N["Skip latest_meta/audit writes"]
 
     I --> J{"should_fetch_current?"}
+    N --> J
     J -- "Yes" --> K["fetch_latest_current_payload()"]
-    K --> L["Write latest payload"]
-    L --> M["Write date/event history snapshot"]
-
+    K --> L["new_raw/latest.json (verbatim)"]
+    L --> M["records/: put(kind=latest)"]
     J -- "No" --> O["No current payload fetch"]
 
     M --> P{"full_history?"}
     O --> P
-    N --> P
-    P -- "Yes" --> Q["fetch normalized + original source history"]
-    Q --> R["write normalized history snapshots"]
-    Q --> S["write content-addressed raw_history evidence + archive manifest"]
+    P -- "Yes" --> Q["fetch telemetry (verbatim)"]
+    Q --> R["records/: put(kind=telemetry) per record, date window applied"]
     P -- "No" --> S["Skip backfill"]
 
-    R --> T["save_sync_state()"]
+    R --> T["records/index.json, sync_state.json, runs/<run_id>.json"]
     S --> T
     T --> U["Return Layer0IngestionResult"]
 ```
@@ -53,29 +51,15 @@ flowchart TD
 
 - CLI arguments from `src/agrifusion/cli.py`
 - `.env` (repo root; legacy `Backend/.env` is still read) and runtime settings
-- source adapter:
-  - Firebase RTDB
-  - or JSON export
-- previous sync state:
-  - `Layer0/Firebase_data/new_raw/sync_state.json`
+- source adapter: Firebase RTDB or JSON export
+- previous sync state: `Layer0/Firebase_data/new_raw/sync_state.json`
 
 ## What goes out
 
-- `new_raw/latest_meta.json`
-- `new_raw/latest.json`
-- `new_raw/source_manifest.json`
-- `new_raw/source_snapshot.json`
-- `new_raw/sync_state.json`
-- `history/<date>/<event>.json`
-- full-history snapshots when `--full-history` is enabled
-  - normalized snapshots in `history/<YYYY>/<MM>/<DD>/`
-  - exact parsed source records in sibling `raw_history/<YYYY>/<MM>/<DD>/`
-  - one completed archive manifest per full-history retrieval in
-    `raw_history/archive_runs/`, including source hash, date range, and counts
-
-When `--full-history` is requested, history retrieval/backfill runs even if
-latest-meta synchronization classifies the source as a duplicate. This allows
-older installations to populate the raw evidence archive on a later run.
+See [README.md section 2](README.md#2-on-disk-format-the-contract-with-canonical).
+When `--full-history` is requested, telemetry is stored even if latest-meta
+synchronization classifies the source as a duplicate; already stored records are
+verified by hash and not written again.
 
 ## Folder map
 
@@ -87,8 +71,8 @@ older installations to populate the raw evidence archive on a later run.
   - parse latest meta, decide sync, build next sync state
 - `stores/`
   - write latest/raw/history/sync-state artifacts
-- `models/`
-  - source-domain data structures
+- `record_store.py`
+  - raw record store format (writer + reader used by canonical)
 - `utils/`
   - layout and low-level helpers
 
@@ -96,7 +80,8 @@ older installations to populate the raw evidence archive on a later run.
 
 - `sources/` may know source APIs and file formats
 - `sync/` may decide duplicate/new/retry behavior
-- `stores/` may persist artifacts
+- `stores/` may persist artifacts; the record format itself lives only in `record_store.py`
+- nothing in ingest translates or normalizes records
 - `pipeline.py` should orchestrate rather than accumulate large source
   or persistence rules
 
@@ -106,5 +91,5 @@ older installations to populate the raw evidence archive on a later run.
 2. `sources/firebase.py` or `sources/json_export.py`
 3. `sync/latest_sync.py`
 4. `stores/artifact_store.py`
-5. `stores/telemetry_store.py`
+5. `record_store.py`, `stores/telemetry_store.py`
 6. `stores/sync_state_store.py`

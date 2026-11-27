@@ -1,7 +1,7 @@
 # Golden: JSON export -> Layer0 -> Layer1
 
 Safety net for the data chain. `Backend/tests/test_golden_data_chain.py` runs the real
-Layer0 (`--source json-export --full-history`) and Layer1 pipelines on a synthetic export
+ingest/Layer0 (`--source json-export --full-history`) and Layer1 pipelines on a synthetic export
 and compares the normalized outputs with the snapshot in `expected/`.
 
 | File | Role |
@@ -16,7 +16,9 @@ and compares the normalized outputs with the snapshot in `expected/`.
 
 - Keys ending in `_utc` and `age_since_*` are dropped (run-specific times); temp paths become `<OUT>` / `<INPUT_DIR>`.
 - Parquet is compared as CSV, rows sorted by `record.id`, floats printed with `%.10g`.
-- `views/` (debug), `archive_runs/` and `source_snapshot.json` are skipped; `raw_history/` is reduced to its content-addressed file names (`INDEX.txt`).
+- `views/` (debug), ingest `runs/` (run manifests, hold run times) and `source_snapshot.json` are skipped.
+- Ingest record files (`Layer0/Firebase_data/records/**`) and `new_raw/latest.json` are compared byte-for-byte (not normalized): they must not depend on the run.
+- `update_golden.py` always imports `agrifusion` from this checkout's `src/` (and refuses otherwise).
 
 ## Update the golden on purpose
 

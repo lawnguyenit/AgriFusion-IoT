@@ -5,8 +5,8 @@
 ## Luong xu ly
 
 ```text
-Layer0 history/latest
-    -> SourceRecord loading
+ingest record store (records/ + new_raw/latest.json)
+    -> SourceRecord loading + firmware adapter (v2 -> packet view)
     -> canonical row assembly
     -> demo exclusion
     -> segment detection + temporal features

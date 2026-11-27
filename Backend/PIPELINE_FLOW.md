@@ -21,8 +21,8 @@ different owners and release gates.
 ```mermaid
 flowchart TD
     A["CLI: agrifusion (src/agrifusion/cli.py)"] --> B["Layer0IngestionPipeline.run()"]
-    B --> C["Raw artifacts in output/Layer0"]
-    C --> D["PreprocessingPipeline.run()"]
+    B --> C["Verbatim record store in output/Layer0 (ingest.record_store)"]
+    C --> D["PreprocessingPipeline.run(): record_store reader -> firmware adapter -> rows"]
     D --> E["Canonical Layer1 artifacts in output/Layer1"]
 
     F["CLI: Benchmark/dataset_views/main.py"] --> G["materialize_dataset_views()"]
@@ -80,8 +80,11 @@ flowchart TD
 - `src/agrifusion/ingest`
   - fetches or loads raw telemetry
   - decides sync behavior
-  - persists immutable evidence
+  - stores every record verbatim, hashed, immutable, byte-deterministic
+    (no translation; run metadata only in `runs/` and `new_raw/` state files)
 - `src/agrifusion/canonical`
+  - reads ingest output only through `agrifusion.ingest.record_store`
+  - translates firmware records (`canonical/adapters`: schema v2 -> packet view; v1 as is)
   - builds canonical telemetry history
   - attaches continuity and temporal fields
   - writes reports and compatibility outputs
@@ -201,9 +204,10 @@ This is the current connection order:
 
 ## Handoff files that matter
 
-- Layer0 -> Layer1
-  - `output/Layer0/Firebase_data/history/**`
-  - `output/Layer0/Firebase_data/new_raw/**`
+- Layer0 -> Layer1 (format owned by `src/agrifusion/ingest/record_store.py`)
+  - `output/Layer0/Firebase_data/records/**` (verbatim records + `index.json`)
+  - `output/Layer0/Firebase_data/new_raw/latest.json`, `latest_meta.json`
+  - no in-memory handoff: a full run and `--only-layer1` read the same files
 - Layer1 -> benchmark lanes
   - `output/Layer1/canonical/telemetry_history.parquet`
   - `output/Layer1/canonical/feature_catalog.csv`
