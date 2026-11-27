@@ -1,0 +1,265 @@
+# `weak_labels`
+
+`weak_labels` is the label-authority lane for Benchmark.
+
+## Package organization
+
+## Architecture map
+
+Để đọc lifecycle theo mục đích xử lý thay vì theo module code, xem
+[`architecture/README.md`](../../../../docs/archive/weak_labels_phases/architecture_2026-08/README.md). Tài liệu này tách mỗi phase
+thành `core flow`, `support flow`, inputs/outputs và artifact authority.
+
+New code uses explicit lifecycle and responsibility namespaces:
+
+```text
+weak_labels.contracts
+weak_labels.lifecycle.phase_a_readiness
+weak_labels.lifecycle.phase_b_contract
+weak_labels.lifecycle.phase_c_native
+weak_labels.semantic
+weak_labels.provenance
+weak_labels.infrastructure
+```
+
+Historical label source files are no longer part of the executable package.
+Only immutable historical artifacts and differential fixtures remain outside
+the native implementation. Existing artifact runs and baseline hashes remain
+unchanged.
+
+If `dataset_views` prepares `X`, then `weak_labels` prepares `y`.
+Both read the same frozen Layer1 canonical evidence, but they own
+different contracts:
+
+- `dataset_views` owns feature meaning and feature artifacts
+- `weak_labels` owns label meaning, rule traces, and label artifacts
+
+It does **not** own train/validation/test protocol boundaries, fold
+purge, environment assignment, or final runner trainability.
+
+## Audit-only Phase A readiness
+
+`weak_labels/lifecycle/phase_a_readiness` is a separate audit path, not an alternate label
+engine. It consumes an explicit upstream `protocol_registry` run, audits E1
+candidate evidence, writes only structural commitments for E2/E3, and stops
+before label materialization or model training.
+
+Its outputs live under:
+
+```text
+output/research/weak_labels/artifacts/phase_a/<run_id>/
+```
+
+`candidate_resolution/`, `evidence_inventory/`, and
+`threshold_diagnostics/` are candidate evidence only and must never be
+consumed by the native engine.
+
+Phase lifecycle documentation:
+
+- [Phase A Data Audit](../../experiments/weak_labels_phases/phase_a_readiness/README.md)
+- [Phase B Semantic Contract](../../../../docs/archive/weak_labels_phases/2026-08-04_phase_b_contract_REPORT.md)
+- [Phase C Native Label Release](../../../../docs/archive/weak_labels_phases/2026-08-08_phase_c_native_REPORT.md)
+
+Run it explicitly:
+
+```powershell
+python research\agrifusion_research\experiments\weak_labels_phases\phase_a_readiness\main.py `
+  --protocol-registry-run-dir <registry_run_dir> `
+  --canonical-history output\Layer1\canonical\telemetry_history.csv `
+  --layer1-manifest output\Layer1\manifest.json `
+  --output-root output\research\weak_labels\artifacts\phase_a
+```
+
+Phase A core readiness does not require historical weak-label output. If a
+legacy run is available, it may be added with one or more optional
+`--legacy-reference-run-dir` arguments for differential/hash reporting only;
+its absence is recorded as `NOT_AVAILABLE` and does not block the core gate.
+
+## Native public tasks
+
+The native release publishes these task families:
+
+- `point`
+- `same_y/horizon_3h` and `same_y/horizon_8h` (transfer projections)
+- `temporal/horizon_3h` and `temporal/horizon_8h`
+
+`weak_labels` does not consume `dataset_views` outputs. Both lanes read the
+same frozen Layer1 canonical source; `evaluation_protocols` later joins the
+native labels to feature views and applies fold/purge/train-readiness rules.
+
+## Input
+
+The native lifecycle reads:
+
+- frozen Layer1 canonical history
+- Layer1 manifest and canonical evidence schema
+- segment manifest and sensor dependency registry
+- an explicit frozen Phase B semantic contract
+
+It does not read `dataset_views` outputs directly.
+
+## This Layer Does
+
+`weak_labels` converts canonical evidence into auditable weak targets.
+
+Main responsibilities:
+
+- build point weak labels used by `v0` and `v1`
+- build native Same-Y transfer and Temporal labels for `3h` and `8h`
+- apply the frozen persistence contract without refitting or exploratory
+  overrides during release
+- keep technical invalidity separate from environmental label states
+- keep intrinsic label eligibility separate from downstream protocol
+  exclusions
+- emit condition-level rule traces and threshold provenance
+- keep tranche-0 assignment provenance explicit by separating:
+  - fired semantic rules
+  - gate / exclusion outcomes
+  - resolution IDs
+  - label-transfer lineage
+
+In short:
+
+- `dataset_views` answers: "what features exist for this row/window?"
+- `weak_labels` answers: "what weak target state does this row/window
+  receive, and why?"
+
+Semantic applicability is field-specific. Moisture rules use
+`npk.soil_moisture_valid`; EC rules use `npk.ec_valid`; and temporal deltas
+require the current and previous field to be valid. The aggregate
+`npk.valid` remains a compatibility/fault signal, but it is not allowed to
+mask an independently valid measurement. Provenance, calibration status,
+protocol/value validity, and error class are retained as audit evidence and
+are not promoted into model features or labels by this lane.
+
+## Output
+
+Each native run is published under the requested output root as:
+
+```text
+tasks/point/{assignments,evidence}.parquet
+tasks/same_y/horizon_{3h,8h}/assignments.parquet
+tasks/temporal/horizon_{3h,8h}/{assignments,evidence}.parquet
+cohorts/{intrinsic_eligibility,semantic_fold_projection_manifest}.parquet
+audit/{rule_firings,resolutions,assignments,continuity_registry}.parquet
+run_metadata/label_release_manifest.json
+run_metadata/artifact_catalog.csv
+```
+
+Only the Assignment-derived files in `tasks/` are public label authority;
+the `audit/` files provide their RuleFiring/Resolution lineage.
+
+Run-level guide:
+
+- `ARTIFACT_GUIDE.md`
+
+For outside readers, the single best entrypoint is:
+
+- `run_metadata/artifact_catalog.csv`
+
+That file tells you which artifact is authoritative for which purpose.
+
+## What Downstream Layers Use
+
+The most important downstream handoff is:
+
+- sample-level weak targets
+- assignment / exclusion state
+- rule provenance
+- threshold provenance
+
+Typical downstream use:
+
+- `evaluation_protocols`
+  - combines weak-label authority with feature authority and protocol
+    authority
+- `model_suite`
+  - trains on the protocol-approved subset only
+- `validity_lifecycle`
+  - reads label dependencies and rule traces during synthesis and
+    ambiguity review
+
+## Commands
+
+Create a reviewer-owned B2 template from the B1 evidence first:
+
+```powershell
+python research\agrifusion_research\experiments\weak_labels_phases\phase_b_contract\main.py template `
+  --phase-b1-run-dir <phase_b1_run_dir> `
+  --selection-config research\agrifusion_research\experiments\weak_labels_phases\phase_b_contract\config\qk_synchronized_7d.yaml `
+  --output-dir <review_package_dir>
+```
+
+The template is intentionally a compact review file. Phase A/B1 populate the
+candidate threshold values, observed support counts, formulas, continuity and
+window contracts under `<phase_b1_run_dir>/contracts/candidates/`. The reviewer
+approves or rejects those candidate IDs (and may choose Q/K/fold or support
+floors through the optional `support_gate.overrides` block); they do not retype measured values. B2 expands only explicitly
+approved references and fails closed when a referenced candidate artifact is
+missing or changed.
+
+The generated package is marked `BASELINE_ITERATION` for the currently
+approved first run. It can freeze B2 directly after validation; a later
+`REVIEWED_FREEZE`/differential run can require explicit reviewer approvals.
+
+The package contains only `review_decision.yaml`, `selection_profile.yaml`,
+`candidate_inputs.yaml`, and `README.md`. The old `--output <file.yaml>` form
+remains available only as a migration compatibility mode.
+
+Compare the synchronized fold policies before selecting the B2 profile:
+
+```powershell
+python research\agrifusion_research\experiments\weak_labels_phases\phase_b_contract\main.py compare-folds `
+  --phase-b1-run-dir <phase_b1_run_dir> `
+  --seven-day-profile research\agrifusion_research\experiments\weak_labels_phases\phase_b_contract\config\qk_synchronized_7d.yaml `
+  --five-day-profile research\agrifusion_research\experiments\weak_labels_phases\phase_b_contract\config\qk_synchronized_5d.yaml `
+  --output <fold_comparison_dir>
+```
+
+## Phase B2 contract freeze
+
+Phase B2 is a separate, fail-closed review gate. It requires an explicit B1
+review decision plus anchor-safety, distribution, derived-evidence,
+continuity, window, and expected-difference contracts. Missing inputs do not
+receive defaults and cannot produce a frozen contract.
+
+```powershell
+python research\agrifusion_research\experiments\weak_labels_phases\phase_b_contract\main.py freeze `
+  --phase-a-run-dir <phase_a_run_dir> `
+  --phase-b1-run-dir <phase_b1_run_dir> `
+  --protocol-registry-run-dir <phase_a_registry_run_dir> `
+  --review-decision <review_decision.yaml> `
+  --anchor-safety-audit <anchor_safety.parquet> `
+  --distribution-audit <distribution.parquet> `
+  --derived-evidence-contract <derived_evidence.csv> `
+  --continuity-contract <continuity.yaml> `
+  --window-contract <window.yaml> `
+  --expected-difference-contract <expected_difference.csv> `
+  --selection-config <selected_fold_profile.yaml> `
+  --canonical-history output\Layer1\canonical\telemetry_history.csv `
+  --output-root output\research\weak_labels\artifacts\phase_b
+```
+
+The command publishes `CONTRACT_FROZEN` only after `NativeContract.load()`
+passes and the final manifest is reverified. Otherwise it records
+`CONTRACT_FREEZE_BLOCKED` under `.staging` and does not create a child
+protocol registry.
+
+## Native label release
+
+The contract-gated native engine is the only label-generation lane:
+
+```powershell
+python research\agrifusion_research\core\weak_labels\lifecycle\phase_c_native\main.py --help
+```
+
+It requires a complete reviewed Phase B2 contract, reads sensitive evidence
+only for authorized E1 records, and writes task-oriented native artifacts.
+It publishes Point, Same-Y, and Temporal Assignment artifacts plus a
+`run_metadata/label_release_manifest.json`. `evaluation_protocols` consumes
+that manifest explicitly. Feature-view admissibility and train-ready
+publication remain evaluation responsibilities.
+
+## Flow
+
+For the short layer contract, see [FLOW.md](FLOW.md).

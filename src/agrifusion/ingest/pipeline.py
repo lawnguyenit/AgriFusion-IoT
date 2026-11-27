@@ -6,13 +6,10 @@ from typing import Any
 from agrifusion.settings.runtime import BackendSettings
 
 from .sources import FirebaseSourceAdapter, JsonExportSourceAdapter
-from .stores.artifact_store import write_latest_meta, write_latest_payload, write_source_audit_artifacts
+from .record_store import SOURCE_KIND_LATEST, write_latest_record, write_run_manifest
+from .stores.artifact_store import write_latest_meta, write_source_audit_artifacts
 from .stores.sync_state_store import load_sync_state, save_sync_state
-from .stores.telemetry_store import (
-    write_full_history_raw_snapshots,
-    write_full_history_snapshots,
-    write_history_snapshot,
-)
+from .stores.telemetry_store import StoreCounts, open_record_store, store_telemetry_records
 from .sync.latest_sync import build_sync_state, decide_sync, parse_latest_meta
 from .utils.layout import format_iso_utc
 
@@ -27,13 +24,14 @@ class Layer0IngestionResult:
     latest_payload_path: Path | None
     latest_meta_local_path: Path
     sync_state_path: Path
-    history_path: Path | None
+    history_path: Path | None  # record-store file of the latest record, when stored this run
     next_retry_at_utc: str | None
     next_primary_check_at_utc: str | None
     source_manifest_path: Path
     source_snapshot_path: Path | None
-    full_history_written_count: int = 0
-    full_history_raw_written_count: int = 0
+    full_history_written_count: int = 0  # telemetry records stored or verified this run
+    new_record_file_count: int = 0
+    run_manifest_path: Path | None = None
 
 
 class Layer0IngestionPipeline:
@@ -51,7 +49,6 @@ class Layer0IngestionPipeline:
         self.last_latest_meta_payload: dict[str, Any] | None = None
         self.last_latest_current_payload: dict[str, Any] | None = None
         self.last_full_history_payload: dict[str, Any] | None = None
-        self.last_full_history_raw_payload: dict[str, Any] | None = None
 
     def run(
         self,
@@ -62,7 +59,6 @@ class Layer0IngestionPipeline:
         self.last_latest_meta_payload = None
         self.last_latest_current_payload = None
         self.last_full_history_payload = None
-        self.last_full_history_raw_payload = None
         checked_at = _utc_now()
         previous_sync_state = load_sync_state(self.settings)
 
@@ -98,8 +94,9 @@ class Layer0IngestionPipeline:
         latest_payload_path: Path | None = None
         history_path: Path | None = None
         source_snapshot_path: Path | None = None
-        full_history_written_count = 0
-        full_history_raw_written_count = 0
+        store = open_record_store(self.settings)
+        latest_counts = StoreCounts()
+        telemetry_counts = StoreCounts()
 
         if decision.status != "duplicate_source":
             write_latest_meta(self.settings, latest_meta_payload)
@@ -116,6 +113,15 @@ class Layer0IngestionPipeline:
                 sync_state["status"] = "error_current_missing"
                 sync_state["alert_code"] = "latest_current_missing"
                 save_sync_state(self.settings, sync_state)
+                run_manifest_path = self._write_run_manifest(
+                    checked_at=checked_at,
+                    status=sync_state["status"],
+                    full_history=full_history,
+                    start_date=history_start_date,
+                    end_date=history_end_date,
+                    latest_counts=latest_counts,
+                    telemetry_counts=telemetry_counts,
+                )
                 return Layer0IngestionResult(
                     status=sync_state["status"],
                     source_type=self.settings.source_type,
@@ -131,48 +137,44 @@ class Layer0IngestionPipeline:
                     source_manifest_path=self.settings.source_manifest_path,
                     source_snapshot_path=source_snapshot_path,
                     full_history_written_count=0,
+                    run_manifest_path=run_manifest_path,
                 )
 
             self.last_latest_current_payload = latest_current_payload
-            latest_payload_path = write_latest_payload(self.settings, latest_current_payload)
-            history_path = write_history_snapshot(
-                settings=self.settings,
+            latest_payload_path = write_latest_record(self.settings.firebase_layer0_root, latest_current_payload)
+            put = store.put(
                 date_key=meta_snapshot.date_key,
                 event_key=meta_snapshot.event_key,
-                latest_path=meta_snapshot.latest_path,
-                current_payload=latest_current_payload,
-                checked_at=checked_at,
+                source_kind=SOURCE_KIND_LATEST,
+                source_path=meta_snapshot.latest_path,
+                record=latest_current_payload,
             )
+            latest_counts.add(put)
+            history_path = put.path
 
         if full_history:
             telemetry_payload = self.source_adapter.fetch_full_history_payload()
             if telemetry_payload is not None:
                 self.last_full_history_payload = telemetry_payload
-                full_history_written_count = write_full_history_snapshots(
+                telemetry_counts = store_telemetry_records(
+                    store=store,
                     settings=self.settings,
                     telemetry_payload=telemetry_payload,
-                    checked_at=checked_at,
                     start_date=history_start_date,
                     end_date=history_end_date,
-                )
-            raw_telemetry_payload = self.source_adapter.fetch_full_history_raw_payload()
-            if raw_telemetry_payload is not None:
-                self.last_full_history_raw_payload = raw_telemetry_payload
-                source = self.source_adapter.describe_source()
-                full_history_raw_written_count = write_full_history_raw_snapshots(
-                    settings=self.settings,
-                    telemetry_payload=raw_telemetry_payload,
-                    checked_at=checked_at,
-                    start_date=history_start_date,
-                    end_date=history_end_date,
-                    source_metadata={
-                        "source_type": source.source_type,
-                        "source_uri": source.source_uri,
-                        "source_sha256": source.source_sha256,
-                    },
                 )
 
+        store.save_index()
         save_sync_state(self.settings, sync_state)
+        run_manifest_path = self._write_run_manifest(
+            checked_at=checked_at,
+            status=sync_state["status"],
+            full_history=full_history,
+            start_date=history_start_date,
+            end_date=history_end_date,
+            latest_counts=latest_counts,
+            telemetry_counts=telemetry_counts,
+        )
 
         return Layer0IngestionResult(
             status=sync_state["status"],
@@ -188,8 +190,55 @@ class Layer0IngestionPipeline:
             next_primary_check_at_utc=sync_state["next_primary_check_at_utc"],
             source_manifest_path=self.settings.source_manifest_path,
             source_snapshot_path=source_snapshot_path,
-            full_history_written_count=full_history_written_count,
-            full_history_raw_written_count=full_history_raw_written_count,
+            full_history_written_count=telemetry_counts.eligible_record_count,
+            new_record_file_count=latest_counts.new_file_count + telemetry_counts.new_file_count,
+            run_manifest_path=run_manifest_path,
+        )
+
+    def _write_run_manifest(
+        self,
+        *,
+        checked_at: datetime,
+        status: str,
+        full_history: bool,
+        start_date: date | None,
+        end_date: date | None,
+        latest_counts: StoreCounts,
+        telemetry_counts: StoreCounts,
+    ) -> Path:
+        """Run metadata lives here, never inside record files (byte-stable records)."""
+        source = self.source_adapter.describe_source()
+        run_id = checked_at.strftime("%Y%m%dT%H%M%S%fZ")
+        return write_run_manifest(
+            self.settings.firebase_layer0_root,
+            run_id,
+            {
+                "schema_version": 1,
+                "run_id": run_id,
+                "checked_at_utc": checked_at.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+                "status": status,
+                "node_id": self.settings.node_id,
+                "source": {
+                    "source_type": source.source_type,
+                    "source_uri": source.source_uri,
+                    "source_sha256": source.source_sha256,
+                },
+                "full_history": full_history,
+                "date_filter": {
+                    "start_date_inclusive": None if start_date is None else start_date.isoformat(),
+                    "end_date_inclusive": None if end_date is None else end_date.isoformat(),
+                },
+                "latest": {
+                    "stored_record_count": latest_counts.eligible_record_count,
+                    "new_file_count": latest_counts.new_file_count,
+                    "new_version_count": latest_counts.new_version_count,
+                },
+                "telemetry": {
+                    "eligible_record_count": telemetry_counts.eligible_record_count,
+                    "new_file_count": telemetry_counts.new_file_count,
+                    "new_version_count": telemetry_counts.new_version_count,
+                },
+            },
         )
 
     def _build_source_adapter(self) -> Any:

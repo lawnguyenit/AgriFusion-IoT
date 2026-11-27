@@ -8,9 +8,9 @@ from pathlib import Path
 
 import pandas as pd
 
-from Backend.Benchmark.external_intake.adapters.stuard import build_stuard_candidate
-from Backend.Benchmark.external_intake.adapters.uci import build_uci_candidate
-from Backend.Benchmark.external_intake.pipeline import ExternalIntakeConfig, run_external_intake
+from agrifusion_research.external.intake.adapters.stuard import build_stuard_candidate
+from agrifusion_research.external.intake.adapters.uci import build_uci_candidate
+from agrifusion_research.external.intake.pipeline import ExternalIntakeConfig, run_external_intake
 
 
 class ExternalIntakeTests(unittest.TestCase):

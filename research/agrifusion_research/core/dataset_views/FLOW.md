@@ -1,0 +1,80 @@
+# Dataset Views Flow
+
+## Layer Contract
+
+```mermaid
+flowchart LR
+    A["Layer1 canonical data"] --> B["dataset_views"]
+    B --> C["shared sample universe + per-view feature artifacts"]
+    C --> D["row-identified feature superset + feature-group registry"]
+```
+
+## Input
+
+- frozen Layer1 canonical history
+- frozen Layer1 feature catalog
+- Layer1 manifest
+- segment manifest when a selected view needs continuity-aware windows
+- optional explicit label artifact in `benchmark-ready` mode
+
+Before promotion, a flattened Firebase export may be audited by the additive
+`research/agrifusion_research/experiments/source_intake` lane. That lane emits a canonical candidate,
+an exact old-column projection, a source-only provenance sidecar, a candidate
+segment manifest, and episode-level sidecars for sample gaps, consecutive
+sensorless runs, and replay-delay proxies. It does not replace the Layer1
+canonical file. Source rows must remain present until temporal segmentation
+and continuity-aware window construction are complete.
+
+## This Layer Does
+
+- materialize the active benchmark feature scope:
+  `v0`, `v1`, and explicit `v2` subviews
+- provide the full nine-channel source matrix from which downstream
+  evaluation selects `base_5`, `plus_ph`, `plus_npk`, or `full_9`
+- reject removed `v3`, `v5`, and `v6` family requests at view
+  resolution time
+- publish one shared sample universe and one shared feature-lineage
+  contract so downstream layers read the same rows and feature meanings
+- write `shared/feature_superset.parquet` as the row-identified union of
+  selected view matrices and publish its ordered group allowlists/hashes in
+  `shared/feature_group_registry.json`
+- write short artifact guides so the run explains itself in place
+
+It does **not** decide folds, final trainability, or scientific claim
+status.
+
+## Output
+
+- run guides
+  - `ARTIFACT_GUIDE.md`
+  - `shared/README.md`
+  - `views/README.md`
+- shared sample universe artifacts
+- `shared/row_index.*`
+- `shared/metadata.*`
+- `shared/source_manifest.json`
+- `shared/feature_superset.parquet` and `shared/feature_group_registry.json`
+- shared tranche-0 feature contract artifacts
+  - `shared/feature_role_registry.csv`
+  - `shared/feature_dependency_closure.parquet`
+  - `shared/ablation_view_registry.csv`
+- per-view feature artifacts
+  - `views/<view_id>/X.*`
+  - `views/<view_id>/manifest.json`
+  - `views/<view_id>/schema.json`
+  - `views/<view_id>/feature_columns.json`
+  - `views/<view_id>/feature_lineage.json`
+
+The per-view matrices remain compatibility outputs. The superset duplicates
+equal overlapping columns only once, verifies each source matrix/schema hash,
+and fails materialization if overlapping views disagree or their row/sample
+hashes differ from the shared row index. The registry is not yet a training
+selection interface; current evaluation continues to use per-view contracts.
+- scope reports
+  - `reports/current_scope_taxonomy_report.json`
+
+## Main Handoff
+
+- downstream feature authority for `evaluation_protocols`
+- downstream feature-lineage authority for tranche-0 dependency and
+  ablation checks

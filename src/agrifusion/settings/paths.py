@@ -14,12 +14,8 @@ class BackendPaths:
 
     @property
     def backend_dir(self) -> Path:
-        """Legacy ``Backend/`` folder; only the research lane (``Backend/Benchmark``) remains."""
+        """Legacy ``Backend/`` folder; only tests and the deprecated ``Backend.main`` shim remain."""
         return self.project_root / "Backend"
-
-    @property
-    def benchmark_dir(self) -> Path:
-        return self.backend_dir / "Benchmark"
 
     @property
     def output_dir(self) -> Path:

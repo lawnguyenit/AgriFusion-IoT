@@ -1,14 +1,21 @@
+"""Snapshot source logic shared by the JSON-export and Firebase-root adapters.
+
+Ingest keeps source records verbatim. This module only *reads* a few fields of a
+record (timestamps, identity) to choose the latest record and build ``latest_meta``;
+it never rewrites records. All translation of firmware records into canonical rows
+lives in ``agrifusion.canonical.adapters``.
+"""
 from __future__ import annotations
 
 import copy
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 
 from agrifusion.settings.runtime import BackendSettings
 
+from ..record_store import record_sha256
 from ..stores.artifact_store import base_source_manifest_payload
-from agrifusion.io.storage import serialize_json, sha256_hex
 from ..utils.json_ordering import canonicalize_json
 
 
@@ -25,13 +32,72 @@ class SourceDescriptor:
     source_sha256: str | None
 
 
-class NormalizedSnapshotMixin:
+def is_v2_record(record_payload: Any) -> bool:
+    """Firmware schema v2 record (RawTelemetryReporter): sensor/sim/system sections."""
+    return (
+        isinstance(record_payload, dict)
+        and isinstance(record_payload.get("sensor_record"), dict)
+        and isinstance(record_payload.get("sim_record"), dict)
+        and isinstance(record_payload.get("system_record"), dict)
+    )
+
+
+def _as_int(value: Any) -> int | None:
+    if value is None or value == "":
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def record_times(record_payload: dict[str, Any]) -> tuple[int | None, int | None]:
+    """Return (ts_device, ts_server) used for ordering/sync; reads, never modifies.
+
+    v2: ts_device = system_record.time.ts_sample (if > 0); ts_server = time.ts_server
+    if > 0, else ts_sample. Legacy v1: top-level ts_device (or
+    packet.system_data.sample_epoch_sec) and ts_server (default ts_device).
+    """
+    if is_v2_record(record_payload):
+        time_payload = record_payload["system_record"].get("time")
+        time_payload = time_payload if isinstance(time_payload, dict) else {}
+        ts_sample = _as_int(time_payload.get("ts_sample"))
+        ts_sample = ts_sample if ts_sample is not None and ts_sample > 0 else None
+        ts_server = _as_int(time_payload.get("ts_server"))
+        ts_server = ts_server if ts_server is not None and ts_server > 0 else ts_sample
+        return ts_sample, ts_server
+    ts_server = _as_int(record_payload.get("ts_server"))
+    ts_device = _as_int(record_payload.get("ts_device"))
+    packet_payload = record_payload.get("packet")
+    system_payload = packet_payload.get("system_data") if isinstance(packet_payload, dict) else None
+    if ts_device is None and isinstance(system_payload, dict):
+        ts_device = _as_int(system_payload.get("sample_epoch_sec"))
+    if ts_server is None:
+        ts_server = ts_device
+    return ts_device, ts_server
+
+
+def extract_latest_record(latest_payload: Any) -> dict[str, Any] | None:
+    """The firmware writes ``<node>/latest/current`` (record) + ``latest/meta``.
+
+    A Firebase export of the node therefore has ``latest = {current, meta}``; older
+    exports (and the golden fixture) put the record directly at ``latest``.
+    """
+    if not isinstance(latest_payload, dict):
+        return None
+    current = latest_payload.get("current")
+    if isinstance(current, dict):
+        return current
+    return latest_payload
+
+
+class SnapshotSourceMixin:
     def __init__(self, settings: BackendSettings):
         self.settings = settings
         self.source_sha256: str | None = None
         self._source_payload: dict[str, Any] | None = None
         self._ordered_source_payload: dict[str, Any] | None = None
-        self._normalized_telemetry: dict[str, Any] | None = None
+        self._telemetry: dict[str, Any] | None = None
         self._latest_context: dict[str, Any] | None = None
         self._previous_context: dict[str, Any] | None = None
         self._detected_identity: dict[str, Any] = {}
@@ -53,16 +119,9 @@ class NormalizedSnapshotMixin:
         return copy.deepcopy(self._latest_context["record"])
 
     def fetch_full_history_payload(self) -> dict[str, Any] | None:
+        """Source telemetry ``{date_key: {event_key: record}}``, records verbatim."""
         self._ensure_prepared()
-        return copy.deepcopy(self._normalized_telemetry)
-
-    def fetch_full_history_raw_payload(self) -> dict[str, Any] | None:
-        """Return source telemetry before Core normalization or log truncation."""
-        self._ensure_prepared()
-        if self._source_payload is None:
-            return None
-        telemetry = self._source_payload.get("telemetry")
-        return copy.deepcopy(telemetry) if isinstance(telemetry, dict) else None
+        return copy.deepcopy(self._telemetry)
 
     def build_audit_artifacts(self, checked_at: datetime) -> SourceAuditArtifacts:
         self._ensure_prepared()
@@ -78,10 +137,10 @@ class NormalizedSnapshotMixin:
             {
                 "detected_identity": self._detected_identity,
                 "snapshot_mode": self._snapshot_mode,
-                "telemetry_date_count": len(self._normalized_telemetry or {}),
+                "telemetry_date_count": len(self._telemetry or {}),
                 "telemetry_record_count": sum(
                     len(day_payload)
-                    for day_payload in (self._normalized_telemetry or {}).values()
+                    for day_payload in (self._telemetry or {}).values()
                     if isinstance(day_payload, dict)
                 ),
                 "latest_event_key": None if self._latest_context is None else self._latest_context["event_key"],
@@ -108,10 +167,10 @@ class NormalizedSnapshotMixin:
         self._ordered_source_payload = canonicalize_json(payload)
         self._detected_identity = copy.deepcopy(payload.get("info", {}).get("identity", {}))
         self._snapshot_mode = self._detect_snapshot_mode(payload)
-        self._normalized_telemetry = self._normalize_telemetry_payload(payload.get("telemetry", {}))
-        latest_record = self._normalize_latest_payload(payload.get("latest"))
+        self._telemetry = self._collect_telemetry(payload.get("telemetry", {}))
+        latest_record = extract_latest_record(payload.get("latest"))
         self._latest_context, self._previous_context = self._select_latest_context(
-            telemetry_payload=self._normalized_telemetry,
+            telemetry_payload=self._telemetry,
             latest_record=latest_record,
         )
 
@@ -140,148 +199,20 @@ class NormalizedSnapshotMixin:
         if not looks_legacy and not looks_v2:
             raise ValueError("Node snapshot must contain legacy live/status_events or canonical latest")
 
-    def _normalize_telemetry_payload(self, telemetry_payload: dict[str, Any]) -> dict[str, Any]:
-        normalized_payload: dict[str, Any] = {}
-
+    def _collect_telemetry(self, telemetry_payload: dict[str, Any]) -> dict[str, Any]:
+        """Keep every dict record of every dict day, unchanged (only key order is canonical)."""
+        collected: dict[str, Any] = {}
         for date_key, day_payload in telemetry_payload.items():
             if not isinstance(day_payload, dict):
                 continue
-
-            normalized_day: dict[str, Any] = {}
-            for event_key, record_payload in day_payload.items():
-                if not isinstance(record_payload, dict):
-                    continue
-                normalized_record = self._normalize_record_payload(record_payload)
-                if normalized_record is None:
-                    continue
-                normalized_day[str(event_key)] = normalized_record
-
-            if normalized_day:
-                normalized_payload[str(date_key)] = canonicalize_json(normalized_day)
-
-        return canonicalize_json(normalized_payload)
-
-    def _normalize_latest_payload(self, latest_payload: Any) -> dict[str, Any] | None:
-        if not isinstance(latest_payload, dict):
-            return None
-        return self._normalize_record_payload(latest_payload)
-
-    def _normalize_record_payload(self, record_payload: dict[str, Any]) -> dict[str, Any] | None:
-        if self._looks_like_canonical_v2_record(record_payload):
-            return self._normalize_v2_record_payload(record_payload)
-        return self._normalize_legacy_record_payload(record_payload)
-
-    def _looks_like_canonical_v2_record(self, record_payload: dict[str, Any]) -> bool:
-        return (
-            isinstance(record_payload.get("sensor_record"), dict)
-            and isinstance(record_payload.get("sim_record"), dict)
-            and isinstance(record_payload.get("system_record"), dict)
-        )
-
-    def _normalize_legacy_record_payload(self, record_payload: dict[str, Any]) -> dict[str, Any]:
-        normalized = copy.deepcopy(record_payload)
-        normalized.pop("quality", None)
-
-        packet_payload = normalized.setdefault("packet", {})
-        if not isinstance(packet_payload, dict):
-            packet_payload = {}
-            normalized["packet"] = packet_payload
-
-        npk_payload = packet_payload.get("npk_data")
-        if isinstance(npk_payload, dict):
-            npk_payload.setdefault("sensor_id", self.settings.npk_sensor_id)
-            npk_payload.setdefault("sensor_type", self.settings.npk_sensor_type)
-
-        sht30_payload = packet_payload.get("sht30_data")
-        if isinstance(sht30_payload, dict):
-            sht30_payload.setdefault("sensor_id", self.settings.sht30_sensor_id)
-            sht30_payload.setdefault("sensor_type", self.settings.sht30_sensor_type)
-
-        system_payload = packet_payload.get("system_data")
-        if isinstance(system_payload, dict):
-            system_payload.setdefault(
-                "transport",
-                self._source_payload.get("info", {}).get("network", {}).get("transport")
-                if isinstance(self._source_payload, dict)
-                else None,
-            )
-            if system_payload.get("battery_v") == -1:
-                system_payload["battery_v"] = None
-            if system_payload.get("ip") == "0.0.0.0":
-                system_payload.pop("ip", None)
-
-            for noisy_key in ("buffer_reason", "debug", "debug_log", "at_log", "gps_status"):
-                noisy_value = system_payload.get(noisy_key)
-                if isinstance(noisy_value, str) and len(noisy_value) > 160:
-                    system_payload.pop(noisy_key, None)
-
-        return canonicalize_json(normalized)
-
-    def _normalize_v2_record_payload(self, record_payload: dict[str, Any]) -> dict[str, Any]:
-        normalized = copy.deepcopy(record_payload)
-        system_record: dict[str, Any] = normalized.get("system_record", {})
-        time_payload: dict[str, Any] = system_record.get("time", {})
-        identity_payload: dict[str, Any] = system_record.get("identity", {})
-        sync_payload: dict[str, Any] = system_record.get("sync", {})
-        sensor_record: dict[str, Any] = normalized.get("sensor_record", {})
-        sim_record: dict[str, Any] = normalized.get("sim_record", {})
-
-        ts_sample = self._resolve_v2_ts_sample(time_payload)
-        ts_server = self._resolve_v2_ts_server(time_payload, ts_sample)
-        date_key = self._resolve_v2_date_key(identity_payload, ts_sample)
-        sample_time_local = self._format_local_iso(ts_sample)
-        upload_time_local = self._format_local_iso(ts_server)
-
-        npk_sensor_id, npk_sensor_payload = self._select_sensor_payload(
-            sensor_record=sensor_record,
-            preferred_id=self.settings.npk_sensor_id,
-            fallback_id="soil_7in1_01",
-        )
-        sht30_sensor_id, sht30_sensor_payload = self._select_sensor_payload(
-            sensor_record=sensor_record,
-            preferred_id=self.settings.sht30_sensor_id,
-            fallback_id="air_sht30_01",
-        )
-
-        npk_packet = self._build_legacy_npk_packet(npk_sensor_id, npk_sensor_payload)
-        sht30_packet = self._build_legacy_sht30_packet(sht30_sensor_id, sht30_sensor_payload)
-
-        return canonicalize_json(
-            {
-                "schema_version": 2,
-                "ts_sample": ts_sample,
-                "ts_device": ts_sample,
-                "ts_server": ts_server,
-                "sample_time_local": sample_time_local,
-                "upload_time_local": upload_time_local,
-                "packet": {
-                    "npk_data": npk_packet,
-                    "sht30_data": sht30_packet,
-                    "system_data": {
-                        "sample_epoch_sec": ts_sample,
-                        "sample_time_valid": bool(time_payload.get("time_valid")),
-                        "sample_date_key": date_key,
-                        "transport": sim_record.get("transport"),
-                        "send_state": self._derive_send_state(sync_payload),
-                    },
-                },
-                "sensors": {
-                    "npk": self._build_sensor_trace_payload(
-                        sensor_id=npk_packet.get("sensor_id"),
-                        sensor_type=npk_packet.get("sensor_type"),
-                        read_status=npk_sensor_payload.get("read_status"),
-                    ),
-                    "sht30": self._build_sensor_trace_payload(
-                        sensor_id=sht30_packet.get("sensor_id"),
-                        sensor_type=sht30_packet.get("sensor_type"),
-                        read_status=sht30_sensor_payload.get("read_status"),
-                    ),
-                },
-                "system_record": normalized.get("system_record"),
-                "sim_record": normalized.get("sim_record"),
-                "sensor_record": normalized.get("sensor_record"),
+            day = {
+                str(event_key): record_payload
+                for event_key, record_payload in day_payload.items()
+                if isinstance(record_payload, dict)
             }
-        )
+            if day:
+                collected[str(date_key)] = canonicalize_json(day)
+        return canonicalize_json(collected)
 
     def _select_latest_context(
         self,
@@ -337,19 +268,9 @@ class NormalizedSnapshotMixin:
         event_key: str,
         source_path: str,
     ) -> dict[str, Any] | None:
-        ts_server = self._as_int(record_payload.get("ts_server"))
-        ts_device = self._as_int(record_payload.get("ts_device"))
-
-        packet_payload = record_payload.get("packet", {})
-        system_payload = packet_payload.get("system_data", {})
-        if ts_device is None:
-            ts_device = self._as_int(system_payload.get("sample_epoch_sec"))
-        if ts_server is None:
-            ts_server = ts_device
-
+        ts_device, ts_server = record_times(record_payload)
         if ts_server is None or ts_device is None:
             return None
-
         return {
             "date_key": str(date_key),
             "event_key": str(event_key),
@@ -383,6 +304,7 @@ class NormalizedSnapshotMixin:
         delta_device_sec = None if previous_ts_device is None else latest_ts_device - previous_ts_device
         delta_server_sec = None if previous_ts_server is None else latest_ts_server - previous_ts_server
 
+        # No run timestamp here: the same source gives the same latest_meta.
         return canonicalize_json(
             {
                 "schema_version": 1,
@@ -391,7 +313,7 @@ class NormalizedSnapshotMixin:
                 "detected_site_id": self._detected_identity.get("site_id"),
                 "latest_date_key": latest_date_key,
                 "latest_event_key": latest_event_key,
-                "latest_local_iso": latest_record.get("sample_time_local") or latest_record.get("upload_time_local"),
+                "latest_local_iso": self._latest_local_iso(latest_record, latest_ts_device),
                 "latest_path": self._latest_context["source_path"],
                 "previous_date_key": None if previous_context is None else previous_context["date_key"],
                 "previous_event_key": None if previous_context is None else previous_context["event_key"],
@@ -412,24 +334,26 @@ class NormalizedSnapshotMixin:
                 else expected_min <= delta_server_sec <= expected_max,
                 "primary_poll_after_sec": primary_poll_after_sec,
                 "retry_after_no_change_sec": retry_after_no_change_sec,
-                "record_sha256": sha256_hex(serialize_json(canonicalize_json(latest_record))),
+                # Hash of the verbatim record as stored (record_store.encode_record).
+                "record_sha256": record_sha256(latest_record),
                 "ts_device": latest_ts_device,
                 "ts_server": latest_ts_server,
-                "updated_at_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
             }
         )
 
+    def _latest_local_iso(self, latest_record: dict[str, Any], ts_device: int | None) -> str | None:
+        explicit = latest_record.get("sample_time_local") or latest_record.get("upload_time_local")
+        if explicit:
+            return str(explicit)
+        if is_v2_record(latest_record) and ts_device is not None and ts_device > 0:
+            return datetime.fromtimestamp(ts_device, tz=self.settings.timezone).isoformat()
+        return None
+
     def _resolve_v2_ts_sample(self, time_payload: dict[str, Any]) -> int | None:
-        ts_sample = self._as_int(time_payload.get("ts_sample"))
+        ts_sample = _as_int(time_payload.get("ts_sample"))
         if ts_sample is not None and ts_sample > 0:
             return ts_sample
         return None
-
-    def _resolve_v2_ts_server(self, time_payload: dict[str, Any], ts_sample: int | None) -> int | None:
-        ts_server = self._as_int(time_payload.get("ts_server"))
-        if ts_server is not None and ts_server > 0:
-            return ts_server
-        return ts_sample
 
     def _resolve_v2_date_key(self, identity_payload: dict[str, Any], ts_sample: int | None) -> str | None:
         record_path = str(identity_payload.get("record_path") or "")
@@ -439,162 +363,6 @@ class NormalizedSnapshotMixin:
         if ts_sample is not None and ts_sample > 0:
             return datetime.fromtimestamp(ts_sample, tz=self.settings.timezone).date().isoformat()
         return None
-
-    def _select_sensor_payload(
-        self,
-        *,
-        sensor_record: dict[str, Any],
-        preferred_id: str,
-        fallback_id: str,
-    ) -> tuple[str, dict[str, Any]]:
-        candidate = sensor_record.get(preferred_id)
-        if isinstance(candidate, dict):
-            return preferred_id, candidate
-        candidate = sensor_record.get(fallback_id)
-        if isinstance(candidate, dict):
-            return fallback_id, candidate
-        for sensor_id, payload in sensor_record.items():
-            if isinstance(payload, dict):
-                return str(sensor_id), payload
-        return preferred_id, {}
-
-    def _build_legacy_npk_packet(self, sensor_id: str, sensor_payload: dict[str, Any]) -> dict[str, Any]:
-        values = sensor_payload.get("values", {}) if isinstance(sensor_payload.get("values"), dict) else {}
-        status = sensor_payload.get("read_status", {}) if isinstance(sensor_payload.get("read_status"), dict) else {}
-        return canonicalize_json(
-            {
-                "sensor_id": sensor_id or self.settings.npk_sensor_id,
-                "sensor_type": sensor_payload.get("sensor_type") or self.settings.npk_sensor_type,
-                "read_ok": bool(status.get("read_ok")),
-                "npk_values_valid": bool(status.get("sample_valid")),
-                "frame_ok": status.get("frame_ok"),
-                "crc_ok": status.get("crc_ok"),
-                "error_code": status.get("error_code"),
-                "error_code_raw": status.get("raw_error_code"),
-                "retry_count": status.get("retry_count"),
-                "timeout_ms": status.get("timeout_ms"),
-                "read_duration_ms": status.get("read_elapsed_ms"),
-                "consecutive_fail_count": status.get("consecutive_fail_count"),
-                "recovered_after_fail": status.get("recovered_after_fail"),
-                "ph_state": status.get("ph_state"),
-                "temp_protocol_ok": _status_field_value(status, "field_validity", "temp", "temp_protocol_ok"),
-                "temp_value_valid": _status_field_value(status, "field_value_validity", "temp", "temp_value_valid"),
-                "temp_source": _status_field_value(status, "field_source", "temp", "temp_source"),
-                "hum_protocol_ok": _status_field_value(status, "field_validity", "hum", "hum_protocol_ok"),
-                "hum_value_valid": _status_field_value(status, "field_value_validity", "hum", "hum_value_valid"),
-                "hum_source": _status_field_value(status, "field_source", "hum", "hum_source"),
-                "hum_calibration_status": _status_field_value(
-                    status, "moisture_calibration", "status", "hum_calibration_status"
-                ),
-                "hum_calibration_profile": _status_field_value(
-                    status, "moisture_calibration", "profile", "hum_calibration_profile"
-                ),
-                "hum_value_semantics": _status_field_value(
-                    status, "moisture_calibration", "value_semantics", "hum_value_semantics"
-                ),
-                "hum_raw_adc": _status_field_value(
-                    status, "moisture_calibration", "latest_raw_adc", "hum_raw_adc"
-                ),
-                "hum_voltage_mv": _status_field_value(
-                    status, "moisture_calibration", "latest_voltage_mv", "hum_voltage_mv"
-                ),
-                "hum_install_depth_cm_min": _status_field_value(
-                    status, "moisture_calibration", "install_depth_cm_min", "hum_install_depth_cm_min"
-                ),
-                "hum_install_depth_cm_max": _status_field_value(
-                    status, "moisture_calibration", "install_depth_cm_max", "hum_install_depth_cm_max"
-                ),
-                "ph_protocol_ok": _status_field_value(status, "field_validity", "ph", "ph_protocol_ok"),
-                "ph_value_valid": _status_field_value(status, "field_value_validity", "ph", "ph_value_valid"),
-                "ph_source": _status_field_value(status, "field_source", "ph", "ph_source"),
-                "ec_protocol_ok": _status_field_value(status, "field_validity", "ec", "ec_protocol_ok"),
-                "ec_value_valid": _status_field_value(status, "field_value_validity", "ec", "ec_value_valid"),
-                "ec_source": _status_field_value(status, "field_source", "ec", "ec_source"),
-                "ec_measurement_kind": status.get("ec_measurement_kind"),
-                "N_value_valid": _status_field_value(status, "field_value_validity", "N", "N_value_valid"),
-                "N_source": _status_field_value(status, "field_source", "N", "N_source"),
-                "P_value_valid": _status_field_value(status, "field_value_validity", "P", "P_value_valid"),
-                "P_source": _status_field_value(status, "field_source", "P", "P_source"),
-                "K_value_valid": _status_field_value(status, "field_value_validity", "K", "K_value_valid"),
-                "K_source": _status_field_value(status, "field_source", "K", "K_source"),
-                "temp": values.get("soil_temp_c"),
-                "hum": values.get("soil_moisture_pct"),
-                "ph": values.get("soil_ph"),
-                "ec": values.get("soil_ec_us_cm"),
-                "N": values.get("soil_n_proxy"),
-                "P": values.get("soil_p_proxy"),
-                "K": values.get("soil_k_proxy"),
-            }
-        )
-
-    def _build_legacy_sht30_packet(self, sensor_id: str, sensor_payload: dict[str, Any]) -> dict[str, Any]:
-        values = sensor_payload.get("values", {}) if isinstance(sensor_payload.get("values"), dict) else {}
-        status = sensor_payload.get("read_status", {}) if isinstance(sensor_payload.get("read_status"), dict) else {}
-        return canonicalize_json(
-            {
-                "sensor_id": sensor_id or self.settings.sht30_sensor_id,
-                "sensor_type": sensor_payload.get("sensor_type") or self.settings.sht30_sensor_type,
-                "sht_read_ok": bool(status.get("read_ok")),
-                "sht_sample_valid": bool(status.get("sample_valid")),
-                "sht_error": status.get("error_code"),
-                "sht_retry_count": status.get("retry_count"),
-                "sht_read_elapsed_ms": status.get("read_elapsed_ms"),
-                "sht_invalid_streak": status.get("invalid_streak"),
-                "sht_value_valid": status.get("value_valid"),
-                "sht_values_available": status.get("values_available"),
-                "sht_values_recorded_with_error": status.get("values_recorded_with_error"),
-                "sht_observed_temp_c": status.get("observed_temp_c"),
-                "sht_observed_hum_pct": status.get("observed_hum_pct"),
-                "sht_i2c_address_ack": status.get("i2c_address_ack"),
-                "sht_i2c_error": status.get("i2c_error"),
-                "sht_frame_ok": status.get("frame_ok"),
-                "sht_temp_crc_ok": status.get("temp_crc_ok"),
-                "sht_hum_crc_ok": status.get("hum_crc_ok"),
-                "sht_raw_temp": status.get("raw_temp"),
-                "sht_raw_hum": status.get("raw_hum"),
-                "sht_temp_c": values.get("air_temp_c"),
-                "sht_hum_pct": values.get("air_rh_pct"),
-            }
-        )
-
-    def _build_sensor_trace_payload(
-        self,
-        *,
-        sensor_id: Any,
-        sensor_type: Any,
-        read_status: Any,
-    ) -> dict[str, Any]:
-        read_status = read_status if isinstance(read_status, dict) else {}
-        read_ok = read_status.get("read_ok")
-        sample_valid = read_status.get("sample_valid")
-        error_code = read_status.get("error_code")
-        status = read_status.get("status")
-        if status is None:
-            if sample_valid is False or (error_code not in (None, "", "ok", 0)):
-                status = "error"
-            elif read_ok is True and sample_valid is True:
-                status = "ok"
-        return canonicalize_json(
-            {
-                "sensor_id": sensor_id,
-                "sensor_type": sensor_type,
-                "read_ok": read_ok,
-                "sample_valid": sample_valid,
-                "status": status,
-                "error_code": error_code,
-            }
-        )
-
-    def _derive_send_state(self, sync_payload: dict[str, Any]) -> str:
-        if not isinstance(sync_payload, dict):
-            return "unknown"
-        if bool(sync_payload.get("replayed")):
-            return "replayed"
-        if bool(sync_payload.get("buffered")):
-            return "buffered"
-        if bool(sync_payload.get("telemetry_persisted")):
-            return "persisted"
-        return "sampled"
 
     def _infer_latest_date_key(
         self,
@@ -646,18 +414,3 @@ class NormalizedSnapshotMixin:
             return int(value)
         except (TypeError, ValueError):
             return None
-
-
-def _status_field_value(
-    status: dict[str, Any],
-    object_key: str,
-    field_key: str,
-    scalar_key: str,
-) -> Any:
-    scalar_value = status.get(scalar_key)
-    if scalar_value is not None:
-        return scalar_value
-    nested = status.get(object_key)
-    if isinstance(nested, dict):
-        return nested.get(field_key)
-    return None

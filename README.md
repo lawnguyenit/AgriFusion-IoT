@@ -26,15 +26,15 @@ Verified from code, tests and docs in this repo.
 ### Works today
 
 - Telemetry pipeline: `agrifusion` (package `src/agrifusion`) reads Firebase or a JSON export, writes Layer0 raw evidence and Layer1 canonical data (see [Backend README](Backend/README.md)).
-- Benchmark lane: dataset views, weak labels, protocol registry, evaluation protocols (temporal folds), model suite, validity audits (see [Benchmark README](Backend/Benchmark/README.md)).
-- Paper v1.0 reproducibility: result bundle of 202 files with SHA-256 manifest, source hashes for the official Stuard dataset, and a table rebuild command ([guide](Docs/research/reproducibility/paper-v1.0/README.md)). Not re-run for this README (it needs the release ZIP).
+- Benchmark lane: dataset views, weak labels, protocol registry, evaluation protocols (temporal folds), model suite, validity audits (see [Benchmark README](research/agrifusion_research/README.md)).
+- Paper v1.0 reproducibility: result bundle of 202 files with SHA-256 manifest, source hashes for the official Stuard dataset, and a table rebuild command ([guide](docs/research/reproducibility/paper-v1.0/README.md)). Not re-run for this README (it needs the release ZIP).
 - Firmware for ESP32-S3 (PlatformIO) with wake cycle, buffering/replay and Firebase publishing ([firmware README](firmware/README.md)). CI compiles the production env and 7 probe envs on every firmware change; not flashed to hardware by CI.
 - Static dashboard in safe demo mode (no credentials needed) ([Frontend README](Frontend/README.md)).
-- Tests: 233 `unittest` cases in `Backend/tests/` (contracts, processing logic, a golden test of the JSON-export → Layer0 → Layer1 chain, and an architecture test that blocks new cross-layer imports). On 2026-11-28 CI on Python 3.11 and 3.12 ran them with 0 failures and 4 skips (2 need a real Layer1 snapshot, 2 need torch/pytabkit). They do not exercise Firebase or hardware.
+- Tests: 288 `unittest` cases in `Backend/tests/` (contracts, processing logic, a golden test of the JSON-export → Layer0 → Layer1 chain, a firmware-contract ingest test, publisher tests, and an architecture test that blocks new cross-layer imports). A local run on 2026-11-28 (Python 3.12, `pip install -e ".[dev,research]"`) gave 0 failures, 5 skips and 1 known expected failure; CI runs them on Python 3.11 and 3.12. They do not exercise Firebase or hardware.
 
 ### Not yet done / not verified
 
-- The dashboard contract (`docs/contracts/result.md`) is defined, but the publisher that writes `result/*` is not merged yet, so live mode shows no data.
+- The dashboard contract (`docs/contracts/result.md`) is defined and the publisher that writes `result/*` exists (`src/agrifusion/publish`, `agrifusion publish`). It is tested against the contract with a fake client, but has not been run against live Firebase (needs the owner's service account), so live mode is unverified.
 - Physical sensor, SIM, Firebase-rule and field-deployment claims have no runtime evidence in the repo.
 - torch-based models are installed separately and are not exercised in CI.
 - Which manuscript the "WADE paper v1.0" reproducibility guide corresponds to is not stated in the repo.
@@ -59,7 +59,7 @@ flowchart TB
         source --> layer0 --> layer1
     end
 
-    layer1 --> benchmark[Backend/Benchmark<br/>dataset views, labels, evaluation, models]
+    layer1 --> benchmark[research/agrifusion_research<br/>dataset views, labels, evaluation, models]
     benchmark --> bundle[Result bundle and paper tables]
 
     subgraph presentation[Separate presentation contract]
@@ -69,7 +69,7 @@ flowchart TB
     end
 ```
 
-The current tracked backend does not publish `result/*`. See the [system architecture](public-docs/architecture.md) for ownership boundaries and the [backend flow](Backend/PIPELINE_FLOW.md) for benchmark handoffs.
+`agrifusion publish` can write `result/*` (tested with a fake client, not yet run against live Firebase). See the [system architecture](public-docs/architecture.md) for ownership boundaries and the [backend flow](Backend/PIPELINE_FLOW.md) for benchmark handoffs.
 
 ## Quick start
 
@@ -87,6 +87,7 @@ Run Layer0 and Layer1 from Firebase or a JSON export:
 agrifusion --source firebase --node-id Node2 --full-history
 agrifusion --source json-export --input-json C:\path\export.json --node-id Node2 --full-history
 agrifusion --only-layer1   # node id is read from the Layer0 manifest if --node-id is omitted
+agrifusion publish --dry-run   # plan the dashboard result/* update from Layer1; writes nothing, no network
 ```
 
 The backend has no default node id: pass `--node-id` (or set `EXPORT_NODE_ID` in `.env`, see `.env.example`). Match the value to the source path; the firmware currently publishes Node2 data. Generated data goes to `output/` (gitignored). `python -m Backend.main` still works as a deprecated alias.
@@ -94,12 +95,13 @@ The backend has no default node id: pass `--node-id` (or set `EXPORT_NODE_ID` in
 Benchmark:
 
 ```powershell
-python -m Backend.Benchmark.dataset_views.main --help
-python -m Backend.Benchmark.evaluation_protocols.main --help
-python -m Backend.Benchmark.model_suite.cli --help
+python -m agrifusion_research list            # all research commands (console script: agrifusion-research)
+python -m agrifusion_research dataset-views --help
+python -m agrifusion_research evaluation-protocols --help
+python -m agrifusion_research model --help
 ```
 
-Start with [Backend/PIPELINE_FLOW.md](Backend/PIPELINE_FLOW.md) and the [benchmark handoff contract](Backend/Benchmark/BENCHMARK_TO_MODEL_SUITE_SPEC.md). For the frozen paper results, see the [paper reproducibility guide](Docs/research/reproducibility/paper-v1.0/README.md); it maps the release bundle to manuscript Tables 2-4 and records the official Stuard Version 2 source hashes.
+Start with [Backend/PIPELINE_FLOW.md](Backend/PIPELINE_FLOW.md) and the [benchmark handoff contract](research/agrifusion_research/core/BENCHMARK_TO_MODEL_SUITE_SPEC.md). For the frozen paper results, see the [paper reproducibility guide](docs/research/reproducibility/paper-v1.0/README.md); it maps the release bundle to manuscript Tables 2-4 and records the official Stuard Version 2 source hashes.
 
 Dashboard (demo mode by default; live Firebase mode needs an untracked local `Frontend/public/config.local.json`):
 
@@ -111,16 +113,17 @@ python -m http.server 4173 -d Frontend/public
 
 ```
 src/agrifusion/ telemetry backend package: settings, io, ingest (Layer0), canonical (Layer1), cloud, cli
-Backend/       Benchmark research lanes and tests (Backend/Benchmark moves out in a later stage)
+research/      research package agrifusion_research: core pipeline, external datasets, experiments
+Backend/       tests (Backend/tests) and the deprecated `python -m Backend.main` shim
 output/        generated Layer0/Layer1 data (gitignored)
 firmware/      ESP32-S3 firmware (PlatformIO)
 Frontend/      static Firebase RTDB dashboard (demo mode by default)
-Docs/          paper reproducibility guide, diagrams, a static web page, worklogs
+docs/          paper reproducibility guide, diagrams, a static web page, worklogs
 public-docs/   architecture and repository hygiene notes
 .github/       CI: backend tests, firmware build, frontend contract test; GitHub Pages
 ```
 
-Read in this order: [System architecture](public-docs/architecture.md), [Repository hygiene](public-docs/repository-hygiene.md), [Backend pipeline](Backend/README.md), [Benchmark workspace](Backend/Benchmark/README.md), [Firmware](firmware/README.md), [Frontend dashboard](Frontend/README.md). Full map: [`public-docs/README.md`](public-docs/README.md).
+Read in this order: [System architecture](public-docs/architecture.md), [Repository hygiene](public-docs/repository-hygiene.md), [Backend pipeline](Backend/README.md), [Benchmark workspace](research/agrifusion_research/README.md), [Firmware](firmware/README.md), [Frontend dashboard](Frontend/README.md). Full map: [`public-docs/README.md`](public-docs/README.md).
 
 ## What is intentionally not in the source contract
 

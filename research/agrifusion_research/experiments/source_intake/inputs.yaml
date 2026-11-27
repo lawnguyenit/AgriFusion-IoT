@@ -1,0 +1,4 @@
+description: >
+  Requires --source-csv (flattened Firebase CSV export; the old default was a path on the owner's PC).
+  No historical run is recorded for it; pass the paths on the command line.
+inputs: {}

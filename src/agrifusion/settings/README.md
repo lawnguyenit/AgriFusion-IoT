@@ -32,7 +32,7 @@ settings/
 
 - object `BackendSettings`
 - object `BackendPaths`
-- helper IO ổn định cho `ingest`, `canonical`, `Benchmark`
+- helper IO ổn định cho `ingest`, `canonical`, `research/agrifusion_research`
 
 ## 5. Ví dụ kết quả
 
@@ -77,4 +77,4 @@ Ngoài ra module này chỉ dùng thư viện chuẩn của Python cho phần c�
 ## 9. Rủi ro và giới hạn
 
 - Nếu `.env` thiếu hoặc sai, lỗi sẽ xuất hiện từ rất sớm ở infrastructure adapter hoặc Layer0.
-- Thay đổi path chuẩn trong `Config` có thể ảnh hưởng dây chuyền đến `Core` và `Benchmark`.
+- Thay đổi path chuẩn trong `Config` có thể ảnh hưởng dây chuyền đến `Core` và `research/agrifusion_research`.

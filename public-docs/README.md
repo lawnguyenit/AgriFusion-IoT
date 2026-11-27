@@ -10,7 +10,7 @@ hardware evidence remain separate from this public orientation layer.
 2. [Repository hygiene](repository-hygiene.md)
 3. [Backend pipeline](../Backend/README.md)
 4. [Backend flow](../Backend/PIPELINE_FLOW.md)
-5. [Benchmark workspace](../Backend/Benchmark/README.md)
+5. [Benchmark workspace](../research/agrifusion_research/README.md)
 6. [Firmware](../firmware/README.md)
 7. [Frontend dashboard](../Frontend/README.md)
 
@@ -22,5 +22,5 @@ artifact, it must be labelled as such instead of being presented as a
 production guarantee.
 
 The canonical telemetry-processing package is
-`Backend/Navigation/Core`. The benchmark lane consumes the canonical Layer1
-artifacts; it does not rewrite Layer0 evidence or Layer1 outputs in place.
+`src/agrifusion` (`ingest` = Layer0, `canonical` = Layer1). The benchmark
+lane consumes the canonical Layer1 artifacts; it does not rewrite Layer0 evidence or Layer1 outputs in place.

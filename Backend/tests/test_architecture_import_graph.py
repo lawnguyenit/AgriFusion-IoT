@@ -9,8 +9,16 @@ import unittest
 import warnings
 from pathlib import Path
 
-from Backend.tests.architecture_graph import AGRIFUSION_NODES, REPO_ROOT, build_edges, mutual_pairs
+from Backend.tests.architecture_graph import (
+    AGRIFUSION_NODES,
+    REPO_ROOT,
+    _imported_modules,
+    _package_parts,
+    build_edges,
+    mutual_pairs,
+)
 
+RESEARCH_NODE_PREFIXES = ("research", "core", "external", "experiments")
 ALLOWLIST = Path(__file__).resolve().parent / "architecture" / "allowed_import_edges.txt"
 REGENERATE = "python Backend/tests/architecture/update_allowlist.py"
 
@@ -69,35 +77,71 @@ class ArchitectureImportGraphTests(unittest.TestCase):
                     undocumented.append(f"{edge[0]} -> {edge[1]}")
         self.assertEqual(undocumented, [], "Cycle edges need a '# ... to remove in <stage>' comment")
 
-    def test_known_cycle_is_present(self) -> None:
-        allowed = load_allowlist()
-        for edge in (
-            ("Benchmark.evaluation_protocols", "Benchmark.model_suite"),
-            ("Benchmark.model_suite", "Benchmark.evaluation_protocols"),
-        ):
-            self.assertIn(edge, allowed)
-            self.assertIn("to remove in s5d", allowed[edge])
+    def test_no_import_cycles(self) -> None:
+        """s5d removed the last cycle (evaluation_protocols <-> model_suite); keep it that way."""
+        self.assertEqual(mutual_pairs(set(build_edges())), [])
 
-    def test_graph_detects_a_new_edge(self) -> None:
-        """Guard the guard: the comparison reports an edge missing from the allow-list."""
-        actual = {("ingest", "Benchmark.model_suite"): ["x.py:1"], **{e: ["y.py:1"] for e in load_allowlist()}}
-        new, stale = diff_edges(actual, load_allowlist())
-        self.assertEqual(new, [("ingest", "Benchmark.model_suite")])
-        self.assertEqual(stale, [])
+    def test_evaluation_protocols_does_not_import_model_suite(self) -> None:
+        """evaluation_protocols defines protocol/fold contracts; model fitting lives in model_suite."""
+        self.assertNotIn(("core.evaluation_protocols", "core.model_suite"), set(build_edges()))
 
-    def test_agrifusion_does_not_import_backend_or_benchmark(self) -> None:
-        """Hard rule, independent of the allow-list: the installable package never depends on Backend/."""
+    def test_core_never_imports_external_or_experiments(self) -> None:
+        """Dependencies flow experiments -> external -> core -> agrifusion, never back."""
         offending = [
             f"{src} -> {dst}" for (src, dst) in build_edges()
-            if src in AGRIFUSION_NODES and (dst.startswith("Benchmark") or dst == "Backend")
+            if src.split(".")[0] == "core" and dst.split(".")[0] in {"external", "experiments", "research"}
         ]
         self.assertEqual(offending, [])
 
-    def test_ingest_and_canonical_stay_independent(self) -> None:
-        """Layer0 (ingest) and Layer1 (canonical) meet only in the CLI, never import each other."""
-        edges = set(build_edges())
-        self.assertNotIn(("ingest", "canonical"), edges)
-        self.assertNotIn(("canonical", "ingest"), edges)
+    def test_external_never_imports_experiments(self) -> None:
+        offending = [
+            f"{src} -> {dst}" for (src, dst) in build_edges()
+            if src.split(".")[0] == "external" and dst.split(".")[0] in {"experiments", "research"}
+        ]
+        self.assertEqual(offending, [])
+
+    def test_graph_detects_a_new_edge(self) -> None:
+        """Guard the guard: the comparison reports an edge missing from the allow-list."""
+        actual = {("ingest", "core.model_suite"): ["x.py:1"], **{e: ["y.py:1"] for e in load_allowlist()}}
+        new, stale = diff_edges(actual, load_allowlist())
+        self.assertEqual(new, [("ingest", "core.model_suite")])
+        self.assertEqual(stale, [])
+
+    def test_agrifusion_does_not_import_backend_or_benchmark(self) -> None:
+        """Hard rule, independent of the allow-list: agrifusion never depends on Backend/ or agrifusion_research."""
+        offending = [
+            f"{src} -> {dst}" for (src, dst) in build_edges()
+            if src in AGRIFUSION_NODES and (dst in RESEARCH_NODE_PREFIXES or dst.startswith(RESEARCH_NODE_PREFIXES) or dst == "Backend")
+        ]
+        self.assertEqual(offending, [])
+
+    def test_ingest_never_imports_canonical(self) -> None:
+        """Data flows ingest -> canonical; ingest must not know canonical."""
+        self.assertNotIn(("ingest", "canonical"), set(build_edges()))
+
+    def test_canonical_reads_ingest_only_through_record_store(self) -> None:
+        """canonical may import ONE ingest module: the documented on-disk reader API
+        (agrifusion.ingest.record_store), and that module imports nothing else from
+        agrifusion, so the canonical -> ingest edge cannot grow into a coupling."""
+        import ast
+
+        allowed = ["agrifusion", "ingest", "record_store"]
+        offending = []
+        for path in sorted((REPO_ROOT / "src" / "agrifusion" / "canonical").rglob("*.py")):
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            for parts, lineno in _imported_modules(tree, _package_parts(path)):
+                # Only `from agrifusion.ingest.record_store import ...` passes.
+                if parts[:2] == ["agrifusion", "ingest"] and parts[:3] != allowed:
+                    offending.append(f"{path.relative_to(REPO_ROOT).as_posix()}:{lineno} {'.'.join(parts)}")
+        self.assertEqual(offending, [])
+
+        store = REPO_ROOT / "src" / "agrifusion" / "ingest" / "record_store.py"
+        tree = ast.parse(store.read_text(encoding="utf-8"))
+        internal = [
+            ".".join(parts) for parts, _ in _imported_modules(tree, _package_parts(store))
+            if parts and parts[0] == "agrifusion"
+        ]
+        self.assertEqual(internal, [], "record_store must stay stdlib-only")
 
     def test_leaf_packages_have_no_upward_imports(self) -> None:
         """settings and io are leaves: they import no other agrifusion subpackage except settings -> none."""

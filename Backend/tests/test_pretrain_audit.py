@@ -8,9 +8,9 @@ from pathlib import Path
 
 import pandas as pd
 
-from Backend.Benchmark.dataset_views.validators import dataframe_schema_hash, hash_dataframe_rows, stable_hash_object
-from Backend.Benchmark.pretrain_audit import PretrainAuditConfig, run_pretrain_audit
-from Backend.Benchmark.pretrain_audit.selection import resolve_feature_selection
+from agrifusion_research.core.common.digests import dataframe_schema_hash, hash_dataframe_rows, stable_hash_object
+from agrifusion_research.core.gates.pretrain_audit import PretrainAuditConfig, run_pretrain_audit
+from agrifusion_research.core.gates.pretrain_audit.selection import resolve_feature_selection
 
 
 class PretrainAuditTests(unittest.TestCase):

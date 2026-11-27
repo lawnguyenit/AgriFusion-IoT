@@ -2,11 +2,11 @@ import unittest
 
 import pandas as pd
 
-from Backend.Benchmark.source_intake.adapter import (
+from agrifusion_research.experiments.source_intake.adapter import (
     build_canonical_candidate,
     build_legacy_projection,
 )
-from Backend.Benchmark.source_intake.audit import build_audit
+from agrifusion_research.experiments.source_intake.audit import build_audit
 
 
 def _source_frame() -> pd.DataFrame:

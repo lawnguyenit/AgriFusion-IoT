@@ -10,13 +10,13 @@ assets.
 
 The following must remain local or be handled as explicit release artifacts:
 
-- `Backend/Output_data/` — generated Layer0/Layer1 outputs;
+- `output/` (and the legacy `Backend/Output_data/`) — generated Layer0/Layer1 outputs;
 - benchmark `artifacts/`, datasets, reports and model files;
-- `IoT_Node/.pio/` — PlatformIO build state;
+- `firmware/.pio/` — PlatformIO build state;
 - `Frontend/tmp-edge-profile/` — browser profile state;
 - `Secrets/`, `.env` (and legacy `Backend/.env`), frontend local Firebase config and
-  `IoT_Node/lib/Config/src/Config.private.h` — credentials or local secrets;
-- large research datasets and dated local evidence under `Docs/`.
+  firmware private config (`Config.private.h`, under `firmware/lib/config_Config`) — credentials or local secrets;
+- large research datasets and dated local evidence under `docs/`.
 
 Do not add a generated output to the source tree merely to make a README
 example appear to work. Use a small fixture or a documented local input

@@ -4,7 +4,7 @@ import json
 
 import pandas as pd
 
-from Backend.Benchmark.model_suite.analysis.online_run_depth_stratification import (
+from agrifusion_research.experiments.posthoc_model_analysis.online_run_depth_stratification import (
     LOW_LABEL,
     build_prediction_summary,
     build_population_summary,

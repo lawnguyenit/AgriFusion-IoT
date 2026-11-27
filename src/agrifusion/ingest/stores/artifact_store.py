@@ -13,11 +13,6 @@ def write_latest_meta(settings: BackendSettings, payload: dict[str, Any]) -> Pat
     return settings.latest_meta_local_path
 
 
-def write_latest_payload(settings: BackendSettings, payload: dict[str, Any]) -> Path:
-    write_json(settings.latest_payload_path, payload)
-    return settings.latest_payload_path
-
-
 def write_source_audit_artifacts(
     settings: BackendSettings,
     manifest_payload: dict[str, Any],

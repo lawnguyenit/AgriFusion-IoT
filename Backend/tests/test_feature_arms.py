@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from Backend.Benchmark.dataset_views.configs.feature_arms import (
+from agrifusion_research.core.dataset_views.configs.feature_arms import (
     BASE_5_FEATURES,
     FULL_9_FEATURES,
     get_feature_arm,

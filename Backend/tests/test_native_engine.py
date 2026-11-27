@@ -7,22 +7,22 @@ from pathlib import Path
 
 import pandas as pd
 
-from Backend.Benchmark.weak_labels.contracts.native import (
+from agrifusion_research.core.weak_labels.contracts.native import (
     NativeContract,
     NativeContractError,
     deterministic_id,
 )
-from Backend.Benchmark.weak_labels.compatibility.differential.audit import build_shadow_differential_audit
-from Backend.Benchmark.weak_labels.semantic.continuity.primitives import build_continuity_primitives
-from Backend.Benchmark.weak_labels.semantic.derived_evidence.transforms import build_derived_evidence
-from Backend.Benchmark.weak_labels.provenance.materialize import materialize_from_assignments
-from Backend.Benchmark.weak_labels.provenance.release import (
+from agrifusion_research.core.weak_labels.compatibility.differential.audit import build_shadow_differential_audit
+from agrifusion_research.core.weak_labels.semantic.continuity.primitives import build_continuity_primitives
+from agrifusion_research.core.weak_labels.semantic.derived_evidence.transforms import build_derived_evidence
+from agrifusion_research.core.weak_labels.provenance.materialize import materialize_from_assignments
+from agrifusion_research.core.weak_labels.provenance.release import (
     build_label_release_manifest,
     materialize_label_release_frame,
 )
-from Backend.Benchmark.evaluation_protocols.pipeline.consumption import load_native_label_sources
-from Backend.Benchmark.weak_labels.semantic.point.resolver import resolve_point_assignments
-from Backend.Benchmark.weak_labels.semantic.same_y.projection import build_same_y_transfer_projection
+from agrifusion_research.core.evaluation_protocols.pipeline.consumption import load_native_label_sources
+from agrifusion_research.core.weak_labels.semantic.point.resolver import resolve_point_assignments
+from agrifusion_research.core.weak_labels.semantic.same_y.projection import build_same_y_transfer_projection
 
 
 class NativeEngineTests(unittest.TestCase):

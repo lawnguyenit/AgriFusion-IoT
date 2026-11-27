@@ -8,10 +8,10 @@ the same artifacts.
 flowchart TB
     subgraph production[Production telemetry lane]
         source[IoT node, Firebase RTDB,<br/>or JSON export]
-        layer0[Backend Layer0<br/>immutable source evidence and sync state]
-        raw[Layer0 raw artifacts]
-        layer1[Backend Layer1<br/>canonical history and field governance]
-        canonical[Layer1 canonical artifacts]
+        layer0[agrifusion.ingest<br/>verbatim record store and sync state]
+        raw[output/Layer0 records]
+        layer1[agrifusion.canonical<br/>canonical history and field governance]
+        canonical[output/Layer1 canonical artifacts]
         ops[Operational consumers]
         source --> layer0 --> raw --> layer1 --> canonical --> ops
     end
@@ -37,22 +37,26 @@ flowchart TB
     canonical --> evaluation
 
     subgraph frontend[Separate presentation surface]
+        publish[agrifusion.publish]
         result[Firebase result/* contract<br/>or local demo payload]
         dashboard[Frontend/public dashboard]
-        result --> dashboard
+        publish --> result --> dashboard
     end
+
+    canonical --> publish
 ```
 
-The frontend contract is separate from Layer1: the current tracked backend
-does not publish Firebase `result/*`. For detailed implemented handoffs,
+The frontend contract is separate from Layer1, and `agrifusion.publish` is the
+only bridge between them (see [Frontend surface](#frontend-surface)). For detailed implemented handoffs,
 including optional external-dataset and pre-train audit paths, see the
 [Backend Pipeline Flow](../Backend/PIPELINE_FLOW.md).
+Paths below are relative to the repository root.
 
 ## Operational telemetry lane
 
 ### Edge
 
-`IoT_Node/src/main.cpp` delegates to `IoT_Node/lib/AppEntry`. The current
+`firmware/src/main.cpp` delegates to `firmware/lib/app_AppEntry`. The current
 production path is `AppEntry -> AppRuntime`, which coordinates sensor
 collection, transport readiness, buffering/replay and RTDB publication.
 
@@ -68,13 +72,18 @@ treated as the production source of truth.
 
 ### Backend
 
-- `Backend/Navigation/Core/layer0` loads Firebase or JSON-export input and
-  stores auditable raw artifacts under `Backend/Output_data/Layer0`.
-- `Backend/Navigation/Core/layer1` converts source records into the canonical
-  history contract and writes reports, quality views and compatibility outputs
-  under `Backend/Output_data/Layer1`.
-- `Backend/Config` owns runtime settings, environment loading, paths and
-  storage helpers.
+The backend is the installable package `src/agrifusion` (CLI: `agrifusion`):
+
+- `ingest` (Layer0) loads Firebase or JSON-export input and stores every
+  record verbatim in a hashed, immutable record store under `output/Layer0`.
+- `canonical` (Layer1) converts stored records into the canonical history
+  contract and writes reports, quality views and compatibility outputs under
+  `output/Layer1`.
+- `cloud` is the Firebase RTDB client, `publish` writes the dashboard contract
+  (below), `settings` owns runtime settings, environment loading and paths, and
+  `io` holds table/JSON storage helpers.
+- `Backend/` now only holds the tests (`Backend/tests`) and a deprecated
+  `python -m Backend.main` shim.
 
 The backend accepts a logical `--node-id`; it is not hard-coded to Node2.
 When reading the firmware described above, configure the backend with the
@@ -82,8 +91,9 @@ matching node id instead of relying on the default.
 
 ## Research benchmark lane
 
-The benchmark lane starts from frozen Layer1 canonical artifacts. Its owners
-are:
+The benchmark lane (`research/agrifusion_research`, sub-packages under
+`core/`, `external/` and `experiments/`) starts from frozen Layer1 canonical
+artifacts. Its owners are:
 
 | Lane | Owns | Does not own |
 | --- | --- | --- |
@@ -95,12 +105,16 @@ are:
 | `model_suite` | model execution, metrics and reports | redefining the benchmark contract |
 
 The handoff is file-based and versioned. The central contract is described in
-[Benchmark to Model Suite](../Backend/Benchmark/BENCHMARK_TO_MODEL_SUITE_SPEC.md).
+[Benchmark to Model Suite](../research/agrifusion_research/core/BENCHMARK_TO_MODEL_SUITE_SPEC.md).
 
 ## Frontend surface
 
 `Frontend/public` consumes `result/*` from Firebase when configured for live
-mode, and otherwise renders a deterministic demo payload. The current
-tracked backend does not publish that `result/*` contract, so the dashboard
-must not be described as the automatic output of `Backend/main.py` until a
-publisher is implemented and verified.
+mode, and otherwise renders a deterministic demo payload. The contract is
+[`docs/contracts/result.md`](../docs/contracts/result.md).
+
+The publisher exists: `src/agrifusion/publish`, run as `agrifusion publish`
+(dry-run by default, `--apply` writes). It is tested against the contract with a
+fake client. It has not been run against live Firebase yet; that needs the
+owner's service account. Until then the dashboard must not be described as
+verified live output of the backend.

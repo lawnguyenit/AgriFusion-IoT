@@ -4,13 +4,13 @@ import unittest
 
 import pandas as pd
 
-from Backend.Benchmark.external_support_audit.audit import (
+from agrifusion_research.external.support_audit.audit import (
     audit_candidate_support,
     summarize_entity_estimability,
     summarize_entity_support,
 )
-from Backend.Benchmark.external_support_audit.grid import summarize_candidate_support_by_partition
-from Backend.Benchmark.external_support_audit.pipeline import summarize_candidate_gate_rows
+from agrifusion_research.external.support_audit.grid import summarize_candidate_support_by_partition
+from agrifusion_research.external.support_audit.pipeline import summarize_candidate_gate_rows
 
 
 class ExternalSupportAuditTests(unittest.TestCase):

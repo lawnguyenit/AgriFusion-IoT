@@ -14,7 +14,7 @@
   "node_id": "Node2",
   "previous_event_key": null,
   "primary_poll_after_sec": 3600,
-  "record_sha256": "829fffbeb2f683fd0155f8e0f0c2a6c499a30f72fb127fab497070f9ec7f7c19",
+  "record_sha256": "5fbbd3313ba7c9ad56ac9534e9c0893fd3e6273d000b054b3076b7bbad9d40ab",
   "retry_after_no_change_sec": 300,
   "schema_version": 1,
   "server_delta_in_expected_range": false,

@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from Backend.Benchmark.weak_labels.lifecycle.phase_b_contract.threshold_audit import (
+from agrifusion_research.experiments.weak_labels_phases.phase_b_contract.threshold_audit import (
     build_candidate_threshold_audit,
     load_phase_a_threshold_inputs,
 )

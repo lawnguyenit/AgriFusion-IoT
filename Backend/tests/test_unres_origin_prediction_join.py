@@ -2,7 +2,7 @@ import unittest
 
 import pandas as pd
 
-from Backend.Benchmark.model_suite.analysis.unres_origin_prediction_join import (
+from agrifusion_research.experiments.posthoc_model_analysis.unres_origin_prediction_join import (
     build_confusion_summary,
     build_joined_frame,
 )
