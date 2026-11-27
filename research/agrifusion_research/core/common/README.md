@@ -1,38 +1,14 @@
-# Benchmark Common
+# core/common
 
-## Purpose
+Leaf utilities shared by every research lane (imports only `agrifusion.settings`).
 
-This module holds benchmark-wide path registries shared by the active
-forward benchmark families.
+| Module | Provides |
+|--------|----------|
+| `paths.py` | `REPO_ROOT`, `RESEARCH_OUTPUT_ROOT` (`output/research`), `<LANE>_ROOT`, `lane_output_root()` |
+| `digests.py` | every hash helper: `file_sha256`, `bytes_sha256`; normalized family (`stable_digest`, `dataframe_digest`, ...); raw family (`stable_hash_object`, `hash_dataframe_rows`, `dataframe_schema_hash`). The two families give different values for floats/None; keep the one a caller already uses. |
+| `artifacts.py` | `create_run_directory`, `utc_run_id`, `write_json`, `write_yaml`, `write_text` |
+| `run_inputs.py` | YAML run-input files (`--inputs`) validated into `RunInputs`; `parse_with_run_inputs` |
+| `provenance.py` | `resolve_code_commit(repo_root)` |
 
-It exists to prevent each benchmark package from rebuilding `Path(__file__).resolve().parents[...]`
-with slightly different assumptions.
-
-## Input
-
-- `Backend.Config.paths.BACKEND_PATHS`
-
-## Output
-
-- Shared constants such as:
-  - `BENCHMARK_ROOT`
-  - `DATASET_VIEWS_ROOT`
-  - `WEAK_LABELS_ROOT`
-  - `EVALUATION_PROTOCOLS_ROOT`
-  - `VALIDITY_LIFECYCLE_ROOT`
-  - `MODEL_SUITE_ROOT`
-
-## Command
-
-This module is import-only and has no standalone command.
-
-## Assumptions
-
-- `Backend/Config/paths.py` remains the single source of truth for backend-level directories.
-- The active benchmark authority lanes continue to live under
-  `research/agrifusion_research/`.
-
-## Risks / Limits
-
-- This module standardizes active benchmark roots only.
-- Direct-execution entrypoints may still keep a small `sys.path` bootstrap block so they can run as scripts.
+Merged from the former `common/` and `shared/` packages in GD5; the legacy label/split
+helpers that had no importer were deleted (see git history before commit s5b).

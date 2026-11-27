@@ -6,7 +6,9 @@ from pathlib import Path
 import pandas as pd
 import yaml
 
-from agrifusion_research.core.model_suite.registries.model_catalog import DEFAULT_ARTIFACT_ROOT as MODEL_SUITE_ARTIFACT_ROOT
+from agrifusion_research.core.common.paths import MODEL_SUITE_ROOT
+
+MODEL_SUITE_ARTIFACT_ROOT = MODEL_SUITE_ROOT / "artifacts"  # same value as model_suite DEFAULT_ARTIFACT_ROOT
 
 
 LEGACY_COMPARISON_ALIASES: dict[str, str] = {

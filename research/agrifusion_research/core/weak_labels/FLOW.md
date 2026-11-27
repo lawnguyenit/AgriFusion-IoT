@@ -1,7 +1,7 @@
 # Weak Labels Flow
 
 Sơ đồ chi tiết theo từng phase nằm tại
-[`architecture/README.md`](architecture/README.md). File này chỉ giữ lifecycle
+[`architecture/README.md`](../../../../docs/archive/weak_labels_phases/architecture_2026-08/README.md). File này chỉ giữ lifecycle
 tổng quát; các phase không được đọc như một function call graph.
 
 ## W1 package boundaries
@@ -47,9 +47,9 @@ The phase folders contain the human-readable report and two data-flow views:
 
 | Lifecycle unit | Report | Overview | Detail |
 |---|---|---|---|
-| Phase A Readiness | [`phase_a_readiness/REPORT.md`](lifecycle/phase_a_readiness/REPORT.md) | [`flow_overview.mmd`](lifecycle/phase_a_readiness/flow_overview.mmd) | [`flow_detail.mmd`](lifecycle/phase_a_readiness/flow_detail.mmd) |
-| Phase B Contract | [`phase_b_contract/REPORT.md`](lifecycle/phase_b_contract/REPORT.md) | [`flow_overview.mmd`](lifecycle/phase_b_contract/flow_overview.mmd) | [`flow_detail.mmd`](lifecycle/phase_b_contract/flow_detail.mmd) |
-| Phase C Native | [`phase_c_native/REPORT.md`](lifecycle/phase_c_native/REPORT.md) | [`flow_overview.mmd`](lifecycle/phase_c_native/flow_overview.mmd) | [`flow_detail.mmd`](lifecycle/phase_c_native/flow_detail.mmd) |
+| Phase A Readiness | [`phase_a_readiness/REPORT.md`](../../../../docs/archive/weak_labels_phases/2026-08-03_phase_a_readiness_REPORT.md) | [`flow_overview.mmd`](../../experiments/weak_labels_phases/phase_a_readiness/flow_overview.mmd) | [`flow_detail.mmd`](../../experiments/weak_labels_phases/phase_a_readiness/flow_detail.mmd) |
+| Phase B Contract | [`phase_b_contract/REPORT.md`](../../../../docs/archive/weak_labels_phases/2026-08-04_phase_b_contract_REPORT.md) | [`flow_overview.mmd`](../../experiments/weak_labels_phases/phase_b_contract/flow_overview.mmd) | [`flow_detail.mmd`](../../experiments/weak_labels_phases/phase_b_contract/flow_detail.mmd) |
+| Phase C Native | [`phase_c_native/REPORT.md`](../../../../docs/archive/weak_labels_phases/2026-08-08_phase_c_native_REPORT.md) | [`flow_overview.mmd`](lifecycle/phase_c_native/flow_overview.mmd) | [`flow_detail.mmd`](lifecycle/phase_c_native/flow_detail.mmd) |
 
 The diagrams describe data entering a meaningful processing block, the rules
 and parameters applied there, and the artifact leaving it. They are not a

@@ -7,7 +7,7 @@
 ## Architecture map
 
 Để đọc lifecycle theo mục đích xử lý thay vì theo module code, xem
-[`architecture/README.md`](architecture/README.md). Tài liệu này tách mỗi phase
+[`architecture/README.md`](../../../../docs/archive/weak_labels_phases/architecture_2026-08/README.md). Tài liệu này tách mỗi phase
 thành `core flow`, `support flow`, inputs/outputs và artifact authority.
 
 New code uses explicit lifecycle and responsibility namespaces:
@@ -56,9 +56,9 @@ consumed by the native engine.
 
 Phase lifecycle documentation:
 
-- [Phase A Data Audit](lifecycle/phase_a_readiness/README.md)
-- [Phase B Semantic Contract](lifecycle/phase_b_contract/REPORT.md)
-- [Phase C Native Label Release](lifecycle/phase_c_native/REPORT.md)
+- [Phase A Data Audit](../../experiments/weak_labels_phases/phase_a_readiness/README.md)
+- [Phase B Semantic Contract](../../../../docs/archive/weak_labels_phases/2026-08-04_phase_b_contract_REPORT.md)
+- [Phase C Native Label Release](../../../../docs/archive/weak_labels_phases/2026-08-08_phase_c_native_REPORT.md)
 
 Run it explicitly:
 

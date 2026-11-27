@@ -57,4 +57,4 @@ python -m agrifusion_research.external.intake.main --dataset uci_air_quality_360
 
 Read [FLOW.md](FLOW.md) for the implemented responsibilities and handoff.
 The source-aware value/window feature stage is documented in
-[`../external_features/README.md`](../external_features/README.md).
+[`../features/README.md`](../features/README.md).

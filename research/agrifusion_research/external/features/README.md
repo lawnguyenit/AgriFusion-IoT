@@ -22,5 +22,5 @@ Use `--window-hours` to request another explicit set of durations and
 not assign labels or fit models.
 
 External q/τ label candidates are built in the separate
-[`external_labels`](../external_labels/README.md) lane. Candidate labels and
+[`external_labels`](../labels/README.md) lane. Candidate labels and
 the feature superset join only by `sample_id` in the pre-train audit.

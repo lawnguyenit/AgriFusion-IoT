@@ -95,12 +95,13 @@ The backend has no default node id: pass `--node-id` (or set `EXPORT_NODE_ID` in
 Benchmark:
 
 ```powershell
-python -m agrifusion_research.core.dataset_views.main --help
-python -m agrifusion_research.core.evaluation_protocols.main --help
-python -m agrifusion_research.core.model_suite.cli --help
+python -m agrifusion_research list            # all research commands (console script: agrifusion-research)
+python -m agrifusion_research dataset-views --help
+python -m agrifusion_research evaluation-protocols --help
+python -m agrifusion_research model --help
 ```
 
-Start with [Backend/PIPELINE_FLOW.md](Backend/PIPELINE_FLOW.md) and the [benchmark handoff contract](research/agrifusion_research/BENCHMARK_TO_MODEL_SUITE_SPEC.md). For the frozen paper results, see the [paper reproducibility guide](Docs/research/reproducibility/paper-v1.0/README.md); it maps the release bundle to manuscript Tables 2-4 and records the official Stuard Version 2 source hashes.
+Start with [Backend/PIPELINE_FLOW.md](Backend/PIPELINE_FLOW.md) and the [benchmark handoff contract](research/agrifusion_research/core/BENCHMARK_TO_MODEL_SUITE_SPEC.md). For the frozen paper results, see the [paper reproducibility guide](Docs/research/reproducibility/paper-v1.0/README.md); it maps the release bundle to manuscript Tables 2-4 and records the official Stuard Version 2 source hashes.
 
 Dashboard (demo mode by default; live Firebase mode needs an untracked local `Frontend/public/config.local.json`):
 
@@ -112,7 +113,8 @@ python -m http.server 4173 -d Frontend/public
 
 ```
 src/agrifusion/ telemetry backend package: settings, io, ingest (Layer0), canonical (Layer1), cloud, cli
-Backend/       Benchmark research lanes and tests (research/agrifusion_research moves out in a later stage)
+research/      research package agrifusion_research: core pipeline, external datasets, experiments
+Backend/       tests (Backend/tests) and the deprecated `python -m Backend.main` shim
 output/        generated Layer0/Layer1 data (gitignored)
 IoT_Node/      ESP32-S3 firmware (PlatformIO)
 Frontend/      static Firebase RTDB dashboard (demo mode by default)

@@ -45,8 +45,8 @@ flowchart LR
 
 ### Sơ đồ B1
 
-- [Sơ đồ tổng quan B1](b1_flow_overview.mmd)
-- [Sơ đồ chi tiết B1](b1_flow_detail.mmd)
+- [Sơ đồ tổng quan B1](../../../research/agrifusion_research/experiments/weak_labels_phases/phase_b_contract/b1_flow_overview.mmd)
+- [Sơ đồ chi tiết B1](../../../research/agrifusion_research/experiments/weak_labels_phases/phase_b_contract/b1_flow_detail.mmd)
 
 ### Ngưỡng được B1 kiểm tra
 

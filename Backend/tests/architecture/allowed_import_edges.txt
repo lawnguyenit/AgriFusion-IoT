@@ -26,7 +26,6 @@ core.evaluation_protocols -> settings
 core.gates -> core.common
 core.gates -> core.dataset_views
 core.gates -> core.evaluation_protocols
-core.gates -> core.model_suite
 core.gates -> core.protocol_registry
 core.gates -> core.weak_labels
 core.model_suite -> core.common

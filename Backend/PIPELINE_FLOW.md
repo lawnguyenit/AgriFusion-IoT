@@ -20,115 +20,78 @@ different owners and release gates.
 
 ```mermaid
 flowchart TD
-    A["CLI: agrifusion (src/agrifusion/cli.py)"] --> B["Layer0IngestionPipeline.run()"]
-    B --> C["Raw artifacts in output/Layer0"]
-    C --> D["PreprocessingPipeline.run()"]
-    D --> E["Canonical Layer1 artifacts in output/Layer1"]
+    A["agrifusion (src/agrifusion/cli.py)"] --> B["ingest: Layer0IngestionPipeline"]
+    B --> C["output/Layer0"]
+    C --> D["canonical: PreprocessingPipeline"]
+    D --> E["output/Layer1 (canonical parquet, manifest, segments)"]
 
-    F["CLI: Benchmark/dataset_views/main.py"] --> G["materialize_dataset_views()"]
-    E --> G
-    G --> H["Feature-view artifacts"]
-    H --> U["Optional pretrain_audit selection + keyed checks"]
+    E --> PR["core/protocol_registry: E1/E2/E3, stage authorities, fold policy"]
+    E --> DV["core/dataset_views: feature views X + superset"]
+    PR --> WL["core/weak_labels (phase C native engine): label release y"]
+    E --> WL
+    PR --> EP["core/evaluation_protocols: folds, cohorts, runner contract"]
+    DV --> EP
+    WL --> EP
+    EP --> RC["runner contract + protocol_validation_report.json (validation_status)"]
+    RC --> VL["core/gates/validity_lifecycle: re-audit locked sample universe"]
+    RC --> G{"model_suite training gate: validation_status == ready?"}
+    G -- yes, or --allow-unaudited (recorded) --> MS["core/model_suite: fit, metrics, predictions, plots"]
 
-    X["External source files or explicit download"] --> Y["Benchmark/external_intake"]
-    Y --> Z["Immutable external raw release + canonical candidate"]
-    Z --> W["Benchmark/external_features"]
-    Z --> WL["Benchmark/external_labels: q/τ candidates + support audit"]
-    Z --> ES["Benchmark/external_splits: chronological shared-timestamp blocks"]
-    WL --> SA["Benchmark/external_support_audit: B2 TEMPORAL mapping"]
-    ES --> SA
-    WL --> SA
-    W --> U
-    WL --> U
-    ES --> U
-    SA --> U
+    X["external source files"] --> XI["external/intake"]
+    XI --> XF["external/features"]
+    XI --> XL["external/labels"]
+    XI --> XS["external/splits"]
+    XL --> XA["external/support_audit"]
+    XS --> XA
+    XF --> PA["core/gates/pretrain_audit: select groups, key checks"]
+    XL --> PA
+    XS --> PA
+    XA --> PA
+    PA -- "audit_status = ready_for_model_policy_review" --> ML["core/model_suite/multilabel"]
 
-    I["CLI: Benchmark/weak_labels/main.py"] --> J["build_weak_labels()"]
-    E --> J
-    J --> K["Weak-label artifacts"]
-    K --> U
-
-    L["CLI: Benchmark/evaluation_protocols/main.py"] --> M["build_evaluation_protocols()"]
-    E --> M
-    H --> M
-    K --> M
-    M --> N["Runner contract: task/comparison/frozen manifests"]
-    N --> U
-    U --> V["Selected X, Y, split artifacts + audit report"]
-
-    R["CLI: Benchmark/validity_lifecycle/main.py"] --> S["build_validity_lifecycle()"]
-    N --> S
-    E --> S
-    H --> S
-    K --> S
-    S --> T["Lifecycle registry, audits, gates, report"]
-
-    O["CLI: Benchmark/model_suite/cli.py"] --> P["run_smoke_suite()"]
-    N --> P
-    P --> Q["Per-job models, metrics, predictions, reports"]
-
-    U --> U2["Reviewed pretrain-audit artifact"]
-    U2 --> ML["Benchmark/model_suite/multilabel"]
-    ML --> ML2["Independent target heads + joint prediction state"]
+    PH["experiments/weak_labels_phases (phase A readiness, phase B contract)"] -. files .-> WL
+    EXP["experiments/* (k_window_variants, wade_calibration, ...)"] -. read runs via inputs.yaml .-> MS
 ```
+
+All research commands run through one CLI: `python -m agrifusion_research <stage>` (see
+`research/agrifusion_research/README.md`). Research outputs go to
+`output/research/<lane>/artifacts/<run_id>/`.
 
 ## What each stage owns
 
-- `src/agrifusion/cli.py`
-  - orchestrates Layer0 and Layer1 only
-  - does not run benchmark lanes
-- `src/agrifusion/ingest`
-  - fetches or loads raw telemetry
-  - decides sync behavior
-  - persists immutable evidence
-- `src/agrifusion/canonical`
-  - builds canonical telemetry history
-  - attaches continuity and temporal fields
-  - writes reports and compatibility outputs
-- `research/agrifusion_research/core/dataset_views`
-  - builds feature matrices and an additive row-identified superset from canonical Layer1
-- `research/agrifusion_research/core/weak_labels`
-  - builds label authority from canonical Layer1
-- `research/agrifusion_research/external/labels`
-  - builds source-specific external q/τ candidate labels from allowlisted
-    measurements and keeps all candidate assignments separate from features;
-    UCI candidates are scoped to timestamps before 2005-03-01 while raw and
-  canonical intake retain the complete source file
-- `research/agrifusion_research/external/splits`
-  - creates an immutable chronological 70/15/15 partition over linked UTC
-    timestamps; shared environment/meter readings stay within one block
-- `research/agrifusion_research/external/support_audit`
-  - applies the user-selected B2 TEMPORAL support mapping to every external
-    q/τ candidate and reports class, event, and episode-cluster support by
-    partition; it does not authorize model fitting
-- `research/agrifusion_research/core/evaluation_protocols`
-  - freezes benchmark framing into a runner contract
-- `research/agrifusion_research/core/gates/validity_lifecycle`
-  - re-audits the locked benchmark sample universe as lifecycle
-    evidence for `E1`, `E2`, and `E3`
-  - does not create new train/validation/test splits
-- `research/agrifusion_research/core/model_suite`
-  - trains and evaluates models from the locked runner contract
-  - stores test-set confusion and ROC/PR charts from retained predictions
-  - provides an additive independent-head runner for multi-label audit outputs
-- `research/agrifusion_research/core/gates/pretrain_audit`
-  - selects explicit feature groups from a registered superset
-  - checks sample-key coverage across features, labels, and protocol splits
-  - reports missingness and target support before model fit without changing
-    existing `evaluation_protocols` consumers
+- `src/agrifusion` (`agrifusion` CLI): Layer0 (`ingest`) and Layer1 (`canonical`) only; never
+  imports the research package.
+- `core/protocol_registry`: E1/E2/E3 environment intervals, which stage may read which
+  environment, 7-day/5-day fold policy. Imports no later lane.
+- `core/dataset_views`: feature matrices and a row-identified superset from canonical Layer1.
+- `core/weak_labels`: label authority from canonical Layer1 through the native engine
+  (phase C). The frozen phase A/B decision code is in `experiments/weak_labels_phases`.
+- `core/evaluation_protocols`: benchmark framing, folds, and the frozen runner contract;
+  writes `validation_status`. It does not fit models.
+- `core/gates/validity_lifecycle`: lifecycle evidence for E1/E2/E3 on the locked sample
+  universe; creates no new splits.
+- `core/gates/pretrain_audit`: explicit feature-group selection and sample-key checks across
+  features, labels and splits before fitting.
+- `core/model_suite`: all model fitting (protocol jobs, smoke/full staged training,
+  multilabel heads), metrics, plots. Refuses an unaudited runner contract.
+- `external/*`: the external-dataset pipeline (intake, features, labels, splits,
+  support_audit, claims), configured by `external/datasets.py`.
+- `experiments/*`: one-off studies; nothing in core or external imports them.
 
-## Benchmark Block Diagram
+## Benchmark block diagram
 
 ```mermaid
 flowchart LR
-    A["Layer1 canonical outputs"] --> B["dataset_views"]
+    A["Layer1 canonical outputs"] --> R["protocol_registry"]
+    A --> B["dataset_views"]
     A --> C["weak_labels"]
-    A --> D["evaluation_protocols"]
+    R --> C
+    R --> D["evaluation_protocols"]
     B --> D
     C --> D
-    D --> E["Locked runner contract"]
+    D --> E["Locked runner contract + validation_status"]
     E --> F["validity_lifecycle"]
-    E --> G["model_suite"]
+    E --> G["model_suite (gate)"]
     B --> F
     C --> F
     A --> F
@@ -182,16 +145,19 @@ flowchart LR
   criteria are the current example: used for candidate Y, excluded from X.
 - Features, labels, and split manifests stay physically separate and are
   reconciled by stable `sample_id` in the audit.
-- The candidate-label profile is currently configured by dataset ID. The
-  claim inventory informs human review, but approved claim IDs are not yet an
-  enforced runtime gate. Candidate output is not a frozen target release.
-- The diagram includes an optional pre-train audit. Existing frozen in-house
-  protocol-to-model consumers have not all been migrated to require it.
+- Candidate-label and feature profiles are declared per dataset in
+  `external/datasets.py`. The claim inventory informs human review, but approved
+  claim IDs are not yet an enforced runtime gate. Candidate output is not a frozen
+  target release.
+- The multilabel runner requires a ready pre-train audit. The in-house scalar
+  model suite requires `validation_status: ready` from evaluation_protocols; it does
+  not require a validity_lifecycle or pre-train audit run.
 
 This is the current connection order:
 
 - `dataset_views` owns feature materialization.
-- `pretrain_audit` owns optional explicit group selection and keyed pre-fit checks.
+- `protocol_registry` owns environments, stage authorities and fold policy.
+- `pretrain_audit` owns explicit group selection and keyed pre-fit checks.
 - `weak_labels` owns label authority.
 - `evaluation_protocols` owns benchmark framing and runner-facing
   manifests.
@@ -213,17 +179,17 @@ This is the current connection order:
   - `artifacts/<run_id>/shared/row_index.*`
   - `artifacts/<run_id>/views/<view_id>/X.parquet`
   - `artifacts/<run_id>/views/<view_id>/feature_columns.json`
-- `weak_labels` -> `evaluation_protocols`
-  - `point/point_labels_train.parquet`
-  - `v2/v2_same_y_labels.parquet`
-  - `v2/v2_temporal_labels_*.parquet`
-  - `v6/*.parquet`
+- `weak_labels` (native label release) -> `evaluation_protocols`
+  - `run_metadata/label_release_manifest.json` (lists each task's label file)
+  - `tasks/point/assignments.parquet` and the other `tasks/<task>/` label files
+  - `cohorts/intrinsic_eligibility.parquet`, `cohorts/semantic_fold_projection_manifest.parquet`
 - `evaluation_protocols` -> `model_suite`
   - `primary_protocol/runner/task_view_registry.csv`
   - `primary_protocol/runner/task_training_manifest.parquet`
   - `primary_protocol/runner/comparison_training_manifest.parquet`
   - `primary_protocol/runner/frozen_target_manifest.parquet`
   - `primary_protocol/runner/runner_contract.json`
+  - `run_metadata/protocol_validation_report.json` (`validation_status`, training gate)
 - `evaluation_protocols` -> `validity_lifecycle`
   - `run_metadata/run_manifest.json`
   - `run_metadata/protocol_validation_report.json`
@@ -238,12 +204,7 @@ This is the current connection order:
   - `views/v1_sensor_row/X.parquet`
   - `views/v2_* / window_quality_audit.parquet`
 - `weak_labels` -> `validity_lifecycle`
-  - `point/point_labels_train.parquet`
-  - `point/point_labels_detailed.parquet`
-  - `point/point_evidence_flags.parquet`
-  - `v2/v2_same_y_labels.parquet`
-  - `v2/v2_temporal_evidence_*.parquet`
-  - `v2/v2_temporal_labels_*.parquet`
+  - the native label release referenced by the protocol run (see above)
 
 ## Stage Output Map
 
@@ -258,9 +219,11 @@ flowchart LR
     B --> B3["views/<view_id>/X.parquet"]
     B --> B4["views/v2_*/window_quality_audit.*"]
 
-    C["weak_labels"] --> C1["point/*.parquet"]
-    C --> C2["v2/*.parquet"]
-    C --> C3["v6/*.parquet"]
+    C["weak_labels (native release)"] --> C1["tasks/<task>/assignments.parquet"]
+    C --> C2["cohorts/*.parquet"]
+    C --> C3["audit/*.parquet|csv + run_metadata/label_release_manifest.json"]
+
+    R["protocol_registry"] --> R1["registry tables + run_manifest.json"]
 
     D["evaluation_protocols"] --> D1["domain_manifests/*.csv"]
     D --> D2["primary_protocol/folds/*.parquet"]
@@ -284,12 +247,15 @@ flowchart LR
 1. `src/agrifusion/cli.py`
 2. `src/agrifusion/ingest/FLOW.md`
 3. `src/agrifusion/canonical/FLOW.md`
-4. `research/agrifusion_research/core/dataset_views/FLOW.md`
-5. `research/agrifusion_research/core/weak_labels/FLOW.md`
-6. `research/agrifusion_research/core/evaluation_protocols/FLOW.md`
-7. `research/agrifusion_research/core/gates/validity_lifecycle/FLOW.md`
-8. `research/agrifusion_research/core/model_suite/FLOW.md`
-9. `research/agrifusion_research/BENCHMARK_TO_MODEL_SUITE_SPEC.md`
+4. `research/agrifusion_research/README.md`, then `core/README.md`
+5. `research/agrifusion_research/core/protocol_registry/FLOW.md`
+6. `research/agrifusion_research/core/dataset_views/FLOW.md`
+7. `research/agrifusion_research/core/weak_labels/FLOW.md`
+8. `research/agrifusion_research/core/evaluation_protocols/FLOW.md`
+9. `research/agrifusion_research/core/gates/validity_lifecycle/FLOW.md`
+10. `research/agrifusion_research/core/model_suite/FLOW.md`
+11. `research/agrifusion_research/core/BENCHMARK_TO_MODEL_SUITE_SPEC.md`
+12. `research/agrifusion_research/external/README.md`, `experiments/README.md`
 
 ## Practical documentation convention
 

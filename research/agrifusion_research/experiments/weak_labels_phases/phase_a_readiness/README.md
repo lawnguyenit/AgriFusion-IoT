@@ -37,7 +37,7 @@ B2 mới chọn và freeze operationalization.
 
 ## Tài liệu
 
-- [Báo cáo Phase A](REPORT.md)
+- [Báo cáo Phase A](../../../../../docs/archive/weak_labels_phases/2026-08-03_phase_a_readiness_REPORT.md)
 - [Sơ đồ tổng quan](flow_overview.mmd)
 - [Sơ đồ chi tiết](flow_detail.mmd)
 

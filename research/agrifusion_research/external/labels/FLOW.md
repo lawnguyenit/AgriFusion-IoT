@@ -115,7 +115,7 @@ negative finding about a claim that was never selected.
 | Change how a continuous run or missing observation maps to 0/1/unknown | [temporal.py](temporal.py) | Per-row target and status values. |
 | Change independent-head combination and `REF`/joint classes | [candidates.py](candidates.py) | Joint state only; independent head columns remain available. |
 | Change the claim evidence, what is unsupported, or why | [CLAIM_DISCOVERY.md](CLAIM_DISCOVERY.md) and the inventory logic under `claim_discovery/` | Review documentation/inventory; this does not currently block the label CLI. |
-| Change X measurements or value/window groups | [external_features/profiles.py](../external_features/profiles.py) and the feature CLI options | Feature superset and registry; criterion-only fields remain rejected. |
+| Change X measurements or value/window groups | [external_features/profiles.py](../datasets.py) and the feature CLI options | Feature superset and registry; criterion-only fields remain rejected. |
 
 Generated runs are immutable, timestamped artifacts. Edit a policy and rerun
 to create a new version; compare `candidate_registry.csv`,
