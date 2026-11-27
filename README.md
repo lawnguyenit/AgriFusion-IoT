@@ -30,7 +30,7 @@ Verified from code, tests and docs in this repo.
 - Paper v1.0 reproducibility: result bundle of 202 files with SHA-256 manifest, source hashes for the official Stuard dataset, and a table rebuild command ([guide](docs/research/reproducibility/paper-v1.0/README.md)). Not re-run for this README (it needs the release ZIP).
 - Firmware for ESP32-S3 (PlatformIO) with wake cycle, buffering/replay and Firebase publishing ([firmware README](firmware/README.md)). CI compiles the production env and 7 probe envs on every firmware change; not flashed to hardware by CI.
 - Static dashboard in safe demo mode (no credentials needed) ([Frontend README](Frontend/README.md)).
-- Tests: 233 `unittest` cases in `Backend/tests/` (contracts, processing logic, a golden test of the JSON-export → Layer0 → Layer1 chain, and an architecture test that blocks new cross-layer imports). On 2026-11-28 CI on Python 3.11 and 3.12 ran them with 0 failures and 4 skips (2 need a real Layer1 snapshot, 2 need torch/pytabkit). They do not exercise Firebase or hardware.
+- Tests: 288 `unittest` cases in `Backend/tests/` (contracts, processing logic, a golden test of the JSON-export → Layer0 → Layer1 chain, a firmware-contract ingest test, publisher tests, and an architecture test that blocks new cross-layer imports). A local run on 2026-11-28 (Python 3.12, `pip install -e ".[dev,research]"`) gave 0 failures, 5 skips and 1 known expected failure; CI runs them on Python 3.11 and 3.12. They do not exercise Firebase or hardware.
 
 ### Not yet done / not verified
 
