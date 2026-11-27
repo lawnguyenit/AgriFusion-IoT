@@ -1,7 +1,6 @@
 import argparse
 import json
 from datetime import date
-from typing import Any
 
 from agrifusion.canonical.pipelines import PreprocessingPipeline
 from agrifusion.settings.runtime import BackendSettings
@@ -79,19 +78,19 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--npk-sensor-id",
-        help="Explicit NPK sensor id injected into JSON-export payloads when missing.",
+        help="Explicit NPK sensor id used by canonical to pick the sensor from v2 records and in compat outputs.",
     )
     parser.add_argument(
         "--npk-sensor-type",
-        help="Explicit NPK sensor type injected into JSON-export payloads when missing.",
+        help="Explicit NPK sensor type used by canonical to pick the sensor from v2 records and in compat outputs.",
     )
     parser.add_argument(
         "--sht30-sensor-id",
-        help="Explicit SHT30 sensor id injected into JSON-export payloads when missing.",
+        help="Explicit SHT30 sensor id used by canonical to pick the sensor from v2 records and in compat outputs.",
     )
     parser.add_argument(
         "--sht30-sensor-type",
-        help="Explicit SHT30 sensor type injected into JSON-export payloads when missing.",
+        help="Explicit SHT30 sensor type used by canonical to pick the sensor from v2 records and in compat outputs.",
     )
     parser.add_argument(
         "--full-history",
@@ -208,8 +207,7 @@ def get_source_date_range(args: argparse.Namespace) -> tuple[date | None, date |
     )
 
 
-def run_layer0(args: argparse.Namespace, settings: BackendSettings) -> tuple[bool, Any | None]:
-    from agrifusion.canonical.loaders import FirebaseSourceLoader
+def run_layer0(args: argparse.Namespace, settings: BackendSettings) -> bool:
     from agrifusion.ingest import Layer0IngestionPipeline
 
     history_start_date, history_end_date = get_source_date_range(args)
@@ -245,7 +243,7 @@ def run_layer0(args: argparse.Namespace, settings: BackendSettings) -> tuple[boo
 
     if result is None:
         print("That bai! Kiem tra package Python, ket noi mang, va cau hinh Layer0 trong `.env` hoac CLI.")
-        return False, None
+        return False
 
     print(f"Sync status: {result.status}")
     print(f"Checked at UTC: {result.checked_at_utc}")
@@ -264,34 +262,19 @@ def run_layer0(args: argparse.Namespace, settings: BackendSettings) -> tuple[boo
     if result.latest_payload_path is not None:
         print(f"Latest payload saved to: {result.latest_payload_path}")
     if result.history_path is not None:
-        print(f"History snapshot saved to: {result.history_path}")
+        print(f"Latest record stored at: {result.history_path}")
     if full_history:
-        print(f"Full history files written: {result.full_history_written_count}")
-        print(f"Full history raw evidence files written: {result.full_history_raw_written_count}")
-
-    layer1_source_loader = None
-    if (
-        full_history
-        and settings.source_type == "firebase"
-        and pipeline.last_full_history_payload is not None
-    ):
-        layer1_source_loader = FirebaseSourceLoader.from_payloads(
-            base_dir=settings.base_dir,
-            node_id=settings.node_id,
-            history_payload=pipeline.last_full_history_payload,
-            latest_payload=pipeline.last_latest_current_payload,
-            latest_meta=pipeline.last_latest_meta_payload,
-        )
-
-    return True, layer1_source_loader
+        print(f"Telemetry records stored or verified: {result.full_history_written_count}")
+    print(f"New record files: {result.new_record_file_count}")
+    if result.run_manifest_path is not None:
+        print(f"Run manifest: {result.run_manifest_path}")
+    # Layer1 reads the record store from disk (agrifusion.ingest.record_store); there is
+    # no in-memory handoff, so `--only-layer1` and a full run read the same input.
+    return True
 
 
-def run_layer1(settings: BackendSettings, source_loader: Any | None = None) -> None:
-    layer1_result = PreprocessingPipeline(
-        settings,
-        output_root=settings.layer1_root,
-        source_loader=source_loader,
-    ).run()
+def run_layer1(settings: BackendSettings) -> None:
+    layer1_result = PreprocessingPipeline(settings, output_root=settings.layer1_root).run()
     print("--- Layer1 preprocessing hoan tat ---")
     print(f"Layer1 status: {layer1_result.status}")
     print(f"Processed source records: {layer1_result.processed_source_records}")
@@ -313,17 +296,15 @@ def main() -> None:
 
     run_layer0_flag, run_layer1_flag = resolve_layer_plan(args)
     settings = resolve_node_id(settings, layer0_will_run=run_layer0_flag)
-    layer1_source_loader = None
 
     if run_layer0_flag:
-        layer0_ok, layer1_source_loader = run_layer0(args=args, settings=settings)
-        if not layer0_ok:
+        if not run_layer0(args=args, settings=settings):
             return
     else:
         print("--- Bo qua Layer0, dung du lieu local da co ---")
 
     if run_layer1_flag:
-        run_layer1(settings=settings, source_loader=layer1_source_loader)
+        run_layer1(settings=settings)
     else:
         print("--- Bo qua Layer1 preprocessing ---")
 

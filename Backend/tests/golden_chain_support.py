@@ -4,8 +4,10 @@ Runs the real pipelines in-process on the synthetic JSON export, into a temp
 backend dir, then writes a *normalized* snapshot of the outputs:
   - run-specific values removed (``*_utc`` keys, ``age_since_*``, temp paths),
   - parquet converted to CSV (rows sorted by ``record.id``, stable float format),
-  - debug ``views/`` and the large ``source_snapshot.json`` (a copy of the input) skipped,
-  - ``raw_history`` reduced to its (content-addressed) file names.
+  - debug ``views/``, ingest ``runs/`` (one manifest per run, holds run times) and the
+    large ``source_snapshot.json`` (a copy of the input) skipped,
+  - ingest record files (``Layer0/.../records/**``) and ``new_raw/latest.json`` are kept
+    byte-for-byte (no normalization): they must be identical across runs.
 """
 from __future__ import annotations
 
@@ -28,7 +30,7 @@ EXPECTED_DIR = GOLDEN_DIR / "expected"
 NODE_ID = "Node2"
 
 _VOLATILE_KEY = re.compile(r"(_utc$|^age_since_)")
-_SKIP_PARTS = {"views", "archive_runs"}
+_SKIP_PARTS = {"views", "runs"}
 _SKIP_FILES = {"source_snapshot.json"}
 
 
@@ -96,11 +98,8 @@ def snapshot(backend_dir: Path) -> dict[str, str]:
         if _SKIP_PARTS.intersection(rel.parts) or path.name in _SKIP_FILES:
             continue
         key = rel.as_posix()
-        if "raw_history" in rel.parts:
-            files.setdefault("Layer0/Firebase_data/raw_history/INDEX.txt", "")
-            files["Layer0/Firebase_data/raw_history/INDEX.txt"] += rel.relative_to(
-                Path("Layer0/Firebase_data/raw_history")
-            ).as_posix() + "\n"
+        if "records" in rel.parts or key == "Layer0/Firebase_data/new_raw/latest.json":
+            files[key] = path.read_bytes().decode("utf-8")  # verbatim, compared byte-exact
             continue
         suffix = path.suffix.lower()
         if suffix == ".parquet":

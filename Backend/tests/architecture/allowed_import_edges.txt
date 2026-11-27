@@ -46,6 +46,7 @@ Benchmark.weak_labels -> Benchmark.protocol_registry
 Benchmark.weak_labels -> Benchmark.shared
 Benchmark.weak_labels -> io
 Benchmark.weak_labels -> settings
+canonical -> ingest   # only agrifusion.ingest.record_store (reader of ingest's on-disk format, s4f); enforced by test_canonical_reads_ingest_only_through_record_store
 canonical -> io
 canonical -> settings
 cli -> canonical

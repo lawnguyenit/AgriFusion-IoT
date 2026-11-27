@@ -1,0 +1,335 @@
+{
+  "records": {
+    "2026-09-01/1788217200": {
+      "date_key": "2026-09-01",
+      "event_key": "1788217200",
+      "versions": [
+        {
+          "file": "records/2026/09/01/node2_1788217200_2ecffc07d06ab0e3965329bd388852d5f1ef35b0229334ce082f559109ff3fde.json",
+          "sha256": "2ecffc07d06ab0e3965329bd388852d5f1ef35b0229334ce082f559109ff3fde",
+          "source_kind": "telemetry",
+          "source_path": "Node2/telemetry/2026-09-01/1788217200"
+        }
+      ]
+    },
+    "2026-09-01/1788220800": {
+      "date_key": "2026-09-01",
+      "event_key": "1788220800",
+      "versions": [
+        {
+          "file": "records/2026/09/01/node2_1788220800_7e0f454c24234dea738f01bd857ddf03b240c33af99ef864c2c3dac2007a74b4.json",
+          "sha256": "7e0f454c24234dea738f01bd857ddf03b240c33af99ef864c2c3dac2007a74b4",
+          "source_kind": "telemetry",
+          "source_path": "Node2/telemetry/2026-09-01/1788220800"
+        }
+      ]
+    },
+    "2026-09-01/1788224400": {
+      "date_key": "2026-09-01",
+      "event_key": "1788224400",
+      "versions": [
+        {
+          "file": "records/2026/09/01/node2_1788224400_cde04cf84708950aca86e0b44673eedf79b78c63ff559840822d04a29fb1c9ea.json",
+          "sha256": "cde04cf84708950aca86e0b44673eedf79b78c63ff559840822d04a29fb1c9ea",
+          "source_kind": "telemetry",
+          "source_path": "Node2/telemetry/2026-09-01/1788224400"
+        }
+      ]
+    },
+    "2026-09-01/1788228000": {
+      "date_key": "2026-09-01",
+      "event_key": "1788228000",
+      "versions": [
+        {
+          "file": "records/2026/09/01/node2_1788228000_dd891742edeb0f78e668a3647bceebd671edfa7823442c3a72cbe0033f202778.json",
+          "sha256": "dd891742edeb0f78e668a3647bceebd671edfa7823442c3a72cbe0033f202778",
+          "source_kind": "telemetry",
+          "source_path": "Node2/telemetry/2026-09-01/1788228000"
+        }
+      ]
+    },
+    "2026-09-01/1788231600": {
+      "date_key": "2026-09-01",
+      "event_key": "1788231600",
+      "versions": [
+        {
+          "file": "records/2026/09/01/node2_1788231600_dd203ae08aa08806e9669c91d1315e1f2c51ad0f1482beb7b28d29098631f430.json",
+          "sha256": "dd203ae08aa08806e9669c91d1315e1f2c51ad0f1482beb7b28d29098631f430",
+          "source_kind": "telemetry",
+          "source_path": "Node2/telemetry/2026-09-01/1788231600"
+        }
+      ]
+    },
+    "2026-09-01/1788246000": {
+      "date_key": "2026-09-01",
+      "event_key": "1788246000",
+      "versions": [
+        {
+          "file": "records/2026/09/01/node2_1788246000_e1e2da78d01559a93b4f6af78acb933a545ffce6a0dbc400ecddbf7855d743c0.json",
+          "sha256": "e1e2da78d01559a93b4f6af78acb933a545ffce6a0dbc400ecddbf7855d743c0",
+          "source_kind": "telemetry",
+          "source_path": "Node2/telemetry/2026-09-01/1788246000"
+        }
+      ]
+    },
+    "2026-09-01/1788249600": {
+      "date_key": "2026-09-01",
+      "event_key": "1788249600",
+      "versions": [
+        {
+          "file": "records/2026/09/01/node2_1788249600_d8616152985734e34e7f6cfdcc5512e5bdd8af2c62c71f6188bf18201554e613.json",
+          "sha256": "d8616152985734e34e7f6cfdcc5512e5bdd8af2c62c71f6188bf18201554e613",
+          "source_kind": "telemetry",
+          "source_path": "Node2/telemetry/2026-09-01/1788249600"
+        }
+      ]
+    },
+    "2026-09-01/1788253200": {
+      "date_key": "2026-09-01",
+      "event_key": "1788253200",
+      "versions": [
+        {
+          "file": "records/2026/09/01/node2_1788253200_afd45edd4ed7424ddffdc28845190a0657e998fc2cb3e4da8b5119cef5afd3ba.json",
+          "sha256": "afd45edd4ed7424ddffdc28845190a0657e998fc2cb3e4da8b5119cef5afd3ba",
+          "source_kind": "telemetry",
+          "source_path": "Node2/telemetry/2026-09-01/1788253200"
+        }
+      ]
+    },
+    "2026-09-01/1788256800": {
+      "date_key": "2026-09-01",
+      "event_key": "1788256800",
+      "versions": [
+        {
+          "file": "records/2026/09/01/node2_1788256800_9f5e2a7932e973396f05773961441c25a489ea35841ad9660a7cbd5691f5ae9e.json",
+          "sha256": "9f5e2a7932e973396f05773961441c25a489ea35841ad9660a7cbd5691f5ae9e",
+          "source_kind": "telemetry",
+          "source_path": "Node2/telemetry/2026-09-01/1788256800"
+        }
+      ]
+    },
+    "2026-09-01/1788260400": {
+      "date_key": "2026-09-01",
+      "event_key": "1788260400",
+      "versions": [
+        {
+          "file": "records/2026/09/01/node2_1788260400_8a4ada0084c490dec976047d7d17841bf541d41be22ac54dcb37ea90ab2cec57.json",
+          "sha256": "8a4ada0084c490dec976047d7d17841bf541d41be22ac54dcb37ea90ab2cec57",
+          "source_kind": "telemetry",
+          "source_path": "Node2/telemetry/2026-09-01/1788260400"
+        }
+      ]
+    },
+    "2026-09-01/1788264000": {
+      "date_key": "2026-09-01",
+      "event_key": "1788264000",
+      "versions": [
+        {
+          "file": "records/2026/09/01/node2_1788264000_a455b9ffbed698491b1c1ee41b19221d5527092d7c6e230897492211b62fd380.json",
+          "sha256": "a455b9ffbed698491b1c1ee41b19221d5527092d7c6e230897492211b62fd380",
+          "source_kind": "telemetry",
+          "source_path": "Node2/telemetry/2026-09-01/1788264000"
+        }
+      ]
+    },
+    "2026-09-01/1788267600": {
+      "date_key": "2026-09-01",
+      "event_key": "1788267600",
+      "versions": [
+        {
+          "file": "records/2026/09/01/node2_1788267600_c2bf91e3546f29ed33d056b9edc17f149992c6d186ac98eebbd4ca8dd0a9166f.json",
+          "sha256": "c2bf91e3546f29ed33d056b9edc17f149992c6d186ac98eebbd4ca8dd0a9166f",
+          "source_kind": "telemetry",
+          "source_path": "Node2/telemetry/2026-09-01/1788267600"
+        }
+      ]
+    },
+    "2026-09-01/1788271200": {
+      "date_key": "2026-09-01",
+      "event_key": "1788271200",
+      "versions": [
+        {
+          "file": "records/2026/09/01/node2_1788271200_4127dd6a81f72fabe52d3735a713a2c981eb1eb66c3475a4227c1f3cbbf14d17.json",
+          "sha256": "4127dd6a81f72fabe52d3735a713a2c981eb1eb66c3475a4227c1f3cbbf14d17",
+          "source_kind": "telemetry",
+          "source_path": "Node2/telemetry/2026-09-01/1788271200"
+        }
+      ]
+    },
+    "2026-09-01/1788274800": {
+      "date_key": "2026-09-01",
+      "event_key": "1788274800",
+      "versions": [
+        {
+          "file": "records/2026/09/01/node2_1788274800_d57c660439cd8f0aacab0cb16fc16fb27ee01846b5a2be6cc4fc94498f8d2df2.json",
+          "sha256": "d57c660439cd8f0aacab0cb16fc16fb27ee01846b5a2be6cc4fc94498f8d2df2",
+          "source_kind": "telemetry",
+          "source_path": "Node2/telemetry/2026-09-01/1788274800"
+        }
+      ]
+    },
+    "2026-09-01/1788278400": {
+      "date_key": "2026-09-01",
+      "event_key": "1788278400",
+      "versions": [
+        {
+          "file": "records/2026/09/01/node2_1788278400_3b3164217a76b2f00895fa6de4cb85ac5b5df97c3f9a8f9124567256b2bf3b67.json",
+          "sha256": "3b3164217a76b2f00895fa6de4cb85ac5b5df97c3f9a8f9124567256b2bf3b67",
+          "source_kind": "telemetry",
+          "source_path": "Node2/telemetry/2026-09-01/1788278400"
+        }
+      ]
+    },
+    "2026-09-02/1788282000": {
+      "date_key": "2026-09-02",
+      "event_key": "1788282000",
+      "versions": [
+        {
+          "file": "records/2026/09/02/node2_1788282000_5c8c05e305cd10eae93fd9b3571a2b2882a88552a9033076434c167ba1f4d922.json",
+          "sha256": "5c8c05e305cd10eae93fd9b3571a2b2882a88552a9033076434c167ba1f4d922",
+          "source_kind": "telemetry",
+          "source_path": "Node2/telemetry/2026-09-02/1788282000"
+        }
+      ]
+    },
+    "2026-09-02/1788285600": {
+      "date_key": "2026-09-02",
+      "event_key": "1788285600",
+      "versions": [
+        {
+          "file": "records/2026/09/02/node2_1788285600_4b7eb9afe9e2c981a2a23d82ee39b7be58344e6b7f6806f338bc4bdc5453ca42.json",
+          "sha256": "4b7eb9afe9e2c981a2a23d82ee39b7be58344e6b7f6806f338bc4bdc5453ca42",
+          "source_kind": "telemetry",
+          "source_path": "Node2/telemetry/2026-09-02/1788285600"
+        }
+      ]
+    },
+    "2026-09-02/1788289200": {
+      "date_key": "2026-09-02",
+      "event_key": "1788289200",
+      "versions": [
+        {
+          "file": "records/2026/09/02/node2_1788289200_737c83a8de864881be3228923f003b52dc7b89c83fba1c0320de3b1f7ddedb5e.json",
+          "sha256": "737c83a8de864881be3228923f003b52dc7b89c83fba1c0320de3b1f7ddedb5e",
+          "source_kind": "telemetry",
+          "source_path": "Node2/telemetry/2026-09-02/1788289200"
+        }
+      ]
+    },
+    "2026-09-02/1788292800": {
+      "date_key": "2026-09-02",
+      "event_key": "1788292800",
+      "versions": [
+        {
+          "file": "records/2026/09/02/node2_1788292800_6191cfd5b40d46bdd66636ff3bd826364862e24ec3eea00e4d637b8a3c5ae79a.json",
+          "sha256": "6191cfd5b40d46bdd66636ff3bd826364862e24ec3eea00e4d637b8a3c5ae79a",
+          "source_kind": "telemetry",
+          "source_path": "Node2/telemetry/2026-09-02/1788292800"
+        }
+      ]
+    },
+    "2026-09-02/1788296400": {
+      "date_key": "2026-09-02",
+      "event_key": "1788296400",
+      "versions": [
+        {
+          "file": "records/2026/09/02/node2_1788296400_b7dbc980b31d45a6eafd3191b6b6bb03073434bbcc3066e1eda13b2a7a49fa58.json",
+          "sha256": "b7dbc980b31d45a6eafd3191b6b6bb03073434bbcc3066e1eda13b2a7a49fa58",
+          "source_kind": "telemetry",
+          "source_path": "Node2/telemetry/2026-09-02/1788296400"
+        }
+      ]
+    },
+    "2026-09-02/1788300000": {
+      "date_key": "2026-09-02",
+      "event_key": "1788300000",
+      "versions": [
+        {
+          "file": "records/2026/09/02/node2_1788300000_00894836784b4b9f6944ab378906db2bd3976383327183dbd8484414223bbcd8.json",
+          "sha256": "00894836784b4b9f6944ab378906db2bd3976383327183dbd8484414223bbcd8",
+          "source_kind": "telemetry",
+          "source_path": "Node2/telemetry/2026-09-02/1788300000"
+        }
+      ]
+    },
+    "2026-09-02/1788303600": {
+      "date_key": "2026-09-02",
+      "event_key": "1788303600",
+      "versions": [
+        {
+          "file": "records/2026/09/02/node2_1788303600_098b7d71418477e809a1436be60434d28f11af0815ff26398eefae42581d449b.json",
+          "sha256": "098b7d71418477e809a1436be60434d28f11af0815ff26398eefae42581d449b",
+          "source_kind": "telemetry",
+          "source_path": "Node2/telemetry/2026-09-02/1788303600"
+        }
+      ]
+    },
+    "2026-09-02/1788307200": {
+      "date_key": "2026-09-02",
+      "event_key": "1788307200",
+      "versions": [
+        {
+          "file": "records/2026/09/02/node2_1788307200_b65322f53cf89c1e87c85a2de610f626339f8969f332c7dedc7a887216843653.json",
+          "sha256": "b65322f53cf89c1e87c85a2de610f626339f8969f332c7dedc7a887216843653",
+          "source_kind": "telemetry",
+          "source_path": "Node2/telemetry/2026-09-02/1788307200"
+        }
+      ]
+    },
+    "2026-09-02/1788310800": {
+      "date_key": "2026-09-02",
+      "event_key": "1788310800",
+      "versions": [
+        {
+          "file": "records/2026/09/02/node2_1788310800_c890d64e576083b11e7a970f801faa71e04212d84cebb7366c1040be7d0df6dd.json",
+          "sha256": "c890d64e576083b11e7a970f801faa71e04212d84cebb7366c1040be7d0df6dd",
+          "source_kind": "telemetry",
+          "source_path": "Node2/telemetry/2026-09-02/1788310800"
+        }
+      ]
+    },
+    "2026-09-02/1788314400": {
+      "date_key": "2026-09-02",
+      "event_key": "1788314400",
+      "versions": [
+        {
+          "file": "records/2026/09/02/node2_1788314400_8b9bb3eb4be1c8bc7d52715c7f437edb1408a0586ceec9ed059676c3b765bb39.json",
+          "sha256": "8b9bb3eb4be1c8bc7d52715c7f437edb1408a0586ceec9ed059676c3b765bb39",
+          "source_kind": "telemetry",
+          "source_path": "Node2/telemetry/2026-09-02/1788314400"
+        }
+      ]
+    },
+    "2026-09-02/1788318000": {
+      "date_key": "2026-09-02",
+      "event_key": "1788318000",
+      "versions": [
+        {
+          "file": "records/2026/09/02/node2_1788318000_2170c77247d0d5a30cc2fbcea16bf23458656186dcf7682193525a4b2d8b99e7.json",
+          "sha256": "2170c77247d0d5a30cc2fbcea16bf23458656186dcf7682193525a4b2d8b99e7",
+          "source_kind": "telemetry",
+          "source_path": "Node2/telemetry/2026-09-02/1788318000"
+        }
+      ]
+    },
+    "2026-09-02/1788321600": {
+      "date_key": "2026-09-02",
+      "event_key": "1788321600",
+      "versions": [
+        {
+          "file": "records/2026/09/02/node2_1788321600_5fbbd3313ba7c9ad56ac9534e9c0893fd3e6273d000b054b3076b7bbad9d40ab.json",
+          "sha256": "5fbbd3313ba7c9ad56ac9534e9c0893fd3e6273d000b054b3076b7bbad9d40ab",
+          "source_kind": "latest",
+          "source_path": "Node2/telemetry/2026-09-02/1788321600"
+        },
+        {
+          "file": "records/2026/09/02/node2_1788321600_5fbbd3313ba7c9ad56ac9534e9c0893fd3e6273d000b054b3076b7bbad9d40ab.json",
+          "sha256": "5fbbd3313ba7c9ad56ac9534e9c0893fd3e6273d000b054b3076b7bbad9d40ab",
+          "source_kind": "telemetry",
+          "source_path": "Node2/telemetry/2026-09-02/1788321600"
+        }
+      ]
+    }
+  },
+  "schema_version": 1
+}

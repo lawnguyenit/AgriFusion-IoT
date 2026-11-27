@@ -8,10 +8,10 @@ from agrifusion.settings.runtime import BackendSettings
 from ..stores.artifact_store import base_source_manifest_payload
 from agrifusion.io.storage import serialize_json, sha256_hex
 from ..utils.json_ordering import canonicalize_json
-from .base import NormalizedSnapshotMixin, SourceAuditArtifacts, SourceDescriptor
+from .base import SnapshotSourceMixin, SourceAuditArtifacts, SourceDescriptor
 
 
-class FirebaseSourceAdapter(NormalizedSnapshotMixin):
+class FirebaseSourceAdapter(SnapshotSourceMixin):
     source_type = "firebase"
     skip_duplicate_on_same_source = False
 
@@ -66,16 +66,7 @@ class FirebaseSourceAdapter(NormalizedSnapshotMixin):
             return None
         if not isinstance(telemetry_payload, dict):
             raise ValueError("Firebase telemetry payload must be a JSON object")
-        return canonicalize_json(telemetry_payload)
-
-    def fetch_full_history_raw_payload(self) -> dict[str, Any] | None:
-        if self._mode == "snapshot_root":
-            return super().fetch_full_history_raw_payload()
-        telemetry_payload = self.firebase_client.pull_data(node_path=self.settings.telemetry_root_path)
-        if telemetry_payload is None:
-            return None
-        if not isinstance(telemetry_payload, dict):
-            raise ValueError("Firebase telemetry payload must be a JSON object")
+        # Records verbatim; only key order is made canonical.
         return canonicalize_json(telemetry_payload)
 
     def build_audit_artifacts(self, checked_at: datetime) -> SourceAuditArtifacts:
