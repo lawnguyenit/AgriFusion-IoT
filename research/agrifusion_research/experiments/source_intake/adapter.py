@@ -1,20 +1,13 @@
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
 
 
-ROOT_DIR = Path(__file__).resolve().parents[3]
-BACKEND_DIR = ROOT_DIR / "Backend"
-for import_path in (ROOT_DIR, BACKEND_DIR):
-    if str(import_path) not in sys.path:
-        sys.path.insert(0, str(import_path))
-
-from agrifusion.canonical.contracts import TemporalSettings, active_field_names  # noqa: E402
-from agrifusion.canonical.processors.temporal import apply_temporal_features  # noqa: E402
+from agrifusion.canonical.contracts import TemporalSettings, active_field_names
+from agrifusion.canonical.processors.temporal import apply_temporal_features
 
 
 REQUIRED_SOURCE_COLUMNS: tuple[str, ...] = (

@@ -1,12 +1,8 @@
 from __future__ import annotations
 
 import argparse
-import sys
 from pathlib import Path
 
-ROOT_DIR = Path(__file__).resolve().parents[3]
-if str(ROOT_DIR) not in sys.path:
-    sys.path.insert(0, str(ROOT_DIR))
 
 from agrifusion_research.core.protocol_registry import build_protocol_registry
 from agrifusion.settings.paths import BACKEND_PATHS

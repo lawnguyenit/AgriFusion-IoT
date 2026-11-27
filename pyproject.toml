@@ -34,6 +34,7 @@ dev = [
 
 [project.scripts]
 agrifusion = "agrifusion.cli:main"
+agrifusion-research = "agrifusion_research.cli:main"
 
 # Two import packages from one distribution:
 #   agrifusion           src/agrifusion                telemetry backend (Layer0/Layer1)

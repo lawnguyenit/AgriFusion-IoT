@@ -1,12 +1,8 @@
 from __future__ import annotations
 
 import argparse
-import sys
 from pathlib import Path
 
-ROOT_DIR = Path(__file__).resolve().parents[5]
-if str(ROOT_DIR) not in sys.path:
-    sys.path.insert(0, str(ROOT_DIR))
 
 from agrifusion_research.core.common.paths import WEAK_LABELS_ROOT
 from agrifusion_research.experiments.weak_labels_phases.phase_a_readiness import PhaseAReadinessConfig, build_phase_a_readiness

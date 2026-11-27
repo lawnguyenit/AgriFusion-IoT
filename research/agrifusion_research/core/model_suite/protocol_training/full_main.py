@@ -1,12 +1,8 @@
 from __future__ import annotations
 
 import argparse
-import sys
 from pathlib import Path
 
-ROOT_DIR = Path(__file__).resolve().parents[3]
-if str(ROOT_DIR) not in sys.path:
-    sys.path.insert(0, str(ROOT_DIR))
 
 from agrifusion_research.core.common.paths import EVALUATION_PROTOCOLS_ROOT
 from agrifusion_research.core.model_suite.protocol_training.full import run_full_training

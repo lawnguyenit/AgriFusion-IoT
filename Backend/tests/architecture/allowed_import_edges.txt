@@ -34,7 +34,6 @@ core.model_suite -> core.evaluation_protocols
 core.protocol_registry -> core.common
 core.protocol_registry -> settings
 core.weak_labels -> core.common
-core.weak_labels -> core.dataset_views
 core.weak_labels -> core.protocol_registry
 core.weak_labels -> io
 experiments.k_window_variants -> core.common
@@ -51,6 +50,7 @@ experiments.temporary_robustness_probe -> core.common
 experiments.wade_calibration -> core.common
 experiments.wade_calibration -> core.model_suite
 experiments.weak_labels_phases -> core.common
+experiments.weak_labels_phases -> core.dataset_views
 experiments.weak_labels_phases -> core.protocol_registry
 experiments.weak_labels_phases -> core.weak_labels
 experiments.weak_labels_phases -> io

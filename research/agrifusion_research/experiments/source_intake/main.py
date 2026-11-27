@@ -1,25 +1,21 @@
 from __future__ import annotations
 
 import argparse
-import sys
 from pathlib import Path
 
-ROOT_DIR = Path(__file__).resolve().parents[3]
-if str(ROOT_DIR) not in sys.path:
-    sys.path.insert(0, str(ROOT_DIR))
 
-from agrifusion_research.experiments.source_intake.adapter import (  # noqa: E402
+from agrifusion_research.experiments.source_intake.adapter import (
     build_canonical_candidate,
     build_legacy_projection,
     build_segment_manifest,
     load_flattened_source,
 )
-from agrifusion_research.experiments.source_intake.audit import build_audit  # noqa: E402
-from agrifusion_research.experiments.source_intake.reporting import write_intake_artifact  # noqa: E402
-from agrifusion.settings.paths import BACKEND_PATHS  # noqa: E402
-from agrifusion_research.core.common.paths import lane_output_root  # noqa: E402
-from agrifusion.io.storage import read_table  # noqa: E402
-import pandas as pd  # noqa: E402
+from agrifusion_research.experiments.source_intake.audit import build_audit
+from agrifusion_research.experiments.source_intake.reporting import write_intake_artifact
+from agrifusion.settings.paths import BACKEND_PATHS
+from agrifusion_research.core.common.paths import lane_output_root
+from agrifusion.io.storage import read_table
+import pandas as pd
 
 
 def parse_args() -> argparse.Namespace:

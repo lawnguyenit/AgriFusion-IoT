@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -19,9 +18,6 @@ from typing import Any
 import pandas as pd
 import yaml
 
-ROOT_DIR = Path(__file__).resolve().parents[5]
-if str(ROOT_DIR) not in sys.path:
-    sys.path.insert(0, str(ROOT_DIR))
 
 from agrifusion_research.core.common.paths import WEAK_LABELS_ROOT
 from agrifusion_research.core.dataset_views.configs.feature_arms import FULL_9_FEATURES
@@ -336,7 +332,7 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-if __name__ == "__main__":
+def main() -> None:
     args = parse_args()
     output = build_semantic_draft(
         contract_dir=args.contract_dir,
@@ -344,3 +340,7 @@ if __name__ == "__main__":
         output_dir=args.output_dir,
     )
     print(output)
+
+
+if __name__ == "__main__":
+    main()

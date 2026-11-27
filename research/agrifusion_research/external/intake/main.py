@@ -1,16 +1,12 @@
 from __future__ import annotations
 
 import argparse
-import sys
 from pathlib import Path
 
-ROOT_DIR = Path(__file__).resolve().parents[3]
-if str(ROOT_DIR) not in sys.path:
-    sys.path.insert(0, str(ROOT_DIR))
 
-from agrifusion.settings.paths import BACKEND_PATHS  # noqa: E402
-from agrifusion_research.external.datasets import dataset_ids  # noqa: E402
-from agrifusion_research.external.intake.pipeline import ExternalIntakeConfig, run_external_intake  # noqa: E402
+from agrifusion.settings.paths import BACKEND_PATHS
+from agrifusion_research.external.datasets import dataset_ids
+from agrifusion_research.external.intake.pipeline import ExternalIntakeConfig, run_external_intake
 
 
 DEFAULT_PACK_ROOT = BACKEND_PATHS.output_dir / "wade_external_validation_pack"
