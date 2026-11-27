@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import json
 from datetime import datetime, timezone
 from pathlib import Path
@@ -13,6 +12,7 @@ from .audit import (
     summarize_entity_estimability,
     summarize_entity_support,
 )
+from agrifusion_research.core.common.digests import file_sha256
 
 
 def run_external_support_audit(
@@ -60,28 +60,20 @@ def run_external_support_audit(
             "legacy_entity_claim_estimability_status": "compatibility alias for mathematical two-class discrimination; use entity_support_adequacy_status for evidence sufficiency",
         },
         "input_artifacts": {
-            "labels": {"path": str(labels_path.resolve()), "sha256": _sha256(labels_path)},
-            "registry": {"path": str(registry_path.resolve()), "sha256": _sha256(registry_path)},
-            "splits": {"path": str(splits_path.resolve()), "sha256": _sha256(splits_path)},
+            "labels": {"path": str(labels_path.resolve()), "sha256": file_sha256(labels_path)},
+            "registry": {"path": str(registry_path.resolve()), "sha256": file_sha256(registry_path)},
+            "splits": {"path": str(splits_path.resolve()), "sha256": file_sha256(splits_path)},
         },
         "candidate_count": int(len(candidate_summary)),
         "entity_support_path": str(entity_support_path.resolve()),
-        "entity_support_sha256": _sha256(entity_support_path),
+        "entity_support_sha256": file_sha256(entity_support_path),
         "entity_estimability_path": str(entity_estimability_path.resolve()),
-        "entity_estimability_sha256": _sha256(entity_estimability_path),
+        "entity_estimability_sha256": file_sha256(entity_estimability_path),
         "passing_candidate_count": int(candidate_summary["all_partitions_pass"].sum()),
         "model_fit_performed": False,
     }
     (output_dir / "run_manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     return output_dir
-
-
-def _sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
 
 
 def summarize_candidate_gate_rows(audit: pd.DataFrame) -> pd.DataFrame:

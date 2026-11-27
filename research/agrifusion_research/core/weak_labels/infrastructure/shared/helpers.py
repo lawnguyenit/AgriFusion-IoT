@@ -6,7 +6,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from agrifusion_research.core.dataset_views.validators.hashes import hash_dataframe_rows as stable_hash_dataframe_rows
+from agrifusion_research.core.common.digests import hash_dataframe_rows as stable_hash_dataframe_rows
+from agrifusion_research.core.common.digests import file_sha256
 
 
 LOCAL_TIMEZONE = "Asia/Ho_Chi_Minh"
@@ -60,16 +61,6 @@ def output_hashes(output_dir: Path) -> dict[str, str]:
         if path.is_file():
             hashes[str(path.relative_to(output_dir))] = file_sha256(path)
     return hashes
-
-
-def file_sha256(path: Path) -> str:
-    import hashlib
-
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
 
 
 def hash_dataframe_rows(dataframe: pd.DataFrame) -> str:

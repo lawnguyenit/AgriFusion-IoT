@@ -8,7 +8,6 @@ never modified.
 
 from __future__ import annotations
 
-import hashlib
 import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -17,13 +16,14 @@ from pathlib import Path
 import pandas as pd
 
 from agrifusion_research.core.common.artifacts import create_run_directory, write_json, write_text
-from agrifusion_research.core.weak_labels.infrastructure.hashing import file_sha256
+from agrifusion_research.core.common.digests import file_sha256
 from agrifusion_research.core.weak_labels.analysis.temporal_target_views import (
     EVENT_UNDETERMINED,
     TARGET_VIEW_IDS,
     Y_EVENT,
     Y_ONLINE,
 )
+from agrifusion_research.core.common.digests import file_sha256
 
 
 TEMPORAL_FEATURE_VIEW_IDS = ("v2_temporal_mini_3h", "v2_temporal_full_3h")
@@ -480,9 +480,3 @@ def _build_report(manifest: dict[str, object]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def _sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as stream:
-        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()

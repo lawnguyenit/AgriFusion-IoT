@@ -1,19 +1,11 @@
 from __future__ import annotations
 
-import hashlib
 import json
 from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
-
-
-def sha256_file(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
+from agrifusion_research.core.common.digests import file_sha256
 
 
 def make_run_id(dataset_id: str) -> str:
@@ -43,7 +35,7 @@ def write_label_artifacts(
     cadence_registry.to_csv(paths["entity_persistence_registry"], index=False)
     support_audit.to_csv(paths["candidate_support_audit"], index=False)
     manifest["artifacts"] = {
-        name: {"path": str(path.resolve()), "sha256": sha256_file(path), "size_bytes": path.stat().st_size}
+        name: {"path": str(path.resolve()), "sha256": file_sha256(path), "size_bytes": path.stat().st_size}
         for name, path in paths.items()
     }
     manifest_path = output_dir / "run_manifest.json"
@@ -51,7 +43,7 @@ def write_label_artifacts(
     report_path = output_dir / "report.md"
     report_path.write_text(_render_report(manifest, registry, support_audit), encoding="utf-8")
     catalog = [
-        {"path": path.name, "sha256": sha256_file(path), "size_bytes": path.stat().st_size}
+        {"path": path.name, "sha256": file_sha256(path), "size_bytes": path.stat().st_size}
         for path in (*paths.values(), manifest_path, report_path)
     ]
     (output_dir / "artifact_catalog.json").write_text(

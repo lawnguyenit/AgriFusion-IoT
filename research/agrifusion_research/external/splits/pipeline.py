@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import json
 from datetime import datetime, timezone
 from pathlib import Path
@@ -9,6 +8,7 @@ import pandas as pd
 
 from .builder import assign_timestamp_blocks
 from .contracts import ExternalSplitConfig, ExternalSplitResult
+from agrifusion_research.core.common.digests import file_sha256
 
 
 def build_external_timestamp_split(config: ExternalSplitConfig) -> ExternalSplitResult:
@@ -37,12 +37,12 @@ def build_external_timestamp_split(config: ExternalSplitConfig) -> ExternalSplit
         "run_id": run_id,
         "dataset_id": dataset_id,
         "canonical_path": str(canonical_path),
-        "canonical_sha256": _sha256(canonical_path),
+        "canonical_sha256": file_sha256(canonical_path),
         "timestamp_column": config.timestamp_column,
         "group_columns": list(config.group_columns),
         "shared_timestamp_columns": list(config.shared_timestamp_columns),
         "row_count": len(splits),
-        "split_sha256": _sha256(splits_path),
+        "split_sha256": file_sha256(splits_path),
         "model_fit_performed": False,
         **summary,
     }
@@ -63,9 +63,3 @@ def build_external_timestamp_split(config: ExternalSplitConfig) -> ExternalSplit
     return ExternalSplitResult(run_id, output_dir, splits_path, len(splits), len(splits["timestamp_block_id"].unique()))
 
 
-def _sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()

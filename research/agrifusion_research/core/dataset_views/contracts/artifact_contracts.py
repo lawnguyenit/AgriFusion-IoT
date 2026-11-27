@@ -5,7 +5,7 @@ from pathlib import Path
 import pandas as pd
 
 from agrifusion_research.core.dataset_views.configs import GLOBAL_FORBIDDEN_MODEL_FIELDS
-from agrifusion_research.core.dataset_views.validators import dataframe_schema_hash, stable_hash_object
+from agrifusion_research.core.common.digests import dataframe_schema_hash, stable_hash_object
 
 
 DEFAULT_IDENTIFIER_COLUMNS: tuple[str, ...] = ("record.id", "source_row_position")

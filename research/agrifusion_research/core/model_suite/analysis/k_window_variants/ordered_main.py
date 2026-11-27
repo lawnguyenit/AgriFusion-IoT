@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import sys
 from pathlib import Path
@@ -28,6 +27,7 @@ from agrifusion_research.core.model_suite.analysis.k_window_variants.runner impo
 from agrifusion_research.core.model_suite.analysis.k_window_variants.semantic_targets import load_online_event_target_frame
 from agrifusion_research.core.model_suite.analysis.k_window_variants.configured_runner import ConfiguredVariant, run_configured_variants
 from agrifusion_research.core.common.artifacts import create_run_directory
+from agrifusion_research.core.common.digests import file_sha256
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -152,8 +152,8 @@ def main() -> None:
             "target_view_run_dir": str(args.target_view_run_dir.resolve()),
         },
         "source_manifest_hashes": {
-            "snapshot": _manifest_hash(args.snapshot_run_dir.resolve() / "views" / "v0_minimal_sensor" / "manifest.json"),
-            "window": _manifest_hash(args.window_run_dir.resolve() / "views" / "v2_sensor_row_window_3h" / "manifest.json"),
+            "snapshot": file_sha256(args.snapshot_run_dir.resolve() / "views" / "v0_minimal_sensor" / "manifest.json"),
+            "window": file_sha256(args.window_run_dir.resolve() / "views" / "v2_sensor_row_window_3h" / "manifest.json"),
         },
     }
     write_ordered_outputs(
@@ -192,10 +192,6 @@ def _build_variants(ordered: dict[str, object]) -> tuple[ConfiguredVariant, ...]
                 )
             )
     return tuple(variants)
-
-
-def _manifest_hash(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 if __name__ == "__main__":

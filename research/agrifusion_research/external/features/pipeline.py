@@ -6,7 +6,7 @@ from pathlib import Path
 import pandas as pd
 
 from .contracts import ExternalFeatureConfig, ExternalFeatureResult
-from .persistence import make_run_id, sha256_file, write_feature_artifacts
+from .persistence import make_run_id, file_sha256, write_feature_artifacts
 from .profiles import resolve_profile
 from .windowing import build_external_feature_matrix
 
@@ -20,13 +20,13 @@ def run_external_feature_processing(config: ExternalFeatureConfig) -> ExternalFe
     catalog_path = canonical_path.parent / "artifact_catalog.json"
     catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
     manifest_record = next((row for row in catalog if row.get("path") == config.intake_manifest_path.name), None)
-    if manifest_record is None or sha256_file(config.intake_manifest_path) != manifest_record.get("sha256"):
+    if manifest_record is None or file_sha256(config.intake_manifest_path) != manifest_record.get("sha256"):
         raise ValueError("Intake manifest checksum does not match its artifact catalog.")
     raw_manifest_path = Path(str(intake_manifest["raw_manifest_path"]))
-    if not raw_manifest_path.is_file() or sha256_file(raw_manifest_path) != intake_manifest.get("raw_manifest_sha256"):
+    if not raw_manifest_path.is_file() or file_sha256(raw_manifest_path) != intake_manifest.get("raw_manifest_sha256"):
         raise ValueError("Intake raw release manifest is missing or its checksum is invalid.")
     canonical_record = next((row for row in catalog if row.get("path") == canonical_path.name), None)
-    if canonical_record is None or sha256_file(canonical_path) != canonical_record.get("sha256"):
+    if canonical_record is None or file_sha256(canonical_path) != canonical_record.get("sha256"):
         raise ValueError("Canonical source checksum does not match its intake artifact catalog.")
     canonical = pd.read_parquet(canonical_path)
     profile = resolve_profile(dataset_id, intake_manifest)
@@ -69,9 +69,9 @@ def run_external_feature_processing(config: ExternalFeatureConfig) -> ExternalFe
         "dataset_metadata": intake_manifest.get("dataset_metadata", {}),
         "intake_run_id": intake_manifest["run_id"],
         "intake_manifest_path": str(config.intake_manifest_path.resolve()),
-        "intake_manifest_sha256": sha256_file(config.intake_manifest_path),
+        "intake_manifest_sha256": file_sha256(config.intake_manifest_path),
         "canonical_path": str(canonical_path),
-        "canonical_sha256": sha256_file(canonical_path),
+        "canonical_sha256": file_sha256(canonical_path),
         "raw_manifest_path": str(raw_manifest_path.resolve()),
         "raw_manifest_sha256": intake_manifest["raw_manifest_sha256"],
         "timestamp_column": profile.timestamp_column,

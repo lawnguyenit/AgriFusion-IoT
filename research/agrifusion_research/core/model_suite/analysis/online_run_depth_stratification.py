@@ -11,7 +11,7 @@ import pandas as pd
 
 from agrifusion_research.core.common.artifacts import create_run_directory, write_json, write_text
 from agrifusion_research.core.weak_labels.analysis.temporal_target_views import Y_ONLINE
-from agrifusion_research.core.weak_labels.infrastructure.hashing import file_sha256
+from agrifusion_research.core.common.digests import file_sha256
 
 from .online_run_depth_stratification_data import (
     DEFAULT_FEATURE_VIEW_IDS,

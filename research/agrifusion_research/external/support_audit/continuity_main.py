@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 from pathlib import Path
 
@@ -10,6 +9,7 @@ from agrifusion_research.external.labels.pipeline import run_external_label_cand
 
 from .pipeline import run_external_support_audit
 from .sensitivity import summarize_continuity_sensitivity
+from agrifusion_research.core.common.digests import file_sha256
 
 
 def main() -> None:
@@ -48,11 +48,11 @@ def main() -> None:
             "g_max_cadence_fraction": factor,
             "label_run_id": label_result.run_id,
             "label_run_dir": str(label_result.output_dir.resolve()),
-            "label_manifest_sha256": _sha256(label_result.output_dir / "run_manifest.json"),
-            "candidate_labels_sha256": _sha256(label_result.candidate_labels_path),
+            "label_manifest_sha256": file_sha256(label_result.output_dir / "run_manifest.json"),
+            "candidate_labels_sha256": file_sha256(label_result.candidate_labels_path),
             "support_run_id": support_dir.name,
             "support_run_dir": str(support_dir.resolve()),
-            "support_manifest_sha256": _sha256(support_dir / "run_manifest.json"),
+            "support_manifest_sha256": file_sha256(support_dir / "run_manifest.json"),
             "model_fit_performed": False,
         })
     result = summarize_continuity_sensitivity(
@@ -73,26 +73,18 @@ def main() -> None:
         "tau_minutes": args.tau_minutes,
         "g_max_cadence_fractions": args.g_max,
         "split_path": str(args.splits.resolve()),
-        "split_sha256": _sha256(args.splits),
+        "split_sha256": file_sha256(args.splits),
         "model_fit_performed": False,
         "runs": provenance,
         "summary_csv": {
             "path": str(args.summary_csv.resolve()),
-            "sha256": _sha256(args.summary_csv),
+            "sha256": file_sha256(args.summary_csv),
             "row_count": int(len(result)),
         },
     }
     manifest_path = args.summary_csv.with_name(args.summary_csv.stem + "_manifest.json")
     manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps({"summary_csv": str(args.summary_csv.resolve()), "manifest": str(manifest_path.resolve()), "rows": len(result)}, ensure_ascii=False))
-
-
-def _sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for block in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(block)
-    return digest.hexdigest()
 
 
 if __name__ == "__main__":

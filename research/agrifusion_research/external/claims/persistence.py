@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import hashlib
 import json
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
+from agrifusion_research.core.common.digests import file_sha256
 
 
 def persist_inventory(
@@ -26,9 +26,9 @@ def persist_inventory(
         **metadata,
         "run_id": run_id,
         "canonical_path": str(canonical_path.resolve()),
-        "canonical_sha256": _sha256(canonical_path),
+        "canonical_sha256": file_sha256(canonical_path),
         "intake_manifest_path": str(manifest_path.resolve()),
-        "intake_manifest_sha256": _sha256(manifest_path),
+        "intake_manifest_sha256": file_sha256(manifest_path),
     }
     inventory_path = output_dir / "evidence_inventory.csv"
     inventory.to_csv(inventory_path, index=False)
@@ -39,7 +39,7 @@ def persist_inventory(
     artifacts = []
     for path in sorted(output_dir.iterdir()):
         if path.is_file() and path.name != "artifact_catalog.json":
-            artifacts.append({"path": path.name, "sha256": _sha256(path), "size_bytes": path.stat().st_size})
+            artifacts.append({"path": path.name, "sha256": file_sha256(path), "size_bytes": path.stat().st_size})
     (output_dir / "artifact_catalog.json").write_text(
         json.dumps(artifacts, ensure_ascii=False, indent=2), encoding="utf-8"
     )
@@ -77,9 +77,3 @@ def _render_report(inventory: pd.DataFrame, metadata: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def _sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as stream:
-        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()

@@ -1,19 +1,11 @@
 from __future__ import annotations
 
-import hashlib
 import json
 from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
-
-
-def sha256_file(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
+from agrifusion_research.core.common.digests import file_sha256
 
 
 def create_audit_dir(output_root: Path) -> tuple[str, Path]:
@@ -51,7 +43,7 @@ def write_audit_artifacts(
     manifest["artifacts"] = {
         key: {
             "path": str(path.resolve()),
-            "sha256": sha256_file(path),
+            "sha256": file_sha256(path),
             "row_count": int(len(pd.read_parquet(path))) if path.suffix == ".parquet" else int(len(pd.read_csv(path))),
         }
         for key, path in paths.items()

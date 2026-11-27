@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-import hashlib
 import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .sources import DATASET_METADATA, SOURCE_FILES, sha256_bytes
+from agrifusion_research.core.common.digests import bytes_sha256, file_sha256
+
+from .sources import DATASET_METADATA, SOURCE_FILES
 
 
 def make_run_id(dataset_id: str) -> str:
@@ -55,7 +56,7 @@ def prepare_raw_release(
                 "origin_locator": origin,
                 "declared_upstream_url": source.url,
                 "relative_path": source.name,
-                "sha256": sha256_bytes(payload),
+                "sha256": bytes_sha256(payload),
                 "size_bytes": str(len(payload)),
             }
         )
@@ -95,7 +96,7 @@ def write_run_artifacts(
             artifact_rows.append(
                 {
                     "path": path.name,
-                    "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                    "sha256": file_sha256(path),
                     "size_bytes": path.stat().st_size,
                 }
             )

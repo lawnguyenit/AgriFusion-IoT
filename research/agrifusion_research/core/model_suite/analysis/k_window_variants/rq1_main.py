@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import sys
 from pathlib import Path
@@ -39,6 +38,7 @@ from agrifusion_research.core.model_suite.analysis.k_window_variants.rq1_statist
 from agrifusion_research.core.model_suite.analysis.k_window_variants.runner import load_feature_matrix
 from agrifusion_research.core.model_suite.analysis.k_window_variants.semantic_targets import load_online_event_target_frame
 from agrifusion_research.core.common.artifacts import create_run_directory
+from agrifusion_research.core.common.digests import file_sha256
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -209,8 +209,8 @@ def main() -> None:
             "cv_assignment_path": str(assignment_path),
         },
         "source_manifest_hashes": {
-            "snapshot": _manifest_hash(args.snapshot_run_dir.resolve() / "views" / "v0_minimal_sensor" / "manifest.json"),
-            "window": _manifest_hash(args.window_run_dir.resolve() / "views" / "v2_sensor_row_window_3h" / "manifest.json"),
+            "snapshot": file_sha256(args.snapshot_run_dir.resolve() / "views" / "v0_minimal_sensor" / "manifest.json"),
+            "window": file_sha256(args.window_run_dir.resolve() / "views" / "v2_sensor_row_window_3h" / "manifest.json"),
         },
         "source_feature_manifests": {
             "snapshot": snapshot_manifest,
@@ -334,10 +334,6 @@ def _concat(frames: list[pd.DataFrame]) -> pd.DataFrame:
     if not nonempty:
         return pd.DataFrame()
     return pd.concat(nonempty, ignore_index=True).convert_dtypes()
-
-
-def _manifest_hash(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 if __name__ == "__main__":

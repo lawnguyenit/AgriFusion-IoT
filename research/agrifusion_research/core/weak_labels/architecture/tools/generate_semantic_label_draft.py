@@ -10,7 +10,6 @@ the same provenance/lineage checks without changing label authority.
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import sys
 from datetime import datetime, timezone
@@ -26,14 +25,7 @@ if str(ROOT_DIR) not in sys.path:
 
 from agrifusion_research.core.common.paths import WEAK_LABELS_ROOT
 from agrifusion_research.core.dataset_views.configs.feature_arms import FULL_9_FEATURES
-
-
-def _sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as stream:
-        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
+from agrifusion_research.core.common.digests import file_sha256
 
 
 def _read_yaml(path: Path) -> dict[str, Any]:
@@ -142,11 +134,11 @@ def build_semantic_draft(*, contract_dir: Path, release_dir: Path, output_dir: P
             str(key): int(value)
             for key, value in assignments.loc[assignments["task_id"].astype("string") == "POINT", "label"].astype("string").value_counts(dropna=False).items()
         },
-        "release_manifest_sha256": _sha256(release_manifest_path),
-        "point_assignment_sha256": _sha256(point_path),
-        "rule_firing_sha256": _sha256(rule_path),
-        "resolution_sha256": _sha256(resolution_path),
-        "assignment_sha256": _sha256(assignment_path),
+        "release_manifest_sha256": file_sha256(release_manifest_path),
+        "point_assignment_sha256": file_sha256(point_path),
+        "rule_firing_sha256": file_sha256(rule_path),
+        "resolution_sha256": file_sha256(resolution_path),
+        "assignment_sha256": file_sha256(assignment_path),
     }
     (output_dir / "semantic_label_summary.json").write_text(_json(summary), encoding="utf-8")
 

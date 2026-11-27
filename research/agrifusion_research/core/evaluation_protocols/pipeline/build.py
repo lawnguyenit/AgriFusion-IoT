@@ -10,7 +10,8 @@ from agrifusion_research.core.common.provenance import resolve_code_commit
 from agrifusion_research.core.protocol_registry import authorize_operation, load_protocol_registry
 from agrifusion_research.core.dataset_views.continuity import attach_continuity_chunks
 from agrifusion_research.core.dataset_views.continuity.chunks import build_segment_cadence_index
-from agrifusion_research.core.dataset_views.validators import ensure_parquet_engine, stable_hash_object, validate_unique_record_ids
+from agrifusion_research.core.dataset_views.validators import ensure_parquet_engine, validate_unique_record_ids
+from agrifusion_research.core.common.digests import stable_hash_object
 from agrifusion_research.core.evaluation_protocols.diagnostics import (
     annotate_core_fold_status,
     build_calendar_blocks,
@@ -85,7 +86,7 @@ from agrifusion_research.core.weak_labels.infrastructure.io import (
     write_parquet,
     write_yaml_file,
 )
-from agrifusion_research.core.weak_labels.infrastructure.hashing import file_sha256
+from agrifusion_research.core.common.digests import file_sha256
 
 
 def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationProtocolResult:

@@ -23,7 +23,7 @@ from agrifusion_research.core.model_suite.utils.output_control import capture_py
 from .contracts import MultiLabelRunConfig, MultiLabelRunResult
 from .entity_metrics import build_entity_metrics
 from .temporal_bootstrap import build_temporal_bootstrap_metrics
-from .inputs import load_reviewed_audit, sha256_file
+from .inputs import load_reviewed_audit, file_sha256
 from .metrics import binary_metrics
 
 
@@ -177,7 +177,7 @@ def run_independent_binary_heads(config: MultiLabelRunConfig) -> MultiLabelRunRe
                     "train_sample_hash": train_hash,
                     "feature_columns_hash": lineage["feature_columns_hash"],
                     "preprocessing_path": str(preprocessing_path.resolve()),
-                    "preprocessing_sha256": sha256_file(preprocessing_path),
+                    "preprocessing_sha256": file_sha256(preprocessing_path),
                 }
                 model_path = target_dir / "model_bundle.joblib"
                 joblib.dump(bundle, model_path)
@@ -185,7 +185,7 @@ def run_independent_binary_heads(config: MultiLabelRunConfig) -> MultiLabelRunRe
                     "target_column": target,
                     "status": "fitted_model_persisted",
                     "model_bundle_path": str(model_path.resolve()),
-                    "model_bundle_sha256": sha256_file(model_path),
+                    "model_bundle_sha256": file_sha256(model_path),
                     "train_sample_hash": train_hash,
                     "train_sample_count": len(train_ids),
                     "train_unknown_excluded_count": int((~target_known).sum()),
@@ -267,7 +267,7 @@ def run_independent_binary_heads(config: MultiLabelRunConfig) -> MultiLabelRunRe
                     "train_sample_hash": train_hash,
                     "selected_features": preprocessing["selected_feature_names"],
                     "preprocessing_path": str(preprocessing_path.resolve()),
-                    "preprocessing_sha256": sha256_file(preprocessing_path),
+                    "preprocessing_sha256": file_sha256(preprocessing_path),
                     "feature_columns_hash": lineage["feature_columns_hash"],
                     "fit_seconds": fit_seconds,
                     "model_library_version": library_version,
@@ -277,7 +277,7 @@ def run_independent_binary_heads(config: MultiLabelRunConfig) -> MultiLabelRunRe
                 manifest["heads"][f"{fold_id}/{target}"] = {
                     **metadata,
                     "model_bundle_path": str(model_path.resolve()),
-                    "model_bundle_sha256": sha256_file(model_path),
+                    "model_bundle_sha256": file_sha256(model_path),
                     "status": "complete",
                 }
                 _write_json(output_dir / "run_manifest.json", manifest)
@@ -450,7 +450,7 @@ def _write_catalog(output_dir: Path) -> None:
     rows = []
     for path in sorted(output_dir.rglob("*")):
         if path.is_file() and path.name != "artifact_catalog.json":
-            rows.append({"path": str(path.relative_to(output_dir)), "sha256": sha256_file(path), "size_bytes": path.stat().st_size})
+            rows.append({"path": str(path.relative_to(output_dir)), "sha256": file_sha256(path), "size_bytes": path.stat().st_size})
     (output_dir / "artifact_catalog.json").write_text(json.dumps(rows, ensure_ascii=False, indent=2), encoding="utf-8")
 
 

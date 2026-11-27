@@ -30,7 +30,7 @@ from agrifusion_research.core.gates.validity_lifecycle.tranche0 import (
     load_model_suite_outputs,
     resolve_latest_model_suite_run,
 )
-from agrifusion_research.core.weak_labels.infrastructure.hashing import file_sha256
+from agrifusion_research.core.common.digests import file_sha256
 from agrifusion_research.core.weak_labels.infrastructure.io import write_csv, write_json_file, write_parquet
 
 

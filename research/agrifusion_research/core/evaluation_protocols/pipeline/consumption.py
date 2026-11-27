@@ -11,7 +11,7 @@ from agrifusion_research.core.dataset_views.configs.feature_arms import (
     semantic_arm_for_view,
     validate_allowlist,
 )
-from agrifusion_research.core.weak_labels.infrastructure.hashing import file_sha256
+from agrifusion_research.core.common.digests import bytes_sha256, file_sha256
 
 
 FORBIDDEN_LABEL_COLUMNS = {
@@ -870,13 +870,7 @@ def _resolve_allowed_feature_columns(
 
 def _feature_list_hash(columns: tuple[str, ...]) -> str:
     payload = json.dumps(list(columns), ensure_ascii=True, separators=(",", ":"))
-    return file_sha256_from_bytes(payload.encode("utf-8"))
-
-
-def file_sha256_from_bytes(payload: bytes) -> str:
-    import hashlib
-
-    return hashlib.sha256(payload).hexdigest()
+    return bytes_sha256(payload.encode("utf-8"))
 
 
 def _build_matched_cohort_lookup(cohort_manifests: dict[str, pd.DataFrame]) -> dict[tuple[str, str, str, str, str], str]:

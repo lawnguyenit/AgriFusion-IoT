@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from agrifusion_research.core.dataset_views.validators import stable_hash_object
+from agrifusion_research.core.common.digests import stable_hash_object
 
 
 FORBIDDEN_FEATURE_PREFIXES = ("criterion.", "target.", "label.", "split.", "audit.")

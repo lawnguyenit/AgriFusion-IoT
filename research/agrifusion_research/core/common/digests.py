@@ -1,3 +1,16 @@
+"""Hash helpers for the research lane. One home for every digest; two families on purpose.
+
+Family 1 (normalized, used by protocol_registry / weak_labels / evaluation lineage):
+  stable_digest, dataframe_digest, population_digest, feature_contract_digest.
+  Values are normalized first (None/NA -> "<NA>", floats -> format "12g", timestamps -> ISO).
+Family 2 (raw, used by dataset_views / external / pretrain_audit artifacts):
+  stable_hash_object, hash_dataframe_rows, dataframe_schema_hash.
+  stable_hash_object hashes JSON without value normalization; hash_dataframe_rows hashes
+  pandas.util.hash_pandas_object (dtype-sensitive). They do NOT give the same values as
+  family 1 (checked in GD5: equal for ints/strings/paths, different for floats and None),
+  so existing artifact hashes keep their meaning only if each caller keeps its family.
+file_sha256 / bytes_sha256 are the only content hashes (sha256 of the bytes).
+"""
 from __future__ import annotations
 
 import hashlib
@@ -37,6 +50,10 @@ def file_sha256(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def bytes_sha256(payload: bytes) -> str:
+    return hashlib.sha256(payload).hexdigest()
 
 
 def dataframe_digest(
@@ -150,3 +167,40 @@ def _normalize_scalar(value: Any) -> Any:
     if isinstance(value, date):
         return value.isoformat()
     return value
+
+
+# ---- Family 2: raw hashes (moved from dataset_views/validators/hashes.py in GD5) ----
+
+
+def _normalize_hash_payload(payload: object) -> object:
+    if isinstance(payload, Path):
+        return str(payload.resolve())
+    if is_dataclass(payload):
+        return _normalize_hash_payload(asdict(payload))
+    if isinstance(payload, dict):
+        return {str(key): _normalize_hash_payload(value) for key, value in payload.items()}
+    if isinstance(payload, (list, tuple)):
+        return [_normalize_hash_payload(value) for value in payload]
+    if isinstance(payload, set):
+        return sorted(_normalize_hash_payload(value) for value in payload)
+    return payload
+
+
+def stable_hash_object(payload: object) -> str:
+    """sha256 of sorted-key JSON, values NOT normalized (differs from stable_digest for floats/None)."""
+    normalized_payload = _normalize_hash_payload(payload)
+    encoded = json.dumps(normalized_payload, sort_keys=True, ensure_ascii=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def dataframe_schema_hash(dataframe: pd.DataFrame) -> str:
+    schema_payload = [
+        {"name": column, "dtype": str(dtype)}
+        for column, dtype in dataframe.dtypes.items()
+    ]
+    return stable_hash_object(schema_payload)
+
+
+def hash_dataframe_rows(dataframe: pd.DataFrame) -> str:
+    """sha256 over pandas.util.hash_pandas_object (row order and dtypes matter; != dataframe_digest)."""
+    return hashlib.sha256(pd.util.hash_pandas_object(dataframe, index=False).values.tobytes()).hexdigest()

@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import hashlib
 import json
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
+from agrifusion_research.core.common.digests import file_sha256
 
 
 def write_intake_artifact(
@@ -74,13 +74,13 @@ def write_intake_artifact(
         "created_at_utc": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
         "source": {
             "path": str(source_path.resolve()),
-            "sha256": sha256(source_path),
+            "sha256": file_sha256(source_path),
             "rows": int(len(source)),
             "columns": [column for column in source.columns if column != "record.id"],
         },
         "old_canonical": {
             "path": str(old_canonical_path.resolve()),
-            "sha256": sha256(old_canonical_path),
+            "sha256": file_sha256(old_canonical_path),
             "rows": int(summary["old_rows"]),
         },
         "outputs": {
@@ -221,14 +221,6 @@ candidate extension and make the next decision explicitly:
 4. rerun dataset views and the benchmark only after source promotion and the
    gap policy are approved.
 """
-
-
-def sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for block in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(block)
-    return digest.hexdigest()
 
 
 def _json_default(value: Any) -> Any:

@@ -8,7 +8,6 @@ values; the model target stays the original three-class ontology.
 
 from __future__ import annotations
 
-import hashlib
 import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -20,6 +19,7 @@ import pandas as pd
 from agrifusion_research.core.common.artifacts import create_run_directory, write_json, write_text
 
 from .unres_origin_prediction_reporting import build_readme, build_report
+from agrifusion_research.core.common.digests import file_sha256
 
 UNRES_K = "UNRES_K"
 UNRES_A = "UNRES_A"
@@ -278,10 +278,10 @@ def build_unres_origin_prediction_join(config: UnresOriginPredictionJoinConfig) 
         "prediction_label_mapping": DISPLAY_LABELS,
         "recall_definition": "Pred UNRES / support within each true UNRES origin slice",
         "source_files": {
-            "model_run_manifest": {"path": str(model_manifest_path), "sha256": _sha256(model_manifest_path)},
-            "predictions": {"path": str(predictions_path), "sha256": _sha256(predictions_path)},
-            "unres_origin_manifest": {"path": str(origin_manifest_path), "sha256": _sha256(origin_manifest_path)},
-            "unres_origin_assignments": {"path": str(origin_path), "sha256": _sha256(origin_path)},
+            "model_run_manifest": {"path": str(model_manifest_path), "sha256": file_sha256(model_manifest_path)},
+            "predictions": {"path": str(predictions_path), "sha256": file_sha256(predictions_path)},
+            "unres_origin_manifest": {"path": str(origin_manifest_path), "sha256": file_sha256(origin_manifest_path)},
+            "unres_origin_assignments": {"path": str(origin_path), "sha256": file_sha256(origin_path)},
         },
         "output_files": {
             "joined_rows": str(joined_path),
@@ -321,14 +321,6 @@ def _require_columns(frame: pd.DataFrame, required: set[str], name: str) -> None
     missing = sorted(required - set(frame.columns))
     if missing:
         raise ValueError(f"{name} is missing required columns: {missing}")
-
-
-def _sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as stream:
-        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
 
 
 def _json_records(frame: pd.DataFrame) -> list[dict[str, object]]:

@@ -44,7 +44,12 @@ experiments.source_intake -> canonical
 experiments.source_intake -> core.common
 experiments.source_intake -> io
 experiments.source_intake -> settings
-external.features -> core.dataset_views
+external.claims -> core.common
+external.features -> core.common
+external.intake -> core.common
+external.labels -> core.common
+external.splits -> core.common
+external.support_audit -> core.common
 external.support_audit -> external.labels
 ingest -> io
 ingest -> settings

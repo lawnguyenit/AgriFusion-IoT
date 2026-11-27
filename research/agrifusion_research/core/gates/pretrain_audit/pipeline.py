@@ -5,10 +5,10 @@ from pathlib import Path
 
 import pandas as pd
 
-from agrifusion_research.core.dataset_views.validators import dataframe_schema_hash, hash_dataframe_rows, stable_hash_object
+from agrifusion_research.core.common.digests import dataframe_schema_hash, hash_dataframe_rows, stable_hash_object
 
 from .contracts import PretrainAuditConfig, PretrainAuditResult
-from .persistence import create_audit_dir, sha256_file, write_audit_artifacts
+from .persistence import create_audit_dir, file_sha256, write_audit_artifacts
 from .reporting import render_audit_report
 from .selection import resolve_feature_selection
 from .validation import validate_keyed_inputs
@@ -23,7 +23,7 @@ def run_pretrain_audit(config: PretrainAuditConfig) -> PretrainAuditResult:
         raise ValueError("max_missing_fraction must be in [0, 1].")
     feature_matrix = pd.read_parquet(config.feature_matrix_path)
     registry = json.loads(config.feature_registry_path.read_text(encoding="utf-8"))
-    if sha256_file(config.feature_matrix_path) != registry.get("matrix_sha256"):
+    if file_sha256(config.feature_matrix_path) != registry.get("matrix_sha256"):
         raise ValueError("Feature superset checksum does not match its registry.")
     if len(feature_matrix) != registry.get("row_count"):
         raise ValueError("Feature superset row count does not match its registry.")
@@ -166,16 +166,16 @@ def run_pretrain_audit(config: PretrainAuditConfig) -> PretrainAuditResult:
         "blocked_reasons": blocked_reasons,
         "source_artifacts": {
             "feature_matrix_path": str(config.feature_matrix_path.resolve()),
-            "feature_matrix_sha256": sha256_file(config.feature_matrix_path),
+            "feature_matrix_sha256": file_sha256(config.feature_matrix_path),
             "feature_registry_path": str(config.feature_registry_path.resolve()),
-            "feature_registry_sha256": sha256_file(config.feature_registry_path),
+            "feature_registry_sha256": file_sha256(config.feature_registry_path),
             "labels_path": str(config.labels_path.resolve()),
-            "labels_sha256": sha256_file(config.labels_path),
+            "labels_sha256": file_sha256(config.labels_path),
             "splits_path": str(config.splits_path.resolve()),
-            "splits_sha256": sha256_file(config.splits_path),
+            "splits_sha256": file_sha256(config.splits_path),
             **({
                 "support_gate_path": str(config.support_gate_path.resolve()),
-                "support_gate_sha256": sha256_file(config.support_gate_path),
+                "support_gate_sha256": file_sha256(config.support_gate_path),
             } if config.support_gate_path is not None else {}),
         },
         "upstream_lineage": {

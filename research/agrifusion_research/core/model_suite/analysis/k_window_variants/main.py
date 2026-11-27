@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import sys
 from pathlib import Path
@@ -13,6 +12,7 @@ if str(ROOT_DIR) not in sys.path:
 from agrifusion_research.core.model_suite.analysis.k_window_variants.reporting import write_analysis_outputs
 from agrifusion_research.core.model_suite.analysis.k_window_variants.runner import build_variant_definitions, run_variants
 from agrifusion_research.core.model_suite.analysis.k_window_variants.targets import load_temporal_target_frame
+from agrifusion_research.core.common.digests import file_sha256
 from agrifusion_research.core.common.artifacts import create_run_directory
 
 
@@ -83,7 +83,7 @@ def _source_manifest_hashes(variants) -> dict[str, str]:
     hashes: dict[str, str] = {}
     for variant in variants:
         path = variant.feature_run_dir.resolve() / "views" / variant.feature_view_id / "manifest.json"
-        hashes[str(path)] = hashlib.sha256(path.read_bytes()).hexdigest()
+        hashes[str(path)] = file_sha256(path)
     return hashes
 
 

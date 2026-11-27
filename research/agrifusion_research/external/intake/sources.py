@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
@@ -56,10 +55,6 @@ DATASET_METADATA: dict[str, dict[str, str]] = {
         "source_copy_url": "https://archive.ics.uci.edu/static/public/360/air+quality.zip",
     },
 }
-
-
-def sha256_bytes(payload: bytes) -> str:
-    return hashlib.sha256(payload).hexdigest()
 
 
 def download_bytes(url: str, *, timeout_seconds: int = 60) -> bytes:

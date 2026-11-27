@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from agrifusion_research.core.dataset_views.validators import dataframe_schema_hash, hash_dataframe_rows, stable_hash_object
+from agrifusion_research.core.common.digests import dataframe_schema_hash, hash_dataframe_rows, stable_hash_object
 from agrifusion_research.core.gates.pretrain_audit import PretrainAuditConfig, run_pretrain_audit
 from agrifusion_research.core.model_suite.multilabel import MultiLabelRunConfig, run_independent_binary_heads
 from agrifusion_research.core.model_suite.multilabel.runner import _derive_joint_predictions

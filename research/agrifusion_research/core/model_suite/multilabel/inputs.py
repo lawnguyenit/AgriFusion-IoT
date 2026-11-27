@@ -5,14 +5,7 @@ import json
 from pathlib import Path
 
 import pandas as pd
-
-
-def sha256_file(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as stream:
-        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
+from agrifusion_research.core.common.digests import file_sha256
 
 
 def load_reviewed_audit(
@@ -38,7 +31,7 @@ def load_reviewed_audit(
     ):
         artifact = manifest.get("artifacts", {}).get(key, {})
         path = Path(str(artifact.get("path", audit_dir / filename)))
-        if not path.is_file() or sha256_file(path) != artifact.get("sha256"):
+        if not path.is_file() or file_sha256(path) != artifact.get("sha256"):
             raise ValueError(f"Pre-train audit artifact {key!r} is missing or its checksum is invalid.")
         files[key] = path
     features = pd.read_parquet(files["selected_features"])
@@ -76,7 +69,7 @@ def load_reviewed_audit(
         raise ValueError("Audited feature artifact contains no selected feature columns.")
     return features, labels, splits, {
         "audit_manifest_path": str(manifest_path.resolve()),
-        "audit_manifest_sha256": sha256_file(manifest_path),
+        "audit_manifest_sha256": file_sha256(manifest_path),
         "feature_columns": feature_columns,
         "feature_columns_hash": hashlib.sha256(json.dumps(feature_columns, separators=(",", ":")).encode()).hexdigest(),
         "audit_run_id": manifest.get("run_id"),

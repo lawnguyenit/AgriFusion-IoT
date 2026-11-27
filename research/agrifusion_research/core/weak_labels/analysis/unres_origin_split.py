@@ -9,7 +9,6 @@ mutated by this analysis.
 
 from __future__ import annotations
 
-import hashlib
 import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -28,6 +27,7 @@ from .unres_origin_contract import (
     UNRES_K,
 )
 from .unres_origin_reporting import build_readme, build_report, count_payload, summarise_scope
+from agrifusion_research.core.common.digests import file_sha256
 
 
 @dataclass(frozen=True)
@@ -329,7 +329,7 @@ def build_unres_origin_split(config: UnresOriginSplitConfig) -> UnresOriginSplit
             "k_semantics": "support depth in strict consecutive observations",
         },
         "source_files": {
-            key: {"path": str(path), "sha256": _sha256(path)} for key, path in source_paths.items()
+            key: {"path": str(path), "sha256": file_sha256(path)} for key, path in source_paths.items()
         },
         "output_files": {
             "assignments": str(rows_path),
@@ -376,11 +376,4 @@ def _require_columns(frame: pd.DataFrame, required: set[str], name: str) -> None
     if missing:
         raise ValueError(f"{name} is missing required columns: {missing}")
 
-
-def _sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as stream:
-        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
 

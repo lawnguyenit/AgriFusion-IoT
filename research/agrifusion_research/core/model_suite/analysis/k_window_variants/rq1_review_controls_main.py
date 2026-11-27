@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import sys
 from pathlib import Path
@@ -26,6 +25,7 @@ from agrifusion_research.core.model_suite.analysis.k_window_variants.representat
 from agrifusion_research.core.model_suite.analysis.k_window_variants.semantic_targets import load_online_event_target_frame
 from agrifusion_research.core.model_suite.analysis.k_window_variants.targets import AUX_POINT, LOW_POINT, REF_POINT, LOW_TEMPORAL, REF_TEMPORAL, UNRES_TEMPORAL
 from agrifusion_research.core.common.artifacts import create_run_directory
+from agrifusion_research.core.common.digests import file_sha256
 
 
 DEFAULT_SEEDS = (20260717, 20260718, 20260719, 20260720, 20260721)
@@ -183,7 +183,7 @@ def main() -> None:
         "reporting_gate_facts": gate_facts,
         "k_label_counts": k_metadata,
         "source_paths": {"snapshot_run_dir": str(args.snapshot_run_dir.resolve()), "window_run_dir": str(args.window_run_dir.resolve()), "native_release_dir": str(args.native_release_dir.resolve()), "protocol_run_dir": str(args.protocol_run_dir.resolve()), "target_view_run_dir": str(args.target_view_run_dir.resolve()), "assignment_path": str(assignment_path), "output_dir": str(output_dir.resolve())},
-        "source_manifest_hashes": {"snapshot": _manifest_hash(args.snapshot_run_dir.resolve() / "views" / "v0_minimal_sensor" / "manifest.json"), "window": _manifest_hash(args.window_run_dir.resolve() / "views" / "v2_sensor_row_window_3h" / "manifest.json")},
+        "source_manifest_hashes": {"snapshot": file_sha256(args.snapshot_run_dir.resolve() / "views" / "v0_minimal_sensor" / "manifest.json"), "window": file_sha256(args.window_run_dir.resolve() / "views" / "v2_sensor_row_window_3h" / "manifest.json")},
     }
     _write_outputs(output_dir, manifest, seed_metrics, seed_summary, seed_contrasts, block_sensitivity, k_metrics_frame, k_summary, k_contrasts_frame, gate_facts)
     print(json.dumps({"run_id": run_id, "output_dir": str(output_dir), "seed_count": len(args.seeds), "seed_metric_rows": len(seed_metrics), "k_metric_rows": len(k_metrics_frame), "block_rows": len(block_sensitivity)}, ensure_ascii=True))
@@ -318,7 +318,7 @@ def _build_reporting_gate_facts(*, target_frame: pd.DataFrame, row_index: pd.Dat
         "native_operationalization": native_manifest.get("operationalization_id"),
         "protocol_feature_view": "v2_temporal_full_3h",
         "source_manifest_hashes": {
-            "snapshot_view": _manifest_hash(Path(snapshot_manifest.get("debug_csv_paths", {}).get("feature_matrix_csv", ""))) if False else snapshot_manifest.get("x_data_hash"),
+            "snapshot_view": file_sha256(Path(snapshot_manifest.get("debug_csv_paths", {}).get("feature_matrix_csv", ""))) if False else snapshot_manifest.get("x_data_hash"),
             "window_view": window_manifest.get("x_data_hash"),
         },
     }
@@ -399,12 +399,6 @@ def _summarize_k_metrics(metrics: pd.DataFrame) -> pd.DataFrame:
 def _concat(frames: list[pd.DataFrame]) -> pd.DataFrame:
     nonempty = [frame for frame in frames if not frame.empty]
     return pd.concat(nonempty, ignore_index=True).convert_dtypes() if nonempty else pd.DataFrame()
-
-
-def _manifest_hash(path: Path) -> str:
-    if not path.exists():
-        return ""
-    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def _markdown_table(frame: pd.DataFrame, columns: list[str]) -> str:

@@ -7,15 +7,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from agrifusion_research.core.dataset_views.validators import dataframe_schema_hash, hash_dataframe_rows, stable_hash_object
-
-
-def sha256_file(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
+from agrifusion_research.core.common.digests import dataframe_schema_hash, hash_dataframe_rows, stable_hash_object
+from agrifusion_research.core.common.digests import file_sha256
 
 
 def make_run_id(dataset_id: str) -> str:
@@ -49,7 +42,7 @@ def write_feature_artifacts(
         "schema_version": 1,
         "artifact_name": "external_feature_superset",
         "matrix_path": str(matrix_path.resolve()),
-        "matrix_sha256": sha256_file(matrix_path),
+        "matrix_sha256": file_sha256(matrix_path),
         "matrix_schema_hash": dataframe_schema_hash(feature_frame),
         "feature_rows_hash": hash_dataframe_rows(feature_frame.loc[:, registry_columns(feature_frame)]),
         "ordered_sample_id_hash": stable_hash_object(feature_frame["sample_id"].astype("string").tolist()),
@@ -83,7 +76,7 @@ def write_feature_artifacts(
         }
     )
     registry_path.write_text(json.dumps(registry, ensure_ascii=False, indent=2), encoding="utf-8")
-    manifest["feature_registry_sha256"] = sha256_file(registry_path)
+    manifest["feature_registry_sha256"] = file_sha256(registry_path)
     (output_dir / "run_manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     report = [
         f"# External feature processing: {manifest['dataset_id']}",
@@ -101,7 +94,7 @@ def write_feature_artifacts(
     (output_dir / "report.md").write_text("\n".join(report), encoding="utf-8")
     catalog = []
     for path in (matrix_path, registry_path, quality_path, output_dir / "run_manifest.json", output_dir / "report.md"):
-        catalog.append({"path": path.name, "sha256": sha256_file(path), "size_bytes": path.stat().st_size})
+        catalog.append({"path": path.name, "sha256": file_sha256(path), "size_bytes": path.stat().st_size})
     (output_dir / "artifact_catalog.json").write_text(json.dumps(catalog, ensure_ascii=False, indent=2), encoding="utf-8")
     return matrix_path, registry_path
 

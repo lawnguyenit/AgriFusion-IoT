@@ -17,6 +17,7 @@ from pathlib import Path
 import pandas as pd
 
 from agrifusion_research.core.common.artifacts import create_run_directory, write_json, write_text
+from agrifusion_research.core.common.digests import file_sha256
 
 Y_EVENT = "temporal_event_3h"
 Y_ONLINE = "temporal_online_3h"
@@ -380,7 +381,7 @@ def _persist_target_files(*, output_dir: Path, target_rows: pd.DataFrame, run_re
             "paired_cohort": "online label status LABELED and event label status LABELED",
             "event_censoring": "point-LOW run ending at the observed segment boundary is EVENT_UNDETERMINED",
         },
-        "source_files": {key: {"path": str(path), "sha256": _sha256(path)} for key, path in source_paths.items()},
+        "source_files": {key: {"path": str(path), "sha256": file_sha256(path)} for key, path in source_paths.items()},
         "output_files": {
             "combined_assignments": str(target_rows_path),
             "event_run_registry": str(run_registry_path),
@@ -481,9 +482,3 @@ def _run_id(segment: str, start_record_id: str) -> str:
     return hashlib.sha256(f"{segment}|{start_record_id}".encode("utf-8")).hexdigest()[:32]
 
 
-def _sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as stream:
-        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()

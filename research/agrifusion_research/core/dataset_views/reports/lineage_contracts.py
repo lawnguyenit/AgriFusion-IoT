@@ -13,7 +13,7 @@ from agrifusion_research.core.dataset_views.configs import (
     get_view_definition,
 )
 from agrifusion_research.core.dataset_views.contracts import DependencyRegistryEntry, FeatureCatalogEntry
-from agrifusion_research.core.dataset_views.validators import file_sha256
+from agrifusion_research.core.common.digests import file_sha256
 from agrifusion_research.core.dataset_views.writers import write_json_file, write_parquet_file, write_csv_file
 
 

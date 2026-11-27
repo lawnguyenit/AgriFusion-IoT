@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 from datetime import datetime, timezone
 from pathlib import Path
 
 from .pipeline import run_external_support_audit
 from .sensitivity import summarize_continuity_sensitivity
+from agrifusion_research.core.common.digests import file_sha256
 
 
 def main() -> None:
@@ -44,7 +44,7 @@ def main() -> None:
             "supersedes_support_run_id": prior.get("support_run_id"),
             "support_run_id": support_dir.name,
             "support_run_dir": str(support_dir.resolve()),
-            "support_manifest_sha256": _sha256(support_dir / "run_manifest.json"),
+            "support_manifest_sha256": file_sha256(support_dir / "run_manifest.json"),
             "model_fit_performed": False,
         })
 
@@ -60,14 +60,14 @@ def main() -> None:
         **previous,
         "artifact_id": "stuard_continuity_support_sensitivity_v3_refreshed",
         "split_path": str(splits_path),
-        "split_sha256": _sha256(splits_path),
+        "split_sha256": file_sha256(splits_path),
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
         "refresh_reason": "Regenerated B2 summaries using integer failing_partition_count schema; reused hash-verified V3 candidate labels and frozen split.",
         "model_fit_performed": False,
         "runs": records,
         "summary_csv": {
             "path": str(args.summary_csv.resolve()),
-            "sha256": _sha256(args.summary_csv),
+            "sha256": file_sha256(args.summary_csv),
             "row_count": int(len(result)),
         },
     }
@@ -82,16 +82,8 @@ def main() -> None:
 
 
 def _verify_hash(path: Path, expected: str) -> None:
-    if not path.is_file() or _sha256(path) != expected:
+    if not path.is_file() or file_sha256(path) != expected:
         raise ValueError(f"Artifact is missing or checksum changed: {path}")
-
-
-def _sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for block in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(block)
-    return digest.hexdigest()
 
 
 if __name__ == "__main__":

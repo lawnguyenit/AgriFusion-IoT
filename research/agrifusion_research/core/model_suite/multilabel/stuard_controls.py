@@ -12,7 +12,7 @@ import pandas as pd
 from agrifusion_research.core.model_suite.registries import build_estimator, resolve_model_profile
 from agrifusion_research.core.model_suite.utils.preprocessing import fit_preprocessing_bundle, hash_sample_ids
 
-from .inputs import load_reviewed_audit, sha256_file
+from .inputs import load_reviewed_audit, file_sha256
 from .metrics import binary_metrics
 
 
@@ -233,21 +233,21 @@ def run_stuard_control_arms(config: StuardControlConfig) -> Path:
         "thread_count": config.thread_count,
         "model_library_version": library_version,
         "audit_manifest_path": str((config.audit_dir / "audit_manifest.json").resolve()),
-        "audit_manifest_sha256": sha256_file(config.audit_dir / "audit_manifest.json"),
+        "audit_manifest_sha256": file_sha256(config.audit_dir / "audit_manifest.json"),
         "sensor_predictions_path": str(config.sensor_predictions_path.resolve()),
-        "sensor_predictions_sha256": sha256_file(config.sensor_predictions_path),
+        "sensor_predictions_sha256": file_sha256(config.sensor_predictions_path),
         "training_sample_hash": hash_sample_ids(train_ids),
         "artifacts": {
-            "line_plus_sensors_model": {"path": model_path.name, "sha256": sha256_file(model_path)},
-            "predictions": {"path": predictions_path.name, "sha256": sha256_file(predictions_path)},
-            "metrics": {"path": metrics_path.name, "sha256": sha256_file(metrics_path)},
-            "contrasts": {"path": contrasts_path.name, "sha256": sha256_file(contrasts_path)},
+            "line_plus_sensors_model": {"path": model_path.name, "sha256": file_sha256(model_path)},
+            "predictions": {"path": predictions_path.name, "sha256": file_sha256(predictions_path)},
+            "metrics": {"path": metrics_path.name, "sha256": file_sha256(metrics_path)},
+            "contrasts": {"path": contrasts_path.name, "sha256": file_sha256(contrasts_path)},
         },
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
     }
     (model_dir / "run_manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     catalog = [
-        {"path": path.name, "sha256": sha256_file(path), "size_bytes": path.stat().st_size}
+        {"path": path.name, "sha256": file_sha256(path), "size_bytes": path.stat().st_size}
         for path in (model_path, predictions_path, metrics_path, contrasts_path, model_dir / "run_manifest.json")
     ]
     (model_dir / "artifact_catalog.json").write_text(json.dumps(catalog, ensure_ascii=False, indent=2), encoding="utf-8")

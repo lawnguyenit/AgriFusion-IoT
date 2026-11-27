@@ -11,7 +11,7 @@ import pandas as pd
 
 from agrifusion_research.core.common.artifacts import create_run_directory, write_json, write_text
 from agrifusion_research.core.weak_labels.analysis.temporal_target_views import Y_EVENT, Y_ONLINE
-from agrifusion_research.core.weak_labels.infrastructure.hashing import file_sha256
+from agrifusion_research.core.common.digests import file_sha256
 
 from .provenance_strata_analysis_data import (
     build_event_online_probability_deltas,

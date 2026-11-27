@@ -8,7 +8,7 @@ import pandas as pd
 
 from .contracts import ExternalLabelConfig, ExternalLabelResult
 from .engine import build_candidate_labels
-from .persistence import make_run_id, sha256_file, write_label_artifacts
+from .persistence import make_run_id, file_sha256, write_label_artifacts
 from .profiles import ExternalLabelProfile, TargetSpec, resolve_profile
 
 
@@ -62,7 +62,7 @@ def _load_verified_source(
     _verify_catalog_entry(catalog, manifest_path.name, manifest_path, "Intake manifest")
     _verify_catalog_entry(catalog, canonical_path.name, canonical_path, "Canonical artifact")
     raw_manifest_path = Path(str(intake_manifest["raw_manifest_path"]))
-    if not raw_manifest_path.is_file() or sha256_file(raw_manifest_path) != intake_manifest.get("raw_manifest_sha256"):
+    if not raw_manifest_path.is_file() or file_sha256(raw_manifest_path) != intake_manifest.get("raw_manifest_sha256"):
         raise ValueError("Intake raw release manifest is missing or its checksum is invalid.")
     source = _read_allowlisted_columns(canonical_path, profile)
     return canonical_path, manifest_path, intake_manifest, raw_manifest_path, profile, source
@@ -75,7 +75,7 @@ def _verify_catalog_entry(
     artifact_description: str,
 ) -> None:
     rows = [row for row in catalog if row.get("path") == name]
-    if len(rows) != 1 or str(rows[0].get("sha256")) != sha256_file(path):
+    if len(rows) != 1 or str(rows[0].get("sha256")) != file_sha256(path):
         raise ValueError(f"{artifact_description} checksum does not match its intake artifact catalog.")
 
 
@@ -107,9 +107,9 @@ def _build_run_manifest(
         "dataset_metadata": intake_manifest.get("dataset_metadata", {}),
         "intake_run_id": intake_manifest["run_id"],
         "intake_manifest_path": str(intake_manifest_path),
-        "intake_manifest_sha256": sha256_file(intake_manifest_path),
+        "intake_manifest_sha256": file_sha256(intake_manifest_path),
         "canonical_path": str(canonical_path),
-        "canonical_sha256": sha256_file(canonical_path),
+        "canonical_sha256": file_sha256(canonical_path),
         "raw_manifest_path": str(raw_manifest_path.resolve()),
         "raw_manifest_sha256": str(intake_manifest["raw_manifest_sha256"]),
         "target_specs": [_target_manifest(target) for target in profile.targets],

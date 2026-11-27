@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 
 from agrifusion_research.core.model_suite.registries import build_estimator, resolve_model_profile
-from .inputs import load_reviewed_audit, sha256_file
+from .inputs import load_reviewed_audit, file_sha256
 from .metrics import binary_metrics
 from .stuard_controls import _paired_day_log_loss_contrast
 
@@ -245,9 +245,9 @@ def run_stuard_acquisition_controls(
         "thread_count": thread_count,
         "model_library_version": library_version,
         "audit_manifest_path": str((audit_dir / "audit_manifest.json").resolve()),
-        "audit_manifest_sha256": sha256_file(audit_dir / "audit_manifest.json"),
+        "audit_manifest_sha256": file_sha256(audit_dir / "audit_manifest.json"),
         "source_labels_path": str(source_labels_path.resolve()),
-        "source_labels_sha256": sha256_file(source_labels_path),
+        "source_labels_sha256": file_sha256(source_labels_path),
         "arm_dimensions": arm_dimensions,
         "control_metrics_path": metrics_path.name,
         "control_contrasts_path": contrasts_path.name,
@@ -257,7 +257,7 @@ def run_stuard_acquisition_controls(
     manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2, default=_json_default), encoding="utf-8")
     catalog_paths = [*model_dir.glob("*.joblib"), predictions_path, metrics_path, contrasts_path, manifest_path]
     (output_dir / "artifact_catalog.json").write_text(json.dumps([
-        {"path": path.relative_to(output_dir).as_posix(), "sha256": sha256_file(path), "size_bytes": path.stat().st_size}
+        {"path": path.relative_to(output_dir).as_posix(), "sha256": file_sha256(path), "size_bytes": path.stat().st_size}
         for path in catalog_paths
     ], ensure_ascii=False, indent=2), encoding="utf-8")
     return output_dir

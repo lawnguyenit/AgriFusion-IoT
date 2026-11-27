@@ -15,7 +15,7 @@ from agrifusion_research.core.dataset_views.configs import (
     get_view_definition,
 )
 from agrifusion_research.core.dataset_views.contracts import MaterializationConfig
-from agrifusion_research.core.dataset_views.validators import dataframe_schema_hash, file_sha256, hash_dataframe_rows, stable_hash_object
+from agrifusion_research.core.common.digests import dataframe_schema_hash, file_sha256, hash_dataframe_rows, stable_hash_object
 from agrifusion_research.core.dataset_views.writers import write_csv_file, write_json_file, write_parquet_file
 
 
