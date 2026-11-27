@@ -14,39 +14,65 @@ runtime and no build-time npm dependency.
 The dashboard is presentation-only. It does not read
 `Backend/Output_data/Layer1` directly.
 
-## Current Firebase contract
+## Firebase contract
 
-The frontend subscribes to these paths below `resultPath` (normally
-`result`):
+The dashboard reads exactly the `result/*` contract in
+[`docs/contracts/result.md`](../docs/contracts/result.md) (machine-readable copy:
+`public/contract.js`):
 
 ```text
 result/
 |-- meta
-|-- pipeline
-|-- latest
-|-- history/{air,soil,npk,weather}
-`-- analysis/
-    |-- diagnosis
-    |-- forecast/{air,soil,npk,weather}
-    |-- anomalies
-    `-- recommendations
+|-- latest/{air,soil,npk}
+`-- history/{air,soil,npk}/{ts}
 ```
 
-The runtime diagnosis supports both:
+- Loading: one `limitToLast(800)` query per history group with
+  `onChildAdded`/`onChildRemoved`, plus `onValue` on `meta` and `latest`.
+  There is no full-tree `get()`, so history is not downloaded twice.
+- NPK values are **proxies** (`n_proxy/p_proxy/k_proxy`, uncalibrated), not ppm.
+  The EC unit is not asserted by the canonical catalog (chua kiem chung).
+- Weather, forecast, diagnosis, recommendations and anomalies have no data
+  source. Their panels (including the "Du doan" tab) were removed rather than
+  kept as placeholders: a permanent empty panel suggests a feature that is
+  about to arrive, while the contract has no path for it. Add them back only
+  together with a contract version bump and a real publisher.
+- Retention on the server is 7 days, so the 30-day range preset was removed.
 
-- four-class labels such as `normal_context`, `packet_loss_outage`,
-  `water_deficit` and `rain_or_fertigation_context`;
-- binary `normal`/`abnormal` fallback.
+## Integration status
 
-The UI must inspect `model.labelScheme` before interpreting a diagnosis.
+No backend publisher writes `result/*` yet (it will be written against the
+contract). Until then the dashboard runs in demo mode with sample data from
+`public/sample-data.js`, which is the single source of demo data and follows the
+contract exactly. In live mode with an empty `result/` the UI shows
+"Chua co du lieu", not sample data.
 
-## Important integration status
+## Security rules (`database.rules.json`)
 
-The current tracked backend owns Layer0/Layer1 canonical telemetry and does
-not publish the `result/*` dashboard contract. Therefore this frontend is a
-separate presentation contract and currently works in demo mode unless an
-external publisher populates Firebase. Do not document `python -m Backend.main`
-as a command that automatically updates this dashboard.
+Public read only under `result`; no public write anywhere; `Node2`, `debug`,
+`control` and `ops` need non-anonymous auth.
+
+**The rules deployed on Firebase are NOT verified by this repo.** The owner must
+open the Firebase console (Realtime Database > Rules) and confirm they match this
+file; deploy with `firebase deploy --only database` from `Frontend/` if not.
+Also check that the Anonymous sign-in provider is disabled or unused.
+
+The firmware currently writes with a legacy database secret
+(`APP_FIREBASE_LEGACY_TOKEN`). That credential is admin-level and **bypasses these
+rules entirely**. Moving the firmware to a scoped credential is plan node s6e
+(owner action); until then the rules above do not protect against anyone holding
+that secret.
+
+## Tests
+
+No dependencies, Node 18+:
+
+```bash
+cd Frontend && node --test test/*.test.js
+```
+
+The test validates the demo sample data, the UI metric list and
+`database.rules.json` against the contract. CI: `.github/workflows/frontend.yml`.
 
 ## Local preview
 
@@ -80,6 +106,11 @@ firebase deploy --only hosting
 - `public/index.html` — page structure;
 - `public/style.css` — dashboard styling;
 - `public/app.js` — Firebase listeners, normalization and rendering;
+- `public/contract.js` — machine-readable `result/*` contract and validator;
+- `public/dashboard-model.js` — metric and group definitions;
+- `public/sample-data.js` — demo data following the contract;
+- `test/contract.test.js` — contract drift check;
+- `database.rules.json` — RTDB security rules;
 - `public/config.js` — safe defaults plus local override loading;
 - `public/config.local.example.json` — configuration template;
 - `firebase.json` — Hosting configuration.
