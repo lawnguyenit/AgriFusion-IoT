@@ -13,6 +13,7 @@ canonical -> settings
 cli -> canonical
 cli -> cloud
 cli -> ingest
+cli -> publish
 cli -> settings
 cloud -> settings
 core.common -> settings
@@ -68,3 +69,6 @@ external.support_audit -> core.common
 external.support_audit -> external.labels
 ingest -> io
 ingest -> settings
+publish -> cloud
+publish -> io
+publish -> settings

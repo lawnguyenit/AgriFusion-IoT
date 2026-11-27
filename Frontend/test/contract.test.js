@@ -6,6 +6,8 @@ import {
   CONTRACT_VERSION,
   HISTORY_GROUPS,
   HISTORY_MAX_POINTS,
+  HISTORY_RETENTION_SECONDS,
+  META_FIELDS,
   validateResult,
   pickRecord,
 } from "../public/contract.js";
@@ -100,5 +102,27 @@ test("database.rules.json: public read only under result, no public write", () =
   for (const device of ["Node2", "debug", "control", "ops"]) {
     assert.match(rules[device][".read"], /auth != null/);
     assert.match(rules[device][".write"], /auth != null/);
+  }
+});
+
+test("contract.js equals docs/contracts/result.schema.json (shared with the Python publisher)", () => {
+  const schema = JSON.parse(readFileSync(new URL("../../docs/contracts/result.schema.json", import.meta.url), "utf8"));
+  assert.equal(schema.schema_version, CONTRACT_VERSION);
+  assert.equal(schema.history_retention_seconds, HISTORY_RETENTION_SECONDS);
+  assert.equal(schema.history_max_points, HISTORY_MAX_POINTS);
+  for (const [name, spec] of Object.entries(META_FIELDS)) {
+    assert.equal(schema.meta[name].type, spec.type, `meta.${name}`);
+    assert.equal(schema.meta[name].required, spec.required, `meta.${name}`);
+  }
+  assert.deepEqual(Object.keys(schema.meta), Object.keys(META_FIELDS));
+  assert.deepEqual(Object.keys(schema.groups), Object.keys(HISTORY_GROUPS));
+  for (const [group, def] of Object.entries(schema.groups)) {
+    assert.deepEqual(Object.keys(def.fields), Object.keys(HISTORY_GROUPS[group].fields), group);
+    for (const [name, spec] of Object.entries(def.fields)) {
+      const js = HISTORY_GROUPS[group].fields[name];
+      assert.equal(spec.source, js.source, `${group}.${name} source`);
+      assert.equal(spec.min, js.min, `${group}.${name} min`);
+      assert.equal(spec.max, js.max, `${group}.${name} max`);
+    }
   }
 });

@@ -3,7 +3,7 @@
 Phiên bản hợp đồng: `schema_version = 1`. Bản máy đọc được: `Frontend/public/contract.js`.
 `Frontend/test/contract.test.js` kiểm dữ liệu mẫu của UI, danh sách metric của UI và `database.rules.json` theo hợp đồng này.
 
-Trạng thái: **backend publisher chưa tồn tại** (sẽ viết sau theo tài liệu này). Chỗ nào ghi "đề xuất" là quy tắc backend cần
+Trạng thái: publisher có tại `src/agrifusion/publish` (bản máy đọc được: `result.schema.json`), chưa chạy với RTDB thật. Chỗ nào ghi "đề xuất" là quy tắc backend cần
 tuân thủ nhưng chưa có mã nào thực thi; chưa kiểm chứng với dữ liệu thật.
 
 ## 1. Phạm vi

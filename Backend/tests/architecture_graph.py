@@ -1,7 +1,7 @@
 """Import graph between top-level packages (used by the architecture test).
 
 Nodes
-  settings | io | ingest | canonical | cloud   src/agrifusion/<name>/**
+  settings | io | ingest | canonical | cloud | publish  src/agrifusion/<name>/**
   cli                                          src/agrifusion/cli.py, __main__.py
   agrifusion                                   other files directly in src/agrifusion/
   research                                     files directly in research/agrifusion_research/ (cli)
@@ -28,7 +28,7 @@ RESEARCH_DIR = RESEARCH_ROOT / RESEARCH_PACKAGE
 RESEARCH_GROUPS = ("core", "external", "experiments")
 BACKEND_DIR = REPO_ROOT / "Backend"
 
-AGRIFUSION_SUBPACKAGES = ("settings", "io", "ingest", "canonical", "cloud")
+AGRIFUSION_SUBPACKAGES = ("settings", "io", "ingest", "canonical", "cloud", "publish")
 AGRIFUSION_NODES = frozenset({*AGRIFUSION_SUBPACKAGES, "cli", "agrifusion"})
 
 

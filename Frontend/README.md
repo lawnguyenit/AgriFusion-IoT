@@ -39,10 +39,16 @@ result/
   together with a contract version bump and a real publisher.
 - Retention on the server is 7 days, so the 30-day range preset was removed.
 
+## How live data gets here
+
+`agrifusion publish --apply` (see `src/agrifusion/publish/README.md`) writes `result/*` with the Firebase Admin SDK.
+The owner must create a service account in the Firebase console and point `FIREBASE_KEY_PATH` / `DATABASE_URL` in
+the untracked `.env` at it. Never commit the key. Try first with `agrifusion publish --out plan.json` (no network).
+
 ## Integration status
 
-No backend publisher writes `result/*` yet (it will be written against the
-contract). Until then the dashboard runs in demo mode with sample data from
+The backend publisher (`agrifusion publish`) is implemented but not yet run against a real database (the
+owner has to supply a service account). Until then the dashboard runs in demo mode with sample data from
 `public/sample-data.js`, which is the single source of demo data and follows the
 contract exactly. In live mode with an empty `result/` the UI shows
 "Chua co du lieu", not sample data.
