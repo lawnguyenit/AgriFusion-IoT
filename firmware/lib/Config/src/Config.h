@@ -36,13 +36,27 @@
 // APP_SOIL_MOISTURE_TEST_MODE: bat khi chi muon test moisture sensor v1.2 analog.
 // APP_ALL_SENSORS_TEST_MODE: bat khi test serial-only toan bo NPK, moisture, DS18B20, SHT30.
 // APP_RAW_TRUTH_PROBE_MODE: bat khi can bai test raw transport/time cap thap, khong vao flow app that.
+// Cac macro *_TEST_MODE / *_PROBE_MODE KHONG sua o day: moi probe co env PlatformIO rieng
+// (probe_*) trong platformio.ini dat -D...=1. Mac dinh 0 = production AppRuntime.
 #define APP_RUN_CONTINUOUS 0         // 1 = chay lien tuc, 0 = che do wake-do-gui-ngu
-#define APP_SIM_PURE_TEST_MODE 0     // 1 = bo qua AppRuntime, chay che do test SIM thuan de chan doan mang
-#define APP_SHT30_TEST_MODE 0        // 1 = bo qua AppRuntime, chay che do test rieng SHT30
-#define APP_DS18B20_TEST_MODE 0      // 1 = bo qua AppRuntime, chay che do test rieng DS18B20
-#define APP_SOIL_MOISTURE_TEST_MODE 0 // 1 = bo qua AppRuntime, chay che do test moisture rieng
-#define APP_ALL_SENSORS_TEST_MODE 0   // production AppRuntime path
-#define APP_RAW_TRUTH_PROBE_MODE 0   // 1 = chay harness raw transport/time, 0 = de du phong cho app runtime sau nay
+#ifndef APP_SIM_PURE_TEST_MODE
+#define APP_SIM_PURE_TEST_MODE 0
+#endif
+#ifndef APP_SHT30_TEST_MODE
+#define APP_SHT30_TEST_MODE 0
+#endif
+#ifndef APP_DS18B20_TEST_MODE
+#define APP_DS18B20_TEST_MODE 0
+#endif
+#ifndef APP_SOIL_MOISTURE_TEST_MODE
+#define APP_SOIL_MOISTURE_TEST_MODE 0
+#endif
+#ifndef APP_ALL_SENSORS_TEST_MODE
+#define APP_ALL_SENSORS_TEST_MODE 0
+#endif
+#ifndef APP_RAW_TRUTH_PROBE_MODE
+#define APP_RAW_TRUTH_PROBE_MODE 0
+#endif
 
 #if (APP_SIM_PURE_TEST_MODE + APP_SHT30_TEST_MODE + APP_DS18B20_TEST_MODE + APP_SOIL_MOISTURE_TEST_MODE + APP_ALL_SENSORS_TEST_MODE + APP_RAW_TRUTH_PROBE_MODE) > 1
   #error "Chi duoc bat mot che do diagnostic/test tai mot thoi diem"
