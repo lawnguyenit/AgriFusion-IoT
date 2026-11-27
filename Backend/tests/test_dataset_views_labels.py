@@ -4,8 +4,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from Backend.Benchmark.dataset_views.contracts import LabelConfig, MaterializationConfig
-from Backend.Benchmark.dataset_views.pipelines import materialize_dataset_views
+from agrifusion_research.core.dataset_views.contracts import LabelConfig, MaterializationConfig
+from agrifusion_research.core.dataset_views.pipelines import materialize_dataset_views
 from Backend.tests.dataset_views_helpers import create_dataset_views_fixture
 
 

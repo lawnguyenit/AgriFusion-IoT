@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from Backend.Benchmark.evaluation_protocols.e1e2_split_audit import build_e1e2_split_audit
+from agrifusion_research.core.evaluation_protocols.e1e2_split_audit import build_e1e2_split_audit
 
 
 class E1E2SplitAuditTests(unittest.TestCase):

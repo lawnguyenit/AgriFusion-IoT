@@ -10,7 +10,7 @@ hardware evidence remain separate from this public orientation layer.
 2. [Repository hygiene](repository-hygiene.md)
 3. [Backend pipeline](../Backend/README.md)
 4. [Backend flow](../Backend/PIPELINE_FLOW.md)
-5. [Benchmark workspace](../Backend/Benchmark/README.md)
+5. [Benchmark workspace](../research/agrifusion_research/README.md)
 6. [Firmware](../IoT_Node/README.md)
 7. [Frontend dashboard](../Frontend/README.md)
 

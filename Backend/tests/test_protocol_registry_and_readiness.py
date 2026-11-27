@@ -8,32 +8,32 @@ from pathlib import Path
 import pandas as pd
 import yaml
 
-from Backend.Benchmark.protocol_registry import (
+from agrifusion_research.core.protocol_registry import (
     ProtocolRegistry,
     authorize_arm_operation,
     authorize_operation,
     build_protocol_registry,
     load_protocol_registry,
 )
-from Backend.Benchmark.evaluation_protocols.contracts import EvaluationProtocolConfig
-from Backend.Benchmark.evaluation_protocols.pipeline.build import (
+from agrifusion_research.core.evaluation_protocols.contracts import EvaluationProtocolConfig
+from agrifusion_research.core.evaluation_protocols.pipeline.build import (
     _validate_protocol_registry_authority,
 )
-from Backend.Benchmark.validity_lifecycle.contracts import ValidityLifecycleConfig
-from Backend.Benchmark.validity_lifecycle.pipeline.build import (
+from agrifusion_research.core.gates.validity_lifecycle.contracts import ValidityLifecycleConfig
+from agrifusion_research.core.gates.validity_lifecycle.pipeline.build import (
     _validate_protocol_registry_link,
 )
-from Backend.Benchmark.weak_labels.lifecycle.phase_a_readiness import PhaseAReadinessConfig, build_phase_a_readiness
-from Backend.Benchmark.weak_labels.lifecycle.phase_a_readiness.canonical import _logical_measurement_fingerprints
-from Backend.Benchmark.weak_labels.lifecycle.phase_a_readiness.continuity import build_causal_dependency_audit
-from Backend.Benchmark.weak_labels.lifecycle.phase_a_readiness.evidence import (
+from agrifusion_research.core.weak_labels.lifecycle.phase_a_readiness import PhaseAReadinessConfig, build_phase_a_readiness
+from agrifusion_research.core.weak_labels.lifecycle.phase_a_readiness.canonical import _logical_measurement_fingerprints
+from agrifusion_research.core.weak_labels.lifecycle.phase_a_readiness.continuity import build_causal_dependency_audit
+from agrifusion_research.core.weak_labels.lifecycle.phase_a_readiness.evidence import (
     build_candidate_evidence,
     build_rule_applicability,
 )
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-PROTOCOL_CONFIG = REPO_ROOT / "Backend" / "Benchmark" / "protocol_registry" / "config" / "protocol_v1.yaml"
+PROTOCOL_CONFIG = REPO_ROOT / "research" / "agrifusion_research" / "core" / "protocol_registry" / "config" / "protocol_v1.yaml"
 # Small fixture instead of the (git-ignored) real Layer1 output: the registry only hashes this file.
 LAYER1_MANIFEST = Path(__file__).resolve().parent / "fixtures" / "layer1_manifest_minimal.json"
 CANONICAL_HISTORY = REPO_ROOT / "output" / "Layer1" / "canonical" / "telemetry_history.csv"
@@ -332,22 +332,23 @@ class PhaseAReadinessTests(unittest.TestCase):
 
     def test_static_dependency_direction(self) -> None:
         registry_source = (
-            REPO_ROOT / "Backend" / "Benchmark" / "protocol_registry" / "registry.py"
+            REPO_ROOT / "research" / "agrifusion_research" / "core" / "protocol_registry" / "registry.py"
         ).read_text(encoding="utf-8")
         readiness_source = (
             REPO_ROOT
-            / "Backend"
-            / "Benchmark"
+            / "research"
+            / "agrifusion_research"
+            / "core"
             / "weak_labels"
             / "lifecycle"
             / "phase_a_readiness"
             / "pipeline.py"
         ).read_text(encoding="utf-8")
         for forbidden in (
-            "Backend.Benchmark.weak_labels",
-            "Backend.Benchmark.evaluation_protocols",
-            "Backend.Benchmark.dataset_views",
-            "Backend.Benchmark.model_suite",
+            "agrifusion_research.core.weak_labels",
+            "agrifusion_research.core.evaluation_protocols",
+            "agrifusion_research.core.dataset_views",
+            "agrifusion_research.core.model_suite",
         ):
             self.assertNotIn(forbidden, registry_source)
         self.assertNotIn("weak_labels.point", readiness_source)

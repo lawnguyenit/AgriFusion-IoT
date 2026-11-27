@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from Backend.Benchmark.dataset_views.contracts import MaterializationConfig
-from Backend.Benchmark.dataset_views.pipelines import materialize_dataset_views
+from agrifusion_research.core.dataset_views.contracts import MaterializationConfig
+from agrifusion_research.core.dataset_views.pipelines import materialize_dataset_views
 from Backend.tests.dataset_views_helpers import create_dataset_views_v2_fixture
 
 

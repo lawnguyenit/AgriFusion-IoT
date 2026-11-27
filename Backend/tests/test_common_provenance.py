@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from Backend.Benchmark.common.provenance import resolve_code_commit
+from agrifusion_research.core.common.provenance import resolve_code_commit
 
 
 class ResolveCodeCommitTests(unittest.TestCase):

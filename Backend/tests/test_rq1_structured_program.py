@@ -4,8 +4,8 @@ import unittest
 
 import pandas as pd
 
-from Backend.Benchmark.model_suite.analysis.k_window_variants.history import FeatureBundle
-from Backend.Benchmark.model_suite.analysis.k_window_variants.rq1_program_representations import (
+from agrifusion_research.core.model_suite.analysis.k_window_variants.history import FeatureBundle
+from agrifusion_research.core.model_suite.analysis.k_window_variants.rq1_program_representations import (
     _build_acquisition_evidence,
     _build_temporal_context,
     add_persistence_probe_target,

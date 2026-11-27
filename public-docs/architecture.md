@@ -95,7 +95,7 @@ are:
 | `model_suite` | model execution, metrics and reports | redefining the benchmark contract |
 
 The handoff is file-based and versioned. The central contract is described in
-[Benchmark to Model Suite](../Backend/Benchmark/BENCHMARK_TO_MODEL_SUITE_SPEC.md).
+[Benchmark to Model Suite](../research/agrifusion_research/BENCHMARK_TO_MODEL_SUITE_SPEC.md).
 
 ## Frontend surface
 

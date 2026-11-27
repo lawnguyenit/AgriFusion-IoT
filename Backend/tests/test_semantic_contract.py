@@ -7,13 +7,13 @@ from pathlib import Path
 
 import pandas as pd
 
-from Backend.Benchmark.weak_labels.lifecycle.phase_b_contract import PhaseBConfig, build_phase_b_decision_pack
-from Backend.Benchmark.weak_labels.lifecycle.phase_b_contract.resolution import build_point_contract_replay
+from agrifusion_research.core.weak_labels.lifecycle.phase_b_contract import PhaseBConfig, build_phase_b_decision_pack
+from agrifusion_research.core.weak_labels.lifecycle.phase_b_contract.resolution import build_point_contract_replay
 
 
 ROOT = Path(__file__).resolve().parents[2]
-PHASE_A = ROOT / "Backend" / "Benchmark" / "weak_labels" / "artifacts" / "legacy" / "phase_a_readiness_legacy" / "phase_a_readiness_20260731_003845"
-REGISTRY = ROOT / "Backend" / "Benchmark" / "protocol_registry" / "artifacts" / "protocol_registry_20260731_003841"
+PHASE_A = ROOT / "output" / "research" / "weak_labels" / "artifacts" / "legacy" / "phase_a_readiness_legacy" / "phase_a_readiness_20260731_003845"
+REGISTRY = ROOT / "output" / "research" / "protocol_registry" / "artifacts" / "protocol_registry_20260731_003841"
 CANONICAL = ROOT / "output" / "Layer1" / "canonical" / "telemetry_history.csv"
 
 

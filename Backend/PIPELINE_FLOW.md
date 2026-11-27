@@ -85,33 +85,33 @@ flowchart TD
   - builds canonical telemetry history
   - attaches continuity and temporal fields
   - writes reports and compatibility outputs
-- `Backend/Benchmark/dataset_views`
+- `research/agrifusion_research/core/dataset_views`
   - builds feature matrices and an additive row-identified superset from canonical Layer1
-- `Backend/Benchmark/weak_labels`
+- `research/agrifusion_research/core/weak_labels`
   - builds label authority from canonical Layer1
-- `Backend/Benchmark/external_labels`
+- `research/agrifusion_research/external/labels`
   - builds source-specific external q/τ candidate labels from allowlisted
     measurements and keeps all candidate assignments separate from features;
     UCI candidates are scoped to timestamps before 2005-03-01 while raw and
   canonical intake retain the complete source file
-- `Backend/Benchmark/external_splits`
+- `research/agrifusion_research/external/splits`
   - creates an immutable chronological 70/15/15 partition over linked UTC
     timestamps; shared environment/meter readings stay within one block
-- `Backend/Benchmark/external_support_audit`
+- `research/agrifusion_research/external/support_audit`
   - applies the user-selected B2 TEMPORAL support mapping to every external
     q/τ candidate and reports class, event, and episode-cluster support by
     partition; it does not authorize model fitting
-- `Backend/Benchmark/evaluation_protocols`
+- `research/agrifusion_research/core/evaluation_protocols`
   - freezes benchmark framing into a runner contract
-- `Backend/Benchmark/validity_lifecycle`
+- `research/agrifusion_research/core/gates/validity_lifecycle`
   - re-audits the locked benchmark sample universe as lifecycle
     evidence for `E1`, `E2`, and `E3`
   - does not create new train/validation/test splits
-- `Backend/Benchmark/model_suite`
+- `research/agrifusion_research/core/model_suite`
   - trains and evaluates models from the locked runner contract
   - stores test-set confusion and ROC/PR charts from retained predictions
   - provides an additive independent-head runner for multi-label audit outputs
-- `Backend/Benchmark/pretrain_audit`
+- `research/agrifusion_research/core/gates/pretrain_audit`
   - selects explicit feature groups from a registered superset
   - checks sample-key coverage across features, labels, and protocol splits
   - reports missingness and target support before model fit without changing
@@ -284,12 +284,12 @@ flowchart LR
 1. `src/agrifusion/cli.py`
 2. `src/agrifusion/ingest/FLOW.md`
 3. `src/agrifusion/canonical/FLOW.md`
-4. `Backend/Benchmark/dataset_views/FLOW.md`
-5. `Backend/Benchmark/weak_labels/FLOW.md`
-6. `Backend/Benchmark/evaluation_protocols/FLOW.md`
-7. `Backend/Benchmark/validity_lifecycle/FLOW.md`
-8. `Backend/Benchmark/model_suite/FLOW.md`
-9. `Backend/Benchmark/BENCHMARK_TO_MODEL_SUITE_SPEC.md`
+4. `research/agrifusion_research/core/dataset_views/FLOW.md`
+5. `research/agrifusion_research/core/weak_labels/FLOW.md`
+6. `research/agrifusion_research/core/evaluation_protocols/FLOW.md`
+7. `research/agrifusion_research/core/gates/validity_lifecycle/FLOW.md`
+8. `research/agrifusion_research/core/model_suite/FLOW.md`
+9. `research/agrifusion_research/BENCHMARK_TO_MODEL_SUITE_SPEC.md`
 
 ## Practical documentation convention
 

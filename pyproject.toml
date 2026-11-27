@@ -17,7 +17,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Benchmark / research lane (Backend/Benchmark).
+# Research lane (research/agrifusion_research).
 research = [
     "scikit-learn",
     "joblib",
@@ -35,12 +35,17 @@ dev = [
 [project.scripts]
 agrifusion = "agrifusion.cli:main"
 
-# Only the telemetry backend is packaged. `Backend/` (the Benchmark/research lane and its
-# tests) is not installed: it is run from a repository checkout and imported from the repo
-# root (`python -m Backend.Benchmark...`), where it imports the installed `agrifusion`.
+# Two import packages from one distribution:
+#   agrifusion           src/agrifusion                telemetry backend (Layer0/Layer1)
+#   agrifusion_research  research/agrifusion_research  benchmark/research lane; needs the
+#                        `research` extra to run (`pip install -e ".[research]"`).
+# Dependencies flow one way: agrifusion_research imports agrifusion, never the reverse.
 [tool.setuptools.packages.find]
-where = ["src"]
+where = ["src", "research"]
+
+[tool.setuptools.package-data]
+agrifusion_research = ["**/*.yaml", "**/*.json", "**/*.csv"]
 
 [tool.pytest.ini_options]
-pythonpath = [".", "src"]
+pythonpath = [".", "src", "research"]
 testpaths = ["Backend/tests"]

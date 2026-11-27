@@ -9,14 +9,14 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from Backend.Benchmark.model_suite.cli import build_parser
-from Backend.Benchmark.model_suite.config import TRAINING_PROFILES_PATH
-from Backend.Benchmark.model_suite.contracts import ModelUnavailableError
-from Backend.Benchmark.model_suite.data import list_training_profiles
-from Backend.Benchmark.model_suite.data.scope_resolver import load_stage_specs_for_profile
-from Backend.Benchmark.model_suite.pipeline.guides import write_run_guides
-from Backend.Benchmark.model_suite.pipeline.training_job import train_tabular_classifier
-from Backend.Benchmark.model_suite.registries import (
+from agrifusion_research.core.model_suite.cli import build_parser
+from agrifusion_research.core.model_suite.config import TRAINING_PROFILES_PATH
+from agrifusion_research.core.model_suite.contracts import ModelUnavailableError
+from agrifusion_research.core.model_suite.data import list_training_profiles
+from agrifusion_research.core.model_suite.data.scope_resolver import load_stage_specs_for_profile
+from agrifusion_research.core.model_suite.pipeline.guides import write_run_guides
+from agrifusion_research.core.model_suite.pipeline.training_job import train_tabular_classifier
+from agrifusion_research.core.model_suite.registries import (
     DEFAULT_ARTIFACT_ROOT,
     assert_models_available,
     build_estimator,
@@ -162,7 +162,7 @@ class ModelSuiteTests(unittest.TestCase):
         )
         self.assertEqual(
             DEFAULT_ARTIFACT_ROOT,
-            REPO_ROOT / "Backend" / "Benchmark" / "model_suite" / "artifacts",
+            REPO_ROOT / "output" / "research" / "model_suite" / "artifacts",
         )
 
     def test_train_tabular_classifier_writes_bundle_and_manifest(self) -> None:

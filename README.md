@@ -26,7 +26,7 @@ Verified from code, tests and docs in this repo.
 ### Works today
 
 - Telemetry pipeline: `python -m Backend.main` reads Firebase or a JSON export, writes Layer0 raw evidence and Layer1 canonical data (see [Backend README](Backend/README.md)).
-- Benchmark lane: dataset views, weak labels, protocol registry, evaluation protocols (temporal folds), model suite, validity audits (see [Benchmark README](Backend/Benchmark/README.md)).
+- Benchmark lane: dataset views, weak labels, protocol registry, evaluation protocols (temporal folds), model suite, validity audits (see [Benchmark README](research/agrifusion_research/README.md)).
 - Paper v1.0 reproducibility: result bundle of 202 files with SHA-256 manifest, source hashes for the official Stuard dataset, and a table rebuild command ([guide](Docs/research/reproducibility/paper-v1.0/README.md)). Not re-run for this README (it needs the release ZIP).
 - Firmware for ESP32-S3 (PlatformIO) with wake cycle, buffering/replay and Firebase publishing ([IoT Node README](IoT_Node/README.md)). Not built or flashed for this README.
 - Static dashboard in safe demo mode (no credentials needed) ([Frontend README](Frontend/README.md)).
@@ -60,7 +60,7 @@ flowchart TB
         source --> layer0 --> layer1
     end
 
-    layer1 --> benchmark[Backend/Benchmark<br/>dataset views, labels, evaluation, models]
+    layer1 --> benchmark[research/agrifusion_research<br/>dataset views, labels, evaluation, models]
     benchmark --> bundle[Result bundle and paper tables]
 
     subgraph presentation[Separate presentation contract]
@@ -95,12 +95,12 @@ The backend has no default node id: pass `--node-id` (or set `EXPORT_NODE_ID` in
 Benchmark:
 
 ```powershell
-python -m Backend.Benchmark.dataset_views.main --help
-python -m Backend.Benchmark.evaluation_protocols.main --help
-python -m Backend.Benchmark.model_suite.cli --help
+python -m agrifusion_research.core.dataset_views.main --help
+python -m agrifusion_research.core.evaluation_protocols.main --help
+python -m agrifusion_research.core.model_suite.cli --help
 ```
 
-Start with [Backend/PIPELINE_FLOW.md](Backend/PIPELINE_FLOW.md) and the [benchmark handoff contract](Backend/Benchmark/BENCHMARK_TO_MODEL_SUITE_SPEC.md). For the frozen paper results, see the [paper reproducibility guide](Docs/research/reproducibility/paper-v1.0/README.md); it maps the release bundle to manuscript Tables 2-4 and records the official Stuard Version 2 source hashes.
+Start with [Backend/PIPELINE_FLOW.md](Backend/PIPELINE_FLOW.md) and the [benchmark handoff contract](research/agrifusion_research/BENCHMARK_TO_MODEL_SUITE_SPEC.md). For the frozen paper results, see the [paper reproducibility guide](Docs/research/reproducibility/paper-v1.0/README.md); it maps the release bundle to manuscript Tables 2-4 and records the official Stuard Version 2 source hashes.
 
 Dashboard (demo mode by default; live Firebase mode needs an untracked local `Frontend/public/config.local.json`):
 
@@ -112,7 +112,7 @@ python -m http.server 4173 -d Frontend/public
 
 ```
 src/agrifusion/ telemetry backend package: settings, io, ingest (Layer0), canonical (Layer1), cloud, cli
-Backend/       Benchmark research lanes and tests (Backend/Benchmark moves out in a later stage)
+Backend/       Benchmark research lanes and tests (research/agrifusion_research moves out in a later stage)
 output/        generated Layer0/Layer1 data (gitignored)
 IoT_Node/      ESP32-S3 firmware (PlatformIO)
 Frontend/      static Firebase RTDB dashboard (demo mode by default)
@@ -121,7 +121,7 @@ public-docs/   architecture and repository hygiene notes
 .github/       GitHub Pages workflow
 ```
 
-Read in this order: [System architecture](public-docs/architecture.md), [Repository hygiene](public-docs/repository-hygiene.md), [Backend pipeline](Backend/README.md), [Benchmark workspace](Backend/Benchmark/README.md), [IoT Node firmware](IoT_Node/README.md), [Frontend dashboard](Frontend/README.md). Full map: [`public-docs/README.md`](public-docs/README.md).
+Read in this order: [System architecture](public-docs/architecture.md), [Repository hygiene](public-docs/repository-hygiene.md), [Backend pipeline](Backend/README.md), [Benchmark workspace](research/agrifusion_research/README.md), [IoT Node firmware](IoT_Node/README.md), [Frontend dashboard](Frontend/README.md). Full map: [`public-docs/README.md`](public-docs/README.md).
 
 ## What is intentionally not in the source contract
 

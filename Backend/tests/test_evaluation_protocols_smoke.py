@@ -5,7 +5,7 @@ import unittest
 
 import pandas as pd
 
-from Backend.Benchmark.evaluation_protocols.pipeline.smoke_support import (
+from agrifusion_research.core.evaluation_protocols.pipeline.smoke_support import (
     build_pooled_prediction_summary,
     build_stage_run_frames,
 )

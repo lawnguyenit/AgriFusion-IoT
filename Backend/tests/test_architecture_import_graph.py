@@ -11,6 +11,7 @@ from pathlib import Path
 
 from Backend.tests.architecture_graph import AGRIFUSION_NODES, REPO_ROOT, build_edges, mutual_pairs
 
+RESEARCH_NODE_PREFIXES = ("research", "core", "external", "experiments")
 ALLOWLIST = Path(__file__).resolve().parent / "architecture" / "allowed_import_edges.txt"
 REGENERATE = "python Backend/tests/architecture/update_allowlist.py"
 
@@ -72,24 +73,24 @@ class ArchitectureImportGraphTests(unittest.TestCase):
     def test_known_cycle_is_present(self) -> None:
         allowed = load_allowlist()
         for edge in (
-            ("Benchmark.evaluation_protocols", "Benchmark.model_suite"),
-            ("Benchmark.model_suite", "Benchmark.evaluation_protocols"),
+            ("core.evaluation_protocols", "core.model_suite"),
+            ("core.model_suite", "core.evaluation_protocols"),
         ):
             self.assertIn(edge, allowed)
             self.assertIn("to remove in s5d", allowed[edge])
 
     def test_graph_detects_a_new_edge(self) -> None:
         """Guard the guard: the comparison reports an edge missing from the allow-list."""
-        actual = {("ingest", "Benchmark.model_suite"): ["x.py:1"], **{e: ["y.py:1"] for e in load_allowlist()}}
+        actual = {("ingest", "core.model_suite"): ["x.py:1"], **{e: ["y.py:1"] for e in load_allowlist()}}
         new, stale = diff_edges(actual, load_allowlist())
-        self.assertEqual(new, [("ingest", "Benchmark.model_suite")])
+        self.assertEqual(new, [("ingest", "core.model_suite")])
         self.assertEqual(stale, [])
 
     def test_agrifusion_does_not_import_backend_or_benchmark(self) -> None:
-        """Hard rule, independent of the allow-list: the installable package never depends on Backend/."""
+        """Hard rule, independent of the allow-list: agrifusion never depends on Backend/ or agrifusion_research."""
         offending = [
             f"{src} -> {dst}" for (src, dst) in build_edges()
-            if src in AGRIFUSION_NODES and (dst.startswith("Benchmark") or dst == "Backend")
+            if src in AGRIFUSION_NODES and (dst in RESEARCH_NODE_PREFIXES or dst.startswith(RESEARCH_NODE_PREFIXES) or dst == "Backend")
         ]
         self.assertEqual(offending, [])
 

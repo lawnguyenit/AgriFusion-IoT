@@ -151,7 +151,7 @@ python -m unittest Backend.tests.test_model_suite
   research-label owner.
 - `agrifusion.ingest` / `agrifusion.canonical` preserve observed/provenance
   data and do not create benchmark targets.
-- `Backend/Benchmark` owns labels, splits, leakage controls, training and
+- `research/agrifusion_research` owns labels, splits, leakage controls, training and
   scientific interpretation.
 - The static frontend reads a separate `result/*` presentation contract; the
   current backend CLI does not automatically publish that contract.

@@ -8,12 +8,12 @@ from pathlib import Path
 
 import pandas as pd
 
-from Backend.Benchmark.external_features.contracts import ExternalFeatureConfig
-from Backend.Benchmark.external_features.pipeline import run_external_feature_processing
-from Backend.Benchmark.external_features.profiles import ExternalFeatureProfile
-from Backend.Benchmark.external_features.windowing import build_external_feature_matrix
-from Backend.Benchmark.pretrain_audit import PretrainAuditConfig, run_pretrain_audit
-from Backend.Benchmark.pretrain_audit.selection import resolve_feature_selection
+from agrifusion_research.external.features.contracts import ExternalFeatureConfig
+from agrifusion_research.external.features.pipeline import run_external_feature_processing
+from agrifusion_research.external.features.profiles import ExternalFeatureProfile
+from agrifusion_research.external.features.windowing import build_external_feature_matrix
+from agrifusion_research.core.gates.pretrain_audit import PretrainAuditConfig, run_pretrain_audit
+from agrifusion_research.core.gates.pretrain_audit.selection import resolve_feature_selection
 
 
 class ExternalFeatureTests(unittest.TestCase):
@@ -308,7 +308,7 @@ class ExternalFeatureTests(unittest.TestCase):
         self.assertEqual(row["missing_count"], 2)
 
     def test_stuard_context_is_separate_and_target_moisture_is_absent(self) -> None:
-        from Backend.Benchmark.external_features.profiles import resolve_profile
+        from agrifusion_research.external.features.profiles import resolve_profile
 
         profile = resolve_profile("stuard_tomato_irrigation_2023", {})
         canonical = pd.DataFrame(
@@ -343,7 +343,7 @@ class ExternalFeatureTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             registry_path = Path(temporary) / "registry.json"
             columns = ["soil_moisture_pct__3h_mean"]
-            from Backend.Benchmark.dataset_views.validators import stable_hash_object
+            from agrifusion_research.core.dataset_views.validators import stable_hash_object
 
             registry_path.write_text(json.dumps({
                 "feature_groups": {

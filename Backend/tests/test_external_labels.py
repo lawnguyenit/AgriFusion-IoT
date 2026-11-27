@@ -8,11 +8,11 @@ from pathlib import Path
 
 import pandas as pd
 
-from Backend.Benchmark.external_labels.contracts import ExternalLabelConfig
-from Backend.Benchmark.external_labels.engine import build_candidate_labels
-from Backend.Benchmark.external_labels.pipeline import run_external_label_candidates
-from Backend.Benchmark.external_labels.profiles import PROFILES
-from Backend.Benchmark.external_labels.temporal import (
+from agrifusion_research.external.labels.contracts import ExternalLabelConfig
+from agrifusion_research.external.labels.engine import build_candidate_labels
+from agrifusion_research.external.labels.pipeline import run_external_label_candidates
+from agrifusion_research.external.labels.profiles import PROFILES
+from agrifusion_research.external.labels.temporal import (
     assign_binary_candidate,
     continuous_tail_run_lengths,
     observed_tail_onset_mask,

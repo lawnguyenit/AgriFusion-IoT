@@ -2,7 +2,7 @@ import unittest
 
 import pandas as pd
 
-from Backend.Benchmark.weak_labels.analysis.unres_origin_split import derive_unres_origin_rows
+from agrifusion_research.core.weak_labels.analysis.unres_origin_split import derive_unres_origin_rows
 
 
 class UnresOriginSplitTests(unittest.TestCase):

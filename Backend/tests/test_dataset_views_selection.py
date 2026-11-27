@@ -6,9 +6,9 @@ from pathlib import Path
 
 import pandas as pd
 
-from Backend.Benchmark.dataset_views.configs import resolve_view_id, resolve_view_ids, taxonomy_entries
-from Backend.Benchmark.dataset_views.contracts import MaterializationConfig
-from Backend.Benchmark.dataset_views.pipelines import materialize_dataset_views
+from agrifusion_research.core.dataset_views.configs import resolve_view_id, resolve_view_ids, taxonomy_entries
+from agrifusion_research.core.dataset_views.contracts import MaterializationConfig
+from agrifusion_research.core.dataset_views.pipelines import materialize_dataset_views
 from Backend.tests.dataset_views_helpers import create_dataset_views_fixture
 
 

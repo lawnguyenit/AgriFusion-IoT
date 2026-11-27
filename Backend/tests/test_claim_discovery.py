@@ -4,7 +4,7 @@ import unittest
 
 import pandas as pd
 
-from Backend.Benchmark.claim_discovery.inventory import build_evidence_inventory, flatten_column_roles
+from agrifusion_research.external.claims.inventory import build_evidence_inventory, flatten_column_roles
 
 
 class ClaimDiscoveryInventoryTests(unittest.TestCase):

@@ -3,12 +3,12 @@ import unittest
 import numpy as np
 import pandas as pd
 
-from Backend.Benchmark.model_suite.analysis.k_window_variants.configured_runner import build_configured_variants
-from Backend.Benchmark.model_suite.analysis.k_window_variants.history import FeatureBundle, build_causal_history_bundle
-from Backend.Benchmark.model_suite.analysis.k_window_variants.embedding import build_causal_sequence_bundle
-from Backend.Benchmark.model_suite.analysis.k_window_variants.representations import build_representation_bundles
-from Backend.Benchmark.model_suite.analysis.k_window_variants.robustness_features import build_history_audit_representations
-from Backend.Benchmark.model_suite.analysis.k_window_variants.semantic_runner import _depth_bin, _provenance_stratum
+from agrifusion_research.core.model_suite.analysis.k_window_variants.configured_runner import build_configured_variants
+from agrifusion_research.core.model_suite.analysis.k_window_variants.history import FeatureBundle, build_causal_history_bundle
+from agrifusion_research.core.model_suite.analysis.k_window_variants.embedding import build_causal_sequence_bundle
+from agrifusion_research.core.model_suite.analysis.k_window_variants.representations import build_representation_bundles
+from agrifusion_research.core.model_suite.analysis.k_window_variants.robustness_features import build_history_audit_representations
+from agrifusion_research.core.model_suite.analysis.k_window_variants.semantic_runner import _depth_bin, _provenance_stratum
 
 
 class KHistorySemanticsTests(unittest.TestCase):
