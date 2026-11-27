@@ -20,9 +20,7 @@ Config/
 |-- paths.py      -> registry các path chuẩn của backend
 |-- runtime.py    -> BackendSettings và override từ CLI
 |-- common.py     -> helper thời gian, ép kiểu, thống kê nhỏ
-|-- storage.py    -> đọc/ghi JSON, JSONL, gzip, hash
-`-- IO/
-    `-- io_csv.py -> helper đọc/ghi CSV
+`-- storage.py    -> đọc/ghi JSON, JSONL, gzip, hash
 ```
 
 ## 3. Input

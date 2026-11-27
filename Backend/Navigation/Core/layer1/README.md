@@ -10,7 +10,7 @@ Layer1:
 - build mot canonical telemetry history, moi row ung voi mot Firebase event;
 - danh dau continuity segment theo `record.ts_sample` de tach cac khoang van hanh bi ngat dai;
 - sinh latest snapshot, debug views, feature catalog, quality reports;
-- sinh compatibility outputs `sht30/*`, `npk/*`, `meteo/*` tu canonical history khi consumer cu van ton tai.
+- sinh compatibility outputs `sht30/*`, `npk/*` tu canonical history khi consumer cu van ton tai.
 
 ## Module map
 
@@ -69,8 +69,6 @@ Neu consumer cu van doc:
 - `Output_data/Layer1/sht30/latest.json`
 - `Output_data/Layer1/npk/history.jsonl`
 - `Output_data/Layer1/npk/latest.json`
-- `Output_data/Layer1/meteo/history.jsonl`
-- `Output_data/Layer1/meteo/latest.json`
 
 thi cac file nay duoc sinh lai tu canonical source-of-truth, khong con la pipeline xu ly song song.
 
@@ -110,7 +108,7 @@ thi cac file nay duoc sinh lai tu canonical source-of-truth, khong con la pipeli
 
 - quality score legacy lam analytical evidence;
 - filter bo row chi vi packet sensor bi thieu;
-- stream meteo la source-of-truth ngang hang voi telemetry canonical.
+- stream meteo (da bo: luon rong, khong co nguon du lieu).
 
 ## Detailed Flow
 

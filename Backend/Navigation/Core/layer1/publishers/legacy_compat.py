@@ -35,21 +35,6 @@ class LegacyCompatibilityPublisher:
             state_path=self.output_root / "npk" / "state.json",
             builder=self._build_legacy_npk_row,
         )
-        meteo_dir = self.output_root / "meteo"
-        meteo_dir.mkdir(parents=True, exist_ok=True)
-        write_json(meteo_dir / "latest.json", {})
-        write_json(
-            meteo_dir / "state.json",
-            {
-                "schema_version": 2,
-                "processor_name": "canonical_compat_meteo",
-                "last_processed_server_ts": None,
-                "last_processed_event_key": None,
-                "processed_record_count": 0,
-                "last_updated_utc": iso_utc_now(),
-            },
-        )
-        write_jsonl(meteo_dir / "history.jsonl", [])
 
     def _write_legacy_stream(
         self,

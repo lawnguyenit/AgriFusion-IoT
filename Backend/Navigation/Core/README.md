@@ -3,8 +3,7 @@
 ## Purpose
 
 `Backend/Navigation/Core` owns the accepted backend stages from raw telemetry
-ingestion through canonical preprocessing, plus the reusable
-benchmark-facing Layer2 feature builders that still consume Core outputs.
+ingestion through canonical preprocessing.
 
 Core is responsible for:
 
@@ -12,8 +11,7 @@ Core is responsible for:
 - loading local telemetry sources;
 - preserving source provenance;
 - building canonical records;
-- deriving deterministic low-level features;
-- producing reusable temporal feature bundles without assigning benchmark
+- deriving deterministic low-level features, without assigning benchmark
   labels or model outputs.
 
 Core is not responsible for:
@@ -29,7 +27,6 @@ Backend/Navigation/Core/
 |-- infrastructure/ external adapters used by Core stages
 |-- layer0/      raw telemetry ingestion into Layer0 artifacts
 |-- layer1/      canonical telemetry preprocessing
-|-- layer2/      reusable benchmark-facing time-series feature builders
 `-- utils/       low-level helpers reused inside Core
 ```
 
@@ -41,7 +38,7 @@ Firebase RTDB / JSON export
 -> Backend/Output_data/Layer0
 -> Backend/Navigation/Core/layer1
 -> Backend/Output_data/Layer1
--> Backend/Navigation/Core/layer2 or Backend/Benchmark consumers
+-> Backend/Benchmark consumers
 ```
 
 ## Notes
@@ -49,10 +46,10 @@ Firebase RTDB / JSON export
 - Layer1 now uses one canonical history table as its source of truth.
 - Layer0 and its Firebase adapter now live under `Backend/Navigation/Core`, not a
   separate `Services` package.
-- Sensor-specific `sht30/*`, `npk/*`, and `meteo/*` artifacts under
+- Sensor-specific `sht30/*` and `npk/*` artifacts under
   `Output_data/Layer1` are compatibility outputs derived from canonical
   rows, not independent processing pipelines.
-- `layer2/` is still active and used by benchmark dataset builders.
+- The former `layer2/` feature builders had no importers and were removed.
 
 ## Risks
 

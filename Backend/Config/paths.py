@@ -45,10 +45,6 @@ class BackendPaths:
     def navigation_dir(self) -> Path:
         return self.backend_dir / "Navigation"
 
-    @property
-    def simulator_dir(self) -> Path:
-        return self.backend_dir / "Simulator"
-
     def ensure_directory(self, path: Path) -> Path:
         path.mkdir(parents=True, exist_ok=True)
         return path

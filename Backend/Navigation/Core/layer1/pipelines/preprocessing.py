@@ -264,10 +264,9 @@ class PreprocessingPipeline:
 
     def _build_sensor_counts(self, canonical_df: pd.DataFrame) -> dict[str, int]:
         if canonical_df.empty:
-            return {"canonical": 0, "sht30": 0, "npk": 0, "meteo": 0}
+            return {"canonical": 0, "sht30": 0, "npk": 0}
         return {
             "canonical": int(len(canonical_df)),
             "sht30": int(canonical_df["sht.packet_present"].fillna(False).astype(bool).sum()),
             "npk": int(canonical_df["npk.packet_present"].fillna(False).astype(bool).sum()),
-            "meteo": 0,
         }

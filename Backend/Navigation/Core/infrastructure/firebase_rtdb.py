@@ -52,42 +52,6 @@ class FirebaseRTDBClient:
             print(f"Firebase pull error: {exc!r}")
             return None
 
-    def pull_sensor_data(self, node_path: str = "Node1") -> Any:
-        return self.pull_data(node_path=node_path)
-
-    def set_data(self, node_path: str, payload: Any) -> bool:
-        try:
-            clean_path = node_path.strip("/") if node_path else ""
-            target_ref = self.root_ref.child(clean_path) if clean_path else self.root_ref
-            target_ref.set(payload)
-            print(f"Set data successfully at '{clean_path or '/'}'")
-            return True
-        except Exception as exc:
-            print(f"Firebase set error: {exc!r}")
-            return False
-
-    def delete_data(self, node_path: str) -> bool:
-        try:
-            clean_path = node_path.strip("/") if node_path else ""
-            target_ref = self.root_ref.child(clean_path) if clean_path else self.root_ref
-            target_ref.delete()
-            print(f"Deleted data successfully at '{clean_path or '/'}'")
-            return True
-        except Exception as exc:
-            print(f"Firebase delete error: {exc!r}")
-            return False
-
-    def update_data(self, node_path: str, payload: dict[str, Any]) -> bool:
-        try:
-            clean_path = node_path.strip("/") if node_path else ""
-            target_ref = self.root_ref.child(clean_path) if clean_path else self.root_ref
-            target_ref.update(payload)
-            print(f"Updated data successfully at '{clean_path or '/'}'")
-            return True
-        except Exception as exc:
-            print(f"Firebase update error: {exc!r}")
-            return False
-
     @staticmethod
     def _resolve_key_path(configured_key_path: str) -> Path:
         candidate = Path(configured_key_path).expanduser()

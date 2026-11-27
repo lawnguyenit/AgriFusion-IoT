@@ -1,7 +1,0 @@
-{
-  "last_processed_event_key": null,
-  "last_processed_server_ts": null,
-  "processed_record_count": 0,
-  "processor_name": "canonical_compat_meteo",
-  "schema_version": 2
-}

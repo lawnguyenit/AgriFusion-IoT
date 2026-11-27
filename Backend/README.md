@@ -18,8 +18,7 @@ Backend/
 |-- Navigation/Core/                canonical Layer0/Layer1 implementation
 |   |-- infrastructure/              Firebase adapter
 |   |-- layer0/                      source ingestion and raw artifacts
-|   |-- layer1/                      canonical telemetry processing
-|   `-- layer2/                      reusable downstream feature builders
+|   `-- layer1/                      canonical telemetry processing
 |-- Benchmark/                      research dataset/evaluation lanes
 |-- Output_data/                    generated local artifacts
 `-- tests/                          backend contract and processing tests

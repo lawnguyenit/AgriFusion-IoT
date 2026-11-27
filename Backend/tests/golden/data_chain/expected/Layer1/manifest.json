@@ -21,7 +21,6 @@
   "schema_version": 2,
   "targets": {
     "canonical": 27,
-    "meteo": 0,
     "npk": 27,
     "sht30": 27
   },

@@ -1,9 +1,6 @@
 # Core external services
 firebase-admin
 python-dotenv
-openmeteo-requests
-requests-cache
-retry-requests
 
 # Data processing
 numpy>=1.26

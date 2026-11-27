@@ -57,7 +57,7 @@ flowchart TD
 - `views/*.csv`
 - `quality_reports/*.csv|json`
 - `excluded/excluded_records.csv`
-- legacy compatibility outputs in `sht30/`, `npk/`, `meteo/`
+- legacy compatibility outputs in `sht30/`, `npk/`
 
 ## Folder map
 
