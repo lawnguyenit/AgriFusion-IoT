@@ -14,22 +14,28 @@ from agrifusion_research.experiments.k_window_variants.runner import build_varia
 from agrifusion_research.experiments.k_window_variants.targets import load_temporal_target_frame
 from agrifusion_research.core.common.digests import file_sha256
 from agrifusion_research.core.common.artifacts import create_run_directory
+from agrifusion_research.core.common.paths import MODEL_SUITE_ROOT
+from agrifusion_research.core.common.run_inputs import parse_with_run_inputs
+
+
+# Required run directories; see experiments/k_window_variants/inputs.yaml for the runs used in 2026-09.
+INPUT_KEYS = ("snapshot_run_dir", "window_run_dir", "native_release_dir", "protocol_run_dir",)
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run the four-way full-9/3h-window x K benchmark.")
-    parser.add_argument("--snapshot-run-dir", type=Path, default=ROOT_DIR / "output/research/dataset_views/artifacts/dataset_views_20260729_164926_756176")
-    parser.add_argument("--window-run-dir", type=Path, default=ROOT_DIR / "output/research/dataset_views/artifacts/dataset_views_20260729_164926_175188")
-    parser.add_argument("--native-release-dir", type=Path, default=ROOT_DIR / "output/research/weak_labels/artifacts/phase_c/native_engine_20260805_045419_359073")
-    parser.add_argument("--protocol-run-dir", type=Path, default=ROOT_DIR / "output/research/evaluation_protocols/artifacts/evaluation_protocols_20260902_203645")
-    parser.add_argument("--output-root", type=Path, default=ROOT_DIR / "output/research/model_suite/artifacts")
+    parser.add_argument("--snapshot-run-dir", type=Path, default=None)
+    parser.add_argument("--window-run-dir", type=Path, default=None)
+    parser.add_argument("--native-release-dir", type=Path, default=None)
+    parser.add_argument("--protocol-run-dir", type=Path, default=None)
+    parser.add_argument("--output-root", type=Path, default=MODEL_SUITE_ROOT / "artifacts")
     parser.add_argument("--seed", type=int, default=20260717)
     parser.add_argument("--threads", type=int, default=1)
     return parser
 
 
 def main() -> None:
-    args = build_parser().parse_args()
+    args = parse_with_run_inputs(build_parser(), INPUT_KEYS)
     target_frame, target_metadata = load_temporal_target_frame(
         native_release_dir=args.native_release_dir,
         protocol_run_dir=args.protocol_run_dir,

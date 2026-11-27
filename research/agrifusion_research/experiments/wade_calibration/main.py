@@ -12,6 +12,7 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from agrifusion_research.core.common.artifacts import create_run_directory
+from agrifusion_research.core.common.paths import MODEL_SUITE_ROOT
 
 from .reporting import build_report_tables, render_markdown
 from .representations import build_representations
@@ -29,7 +30,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--seeds", nargs="+", type=int, default=list(DEFAULT_SEEDS))
     parser.add_argument("--bootstrap-reps", type=int, default=500)
     parser.add_argument("--threads", type=int, default=1)
-    parser.add_argument("--output-root", type=Path, default=ROOT_DIR / "output/research/model_suite/artifacts")
+    parser.add_argument("--output-root", type=Path, default=MODEL_SUITE_ROOT / "artifacts")
     return parser
 
 

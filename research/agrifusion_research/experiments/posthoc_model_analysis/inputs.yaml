@@ -1,0 +1,4 @@
+description: >
+  Requires --model-run-dir and one of --unres-origin-artifact-dir / --target-views-artifact-dir / --run-depth-target-views-artifact-dir / --provenance-strata-target-views-artifact-dir.
+  No historical run is recorded for it; pass the paths on the command line.
+inputs: {}

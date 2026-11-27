@@ -52,7 +52,7 @@ def write_intake_artifact(
                     "segment_manifest_path": str(segment_manifest_path.resolve()),
                 },
                 "warnings": [
-                    "Candidate is additive and was not promoted to Backend/Output_data/Layer1.",
+                    "Candidate is additive and was not promoted to output/Layer1.",
                     "Feature catalog remains the existing Layer1 catalog until source promotion is approved.",
                 ],
             },

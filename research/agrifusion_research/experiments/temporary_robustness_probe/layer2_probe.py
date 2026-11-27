@@ -9,16 +9,15 @@ from sklearn.metrics import accuracy_score, balanced_accuracy_score, f1_score, r
 from xgboost import XGBClassifier
 
 
-PROTOCOL_RUN = Path("output/research/evaluation_protocols/artifacts/evaluation_protocols_20260902_203645")
 TEMPORAL_VIEW = "v2_temporal_mini_3h"
 TEMPORAL_TASK = "v2_temporal_3h"
 PARTITIONS = ("train", "validation", "test")
 
 
-def run_layer2_probe(repo_root: Path, seed: int = 20260907) -> dict[str, object]:
+def run_layer2_probe(repo_root: Path, protocol_run_dir: Path, seed: int = 20260907) -> dict[str, object]:
     """Run one deliberately narrow XGBoost probe with a matched intervention."""
 
-    manifest_path = repo_root / PROTOCOL_RUN / "primary_protocol/runner/task_training_manifest.parquet"
+    manifest_path = protocol_run_dir / "primary_protocol/runner/task_training_manifest.parquet"
     manifest = pd.read_parquet(manifest_path)
     target_rows = manifest.loc[
         (manifest["feature_view_id"] == TEMPORAL_VIEW)

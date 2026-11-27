@@ -18,15 +18,21 @@ from agrifusion_research.experiments.k_window_variants.embedding_runner import r
 from agrifusion_research.experiments.k_window_variants.runner import load_feature_matrix
 from agrifusion_research.experiments.k_window_variants.semantic_targets import load_online_event_target_frame
 from agrifusion_research.core.common.artifacts import create_run_directory
+from agrifusion_research.core.common.paths import MODEL_SUITE_ROOT
+from agrifusion_research.core.common.run_inputs import parse_with_run_inputs
+
+
+# Required run directories; see experiments/k_window_variants/inputs.yaml for the runs used in 2026-09.
+INPUT_KEYS = ("snapshot_run_dir", "native_release_dir", "protocol_run_dir", "target_view_run_dir",)
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run causal GRU embedding to XGBoost K>1 probe.")
-    parser.add_argument("--snapshot-run-dir", type=Path, default=ROOT_DIR / "output/research/dataset_views/artifacts/dataset_views_20260729_164926_756176")
-    parser.add_argument("--native-release-dir", type=Path, default=ROOT_DIR / "output/research/weak_labels/artifacts/phase_c/native_engine_20260805_045419_359073")
-    parser.add_argument("--protocol-run-dir", type=Path, default=ROOT_DIR / "output/research/evaluation_protocols/artifacts/evaluation_protocols_20260902_203645")
-    parser.add_argument("--target-view-run-dir", type=Path, default=ROOT_DIR / "output/research/weak_labels/artifacts/phase_c/temporal_event_online_target_views_20260903_000725")
-    parser.add_argument("--output-root", type=Path, default=ROOT_DIR / "output/research/model_suite/artifacts")
+    parser.add_argument("--snapshot-run-dir", type=Path, default=None)
+    parser.add_argument("--native-release-dir", type=Path, default=None)
+    parser.add_argument("--protocol-run-dir", type=Path, default=None)
+    parser.add_argument("--target-view-run-dir", type=Path, default=None)
+    parser.add_argument("--output-root", type=Path, default=MODEL_SUITE_ROOT / "artifacts")
     parser.add_argument("--seed", type=int, default=20260717)
     parser.add_argument("--threads", type=int, default=1)
     parser.add_argument("--sequence-length", type=int, default=12)
@@ -37,7 +43,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> None:
-    args = build_parser().parse_args()
+    args = parse_with_run_inputs(build_parser(), INPUT_KEYS)
     snapshot_frame, feature_names, snapshot_manifest = load_feature_matrix(
         run_dir=args.snapshot_run_dir,
         view_id="v0_minimal_sensor",

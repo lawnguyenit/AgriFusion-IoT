@@ -47,6 +47,7 @@ experiments.source_intake -> core.common
 experiments.source_intake -> io
 experiments.source_intake -> settings
 experiments.stuard_controls -> core.model_suite
+experiments.temporary_robustness_probe -> core.common
 experiments.wade_calibration -> core.common
 experiments.wade_calibration -> core.model_suite
 experiments.weak_labels_phases -> core.common
@@ -59,6 +60,7 @@ external.features -> core.common
 external.features -> external
 external.intake -> core.common
 external.intake -> external
+external.intake -> settings
 external.labels -> core.common
 external.labels -> external
 external.splits -> core.common

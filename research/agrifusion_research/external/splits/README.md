@@ -13,7 +13,7 @@ the approved B2 TEMPORAL mapping before model policy review.
 ```powershell
 python -m agrifusion_research.external.splits.main `
   --canonical <canonical.parquet> `
-  --output-root Backend\Output_data\wade_external_validation_pack\processed\splits `
+  --output-root output\wade_external_validation_pack\processed\splits `
   --group-columns entity_id `
   --shared-timestamp-columns environment_timestamp,water_timestamp
 ```

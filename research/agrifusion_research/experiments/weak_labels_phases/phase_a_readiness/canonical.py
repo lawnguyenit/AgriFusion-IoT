@@ -6,9 +6,17 @@ from pathlib import Path
 
 import pandas as pd
 
+from agrifusion.io import read_table
 from agrifusion_research.core.common.digests import file_sha256, stable_digest
 from agrifusion_research.core.protocol_registry.contracts import ProtocolRegistry
 
+
+# How canonical_record_hash is computed (recorded in the input manifest). CSV keeps the
+# historical raw-line hash so old Phase A runs stay comparable; parquet has no raw lines.
+CANONICAL_RECORD_HASH_METHOD = {
+    "csv": "sha256_of_raw_csv_line",
+    "parquet": "stable_digest_of_row_values",
+}
 
 STRUCTURAL_COLUMNS = (
     "record.node_id",
@@ -88,18 +96,23 @@ def load_canonical_audit_inputs(
 ]:
     canonical_path = canonical_path.resolve()
     canonical_manifest_path = canonical_manifest_path.resolve()
-    header = pd.read_csv(canonical_path, nrows=0).columns.tolist()
+    is_parquet = canonical_path.suffix.lower() == ".parquet"
+    full_frame = read_table(canonical_path) if is_parquet else None
+    header = list(full_frame.columns) if full_frame is not None else read_table(canonical_path, nrows=0).columns.tolist()
     missing = [column for column in STRUCTURAL_COLUMNS if column not in header]
     if missing:
         raise KeyError(f"Canonical history is missing structural fields: {missing}")
-    structural = pd.read_csv(canonical_path, usecols=list(STRUCTURAL_COLUMNS), low_memory=False)
+    if full_frame is not None:
+        structural = full_frame.loc[:, list(STRUCTURAL_COLUMNS)].reset_index(drop=True).copy()
+    else:
+        structural = read_table(canonical_path, usecols=list(STRUCTURAL_COLUMNS), low_memory=False)
     structural.insert(0, "source_row_locator", pd.Series(range(len(structural)), dtype="Int64"))
     structural["sample_time"] = _parse_local_timestamp_series(structural["record.sample_time_local"])
     structural["upload_time"] = _parse_local_timestamp_series(structural["record.upload_time_local"])
     structural = assign_environment_membership(structural, registry)
 
     source_file_hash = file_sha256(canonical_path)
-    row_hashes = _raw_csv_row_hashes(canonical_path)
+    row_hashes = _row_record_hashes(full_frame) if full_frame is not None else _raw_csv_row_hashes(canonical_path)
     if len(row_hashes) != len(structural):
         raise ValueError("Raw canonical row-hash count does not match parsed row count.")
     structural["source_file_id"] = source_file_hash
@@ -116,7 +129,7 @@ def load_canonical_audit_inputs(
         ),
         axis=1,
     ).astype("string")
-    logical_fingerprints = _logical_measurement_fingerprints(canonical_path)
+    logical_fingerprints = _logical_measurement_fingerprints(canonical_path, full_frame)
     structural["logical_measurement_fingerprint"] = pd.Series(logical_fingerprints, dtype="string")
 
     e1_locators = set(
@@ -138,6 +151,7 @@ def load_canonical_audit_inputs(
         canonical_path,
         row_locators=e1_locators,
         columns=e1_sensitive_columns,
+        full_frame=full_frame,
     )
     e1_sensitive["source_row_locator"] = pd.Series(sorted(e1_locators), dtype="Int64")
     e1_sensitive["sample_time"] = _parse_local_timestamp_series(e1_sensitive["record.sample_time_local"])
@@ -169,6 +183,8 @@ def load_canonical_audit_inputs(
         "canonical_manifest_path": str(canonical_manifest_path),
         "canonical_manifest_hash": file_sha256(canonical_manifest_path),
         "canonical_schema_hash": stable_digest(header),
+        "canonical_history_format": "parquet" if is_parquet else "csv",
+        "canonical_record_hash_method": CANONICAL_RECORD_HASH_METHOD["parquet" if is_parquet else "csv"],
         "canonical_schema_version": _canonical_schema_version(canonical_manifest_path),
         "input_row_count": len(structural),
         "structural_column_allowlist": list(STRUCTURAL_COLUMNS),
@@ -279,24 +295,36 @@ def _build_duplicate_audit(structural: pd.DataFrame) -> pd.DataFrame:
     return duplicated.rename(columns={"record.id": "record_id"}).convert_dtypes()
 
 
-def _logical_measurement_fingerprints(canonical_path: Path) -> list[str]:
-    header = pd.read_csv(canonical_path, nrows=0).columns.tolist()
+def _logical_measurement_fingerprints(canonical_path: Path, full_frame: pd.DataFrame | None = None) -> list[str]:
+    header = list(full_frame.columns) if full_frame is not None else read_table(canonical_path, nrows=0).columns.tolist()
     payload_columns = [
         column
         for column in header
         if column in {"record.node_id", "record.ts_sample"} or column.startswith(("sht.", "npk."))
     ]
-    payload = pd.read_csv(canonical_path, usecols=payload_columns, dtype="string", keep_default_na=False)
+    if full_frame is not None:
+        # Parquet values are typed; compare them as text like the CSV path (missing -> "").
+        payload = full_frame.loc[:, payload_columns].astype("string").fillna("")
+    else:
+        payload = read_table(canonical_path, usecols=payload_columns, dtype="string", keep_default_na=False)
     return [
         stable_digest({column: row[column] for column in payload_columns})
         for row in payload.to_dict(orient="records")
     ]
 
 
-def _read_selected_rows(canonical_path: Path, *, row_locators: set[int], columns: list[str]) -> pd.DataFrame:
+def _read_selected_rows(
+    canonical_path: Path,
+    *,
+    row_locators: set[int],
+    columns: list[str],
+    full_frame: pd.DataFrame | None = None,
+) -> pd.DataFrame:
     if not row_locators:
         return pd.DataFrame(columns=columns)
-    selected = pd.read_csv(
+    if full_frame is not None:
+        return full_frame.iloc[sorted(row_locators)].loc[:, columns].reset_index(drop=True)
+    selected = read_table(
         canonical_path,
         usecols=columns,
         skiprows=lambda line_number: line_number > 0 and (line_number - 1) not in row_locators,
@@ -305,6 +333,12 @@ def _read_selected_rows(canonical_path: Path, *, row_locators: set[int], columns
     if len(selected) != len(row_locators):
         raise ValueError("E1 selective read did not return the registered E1 row count.")
     return selected
+
+
+def _row_record_hashes(frame: pd.DataFrame) -> list[str]:
+    """Parquet has no raw text lines: hash each row's normalized values (core.common.digests family 1)."""
+    columns = list(frame.columns)
+    return [stable_digest({column: row[column] for column in columns}) for row in frame.to_dict(orient="records")]
 
 
 def _raw_csv_row_hashes(path: Path) -> list[str]:

@@ -161,7 +161,7 @@ Generate the current evidence inventory before reviewing label semantics:
 python -m agrifusion_research.external.claims.main `
   --canonical <intake-run>/canonical.parquet `
   --intake-manifest <intake-run>/run_manifest.json `
-  --output-root Backend/Output_data/wade_external_validation_pack/processed/claim_discovery
+  --output-root output/wade_external_validation_pack/processed/claim_discovery
 ```
 
 For the existing Firebase/Layer1 source, use the Layer1 feature catalog to
@@ -170,9 +170,9 @@ columns are supported:
 
 ```powershell
 python -m agrifusion_research.external.claims.main `
-  --canonical Backend/Output_data/Layer1/canonical/telemetry_history.csv `
-  --intake-manifest Backend/Output_data/Layer1/manifest.json `
-  --feature-catalog Backend/Output_data/Layer1/canonical/feature_catalog.csv `
+  --canonical output/Layer1/canonical/telemetry_history.csv `
+  --intake-manifest output/Layer1/manifest.json `
+  --feature-catalog output/Layer1/canonical/feature_catalog.csv `
   --dataset-id firebase_layer1 `
   --timestamp-column record.sample_time_local `
   --entity-column record.node_id `

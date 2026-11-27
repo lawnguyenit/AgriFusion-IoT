@@ -7,29 +7,35 @@ from pathlib import Path
 
 import pandas as pd
 
+from agrifusion_research.core.common.paths import REPO_ROOT, lane_output_root
+from agrifusion_research.core.common.run_inputs import parse_with_run_inputs
+
 from .layer1_geometry import build_layer1_tables
 from .layer2_probe import run_layer2_probe
 
-
-DEFAULT_OUTPUT = Path("Docs/Temp/temporal_weak_target_probe_20260907")
+DEFAULT_OUTPUT = lane_output_root("experiments") / "temporary_robustness_probe"
+INPUT_KEYS = ("phase_b_run_dir", "phase_c_origin_dir", "protocol_run_dir")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run the temporary weak-target robustness probe.")
-    parser.add_argument("--repo-root", type=Path, default=Path.cwd())
+    parser.add_argument("--repo-root", type=Path, default=REPO_ROOT, help="Base for relative paths stored in the protocol manifest.")
+    parser.add_argument("--phase-b-run-dir", type=Path, default=None)
+    parser.add_argument("--phase-c-origin-dir", type=Path, default=None)
+    parser.add_argument("--protocol-run-dir", type=Path, default=None)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--seed", type=int, default=20260907)
-    args = parser.parse_args()
+    args = parse_with_run_inputs(parser, INPUT_KEYS)
 
     repo_root = args.repo_root.resolve()
     output_dir = args.output_dir if args.output_dir.is_absolute() else repo_root / args.output_dir
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    layer1_tables, layer1_summary = build_layer1_tables(repo_root)
+    layer1_tables, layer1_summary = build_layer1_tables(args.phase_b_run_dir.resolve(), args.phase_c_origin_dir.resolve())
     for name, table in layer1_tables.items():
         table.to_csv(output_dir / f"layer1_{name}.csv", index=False)
 
-    layer2 = run_layer2_probe(repo_root, seed=args.seed)
+    layer2 = run_layer2_probe(repo_root, args.protocol_run_dir.resolve(), seed=args.seed)
     layer2["metrics"].to_csv(output_dir / "layer2_metrics.csv", index=False)
     layer2["disruption_audit"].to_csv(output_dir / "layer2_disruption_audit.csv", index=False)
     layer2["arm_metadata"].to_csv(output_dir / "layer2_arm_metadata.csv", index=False)
@@ -40,11 +46,7 @@ def main() -> None:
         "output_dir": str(output_dir),
         "layer1": layer1_summary,
         "layer2": layer2["contract"],
-        "source_artifacts": {
-            "phase_b_candidate_pack": "output/research/weak_labels/artifacts/phase_b/phase_b_decision_pack_20260805_091658",
-            "phase_c_unres_origin": "output/research/weak_labels/artifacts/phase_c/temporal_unres_origin_split_20260902_213111",
-            "temporal_protocol": "output/research/evaluation_protocols/artifacts/evaluation_protocols_20260902_203645",
-        },
+        "source_artifacts": {key: str(getattr(args, key)) for key in INPUT_KEYS},
     }
     (output_dir / "probe_manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2, default=_json_default), encoding="utf-8"

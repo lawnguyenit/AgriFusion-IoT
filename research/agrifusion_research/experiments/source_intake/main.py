@@ -29,7 +29,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--source-csv",
         type=Path,
-        default=Path(r"C:\Users\lawng\Downloads\AgriFusion_Node1_only_clean.csv"),
+        required=True,
         help="Flattened Firebase CSV export.",
     )
     parser.add_argument(

@@ -1,0 +1,7 @@
+description: >
+  Runs read by the temporary robustness probe on 2026-09-07 (previously hard-coded in
+  layer1_geometry.py, layer2_probe.py and main.py). Relative to the repository root.
+inputs:
+  phase_b_run_dir: output/research/weak_labels/artifacts/phase_b/phase_b_decision_pack_20260805_091658
+  phase_c_origin_dir: output/research/weak_labels/artifacts/phase_c/temporal_unres_origin_split_20260902_213111
+  protocol_run_dir: output/research/evaluation_protocols/artifacts/evaluation_protocols_20260902_203645

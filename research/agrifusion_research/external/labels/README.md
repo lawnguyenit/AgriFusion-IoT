@@ -55,7 +55,7 @@ Run the evidence inventory first:
 python -m agrifusion_research.external.claims.main `
   --canonical <intake-run>/canonical.parquet `
   --intake-manifest <intake-run>/run_manifest.json `
-  --output-root Backend/Output_data/wade_external_validation_pack/processed/claim_discovery
+  --output-root output/wade_external_validation_pack/processed/claim_discovery
 ```
 
 ## Outputs
@@ -80,7 +80,7 @@ pre-train audit. Review the support audit before choosing a primary candidate.
 python -m agrifusion_research.external.labels.main `
   --canonical <intake-run>/canonical.parquet `
   --intake-manifest <intake-run>/run_manifest.json `
-  --output-root Backend/Output_data/wade_external_validation_pack/processed/labels
+  --output-root output/wade_external_validation_pack/processed/labels
 ```
 
 The calibration window and candidate grid can be overridden explicitly with

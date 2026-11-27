@@ -106,10 +106,10 @@ reduction (`v5`), or environmental sequence (`v6`) dataset families.
 
 The active runtime reads:
 
-- `Backend/Output_data/Layer1/canonical/telemetry_history.csv`
-- `Backend/Output_data/Layer1/canonical/feature_catalog.csv`
-- `Backend/Output_data/Layer1/manifest.json`
-- `Backend/Output_data/Layer1/segments/segments_manifest.json`
+- `output/Layer1/canonical/telemetry_history.csv`
+- `output/Layer1/canonical/feature_catalog.csv`
+- `output/Layer1/manifest.json`
+- `output/Layer1/segments/segments_manifest.json`
   for V2 continuity-aware windows
 
 It does not require any legacy weak-label bridge CSV.

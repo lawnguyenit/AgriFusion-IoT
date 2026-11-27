@@ -65,8 +65,8 @@ Run it explicitly:
 ```powershell
 python research\agrifusion_research\experiments\weak_labels_phases\phase_a_readiness\main.py `
   --protocol-registry-run-dir <registry_run_dir> `
-  --canonical-history Backend\Output_data\Layer1\canonical\telemetry_history.csv `
-  --layer1-manifest Backend\Output_data\Layer1\manifest.json `
+  --canonical-history output\Layer1\canonical\telemetry_history.csv `
+  --layer1-manifest output\Layer1\manifest.json `
   --output-root output\research\weak_labels\artifacts\phase_a
 ```
 
@@ -236,7 +236,7 @@ python research\agrifusion_research\experiments\weak_labels_phases\phase_b_contr
   --window-contract <window.yaml> `
   --expected-difference-contract <expected_difference.csv> `
   --selection-config <selected_fold_profile.yaml> `
-  --canonical-history Backend\Output_data\Layer1\canonical\telemetry_history.csv `
+  --canonical-history output\Layer1\canonical\telemetry_history.csv `
   --output-root output\research\weak_labels\artifacts\phase_b
 ```
 

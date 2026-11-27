@@ -22,10 +22,10 @@ splits, or predictions.
 ## Storage
 
 Raw releases are copied byte-for-byte or downloaded explicitly under
-`Backend/Output_data/wade_external_validation_pack/raw/<dataset_id>/<release_id>/`.
+`output/wade_external_validation_pack/raw/<dataset_id>/<release_id>/`.
 Each release has a `raw_manifest.json` with source URLs, checksums, and sizes.
 Processing runs are isolated under
-`Backend/Output_data/wade_external_validation_pack/processed/<dataset_id>/<run_id>/`
+`output/wade_external_validation_pack/processed/<dataset_id>/<run_id>/`
 and include a typed canonical Parquet file, audit manifest, report, and artifact
 catalog. Existing raw releases are never overwritten; choose a new `release_id`
 for another source snapshot.

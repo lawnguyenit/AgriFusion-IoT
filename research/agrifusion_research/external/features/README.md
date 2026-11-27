@@ -14,7 +14,7 @@ the selected column groups and value hashes for downstream pre-train audits.
 python -m agrifusion_research.external.features.main `
   --canonical <intake-run>/canonical.parquet `
   --intake-manifest <intake-run>/run_manifest.json `
-  --output-root Backend/Output_data/wade_external_validation_pack/processed/features
+  --output-root output/wade_external_validation_pack/processed/features
 ```
 
 Use `--window-hours` to request another explicit set of durations and

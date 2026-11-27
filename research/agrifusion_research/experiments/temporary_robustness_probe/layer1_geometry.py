@@ -5,19 +5,15 @@ from pathlib import Path
 import pandas as pd
 
 
-PHASE_B_RUN = Path("output/research/weak_labels/artifacts/phase_b/phase_b_decision_pack_20260805_091658")
-PHASE_C_ORIGIN = Path(
-    "output/research/weak_labels/artifacts/phase_c/temporal_unres_origin_split_20260902_213111"
-)
 Q_CONTRACTS = ("Q05", "Q10", "Q15", "Q20")
 PERSISTENCE_KS = (2, 3, 4, 6)
 
 
-def build_layer1_tables(repo_root: Path) -> tuple[dict[str, pd.DataFrame], dict[str, object]]:
+def build_layer1_tables(phase_b_run_dir: Path, phase_c_origin_dir: Path) -> tuple[dict[str, pd.DataFrame], dict[str, object]]:
     """Build non-training Layer 1 tables from already materialized audit artifacts."""
 
-    operationalization = repo_root / PHASE_B_RUN / "operationalization"
-    thresholds = _build_threshold_prevalence(repo_root / PHASE_B_RUN / "thresholds" / "candidate_threshold_audit.csv")
+    operationalization = phase_b_run_dir / "operationalization"
+    thresholds = _build_threshold_prevalence(phase_b_run_dir / "thresholds" / "candidate_threshold_audit.csv")
     geometry = pd.read_parquet(operationalization / "qk_geometry.parquet")
     geometry = geometry.loc[
         geometry["q_contract_id"].isin(Q_CONTRACTS)
@@ -31,7 +27,7 @@ def build_layer1_tables(repo_root: Path) -> tuple[dict[str, pd.DataFrame], dict[
     )
     event_overlap = _build_event_overlap(normalized_events)
     boundary = _build_boundary_summary(operationalization / "qk_boundary_audit.parquet")
-    unres = _build_unresolved_origin(repo_root / PHASE_C_ORIGIN / "unres_origin_assignments.parquet")
+    unres = _build_unresolved_origin(phase_c_origin_dir / "unres_origin_assignments.parquet")
 
     q10 = geometry.loc[geometry["q_contract_id"].eq("Q10")].drop_duplicates("k").set_index("k")
     q10_survival = {

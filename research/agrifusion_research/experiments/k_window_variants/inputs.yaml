@@ -1,0 +1,12 @@
+description: >
+  Artifact runs read by the k_window_variants studies (main, ordered, robustness, embedding,
+  semantic, configured, rq1, rq1_program, rq1_review_controls) when they were run in
+  2026-09. Paths are relative to the repository root; runs written before GD5 must first be
+  moved from Backend/Benchmark/<lane>/artifacts to output/research/<lane>/artifacts.
+  Use: python -m agrifusion_research experiment k_window_variants <study> --inputs experiments/k_window_variants/inputs.yaml
+inputs:
+  snapshot_run_dir: output/research/dataset_views/artifacts/dataset_views_20260729_164926_756176
+  window_run_dir: output/research/dataset_views/artifacts/dataset_views_20260729_164926_175188
+  native_release_dir: output/research/weak_labels/artifacts/phase_c/native_engine_20260805_045419_359073
+  protocol_run_dir: output/research/evaluation_protocols/artifacts/evaluation_protocols_20260902_203645
+  target_view_run_dir: output/research/weak_labels/artifacts/phase_c/temporal_event_online_target_views_20260903_000725
