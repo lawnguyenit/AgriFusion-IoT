@@ -3,11 +3,10 @@ from __future__ import annotations
 import math
 import re
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from typing import Any
 
 import pandas as pd
-
-from .....Config.runtime import BACKEND_SETTINGS
 
 from ..contracts import TemporalSettings
 from .common import as_int_from_pd
@@ -51,6 +50,7 @@ def _assign_segment_membership(
     dataframe: pd.DataFrame,
     temporal_settings: TemporalSettings,
 ) -> None:
+    timezone = ZoneInfo(temporal_settings.timezone_name)
     prev_sample_by_node: dict[str, int | None] = {}
     segment_index_by_node: dict[str, int] = {}
     segment_id_by_node: dict[str, str] = {}
@@ -65,7 +65,7 @@ def _assign_segment_membership(
             dataframe.at[index, "record.upload_delay_sec"] = ts_server - ts_sample
 
         if ts_sample is not None:
-            local_dt = datetime.fromtimestamp(ts_sample, tz=BACKEND_SETTINGS.timezone)
+            local_dt = datetime.fromtimestamp(ts_sample, tz=timezone)
             hour_fraction = (
                 local_dt.hour
                 + (local_dt.minute / 60.0)

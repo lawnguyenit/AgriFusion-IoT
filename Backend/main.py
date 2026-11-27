@@ -1,9 +1,9 @@
 import argparse
+import json
 from datetime import date
 from typing import Any
 
-
-from .Config.runtime import BACKEND_SETTINGS, BackendSettings
+from .Config.runtime import BackendSettings
 from .Navigation.Core import PreprocessingPipeline
 
 
@@ -66,7 +66,11 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--node-id",
-        help="Logical node id used for Layer0 metadata paths, such as Node1 or Node2.",
+        help=(
+            "Logical node id used for Layer0 metadata paths (the firmware publishes Node2). "
+            "Required unless EXPORT_NODE_ID is set; with --only-layer1 it is read from the "
+            "Layer0 source manifest when omitted."
+        ),
     )
     parser.add_argument(
         "--node-slug",
@@ -144,7 +148,7 @@ def build_runtime_settings(args: argparse.Namespace) -> BackendSettings:
     if args.node_id is not None and args.node_slug is None:
         node_slug_override = ""
 
-    settings = BACKEND_SETTINGS.with_overrides(
+    settings = BackendSettings().with_overrides(
         source_type=args.source,
         input_json_path=args.input_json,
         node_id=args.node_id,
@@ -159,6 +163,26 @@ def build_runtime_settings(args: argparse.Namespace) -> BackendSettings:
         raise ValueError("--input-json is required when --source json-export")
 
     return settings
+
+
+def resolve_node_id(settings: BackendSettings, *, layer0_will_run: bool) -> BackendSettings:
+    """Return settings with a node id, or raise: there is no silent default node."""
+    if settings.node_id:
+        return settings
+    if not layer0_will_run:
+        manifest_path = settings.source_manifest_path
+        if manifest_path.exists():
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            detected = manifest.get("detected_identity") or {}
+            node_id = detected.get("node_id") or manifest.get("configured_node_id")
+            if node_id:
+                print(f"Node id from Layer0 manifest: {node_id}")
+                return settings.with_overrides(node_id=str(node_id))
+    raise ValueError(
+        "node id is not configured: pass --node-id (or set EXPORT_NODE_ID); "
+        "the firmware publishes Node2. With --only-layer1 it can also be read from the "
+        "Layer0 source manifest, but none was found."
+    )
 
 
 def parse_date_argument(value: str | None, field_name: str) -> date | None:
@@ -184,7 +208,6 @@ def get_source_date_range(args: argparse.Namespace) -> tuple[date | None, date |
 
 
 def run_layer0(args: argparse.Namespace, settings: BackendSettings) -> tuple[bool, Any | None]:
-    from .Navigation.Core.infrastructure import FirebaseRTDBClient
     from .Navigation.Core.layer0 import Layer0IngestionPipeline
     from .Navigation.Core.layer1.loaders import FirebaseSourceLoader
 
@@ -194,6 +217,9 @@ def run_layer0(args: argparse.Namespace, settings: BackendSettings) -> tuple[boo
 
     firebase_service = None
     if settings.source_type == "firebase":
+        # Imported lazily: firebase_admin is only needed for the firebase source.
+        from .Navigation.Core.infrastructure import FirebaseRTDBClient
+
         firebase_service = FirebaseRTDBClient()
 
     pipeline = Layer0IngestionPipeline(firebase_client=firebase_service, settings=settings)
@@ -261,7 +287,8 @@ def run_layer0(args: argparse.Namespace, settings: BackendSettings) -> tuple[boo
 
 def run_layer1(settings: BackendSettings, source_loader: Any | None = None) -> None:
     layer1_result = PreprocessingPipeline(
-        base_dir=settings.base_dir,
+        settings,
+        output_root=settings.layer1_root,
         source_loader=source_loader,
     ).run()
     print("--- Layer1 preprocessing hoan tat ---")
@@ -284,6 +311,7 @@ def main() -> None:
     settings = build_runtime_settings(args)
 
     run_layer0_flag, run_layer1_flag = resolve_layer_plan(args)
+    settings = resolve_node_id(settings, layer0_will_run=run_layer0_flag)
     layer1_source_loader = None
 
     if run_layer0_flag:

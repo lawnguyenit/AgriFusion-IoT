@@ -3,8 +3,6 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from .....Config.runtime import BACKEND_SETTINGS
-
 from ...utils.common import safe_int
 from ...utils.storage import read_json
 from ..contracts import SourceRecord
@@ -15,7 +13,7 @@ class FirebaseSourceLoader:
         self,
         base_dir: Path,
         *,
-        node_id: str = "Node1",
+        node_id: str | None = None,
         history_payload: dict[str, Any] | None = None,
         latest_payload: dict[str, Any] | None = None,
         latest_meta: dict[str, Any] | None = None,
@@ -84,6 +82,8 @@ class FirebaseSourceLoader:
 
     def _load_history_payload(self, records_by_id: dict[str, SourceRecord]) -> None:
         assert isinstance(self._history_payload, dict)
+        if not self.node_id:
+            raise ValueError("node_id is required to load an in-memory history payload")
         for date_key, day_payload in sorted(self._history_payload.items(), key=lambda item: str(item[0])):
             if not isinstance(day_payload, dict):
                 continue

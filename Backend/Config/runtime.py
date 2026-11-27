@@ -9,6 +9,9 @@ from .env import coerce_optional_path, env_int, env_path, env_str
 from .paths import BACKEND_PATHS
 
 
+DEFAULT_TIMEZONE_NAME = "Asia/Ho_Chi_Minh"
+
+
 def _slugify_node(value: str) -> str:
     slug = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
     return slug or "node"
@@ -16,13 +19,16 @@ def _slugify_node(value: str) -> str:
 
 @dataclass(frozen=True)
 class BackendSettings:
-    backend_dir: Path = field(default_factory=lambda: BACKEND_PATHS.backend_dir)
+    # AGRIFUSION_HOME relocates the whole data tree (tests, containers, installed copies).
+    backend_dir: Path = field(default_factory=lambda: env_path("AGRIFUSION_HOME") or BACKEND_PATHS.backend_dir)
     source_type: str = field(default_factory=lambda: env_str("EXPORT_SOURCE", "firebase") or "firebase")
     input_json_path: Path | None = field(default_factory=lambda: env_path("EXPORT_INPUT_JSON"))
-    node_id: str = field(default_factory=lambda: env_str("EXPORT_NODE_ID", "Node1") or "Node1")
+    # No silent default: the firmware publishes Node2, older exports used Node1.
+    # None means "not configured"; use require_node_id() where a node id is needed.
+    node_id: str | None = field(default_factory=lambda: env_str("EXPORT_NODE_ID"))
     node_slug: str = field(default_factory=lambda: env_str("EXPORT_NODE_SLUG") or "")
     timezone_name: str = field(
-        default_factory=lambda: env_str("EXPORT_TIMEZONE", "Asia/Ho_Chi_Minh") or "Asia/Ho_Chi_Minh"
+        default_factory=lambda: env_str("EXPORT_TIMEZONE", DEFAULT_TIMEZONE_NAME) or DEFAULT_TIMEZONE_NAME
     )
     primary_poll_after_sec: int = field(
         default_factory=lambda: env_int("EXPORT_PRIMARY_POLL_AFTER_SEC", 3900)
@@ -56,7 +62,7 @@ class BackendSettings:
         if self.input_json_path is not None:
             object.__setattr__(self, "input_json_path", coerce_optional_path(self.input_json_path).resolve())
 
-        if not self.node_slug:
+        if not self.node_slug and self.node_id:
             object.__setattr__(self, "node_slug", _slugify_node(self.node_id))
 
     def with_overrides(self, **kwargs: object) -> "BackendSettings":
@@ -64,6 +70,14 @@ class BackendSettings:
             self,
             **{key: value for key, value in kwargs.items() if value is not None},
         )
+
+    def require_node_id(self) -> str:
+        if not self.node_id:
+            raise ValueError(
+                "node_id is not configured: pass --node-id (or set EXPORT_NODE_ID); "
+                "the firmware publishes Node2."
+            )
+        return self.node_id
 
     @property
     def timezone(self) -> ZoneInfo:
@@ -87,15 +101,15 @@ class BackendSettings:
 
     @property
     def latest_meta_path(self) -> str:
-        return f"{self.node_id}/latest/meta"
+        return f"{self.require_node_id()}/latest/meta"
 
     @property
     def latest_current_path(self) -> str:
-        return f"{self.node_id}/latest/current"
+        return f"{self.require_node_id()}/latest/current"
 
     @property
     def telemetry_root_path(self) -> str:
-        return f"{self.node_id}/telemetry"
+        return f"{self.require_node_id()}/telemetry"
 
     @property
     def firebase_new_raw_dir(self) -> Path:
@@ -145,6 +159,3 @@ class BackendSettings:
     @property
     def history_root(self) -> Path:
         return self.firebase_history_root
-
-
-BACKEND_SETTINGS = BackendSettings()

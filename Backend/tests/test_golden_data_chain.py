@@ -6,14 +6,13 @@ from __future__ import annotations
 
 import contextlib
 import difflib
-import importlib.util
 import io
+import os
 import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
 
-from Backend.Config.runtime import BackendSettings
 from Backend.tests.golden_chain_support import (
     EXPECTED_DIR,
     INPUT_EXPORT,
@@ -60,18 +59,16 @@ class GoldenDataChainTests(unittest.TestCase):
             run_chain(Path(temp_dir))
             self._assert_matches_golden(snapshot(Path(temp_dir)))
 
-    @unittest.skipUnless(
-        importlib.util.find_spec("firebase_admin") is not None,
-        "firebase_admin is not installed; Backend.main imports it even for --source json-export "
-        "(pip install -r Backend/requirements.txt)",
-    )
     def test_cli_json_export_matches_golden(self) -> None:
-        """Same chain through `python -m Backend.main --source json-export ...`."""
+        """Same chain through `python -m Backend.main --source json-export ...`.
+
+        Also guards GD1 bugs B2 (Layer1 ignored the configured output root) and B3
+        (firebase_admin imported for json-export): the CLI writes only under
+        AGRIFUSION_HOME and must not need firebase_admin.
+        """
         from Backend import main as backend_main
-        from Backend.Navigation.Core.layer1.pipelines import preprocessing as preprocessing_module
 
         with tempfile.TemporaryDirectory() as temp_dir:
-            settings = BackendSettings(backend_dir=Path(temp_dir))
             argv = [
                 "Backend.main",
                 "--source", "json-export",
@@ -79,14 +76,58 @@ class GoldenDataChainTests(unittest.TestCase):
                 "--node-id", NODE_ID,
                 "--full-history",
             ]
-            # Backend.main.run_layer1 does not pass output_root, so PreprocessingPipeline falls back
-            # to its module-level BACKEND_SETTINGS (the real Backend/Output_data). Patch both so the
-            # test never writes into the repo. (Production gap, reported separately.)
-            with mock.patch.object(backend_main, "BACKEND_SETTINGS", settings), mock.patch.object(
-                preprocessing_module, "BACKEND_SETTINGS", settings
-            ), mock.patch("sys.argv", argv), contextlib.redirect_stdout(io.StringIO()):
+            with mock.patch.dict(os.environ, {"AGRIFUSION_HOME": temp_dir}), mock.patch(
+                "sys.argv", argv
+            ), contextlib.redirect_stdout(io.StringIO()):
                 backend_main.main()
             self._assert_matches_golden(snapshot(Path(temp_dir)))
+
+    def test_cli_json_export_runs_without_firebase_admin(self) -> None:
+        import subprocess
+        import sys
+
+        code = (
+            "import sys; sys.modules['firebase_admin'] = None; "
+            "from Backend import main; main.main()"
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            result = subprocess.run(
+                [
+                    sys.executable, "-c", code,
+                    "--source", "json-export", "--input-json", str(INPUT_EXPORT),
+                    "--node-id", NODE_ID, "--full-history",
+                ],
+                capture_output=True,
+                text=True,
+                env={**os.environ, "AGRIFUSION_HOME": temp_dir},
+            )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Layer1 status: ok", result.stdout)
+
+    def test_cli_only_layer1_reads_node_id_from_layer0_manifest(self) -> None:
+        from Backend import main as backend_main
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            run_chain(Path(temp_dir))
+            with mock.patch.dict(
+                os.environ, {"AGRIFUSION_HOME": temp_dir, "EXPORT_NODE_ID": ""}
+            ), mock.patch("sys.argv", ["Backend.main", "--only-layer1"]), contextlib.redirect_stdout(
+                io.StringIO()
+            ) as out:
+                backend_main.main()
+            self.assertIn("Node id from Layer0 manifest: Node2", out.getvalue())
+
+    def test_cli_requires_node_id(self) -> None:
+        from Backend import main as backend_main
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            argv = ["Backend.main", "--source", "json-export", "--input-json", str(INPUT_EXPORT)]
+            env = {"AGRIFUSION_HOME": temp_dir}
+            with mock.patch.dict(os.environ, env), mock.patch.dict(
+                os.environ, {"EXPORT_NODE_ID": ""}
+            ), mock.patch("sys.argv", argv), contextlib.redirect_stdout(io.StringIO()):
+                with self.assertRaisesRegex(ValueError, "node id is not configured"):
+                    backend_main.main()
 
     def test_fixture_is_current(self) -> None:
         """input_export.json must equal the generator output (no hand edits)."""

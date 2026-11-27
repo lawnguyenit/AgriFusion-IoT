@@ -35,7 +35,7 @@ class FirebaseRTDBClient:
 
         self.root_ref = db.reference("/")
 
-    def pull_data(self, node_path: str = "Node1/telemetry") -> Any:
+    def pull_data(self, node_path: str) -> Any:
         try:
             clean_path = node_path.strip("/") if node_path else ""
             target_ref = self.root_ref.child(clean_path) if clean_path else self.root_ref

@@ -4,6 +4,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from .....Config.runtime import DEFAULT_TIMEZONE_NAME
+
 
 @dataclass(frozen=True)
 class SourceRecord:
@@ -36,6 +38,7 @@ class TemporalSettings:
     expected_interval_sec: int = 900
     gap_threshold_sec: int = 3600
     segment_break_threshold_sec: int = 24 * 3600
+    timezone_name: str = DEFAULT_TIMEZONE_NAME
 
 
 @dataclass

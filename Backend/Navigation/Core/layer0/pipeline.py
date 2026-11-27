@@ -3,7 +3,7 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from ....Config.runtime import BACKEND_SETTINGS, BackendSettings
+from ....Config.runtime import BackendSettings
 
 from .sources import FirebaseSourceAdapter, JsonExportSourceAdapter
 from .stores.artifact_store import write_latest_meta, write_latest_payload, write_source_audit_artifacts
@@ -40,10 +40,12 @@ class Layer0IngestionPipeline:
     def __init__(
         self,
         firebase_client: Any = None,
-        settings: BackendSettings = BACKEND_SETTINGS,
+        *,
+        settings: BackendSettings,
         firebase_service: Any = None,
     ):
         self.firebase_client = firebase_client if firebase_client is not None else firebase_service
+        settings.require_node_id()
         self.settings = settings
         self.source_adapter = self._build_source_adapter()
         self.last_latest_meta_payload: dict[str, Any] | None = None

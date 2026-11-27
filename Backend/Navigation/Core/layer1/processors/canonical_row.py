@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import tzinfo
+
 from ..contracts import SourceRecord
 from .common import as_dict, tri_or
 from .context import build_record_and_context_fields
@@ -9,6 +11,10 @@ from .status import build_sensor_branch
 
 
 class CanonicalRowBuilder:
+    def __init__(self, *, timezone: tzinfo, fallback_node_id: str | None):
+        self._timezone = timezone
+        self._fallback_node_id = fallback_node_id
+
     def build(self, source_record: SourceRecord) -> dict[str, object]:
         payload = source_record.payload
         packet = as_dict(payload.get("packet"))
@@ -21,7 +27,11 @@ class CanonicalRowBuilder:
         packet_present_sht = bool(packet_sht)
         packet_present_npk = bool(packet_npk)
 
-        context_fields = build_record_and_context_fields(source_record)
+        context_fields = build_record_and_context_fields(
+            source_record,
+            timezone=self._timezone,
+            fallback_node_id=self._fallback_node_id,
+        )
         sht_fields = extract_sht30_fields(packet_sht)
         npk_fields = extract_npk_fields(packet_npk)
         sht_status = build_sensor_branch(

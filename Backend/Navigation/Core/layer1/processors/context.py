@@ -1,9 +1,8 @@
 from __future__ import annotations
 
+from datetime import tzinfo
 from ipaddress import IPv4Address
 from typing import Any
-
-from .....Config.runtime import BACKEND_SETTINGS
 
 from ...utils.common import format_local_iso, safe_int
 from ..contracts import SourceRecord
@@ -48,7 +47,12 @@ def useful_operator(value: Any) -> str | None:
     return text
 
 
-def build_record_and_context_fields(source_record: SourceRecord) -> dict[str, Any]:
+def build_record_and_context_fields(
+    source_record: SourceRecord,
+    *,
+    timezone: tzinfo,
+    fallback_node_id: str | None,
+) -> dict[str, Any]:
     payload = source_record.payload
     packet = as_dict(payload.get("packet"))
     packet_system = as_dict(packet.get("system_data"))
@@ -78,11 +82,17 @@ def build_record_and_context_fields(source_record: SourceRecord) -> dict[str, An
     if ts_device is None:
         ts_device = packet_system_sample_epoch
 
-    node_id = str(
+    node_id = (
         system_identity.get("node_id")
         or source_record.source_path.split("/")[0]
-        or BACKEND_SETTINGS.node_id
+        or fallback_node_id
     )
+    if not node_id:
+        raise ValueError(
+            f"Record {source_record.date_key}/{source_record.event_key} has no node id "
+            "(no system identity, no source path) and no fallback node_id was provided."
+        )
+    node_id = str(node_id)
     sample_time_reconstructed = first_bool(
         payload.get("sample_time_reconstructed"),
         packet_system.get("sample_time_reconstructed"),
@@ -91,11 +101,11 @@ def build_record_and_context_fields(source_record: SourceRecord) -> dict[str, An
     sample_time_local = first_non_empty_str(
         payload.get("sample_time_local"),
         payload.get("upload_time_local"),
-        format_local_iso(ts_sample, BACKEND_SETTINGS.timezone),
+        format_local_iso(ts_sample, timezone),
     )
     upload_time_local = first_non_empty_str(
         payload.get("upload_time_local"),
-        format_local_iso(ts_server, BACKEND_SETTINGS.timezone),
+        format_local_iso(ts_server, timezone),
     )
 
     replayed_raw = first_bool(payload.get("replayed"), system_sync.get("replayed"))

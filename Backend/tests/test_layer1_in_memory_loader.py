@@ -4,6 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from Backend.Config.runtime import BackendSettings
 from Backend.Config.storage import read_json
 from Backend.Navigation.Core.layer1.loaders import FirebaseSourceLoader
 from Backend.Navigation.Core.layer1.pipelines import PreprocessingPipeline
@@ -82,6 +83,7 @@ class Layer1InMemoryLoaderTests(unittest.TestCase):
             )
 
             result = PreprocessingPipeline(
+                BackendSettings(backend_dir=root, node_id="Node1"),
                 base_dir=root / "MissingLayer0",
                 output_root=output_root,
                 source_loader=source_loader,

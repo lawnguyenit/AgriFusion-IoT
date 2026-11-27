@@ -5,15 +5,16 @@ from typing import Any
 
 import pandas as pd
 
-from .....Config.runtime import BACKEND_SETTINGS
+from .....Config.runtime import BackendSettings
 
 from ...utils.common import iso_utc_now
 from ...utils.storage import write_json, write_jsonl
 
 
 class LegacyCompatibilityPublisher:
-    def __init__(self, output_root: Path):
+    def __init__(self, output_root: Path, settings: BackendSettings):
         self.output_root = output_root.resolve()
+        self.settings = settings
 
     def publish(self, canonical_df: pd.DataFrame) -> None:
         self._write_legacy_stream(
@@ -70,8 +71,8 @@ class LegacyCompatibilityPublisher:
             "schema_version": 2,
             "layer": "layer1_compat",
             "processor_name": "canonical_compat_sht30",
-            "sensor_id": BACKEND_SETTINGS.sht30_sensor_id,
-            "sensor_type": BACKEND_SETTINGS.sht30_sensor_type,
+            "sensor_id": self.settings.sht30_sensor_id,
+            "sensor_type": self.settings.sht30_sensor_type,
             "source": {
                 "event_key": row.get("record.event_key"),
                 "date_key": row.get("record.date_key"),
@@ -101,8 +102,8 @@ class LegacyCompatibilityPublisher:
             "schema_version": 2,
             "layer": "layer1_compat",
             "processor_name": "canonical_compat_npk",
-            "sensor_id": BACKEND_SETTINGS.npk_sensor_id,
-            "sensor_type": BACKEND_SETTINGS.npk_sensor_type,
+            "sensor_id": self.settings.npk_sensor_id,
+            "sensor_type": self.settings.npk_sensor_type,
             "source": {
                 "event_key": row.get("record.event_key"),
                 "date_key": row.get("record.date_key"),

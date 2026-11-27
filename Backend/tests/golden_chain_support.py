@@ -43,7 +43,7 @@ def run_chain(backend_dir: Path) -> BackendSettings:
     layer0 = Layer0IngestionPipeline(firebase_client=None, settings=settings).run(full_history=True)
     if layer0 is None:
         raise RuntimeError("Layer0 returned no result")
-    layer1 = PreprocessingPipeline(base_dir=settings.base_dir, output_root=settings.layer1_root).run()
+    layer1 = PreprocessingPipeline(settings).run()
     if layer1.status != "ok":
         raise RuntimeError(f"Layer1 status {layer1.status!r}")
     return settings

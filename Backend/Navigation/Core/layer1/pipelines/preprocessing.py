@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from .....Config.runtime import BACKEND_SETTINGS
+from .....Config.runtime import BackendSettings
 
 from ...utils.common import iso_utc_now
 from ...utils.storage import write_json
@@ -30,31 +30,38 @@ from ..writers import CanonicalOutputWriter, DebugViewWriter, SupplementalOutput
 class PreprocessingPipeline:
     def __init__(
         self,
+        settings: BackendSettings,
+        *,
         base_dir: Path | None = None,
         output_root: Path | None = None,
-        *,
         temporal_settings: TemporalSettings | None = None,
         export_debug_views: bool = True,
         unknown_catalog_field_policy: str = "warn",
         source_loader: FirebaseSourceLoader | None = None,
     ):
-        self.base_dir = (base_dir or BACKEND_SETTINGS.base_dir).resolve()
-        self.output_root = (output_root or BACKEND_SETTINGS.layer1_root).resolve()
+        self.settings = settings
+        self.base_dir = (base_dir or settings.base_dir).resolve()
+        self.output_root = (output_root or settings.layer1_root).resolve()
         self.canonical_root = self.output_root / "canonical"
         self.views_root = self.output_root / "views"
         self.excluded_root = self.output_root / "excluded"
         self.quality_root = self.output_root / "quality_reports"
-        self.temporal = temporal_settings or TemporalSettings()
+        self.temporal = temporal_settings or TemporalSettings(timezone_name=settings.timezone_name)
         self.export_debug_views = export_debug_views
         self.unknown_catalog_field_policy = unknown_catalog_field_policy
 
-        self._source_loader = source_loader or FirebaseSourceLoader(self.base_dir)
-        self._row_builder = CanonicalRowBuilder()
+        self._source_loader = source_loader or FirebaseSourceLoader(
+            self.base_dir, node_id=settings.node_id
+        )
+        self._row_builder = CanonicalRowBuilder(
+            timezone=settings.timezone,
+            fallback_node_id=settings.node_id,
+        )
         self._canonical_writer = CanonicalOutputWriter(self.output_root)
         self._view_writer = DebugViewWriter(self.output_root)
         self._supplemental_writer = SupplementalOutputWriter(self.output_root)
         self._report_writer = Layer1ReportWriter(self.output_root, self.views_root)
-        self._legacy_publisher = LegacyCompatibilityPublisher(self.output_root)
+        self._legacy_publisher = LegacyCompatibilityPublisher(self.output_root, settings)
 
     def run(self) -> Layer1Result:
         source_records = self._source_loader.load()
