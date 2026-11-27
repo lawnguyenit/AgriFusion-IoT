@@ -103,3 +103,7 @@ Frontend/public/config.local.json
 # IoT node local secrets
 IoT_Node/.pio/
 IoT_Node/lib/Config/src/Config.private.h
+
+# Python build artifacts
+/build/
+/dist/
