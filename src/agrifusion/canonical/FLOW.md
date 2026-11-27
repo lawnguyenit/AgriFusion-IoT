@@ -17,7 +17,7 @@ benchmark lanes consume one stable source of truth.
 
 ```mermaid
 flowchart TD
-    A["run_layer1()"] --> B["FirebaseSourceLoader.load()"]
+    A["run_layer1()"] --> B["FirebaseSourceLoader.load(): record_store reader + FirmwareRecordAdapter"]
     B --> C["Loop source records"]
     C --> D["CanonicalRowBuilder.build()"]
     D --> E["Accumulate stats + raw buffer audit"]
@@ -42,9 +42,10 @@ flowchart TD
 
 ## What comes in
 
-- Layer0 raw artifacts
-- optional in-memory source loader when Layer0 and Layer1 run back to
-  back
+- ingest's raw record store, read only through `agrifusion.ingest.record_store`
+  (`RecordStoreReader.iter_current()` + `read_latest()`); every record passes
+  through `adapters.FirmwareRecordAdapter` before the row builder
+- (tests/tools) `FirebaseSourceLoader.from_payloads` with raw records in memory
 - temporal settings
 - export flags and validation policy
 

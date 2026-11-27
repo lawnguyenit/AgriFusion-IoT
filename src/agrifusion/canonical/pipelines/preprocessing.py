@@ -7,6 +7,7 @@ import pandas as pd
 from agrifusion.io.common import iso_utc_now
 from agrifusion.io.storage import write_json
 from agrifusion.settings.runtime import BackendSettings
+from ..adapters import AdapterConfig, FirmwareRecordAdapter
 from ..contracts import (
     Layer1BuildStats,
     Layer1Result,
@@ -50,7 +51,9 @@ class PreprocessingPipeline:
         self.unknown_catalog_field_policy = unknown_catalog_field_policy
 
         self._source_loader = source_loader or FirebaseSourceLoader(
-            self.base_dir, node_id=settings.node_id
+            self.base_dir,
+            node_id=settings.node_id,
+            adapter=FirmwareRecordAdapter(AdapterConfig.from_settings(settings)),
         )
         self._row_builder = CanonicalRowBuilder(
             timezone=settings.timezone,

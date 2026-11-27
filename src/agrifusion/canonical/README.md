@@ -2,11 +2,16 @@
 
 `src/agrifusion/canonical` theo huong canonical-first.
 
-## Muc dich
+## Muc dich va dam bao
 
 Layer1:
 
-- nap raw telemetry tu `Layer0/Firebase_data`;
+- nap raw telemetry tu ingest CHI qua `agrifusion.ingest.record_store`
+  (`RecordStoreReader`, `read_latest`); khong doc file Layer0 truc tiep;
+- dich ban ghi firmware thanh dau vao cua row builder trong
+  `adapters/firmware_record.py` (day la noi duy nhat hieu shape firmware);
+- cung mot record store cho ra cung canonical output (khong phu thuoc nguon
+  Firebase hay JSON export, khong con handoff in-memory);
 - build mot canonical telemetry history, moi row ung voi mot Firebase event;
 - danh dau continuity segment theo `record.ts_sample` de tach cac khoang van hanh bi ngat dai;
 - sinh latest snapshot, debug views, feature catalog, quality reports;
@@ -16,8 +21,14 @@ Layer1:
 
 - `contracts/`
   - field catalog, typed Layer1 contracts, build stats
+- `adapters/`
+  - `firmware_record.py`: record v2 (`sensor_record`/`sim_record`/`system_record`)
+    -> packet view (`packet.npk_data`/`sht30_data`/`system_data` + `sensors`);
+    v1 da la packet view nen giu nguyen. Giu packet view vi du lieu v1 van co
+    shape nay va day la shape `NodePacketBuilder` cua firmware: mot bo extractor,
+    gia tri canonical khong doi. Packet view chi ton tai trong bo nho.
 - `loaders/`
-  - source loading tu Layer0 history/latest
+  - doc record store cua ingest (records/ + new_raw/latest.json), qua adapter
 - `processors/`
   - SHT30 packet
   - NPK packet
@@ -39,6 +50,8 @@ Layer1:
 ## Dependency direction
 
 ```text
+ingest.record_store <- loaders   (canh duy nhat canonical -> ingest)
+adapters <- loaders
 contracts <- loaders
 contracts <- processors
 contracts <- validation

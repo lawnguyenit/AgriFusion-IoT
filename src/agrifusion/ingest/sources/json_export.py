@@ -5,10 +5,10 @@ from pathlib import Path
 
 from agrifusion.io.storage import sha256_hex
 from agrifusion.settings.runtime import BackendSettings
-from .base import NormalizedSnapshotMixin
+from .base import SnapshotSourceMixin
 
 
-class JsonExportSourceAdapter(NormalizedSnapshotMixin):
+class JsonExportSourceAdapter(SnapshotSourceMixin):
     source_type = "json-export"
     skip_duplicate_on_same_source = True
 

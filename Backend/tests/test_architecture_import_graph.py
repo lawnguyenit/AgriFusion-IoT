@@ -9,7 +9,14 @@ import unittest
 import warnings
 from pathlib import Path
 
-from Backend.tests.architecture_graph import AGRIFUSION_NODES, REPO_ROOT, build_edges, mutual_pairs
+from Backend.tests.architecture_graph import (
+    AGRIFUSION_NODES,
+    REPO_ROOT,
+    _imported_modules,
+    _package_parts,
+    build_edges,
+    mutual_pairs,
+)
 
 ALLOWLIST = Path(__file__).resolve().parent / "architecture" / "allowed_import_edges.txt"
 REGENERATE = "python Backend/tests/architecture/update_allowlist.py"
@@ -93,11 +100,33 @@ class ArchitectureImportGraphTests(unittest.TestCase):
         ]
         self.assertEqual(offending, [])
 
-    def test_ingest_and_canonical_stay_independent(self) -> None:
-        """Layer0 (ingest) and Layer1 (canonical) meet only in the CLI, never import each other."""
-        edges = set(build_edges())
-        self.assertNotIn(("ingest", "canonical"), edges)
-        self.assertNotIn(("canonical", "ingest"), edges)
+    def test_ingest_never_imports_canonical(self) -> None:
+        """Data flows ingest -> canonical; ingest must not know canonical."""
+        self.assertNotIn(("ingest", "canonical"), set(build_edges()))
+
+    def test_canonical_reads_ingest_only_through_record_store(self) -> None:
+        """canonical may import ONE ingest module: the documented on-disk reader API
+        (agrifusion.ingest.record_store), and that module imports nothing else from
+        agrifusion, so the canonical -> ingest edge cannot grow into a coupling."""
+        import ast
+
+        allowed = ["agrifusion", "ingest", "record_store"]
+        offending = []
+        for path in sorted((REPO_ROOT / "src" / "agrifusion" / "canonical").rglob("*.py")):
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            for parts, lineno in _imported_modules(tree, _package_parts(path)):
+                # Only `from agrifusion.ingest.record_store import ...` passes.
+                if parts[:2] == ["agrifusion", "ingest"] and parts[:3] != allowed:
+                    offending.append(f"{path.relative_to(REPO_ROOT).as_posix()}:{lineno} {'.'.join(parts)}")
+        self.assertEqual(offending, [])
+
+        store = REPO_ROOT / "src" / "agrifusion" / "ingest" / "record_store.py"
+        tree = ast.parse(store.read_text(encoding="utf-8"))
+        internal = [
+            ".".join(parts) for parts, _ in _imported_modules(tree, _package_parts(store))
+            if parts and parts[0] == "agrifusion"
+        ]
+        self.assertEqual(internal, [], "record_store must stay stdlib-only")
 
     def test_leaf_packages_have_no_upward_imports(self) -> None:
         """settings and io are leaves: they import no other agrifusion subpackage except settings -> none."""
