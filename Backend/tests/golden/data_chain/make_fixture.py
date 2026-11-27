@@ -1,6 +1,6 @@
 """Deterministic generator for the synthetic Node2 JSON-export fixture.
 
-Shape follows what IoT_Node/lib/RawTelemetryReporter publishes under /Node2
+Shape follows what firmware/lib (RawTelemetryReporter) publishes under /Node2
 (``info``, ``latest``, ``telemetry/<local-date>/<ts_sample>``), schema_version 2.
 All values are made up (no real data, no secrets).
 

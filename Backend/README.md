@@ -87,7 +87,7 @@ agrifusion --only-layer1
 agrifusion --only-layer0 --source firebase --node-id Node2
 ```
 
-Runtime configuration comes from `Backend/.env` and CLI overrides. Important
+Runtime configuration comes from `.env` at the repository root (legacy `Backend/.env` is still read as a fallback) and CLI overrides. Important
 settings include `EXPORT_SOURCE`, `EXPORT_NODE_ID`, `EXPORT_INPUT_JSON`,
 sensor identity overrides and `FIREBASE_KEY_PATH`/`DATABASE_URL` for Firebase.
 

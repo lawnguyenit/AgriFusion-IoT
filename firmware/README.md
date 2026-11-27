@@ -81,8 +81,8 @@ Merging needs a build and hardware regression run, so it was left alone.
 
 `NODE_ID` in `lib/config_Config/src/Config.h` is the single source for the node
 id and all RTDB paths (`/<NODE_ID>/...`, `/debug/<NODE_ID>/...`). Override with
-`-DNODE_ID=\"Node3\"` if needed. Backend defaults to `Node1`, so pass
-`--node-id` to match.
+`-DNODE_ID=\"Node3\"` if needed. The backend has no default node id: pass
+`--node-id` (or set `EXPORT_NODE_ID`) to match.
 
 ## Diagnostic probes
 

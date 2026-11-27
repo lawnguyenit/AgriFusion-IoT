@@ -14,7 +14,7 @@ The following must remain local or be handled as explicit release artifacts:
 - benchmark `artifacts/`, datasets, reports and model files;
 - `IoT_Node/.pio/` — PlatformIO build state;
 - `Frontend/tmp-edge-profile/` — browser profile state;
-- `Secrets/`, `Backend/.env`, frontend local Firebase config and
+- `Secrets/`, `.env` (and legacy `Backend/.env`), frontend local Firebase config and
   `IoT_Node/lib/Config/src/Config.private.h` — credentials or local secrets;
 - large research datasets and dated local evidence under `Docs/`.
 

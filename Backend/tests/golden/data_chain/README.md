@@ -6,7 +6,7 @@ and compares the normalized outputs with the snapshot in `expected/`.
 
 | File | Role |
 |---|---|
-| `make_fixture.py` | Deterministic generator of `input_export.json` (Node2, schema v2, 27 records over 2 local dates; includes a 3-sample gap, one SHT30 fault, one NPK fault, one replayed/buffered record). Shape follows `IoT_Node/lib/RawTelemetryReporter`. All values are made up. |
+| `make_fixture.py` | Deterministic generator of `input_export.json` (Node2, schema v2, 27 records over 2 local dates; includes a 3-sample gap, one SHT30 fault, one NPK fault, one replayed/buffered record). Shape follows `firmware/lib (RawTelemetryReporter)`. All values are made up. |
 | `input_export.json` | Generated fixture (a test checks it equals the generator output; do not hand-edit). |
 | `expected/` | Golden snapshot (normalized, see below). |
 | `update_golden.py` | Regenerates `expected/`. |

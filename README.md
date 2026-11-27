@@ -25,19 +25,18 @@ Verified from code, tests and docs in this repo.
 
 ### Works today
 
-- Telemetry pipeline: `python -m Backend.main` reads Firebase or a JSON export, writes Layer0 raw evidence and Layer1 canonical data (see [Backend README](Backend/README.md)).
+- Telemetry pipeline: `agrifusion` (package `src/agrifusion`) reads Firebase or a JSON export, writes Layer0 raw evidence and Layer1 canonical data (see [Backend README](Backend/README.md)).
 - Benchmark lane: dataset views, weak labels, protocol registry, evaluation protocols (temporal folds), model suite, validity audits (see [Benchmark README](Backend/Benchmark/README.md)).
 - Paper v1.0 reproducibility: result bundle of 202 files with SHA-256 manifest, source hashes for the official Stuard dataset, and a table rebuild command ([guide](Docs/research/reproducibility/paper-v1.0/README.md)). Not re-run for this README (it needs the release ZIP).
-- Firmware for ESP32-S3 (PlatformIO) with wake cycle, buffering/replay and Firebase publishing ([IoT Node README](IoT_Node/README.md)). Not built or flashed for this README.
+- Firmware for ESP32-S3 (PlatformIO) with wake cycle, buffering/replay and Firebase publishing ([firmware README](firmware/README.md)). CI compiles the production env and 7 probe envs on every firmware change; not flashed to hardware by CI.
 - Static dashboard in safe demo mode (no credentials needed) ([Frontend README](Frontend/README.md)).
-- Tests: 213 `unittest` cases in `Backend/tests/` (they check contracts and processing logic, not Firebase or hardware). A check on 2026-11-27 in a plain Linux Python environment (pandas, numpy, scikit-learn, pyarrow) ran 213 tests: 201 passed, 2 skipped, 10 failed or errored. The causes seen: optional ML packages not installed (`pytabkit`, torch models), generated local outputs absent (`Backend/Output_data/...`), one test that asserts a Windows path (`D:/AgriFusion-IoT`), and pandas/pyarrow type differences. The failures were not investigated further and the suite was not run in the author's own environment.
+- Tests: 233 `unittest` cases in `Backend/tests/` (contracts, processing logic, a golden test of the JSON-export → Layer0 → Layer1 chain, and an architecture test that blocks new cross-layer imports). On 2026-11-28 CI on Python 3.11 and 3.12 ran them with 0 failures and 4 skips (2 need a real Layer1 snapshot, 2 need torch/pytabkit). They do not exercise Firebase or hardware.
 
 ### Not yet done / not verified
 
-- The backend does not publish the Firebase `result/*` data the dashboard reads in live mode. Live dashboard integration is a separate, unbuilt boundary.
+- The dashboard contract (`docs/contracts/result.md`) is defined, but the publisher that writes `result/*` is not merged yet, so live mode shows no data.
 - Physical sensor, SIM, Firebase-rule and field-deployment claims have no runtime evidence in the repo.
-- `requirements.txt` does not list `pyarrow`, which the tests and dataset views need for Parquet; torch is installed separately.
-- No continuous integration for tests (the only workflow publishes a static page).
+- torch-based models are installed separately and are not exercised in CI.
 - Which manuscript the "WADE paper v1.0" reproducibility guide corresponds to is not stated in the repo.
 
 ## Research status
@@ -114,14 +113,14 @@ python -m http.server 4173 -d Frontend/public
 src/agrifusion/ telemetry backend package: settings, io, ingest (Layer0), canonical (Layer1), cloud, cli
 Backend/       Benchmark research lanes and tests (Backend/Benchmark moves out in a later stage)
 output/        generated Layer0/Layer1 data (gitignored)
-IoT_Node/      ESP32-S3 firmware (PlatformIO)
+firmware/      ESP32-S3 firmware (PlatformIO)
 Frontend/      static Firebase RTDB dashboard (demo mode by default)
 Docs/          paper reproducibility guide, diagrams, a static web page, worklogs
 public-docs/   architecture and repository hygiene notes
-.github/       GitHub Pages workflow
+.github/       CI: backend tests, firmware build, frontend contract test; GitHub Pages
 ```
 
-Read in this order: [System architecture](public-docs/architecture.md), [Repository hygiene](public-docs/repository-hygiene.md), [Backend pipeline](Backend/README.md), [Benchmark workspace](Backend/Benchmark/README.md), [IoT Node firmware](IoT_Node/README.md), [Frontend dashboard](Frontend/README.md). Full map: [`public-docs/README.md`](public-docs/README.md).
+Read in this order: [System architecture](public-docs/architecture.md), [Repository hygiene](public-docs/repository-hygiene.md), [Backend pipeline](Backend/README.md), [Benchmark workspace](Backend/Benchmark/README.md), [Firmware](firmware/README.md), [Frontend dashboard](Frontend/README.md). Full map: [`public-docs/README.md`](public-docs/README.md).
 
 ## What is intentionally not in the source contract
 
