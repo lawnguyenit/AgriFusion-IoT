@@ -3,12 +3,8 @@ from datetime import date
 from typing import Any
 
 
-if __package__:
-    from .Navigation.Core import PreprocessingPipeline
-    from .Config.runtime import BACKEND_SETTINGS, BackendSettings
-else:
-    from Navigation.Core import PreprocessingPipeline
-    from Config.runtime import BACKEND_SETTINGS, BackendSettings
+from .Config.runtime import BACKEND_SETTINGS, BackendSettings
+from .Navigation.Core import PreprocessingPipeline
 
 
 LAYER_ALIASES = {
@@ -188,14 +184,9 @@ def get_source_date_range(args: argparse.Namespace) -> tuple[date | None, date |
 
 
 def run_layer0(args: argparse.Namespace, settings: BackendSettings) -> tuple[bool, Any | None]:
-    if __package__:
-        from .Navigation.Core.infrastructure import FirebaseRTDBClient
-        from .Navigation.Core.layer0 import Layer0IngestionPipeline
-        from .Navigation.Core.layer1.loaders import FirebaseSourceLoader
-    else:
-        from Navigation.Core.infrastructure import FirebaseRTDBClient
-        from Navigation.Core.layer0 import Layer0IngestionPipeline
-        from Navigation.Core.layer1.loaders import FirebaseSourceLoader
+    from .Navigation.Core.infrastructure import FirebaseRTDBClient
+    from .Navigation.Core.layer0 import Layer0IngestionPipeline
+    from .Navigation.Core.layer1.loaders import FirebaseSourceLoader
 
     history_start_date, history_end_date = get_source_date_range(args)
     date_window_requested = history_start_date is not None or history_end_date is not None

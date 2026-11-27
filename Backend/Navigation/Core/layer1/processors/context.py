@@ -3,10 +3,7 @@ from __future__ import annotations
 from ipaddress import IPv4Address
 from typing import Any
 
-try:
-    from Config.runtime import BACKEND_SETTINGS
-except ModuleNotFoundError:
-    from .....Config.runtime import BACKEND_SETTINGS
+from .....Config.runtime import BACKEND_SETTINGS
 
 from ...utils.common import format_local_iso, safe_int
 from ..contracts import SourceRecord

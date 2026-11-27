@@ -4,10 +4,7 @@ import os
 from pathlib import Path
 from typing import Any
 
-try:
-    from Config.env import BACKEND_DIR
-except ModuleNotFoundError:
-    from ....Config.env import BACKEND_DIR
+from ....Config.env import BACKEND_DIR
 
 try:
     import firebase_admin

@@ -5,10 +5,7 @@ from typing import Any
 
 import pandas as pd
 
-try:
-    from Config.runtime import BACKEND_SETTINGS
-except ModuleNotFoundError:
-    from .....Config.runtime import BACKEND_SETTINGS
+from .....Config.runtime import BACKEND_SETTINGS
 
 from ...utils.common import iso_utc_now
 from ...utils.storage import write_json, write_jsonl

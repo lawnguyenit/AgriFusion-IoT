@@ -2,10 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
 
-try:
-    from Config.runtime import BackendSettings
-except ModuleNotFoundError:
-    from .....Config.runtime import BackendSettings
+from .....Config.runtime import BackendSettings
 
 from ..utils.layout import format_iso_utc
 

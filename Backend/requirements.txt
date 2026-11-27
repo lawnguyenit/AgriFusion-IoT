@@ -1,26 +1,4 @@
-# Core external services
-firebase-admin
-python-dotenv
-
-# Data processing
-numpy>=1.26
-pandas>=2.2,<4
-pyarrow>=15
-PyYAML>=6
-scikit-learn
-joblib
-
-# Reporting / chart export
-matplotlib
-
-# Model families currently referenced by the repo
-xgboost
-# pytorch-tabnet is not imported anywhere in the repo; it was removed from the default
-# install because it pulls torch (GPU wheels, ~GBs). Add it back with torch if you need it.
-
-# Typing / developer support
-pandas-stubs
-
-# Note:
-# torch is used by several benchmark branches and should be installed
-# separately from the official PyTorch channel to match CPU/CUDA.
+# Dependencies are declared in pyproject.toml (single source of truth).
+# Run from the repository root:
+#   python -m pip install -r Backend/requirements.txt     # = pip install -e ".[research]"
+-e .[research]

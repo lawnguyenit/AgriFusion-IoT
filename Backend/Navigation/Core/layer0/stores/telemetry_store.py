@@ -5,10 +5,7 @@ from pathlib import Path
 import re
 from typing import Any
 
-try:
-    from Config.runtime import BackendSettings
-except ModuleNotFoundError:
-    from .....Config.runtime import BackendSettings
+from .....Config.runtime import BackendSettings
 
 from ..utils.file_store import write_json
 

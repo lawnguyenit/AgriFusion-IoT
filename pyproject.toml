@@ -1,10 +1,44 @@
 [build-system]
-requires = ["setuptools>=61"]
+requires = ["setuptools>=64"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "agrifusion-iot"
 version = "0.1.0"
+description = "AgriFusion IoT telemetry backend: ingestion and canonical preprocessing."
+requires-python = ">=3.11"
+dependencies = [
+    "firebase-admin",
+    "python-dotenv",
+    "numpy>=1.26",
+    "pandas>=2.2,<4",
+    "pyarrow>=15",
+    "PyYAML>=6",
+]
 
-[tool.setuptools]
-packages = ["Backend"]
+[project.optional-dependencies]
+# Benchmark / research lane (Backend/Benchmark).
+research = [
+    "scikit-learn",
+    "joblib",
+    "matplotlib",
+    "xgboost",
+]
+dev = [
+    "pytest>=8",
+    "pandas-stubs",
+]
+# Not installed by default (tests that need them are skipped with a reason):
+#   torch, pytabkit, skorch -> realmlp / ft_transformer builder tests.
+#   pytorch-tabnet is not imported anywhere; add it with torch if needed.
+
+# Stage s4b: the package is still the legacy `Backend` namespace (found from the
+# repo root). s4e moves the telemetry code to src/agrifusion.
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["Backend*"]
+exclude = ["Backend.tests*", "Backend.Benchmark*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["Backend/tests"]

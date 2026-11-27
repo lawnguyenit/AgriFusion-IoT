@@ -7,10 +7,7 @@ from typing import Any
 
 import pandas as pd
 
-try:
-    from Config.runtime import BACKEND_SETTINGS
-except ModuleNotFoundError:
-    from .....Config.runtime import BACKEND_SETTINGS
+from .....Config.runtime import BACKEND_SETTINGS
 
 from ..contracts import TemporalSettings
 from .common import as_int_from_pd
