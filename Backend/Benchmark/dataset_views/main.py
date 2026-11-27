@@ -11,7 +11,7 @@ if str(ROOT_DIR) not in sys.path:
 from Backend.Benchmark.dataset_views.configs import DEFAULT_PUBLIC_VIEW_IDS, SUPPORTED_MODES
 from Backend.Benchmark.dataset_views.contracts import LabelConfig, MaterializationConfig
 from Backend.Benchmark.dataset_views.pipelines import materialize_dataset_views
-from Backend.Config.paths import BACKEND_PATHS
+from agrifusion.settings.paths import BACKEND_PATHS
 
 
 def parse_args() -> argparse.Namespace:

@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import unittest
 
-from Backend.Navigation.Core.layer1.processors.npk.canonical import extract_npk_fields
-from Backend.Navigation.Core.layer1.processors.sht30.canonical import extract_sht30_fields
-from Backend.Navigation.Core.layer1.processors.status import build_sensor_branch
+from agrifusion.canonical.processors.npk.canonical import extract_npk_fields
+from agrifusion.canonical.processors.sht30.canonical import extract_sht30_fields
+from agrifusion.canonical.processors.status import build_sensor_branch
 
 
 class Layer1PacketProcessorTests(unittest.TestCase):

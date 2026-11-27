@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from Backend.Config.storage import read_table
+from agrifusion.io.storage import read_table
 
 
 def load_e1_geometry_frame(

@@ -32,13 +32,15 @@ dev = [
 #   torch, pytabkit, skorch -> realmlp / ft_transformer builder tests.
 #   pytorch-tabnet is not imported anywhere; add it with torch if needed.
 
-# Stage s4b: the package is still the legacy `Backend` namespace (found from the
-# repo root). s4e moves the telemetry code to src/agrifusion.
+[project.scripts]
+agrifusion = "agrifusion.cli:main"
+
+# Only the telemetry backend is packaged. `Backend/` (the Benchmark/research lane and its
+# tests) is not installed: it is run from a repository checkout and imported from the repo
+# root (`python -m Backend.Benchmark...`), where it imports the installed `agrifusion`.
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["Backend*"]
-exclude = ["Backend.tests*", "Backend.Benchmark*"]
+where = ["src"]
 
 [tool.pytest.ini_options]
-pythonpath = ["."]
+pythonpath = [".", "src"]
 testpaths = ["Backend/tests"]

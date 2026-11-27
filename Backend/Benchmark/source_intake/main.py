@@ -16,8 +16,8 @@ from Backend.Benchmark.source_intake.adapter import (  # noqa: E402
 )
 from Backend.Benchmark.source_intake.audit import build_audit  # noqa: E402
 from Backend.Benchmark.source_intake.reporting import write_intake_artifact  # noqa: E402
-from Backend.Config.paths import BACKEND_PATHS  # noqa: E402
-from Backend.Config.storage import read_table  # noqa: E402
+from agrifusion.settings.paths import BACKEND_PATHS  # noqa: E402
+from agrifusion.io.storage import read_table  # noqa: E402
 import pandas as pd  # noqa: E402
 
 

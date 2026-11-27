@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from Backend.Config.storage import read_table
-from Backend.Navigation.Core.layer1.writers.canonical import CanonicalOutputWriter
+from agrifusion.io.storage import read_table
+from agrifusion.canonical.writers.canonical import CanonicalOutputWriter
 
 
 class CanonicalTableFormatTests(unittest.TestCase):

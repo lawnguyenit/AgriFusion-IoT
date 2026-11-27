@@ -4,8 +4,8 @@ import unittest
 
 import pandas as pd
 
-from Backend.Navigation.Core.layer1.contracts import TemporalSettings
-from Backend.Navigation.Core.layer1.processors.temporal import apply_temporal_features
+from agrifusion.canonical.contracts import TemporalSettings
+from agrifusion.canonical.processors.temporal import apply_temporal_features
 
 
 class Layer1TemporalProcessorTests(unittest.TestCase):

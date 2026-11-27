@@ -18,9 +18,9 @@ from typing import Any
 
 import pandas as pd
 
-from Backend.Config.runtime import BackendSettings
-from Backend.Navigation.Core.layer0 import Layer0IngestionPipeline
-from Backend.Navigation.Core.layer1 import PreprocessingPipeline
+from agrifusion.settings.runtime import BackendSettings
+from agrifusion.ingest import Layer0IngestionPipeline
+from agrifusion.canonical import PreprocessingPipeline
 
 GOLDEN_DIR = Path(__file__).resolve().parent / "golden" / "data_chain"
 INPUT_EXPORT = GOLDEN_DIR / "input_export.json"
@@ -35,7 +35,7 @@ _SKIP_FILES = {"source_snapshot.json"}
 def run_chain(backend_dir: Path) -> BackendSettings:
     """Run Layer0 (json-export, full history) then Layer1 into ``backend_dir``."""
     settings = BackendSettings(
-        backend_dir=backend_dir,
+        project_root=backend_dir,
         source_type="json-export",
         input_json_path=INPUT_EXPORT,
         node_id=NODE_ID,
@@ -86,7 +86,7 @@ def _normalize_csv(text: str) -> str:
 
 def snapshot(backend_dir: Path) -> dict[str, str]:
     """Return {relative posix path: normalized text} for the outputs under backend_dir."""
-    out_root = backend_dir / "Output_data"
+    out_root = backend_dir / "output"
     roots = [(out_root, "<OUT>"), (INPUT_EXPORT.parent, "<INPUT_DIR>")]
     files: dict[str, str] = {}
     for path in sorted(out_root.rglob("*")):

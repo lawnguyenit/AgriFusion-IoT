@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from Backend.Config.paths import BACKEND_PATHS
+from agrifusion.settings.paths import BACKEND_PATHS
 
 
 BACKEND_ROOT: Path = BACKEND_PATHS.backend_dir

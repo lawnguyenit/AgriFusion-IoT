@@ -9,7 +9,7 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from Backend.Benchmark.protocol_registry import build_protocol_registry
-from Backend.Config.paths import BACKEND_PATHS
+from agrifusion.settings.paths import BACKEND_PATHS
 
 
 def parse_args() -> argparse.Namespace:

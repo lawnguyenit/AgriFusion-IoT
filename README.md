@@ -77,20 +77,20 @@ The current tracked backend does not publish `result/*`. See the [system archite
 From the repository root (Python; commands below are from the repo docs, PowerShell style):
 
 ```powershell
-python -m pip install -r Backend/requirements.txt
-python -m Backend.main --help
+python -m pip install -e ".[dev,research]"   # installs the `agrifusion` package + CLI; drop [research] for the telemetry backend only
+agrifusion --help
 python -m unittest discover -s Backend/tests -p "test*.py"
 ```
 
 Run Layer0 and Layer1 from Firebase or a JSON export:
 
 ```powershell
-python -m Backend.main --source firebase --node-id Node2 --full-history
-python -m Backend.main --source json-export --input-json C:\path\export.json --node-id Node2 --full-history
-python -m Backend.main --only-layer1
+agrifusion --source firebase --node-id Node2 --full-history
+agrifusion --source json-export --input-json C:\path\export.json --node-id Node2 --full-history
+agrifusion --only-layer1   # node id is read from the Layer0 manifest if --node-id is omitted
 ```
 
-The backend accepts `Node1`, `Node2` or another logical node id. Match the value to the source path; the firmware currently publishes Node2 data, while the backend default remains configurable through `EXPORT_NODE_ID`.
+The backend has no default node id: pass `--node-id` (or set `EXPORT_NODE_ID` in `.env`, see `.env.example`). Match the value to the source path; the firmware currently publishes Node2 data. Generated data goes to `output/` (gitignored). `python -m Backend.main` still works as a deprecated alias.
 
 Benchmark:
 
@@ -111,7 +111,9 @@ python -m http.server 4173 -d Frontend/public
 ## Repository layout
 
 ```
-Backend/       telemetry pipeline (Layer0/Layer1), Benchmark research lanes, tests
+src/agrifusion/ telemetry backend package: settings, io, ingest (Layer0), canonical (Layer1), cloud, cli
+Backend/       Benchmark research lanes and tests (Backend/Benchmark moves out in a later stage)
+output/        generated Layer0/Layer1 data (gitignored)
 IoT_Node/      ESP32-S3 firmware (PlatformIO)
 Frontend/      static Firebase RTDB dashboard (demo mode by default)
 Docs/          paper reproducibility guide, diagrams, a static web page, worklogs
@@ -123,7 +125,7 @@ Read in this order: [System architecture](public-docs/architecture.md), [Reposit
 
 ## What is intentionally not in the source contract
 
-- `Backend/Output_data/` and benchmark artifacts are generated outputs.
+- `output/` (and the legacy `Backend/Output_data/`) and benchmark artifacts are generated outputs.
 - `Secrets/`, `.env` files, Firebase local config and private firmware credentials are local-only.
 - Physical sensor, SIM, Firebase-rule and deployment claims require explicit runtime evidence.
 - Weak labels, benchmark targets and model predictions are research-derived artifacts, not observed sensor measurements.

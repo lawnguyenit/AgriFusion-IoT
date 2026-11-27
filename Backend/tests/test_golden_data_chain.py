@@ -22,6 +22,8 @@ from Backend.tests.golden_chain_support import (
     snapshot,
 )
 
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
 UPDATE_HINT = (
     "If this change is intended, regenerate the golden with "
     "`python Backend/tests/golden/data_chain/update_golden.py` and review the git diff "
@@ -60,17 +62,17 @@ class GoldenDataChainTests(unittest.TestCase):
             self._assert_matches_golden(snapshot(Path(temp_dir)))
 
     def test_cli_json_export_matches_golden(self) -> None:
-        """Same chain through `python -m Backend.main --source json-export ...`.
+        """Same chain through `agrifusion --source json-export ...`.
 
         Also guards GD1 bugs B2 (Layer1 ignored the configured output root) and B3
         (firebase_admin imported for json-export): the CLI writes only under
         AGRIFUSION_HOME and must not need firebase_admin.
         """
-        from Backend import main as backend_main
+        from agrifusion import cli as backend_main
 
         with tempfile.TemporaryDirectory() as temp_dir:
             argv = [
-                "Backend.main",
+                "agrifusion",
                 "--source", "json-export",
                 "--input-json", str(INPUT_EXPORT),
                 "--node-id", NODE_ID,
@@ -88,7 +90,7 @@ class GoldenDataChainTests(unittest.TestCase):
 
         code = (
             "import sys; sys.modules['firebase_admin'] = None; "
-            "from Backend import main; main.main()"
+            "from agrifusion import cli; cli.main()"
         )
         with tempfile.TemporaryDirectory() as temp_dir:
             result = subprocess.run(
@@ -99,29 +101,41 @@ class GoldenDataChainTests(unittest.TestCase):
                 ],
                 capture_output=True,
                 text=True,
-                env={**os.environ, "AGRIFUSION_HOME": temp_dir},
+                env={
+                    **os.environ,
+                    "AGRIFUSION_HOME": temp_dir,
+                    "PYTHONPATH": os.pathsep.join(
+                        [str(REPO_ROOT), str(REPO_ROOT / "src"), os.environ.get("PYTHONPATH", "")]
+                    ),
+                },
             )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("Layer1 status: ok", result.stdout)
 
     def test_cli_only_layer1_reads_node_id_from_layer0_manifest(self) -> None:
-        from Backend import main as backend_main
+        from agrifusion import cli as backend_main
 
         with tempfile.TemporaryDirectory() as temp_dir:
             run_chain(Path(temp_dir))
             with mock.patch.dict(
                 os.environ, {"AGRIFUSION_HOME": temp_dir, "EXPORT_NODE_ID": ""}
-            ), mock.patch("sys.argv", ["Backend.main", "--only-layer1"]), contextlib.redirect_stdout(
+            ), mock.patch("sys.argv", ["agrifusion", "--only-layer1"]), contextlib.redirect_stdout(
                 io.StringIO()
             ) as out:
                 backend_main.main()
             self.assertIn("Node id from Layer0 manifest: Node2", out.getvalue())
 
+    def test_deprecated_backend_main_shim_points_at_agrifusion_cli(self) -> None:
+        from agrifusion import cli
+        from Backend import main as legacy_main
+
+        self.assertIs(legacy_main.main, cli.main)
+
     def test_cli_requires_node_id(self) -> None:
-        from Backend import main as backend_main
+        from agrifusion import cli as backend_main
 
         with tempfile.TemporaryDirectory() as temp_dir:
-            argv = ["Backend.main", "--source", "json-export", "--input-json", str(INPUT_EXPORT)]
+            argv = ["agrifusion", "--source", "json-export", "--input-json", str(INPUT_EXPORT)]
             env = {"AGRIFUSION_HOME": temp_dir}
             with mock.patch.dict(os.environ, env), mock.patch.dict(
                 os.environ, {"EXPORT_NODE_ID": ""}

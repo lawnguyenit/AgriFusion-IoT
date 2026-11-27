@@ -1,6 +1,6 @@
 """Architecture test: no new import edge between top-level Backend packages.
 
-Allow-list: Backend/tests/architecture/allowed_import_edges.txt
+Allow-list: Backend/tests/architecture/allowed_import_edges.txt (nodes: see architecture_graph.py)
 Graph builder: Backend/tests/architecture_graph.py
 """
 from __future__ import annotations
@@ -9,7 +9,7 @@ import unittest
 import warnings
 from pathlib import Path
 
-from Backend.tests.architecture_graph import build_edges, mutual_pairs
+from Backend.tests.architecture_graph import AGRIFUSION_NODES, REPO_ROOT, build_edges, mutual_pairs
 
 ALLOWLIST = Path(__file__).resolve().parent / "architecture" / "allowed_import_edges.txt"
 REGENERATE = "python Backend/tests/architecture/update_allowlist.py"
@@ -80,16 +80,36 @@ class ArchitectureImportGraphTests(unittest.TestCase):
 
     def test_graph_detects_a_new_edge(self) -> None:
         """Guard the guard: the comparison reports an edge missing from the allow-list."""
-        actual = {("Core.layer0", "Benchmark.model_suite"): ["x.py:1"], **{e: ["y.py:1"] for e in load_allowlist()}}
+        actual = {("ingest", "Benchmark.model_suite"): ["x.py:1"], **{e: ["y.py:1"] for e in load_allowlist()}}
         new, stale = diff_edges(actual, load_allowlist())
-        self.assertEqual(new, [("Core.layer0", "Benchmark.model_suite")])
+        self.assertEqual(new, [("ingest", "Benchmark.model_suite")])
         self.assertEqual(stale, [])
 
-    def test_core_does_not_import_benchmark(self) -> None:
-        """Hard rule, independent of the allow-list (audit: Core must not depend on Benchmark)."""
+    def test_agrifusion_does_not_import_backend_or_benchmark(self) -> None:
+        """Hard rule, independent of the allow-list: the installable package never depends on Backend/."""
         offending = [
             f"{src} -> {dst}" for (src, dst) in build_edges()
-            if src.startswith("Core") and dst.startswith("Benchmark")
+            if src in AGRIFUSION_NODES and (dst.startswith("Benchmark") or dst == "Backend")
+        ]
+        self.assertEqual(offending, [])
+
+    def test_ingest_and_canonical_stay_independent(self) -> None:
+        """Layer0 (ingest) and Layer1 (canonical) meet only in the CLI, never import each other."""
+        edges = set(build_edges())
+        self.assertNotIn(("ingest", "canonical"), edges)
+        self.assertNotIn(("canonical", "ingest"), edges)
+
+    def test_leaf_packages_have_no_upward_imports(self) -> None:
+        """settings and io are leaves: they import no other agrifusion subpackage except settings -> none."""
+        for src, dst in build_edges():
+            if src in {"settings", "io"}:
+                self.assertNotIn(dst, AGRIFUSION_NODES, f"{src} -> {dst}")
+
+    def test_no_sys_path_hacks_inside_agrifusion(self) -> None:
+        offending = [
+            path.relative_to(REPO_ROOT).as_posix()
+            for path in (REPO_ROOT / "src" / "agrifusion").rglob("*.py")
+            if "sys.path" in path.read_text(encoding="utf-8")
         ]
         self.assertEqual(offending, [])
 

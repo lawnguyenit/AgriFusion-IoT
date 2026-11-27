@@ -10,7 +10,7 @@ if str(ROOT_DIR) not in sys.path:
 
 from Backend.Benchmark.common.paths import WEAK_LABELS_ROOT
 from Backend.Benchmark.weak_labels.lifecycle.phase_a_readiness import PhaseAReadinessConfig, build_phase_a_readiness
-from Backend.Config.paths import BACKEND_PATHS
+from agrifusion.settings.paths import BACKEND_PATHS
 
 
 def parse_args() -> argparse.Namespace:

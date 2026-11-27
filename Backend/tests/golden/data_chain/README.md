@@ -35,5 +35,5 @@ A refactor that is meant to be behavior-neutral must NOT touch `expected/`.
 
 ## Notes
 
-- `test_cli_json_export_matches_golden` is skipped when `firebase_admin` is missing (`Backend.main` imports it even for json-export); CI installs it.
+- The CLI tests run with `AGRIFUSION_HOME` pointing at a temp dir and do not need `firebase_admin` (GD1 bug B3 is fixed; one test blocks the import to prove it).
 - The test is validated on pandas 2.3 and 3.x.

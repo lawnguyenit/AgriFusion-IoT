@@ -3,9 +3,9 @@ from __future__ import annotations
 import unittest
 from zoneinfo import ZoneInfo
 
-from Backend.Navigation.Core.layer1.contracts import SourceRecord
-from Backend.Navigation.Core.layer1.processors.common import normalize_buffer_reason
-from Backend.Navigation.Core.layer1.processors.context import (
+from agrifusion.canonical.contracts import SourceRecord
+from agrifusion.canonical.processors.common import normalize_buffer_reason
+from agrifusion.canonical.processors.context import (
     build_record_and_context_fields,
     extract_raw_buffer_reason,
 )

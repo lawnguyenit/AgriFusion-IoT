@@ -17,7 +17,7 @@ from Backend.tests.architecture_graph import build_edges  # noqa: E402
 ALLOWLIST = Path(__file__).resolve().parent / "allowed_import_edges.txt"
 
 HEADER = """\
-# Allowed import edges between top-level packages of Backend.
+# Allowed import edges between top-level packages (src/agrifusion/* and Backend/Benchmark/*).
 # Format: `<importer> -> <imported>   # optional comment`. Nodes: see Backend/tests/architecture_graph.py.
 # Backend/tests/test_architecture_import_graph.py fails when the code has an edge NOT listed here.
 # Removing an edge from the code is always fine (stale lines only produce a warning); delete the line then.

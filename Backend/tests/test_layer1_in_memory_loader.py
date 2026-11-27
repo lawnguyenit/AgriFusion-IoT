@@ -4,10 +4,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from Backend.Config.runtime import BackendSettings
-from Backend.Config.storage import read_json
-from Backend.Navigation.Core.layer1.loaders import FirebaseSourceLoader
-from Backend.Navigation.Core.layer1.pipelines import PreprocessingPipeline
+from agrifusion.settings.runtime import BackendSettings
+from agrifusion.io.storage import read_json
+from agrifusion.canonical.loaders import FirebaseSourceLoader
+from agrifusion.canonical.pipelines import PreprocessingPipeline
 
 
 def _base_record(*, ts_sample: int, ts_server: int | None = None) -> dict:
@@ -83,7 +83,7 @@ class Layer1InMemoryLoaderTests(unittest.TestCase):
             )
 
             result = PreprocessingPipeline(
-                BackendSettings(backend_dir=root, node_id="Node1"),
+                BackendSettings(project_root=root, node_id="Node1"),
                 base_dir=root / "MissingLayer0",
                 output_root=output_root,
                 source_loader=source_loader,
