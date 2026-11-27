@@ -1,0 +1,35 @@
+{
+  "layer": "layer1_compat",
+  "perception": {
+    "k_ppm": 92.0,
+    "n_ppm": 31.0,
+    "p_ppm": 20.0,
+    "soil_ec_us_cm": 448.0,
+    "soil_humidity_pct": 62.5,
+    "soil_ph": 6.45,
+    "soil_temp_c": 27.0
+  },
+  "processor_name": "canonical_compat_npk",
+  "schema_version": 2,
+  "sensor_id": "soil_7in1_01",
+  "sensor_type": "soil_multi_sensor",
+  "source": {
+    "date_key": "2026-09-02",
+    "event_key": "1788321600",
+    "origin": "latest",
+    "path": "Node2/telemetry/2026-09-02/1788321600",
+    "source_name": "firebase"
+  },
+  "status": {
+    "error_code": "ok",
+    "protocol_fault": null,
+    "read_ok": true,
+    "sample_valid": true,
+    "status": "ok"
+  },
+  "timestamps": {
+    "observed_at_local": "2026-09-02T11:00:00+07:00",
+    "ts_device": 1788321600,
+    "ts_server": 1788321602
+  }
+}

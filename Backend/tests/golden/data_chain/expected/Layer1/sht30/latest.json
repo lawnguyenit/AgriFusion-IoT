@@ -1,0 +1,29 @@
+{
+  "layer": "layer1_compat",
+  "perception": {
+    "humidity_air_pct": 58.75,
+    "temp_air_c": 28.75
+  },
+  "processor_name": "canonical_compat_sht30",
+  "schema_version": 2,
+  "sensor_id": "air_sht30_01",
+  "sensor_type": "air_temp_humidity",
+  "source": {
+    "date_key": "2026-09-02",
+    "event_key": "1788321600",
+    "origin": "latest",
+    "path": "Node2/telemetry/2026-09-02/1788321600",
+    "source_name": "firebase"
+  },
+  "status": {
+    "error_code": "ok",
+    "read_ok": true,
+    "sample_valid": true,
+    "status": "ok"
+  },
+  "timestamps": {
+    "observed_at_local": "2026-09-02T11:00:00+07:00",
+    "ts_device": 1788321600,
+    "ts_server": 1788321602
+  }
+}

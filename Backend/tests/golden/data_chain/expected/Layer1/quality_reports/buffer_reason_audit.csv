@@ -1,0 +1,2 @@
+record.id,record.segment_id,record.node_id,delivery.buffer_reason,buffer_reason_raw
+Node2:2026-09-01:1788256800,node2_seg_0001,Node2,network_down,network_down
