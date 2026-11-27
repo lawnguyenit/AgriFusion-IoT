@@ -651,6 +651,7 @@ def build_evaluation_protocols(config: EvaluationProtocolConfig) -> EvaluationPr
         "model_outputs_present": False,
         "native_label_release_dir": str(config.native_label_release_dir),
     }
+    validation_report["validation_status"] = protocol_validation_status(validation_report["validation_gates"])
     write_json_file(layout.run_metadata / "protocol_validation_report.json", validation_report)
 
     run_manifest = {
@@ -792,6 +793,22 @@ def _filter_canonical_to_execution_profile(
             & (frame["timestamp_local"] < end)
         )
     return frame.loc[mask].copy()
+
+
+# Gates that must hold for model_suite to train on this run (read by core/model_suite/gate.py).
+TRAINING_READY_GATES = (
+    "runner_contract_generated",
+    "runner_assertions_passed",
+    "task_view_registry_generated",
+    "task_training_manifest_generated",
+    "comparison_training_manifest_generated",
+    "frozen_target_manifest_generated",
+)
+
+
+def protocol_validation_status(validation_gates: dict[str, object]) -> str:
+    """``"ready"`` when every TRAINING_READY_GATES entry is True, else ``"blocked"``."""
+    return "ready" if all(validation_gates.get(gate) is True for gate in TRAINING_READY_GATES) else "blocked"
 
 
 def _optional_manifest_hash(run_dir: Path) -> str | None:

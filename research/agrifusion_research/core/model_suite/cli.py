@@ -47,6 +47,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Optional explicit model keys to train instead of the default smoke_model_keys config.",
     )
     parser.add_argument(
+        "--allow-unaudited",
+        action="store_true",
+        help="Train even if the protocol run is not validation_status=ready; recorded in run_manifest.json.",
+    )
+    parser.add_argument(
         "--no-progress",
         action="store_true",
         help="Disable terminal progress UI and print only the final JSON summary.",
@@ -105,6 +110,7 @@ def main() -> int:
                 profile_name=args.profile,
                 model_keys=tuple(args.model_keys) if args.model_keys is not None else None,
                 show_progress=not args.no_progress,
+                allow_unaudited=args.allow_unaudited,
             )
         except ModelUnavailableError as exc:
             infos = inspect_models_availability(selected_model_keys)

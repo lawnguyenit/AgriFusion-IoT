@@ -4,30 +4,26 @@ import argparse
 from pathlib import Path
 
 
-from agrifusion_research.core.common.paths import EVALUATION_PROTOCOLS_ROOT
 from agrifusion_research.core.model_suite.protocol_training.smoke import run_smoke_training
-
-
-def _default_latest_protocol_run() -> Path:
-    artifacts_root = EVALUATION_PROTOCOLS_ROOT / "artifacts"
-    candidates = [path for path in artifacts_root.iterdir() if path.is_dir()] if artifacts_root.exists() else []
-    if not candidates:
-        raise FileNotFoundError("No evaluation_protocols artifact runs were found under output/research/evaluation_protocols/artifacts.")
-    return max(candidates, key=lambda path: path.stat().st_mtime)
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Run staged smoke training from an evaluation_protocols primary runner manifest."
     )
-    parser.add_argument("--protocol-run-dir", type=Path, default=None)
+    parser.add_argument("--protocol-run-dir", type=Path, required=True)
+    parser.add_argument(
+        "--allow-unaudited",
+        action="store_true",
+        help="Train even if the protocol run is not validation_status=ready; recorded in the readiness report.",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    protocol_run_dir = args.protocol_run_dir.resolve() if args.protocol_run_dir is not None else _default_latest_protocol_run().resolve()
-    result = run_smoke_training(protocol_run_dir)
+    protocol_run_dir = args.protocol_run_dir.resolve()
+    result = run_smoke_training(protocol_run_dir, allow_unaudited=args.allow_unaudited)
     print("evaluation_protocols smoke training complete")
     print(f"Protocol run: {protocol_run_dir}")
     print(f"Smoke output dir: {result.output_dir}")

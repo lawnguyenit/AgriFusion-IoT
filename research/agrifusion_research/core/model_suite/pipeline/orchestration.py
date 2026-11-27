@@ -11,6 +11,7 @@ from agrifusion_research.core.model_suite.data import build_stage_run_frames, lo
 from agrifusion_research.core.model_suite.evaluation.comparisons import build_model_comparison_table
 from agrifusion_research.core.model_suite.evaluation.pooling import build_pooled_prediction_summary
 from agrifusion_research.core.model_suite.persistence.artifact_catalog import write_artifact_catalog
+from agrifusion_research.core.model_suite.gate import check_training_gate
 from agrifusion_research.core.model_suite.persistence.run_signature import build_run_manifest
 from agrifusion_research.core.model_suite.pipeline.guides import write_run_guides
 from agrifusion_research.core.model_suite.pipeline.native_runner import run_protocol_model_job
@@ -38,7 +39,9 @@ def run_smoke_suite(
     profile_name: str = "smoke_phase1_protocol",
     model_keys: tuple[str, ...] | None = None,
     show_progress: bool = True,
+    allow_unaudited: bool = False,
 ) -> SmokeSuiteResult:
+    training_gate = check_training_gate(protocol_run_dir, allow_unaudited=allow_unaudited)
     model_registry_payload = json.loads(MODEL_REGISTRY_PATH.read_text(encoding="utf-8"))
     resolved_model_keys = (
         tuple(str(model_key) for model_key in model_keys)
@@ -61,6 +64,7 @@ def run_smoke_suite(
             "artifact_policy": artifact_policy,
             "model_registry_config_path": str(MODEL_REGISTRY_PATH),
             "training_profile_config_path": str(TRAINING_PROFILES_PATH),
+            "training_gate": training_gate,
         },
     )
     summary_rows: list[dict[str, object]] = []

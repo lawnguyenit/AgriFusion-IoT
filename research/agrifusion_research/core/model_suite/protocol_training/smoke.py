@@ -17,6 +17,7 @@ from agrifusion_research.core.model_suite.protocol_training.xgboost_job import (
     xgb,
 )
 from agrifusion_research.core.evaluation_protocols.scope import PRIMARY_COMPARISON_IDS, PRIMARY_FEATURE_VIEW_IDS, PRIMARY_FOLD_IDS
+from agrifusion_research.core.model_suite.gate import check_training_gate
 
 
 SMOKE_RANDOM_SEED = 20260716
@@ -52,7 +53,8 @@ class SmokeRunResult:
     readiness_report: dict[str, object]
 
 
-def run_smoke_training(protocol_run_dir: Path) -> SmokeRunResult:
+def run_smoke_training(protocol_run_dir: Path, *, allow_unaudited: bool = False) -> SmokeRunResult:
+    training_gate = check_training_gate(protocol_run_dir, allow_unaudited=allow_unaudited)
     runner_dir = protocol_run_dir / "primary_protocol" / "runner"
     smoke_dir = runner_dir / "smoke_train"
     if smoke_dir.exists():
@@ -163,6 +165,7 @@ def run_smoke_training(protocol_run_dir: Path) -> SmokeRunResult:
     prediction_df.to_csv(smoke_dir / "per_sample_predictions.csv", index=False)
     pooled_prediction_df.to_csv(smoke_dir / "pooled_oof_metrics.csv", index=False)
     readiness_report = {
+        "training_gate": training_gate,
         "smoke_test_executed": True,
         "completed_stage_ids": completed_stage_ids,
         "approved_feature_views": list(APPROVED_FEATURE_VIEWS),

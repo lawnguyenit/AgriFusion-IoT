@@ -19,6 +19,7 @@ from agrifusion_research.core.model_suite.protocol_training.xgboost_job import (
     xgb,
 )
 from agrifusion_research.core.evaluation_protocols.scope import PRIMARY_COMPARISON_IDS, PRIMARY_FEATURE_VIEW_IDS, PRIMARY_FOLD_IDS
+from agrifusion_research.core.model_suite.gate import check_training_gate
 
 
 FULL_RANDOM_SEED = 20260717
@@ -48,7 +49,8 @@ class FullRunResult:
     readiness_report: dict[str, object]
 
 
-def run_full_training(protocol_run_dir: Path) -> FullRunResult:
+def run_full_training(protocol_run_dir: Path, *, allow_unaudited: bool = False) -> FullRunResult:
+    training_gate = check_training_gate(protocol_run_dir, allow_unaudited=allow_unaudited)
     runner_dir = protocol_run_dir / "primary_protocol" / "runner"
     full_dir = runner_dir / "full_train"
     if full_dir.exists():
@@ -160,6 +162,7 @@ def run_full_training(protocol_run_dir: Path) -> FullRunResult:
     pooled_prediction_df.to_csv(full_dir / "pooled_oof_metrics.csv", index=False)
 
     readiness_report = {
+        "training_gate": training_gate,
         "full_training_executed": True,
         "completed_stage_ids": completed_stage_ids,
         "approved_feature_views": list(APPROVED_FEATURE_VIEWS),
