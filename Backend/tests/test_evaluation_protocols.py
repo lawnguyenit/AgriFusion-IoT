@@ -7,23 +7,23 @@ from pathlib import Path
 
 import pandas as pd
 
-from Backend.Benchmark.evaluation_protocols.diagnostics import RollingFoldSpec
-from Backend.Benchmark.evaluation_protocols.lineage import PRIMARY_PROTOCOL_ID, build_primary_protocol_artifacts
-from Backend.Benchmark.evaluation_protocols.pipeline.consumption import (
+from agrifusion_research.core.evaluation_protocols.diagnostics import RollingFoldSpec
+from agrifusion_research.core.evaluation_protocols.lineage import PRIMARY_PROTOCOL_ID, build_primary_protocol_artifacts
+from agrifusion_research.core.evaluation_protocols.pipeline.consumption import (
     assert_no_forbidden_protocol_columns,
     build_comparison_training_manifest,
     build_task_training_manifest,
     load_dataset_view_feature_artifacts,
 )
-from Backend.Benchmark.evaluation_protocols.pipeline.layout import (
+from agrifusion_research.core.evaluation_protocols.pipeline.layout import (
     build_artifact_catalog,
     build_evaluation_artifact_layout,
 )
-from Backend.Benchmark.evaluation_protocols.pipeline.tranche0_contracts import (
+from agrifusion_research.core.evaluation_protocols.pipeline.tranche0_contracts import (
     build_comparison_registry,
     build_e1_fold_registry,
 )
-from Backend.Benchmark.evaluation_protocols.pipeline.reporting import write_benchmark_readiness_report
+from agrifusion_research.core.evaluation_protocols.pipeline.reporting import write_benchmark_readiness_report
 
 
 # Purely nominal root for path-only fixtures (nothing is read or written under it).
@@ -212,7 +212,7 @@ class EvaluationProtocolsTests(unittest.TestCase):
         self.assertEqual(resolved.sample_ids, frozenset({"r1", "r2"}))
 
     def test_task_training_manifest_reconciles_protocol_and_intrinsic_states(self) -> None:
-        feature_artifact_path = FAKE_ROOT / "Backend" / "Benchmark" / "dataset_views/artifacts/fake/views/v0_minimal_sensor/X.parquet"
+        feature_artifact_path = FAKE_ROOT / "output" / "research" / "dataset_views/artifacts/fake/views/v0_minimal_sensor/X.parquet"
         registry_df = pd.DataFrame(
             [
                 {
@@ -307,9 +307,9 @@ class EvaluationProtocolsTests(unittest.TestCase):
             registry_df=registry_df,
             view_assignments=view_assignments,
             label_frames={"v0_point_train": label_frame},
-            label_paths={"v0_point_train": FAKE_ROOT / "Backend" / "Benchmark" / "weak_labels/artifacts/fake/point/point_labels_train.parquet"},
+            label_paths={"v0_point_train": FAKE_ROOT / "output" / "research" / "weak_labels/artifacts/fake/point/point_labels_train.parquet"},
             label_hashes={"v0_point_train": "label_hash"},
-            protocol_artifact_path=FAKE_ROOT / "Backend" / "Benchmark" / "evaluation_protocols/artifacts/fake/primary_protocol/folds/view_effective_split_assignments.parquet",
+            protocol_artifact_path=FAKE_ROOT / "output" / "research" / "evaluation_protocols/artifacts/fake/primary_protocol/folds/view_effective_split_assignments.parquet",
             protocol_artifact_hash="protocol_hash",
             feature_artifacts=feature_artifacts,
             cohort_manifests={},

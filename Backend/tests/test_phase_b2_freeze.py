@@ -8,17 +8,17 @@ from pathlib import Path
 import pandas as pd
 import yaml
 
-from Backend.Benchmark.weak_labels.lifecycle.phase_b_contract.b2 import (
+from agrifusion_research.experiments.weak_labels_phases.phase_b_contract.b2 import (
     _validate_anchor_safety,
     _load_selection,
     _validate_distribution_task_specific,
     _validate_window,
 )
-from Backend.Benchmark.weak_labels.lifecycle.phase_b_contract.contracts import PhaseB2Config
-from Backend.Benchmark.weak_labels.lifecycle.phase_b_contract import freeze_phase_b_contract
-from Backend.Benchmark.weak_labels.lifecycle.phase_b_contract.review_template import build_phase_b2_review_template
-from Backend.Benchmark.weak_labels.lifecycle.phase_b_contract.fold_comparison import build_fold_policy_comparison
-from Backend.Benchmark.weak_labels.lifecycle.phase_b_contract.candidate_contracts import (
+from agrifusion_research.experiments.weak_labels_phases.phase_b_contract.contracts import PhaseB2Config
+from agrifusion_research.experiments.weak_labels_phases.phase_b_contract import freeze_phase_b_contract
+from agrifusion_research.experiments.weak_labels_phases.phase_b_contract.review_template import build_phase_b2_review_template
+from agrifusion_research.experiments.weak_labels_phases.phase_b_contract.fold_comparison import build_fold_policy_comparison
+from agrifusion_research.experiments.weak_labels_phases.phase_b_contract.candidate_contracts import (
     DERIVED_CONTRACT_ID,
     CONTINUITY_CONTRACT_ID,
     WINDOW_CONTRACT_ID,
@@ -29,7 +29,7 @@ from Backend.Benchmark.weak_labels.lifecycle.phase_b_contract.candidate_contract
 class PhaseB2FreezeTests(unittest.TestCase):
     def test_selection_profile_uses_concrete_k6(self) -> None:
         selection = _load_selection(
-            Path("Backend/Benchmark/weak_labels/lifecycle/phase_b_contract/config/qk_synchronized_7d.yaml"),
+            Path("research/agrifusion_research/experiments/weak_labels_phases/phase_b_contract/config/qk_synchronized_7d.yaml"),
             {},
         )
         self.assertEqual(selection["primary"], {"q": "Q10", "k": 3, "fold_policy_id": "E1_PRIMARY_7D_V1"})
@@ -40,7 +40,7 @@ class PhaseB2FreezeTests(unittest.TestCase):
 
     def test_synchronized_five_day_profile_uses_one_fold_policy(self) -> None:
         selection = _load_selection(
-            Path("Backend/Benchmark/weak_labels/lifecycle/phase_b_contract/config/qk_synchronized_5d.yaml"),
+            Path("research/agrifusion_research/experiments/weak_labels_phases/phase_b_contract/config/qk_synchronized_5d.yaml"),
             {},
         )
         self.assertTrue(all(item["fold_policy_id"] == "E1_DIAGNOSTIC_5D_V1" for item in [selection["primary"], *selection["diagnostics"]]))
@@ -50,8 +50,8 @@ class PhaseB2FreezeTests(unittest.TestCase):
             root = Path(temp)
             b1 = root / "b1"
             (b1 / "operationalization").mkdir(parents=True)
-            seven_profile = Path("Backend/Benchmark/weak_labels/lifecycle/phase_b_contract/config/qk_synchronized_7d.yaml")
-            five_profile = Path("Backend/Benchmark/weak_labels/lifecycle/phase_b_contract/config/qk_synchronized_5d.yaml")
+            seven_profile = Path("research/agrifusion_research/experiments/weak_labels_phases/phase_b_contract/config/qk_synchronized_7d.yaml")
+            five_profile = Path("research/agrifusion_research/experiments/weak_labels_phases/phase_b_contract/config/qk_synchronized_5d.yaml")
             rows = []
             for profile_path, policy_id, unsafe_primary in ((seven_profile, "E1_PRIMARY_7D_V1", False), (five_profile, "E1_DIAGNOSTIC_5D_V1", True)):
                 payload = yaml.safe_load(profile_path.read_text(encoding="utf-8"))

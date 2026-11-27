@@ -4,7 +4,7 @@ import unittest
 
 import pandas as pd
 
-from Backend.Benchmark.external_splits.builder import assign_timestamp_blocks
+from agrifusion_research.external.splits.builder import assign_timestamp_blocks
 
 
 class ExternalTimestampSplitTests(unittest.TestCase):

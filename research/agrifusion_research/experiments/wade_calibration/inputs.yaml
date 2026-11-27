@@ -1,0 +1,4 @@
+description: >
+  Synthetic controlled worlds; reads no artifact runs (only --output-root).
+  No historical run is recorded for it; pass the paths on the command line.
+inputs: {}

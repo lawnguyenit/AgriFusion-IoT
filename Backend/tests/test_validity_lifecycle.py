@@ -6,14 +6,14 @@ from pathlib import Path
 
 import pandas as pd
 
-from Backend.Benchmark.validity_lifecycle.audits.comparisons import build_comparison_hash_audit
-from Backend.Benchmark.validity_lifecycle.audits.dependencies import classify_dependency_relationship
-from Backend.Benchmark.validity_lifecycle.audits.eligibility import build_environment_eligibility_matrix
-from Backend.Benchmark.validity_lifecycle.audits.support import classify_support_status
-from Backend.Benchmark.validity_lifecycle.contracts import EnvironmentSpec, ValidityLifecycleConfig
-from Backend.Benchmark.validity_lifecycle.defaults import PRIMARY_VIEW_IDS, default_environment_specs, primary_claims_payload
-from Backend.Benchmark.validity_lifecycle.registry import assign_environment_id
-from Backend.Benchmark.validity_lifecycle.reporting import build_validation_payload, render_validity_lifecycle_report
+from agrifusion_research.core.gates.validity_lifecycle.audits.comparisons import build_comparison_hash_audit
+from agrifusion_research.core.gates.validity_lifecycle.audits.dependencies import classify_dependency_relationship
+from agrifusion_research.core.gates.validity_lifecycle.audits.eligibility import build_environment_eligibility_matrix
+from agrifusion_research.core.gates.validity_lifecycle.audits.support import classify_support_status
+from agrifusion_research.core.gates.validity_lifecycle.contracts import EnvironmentSpec, ValidityLifecycleConfig
+from agrifusion_research.core.gates.validity_lifecycle.defaults import PRIMARY_VIEW_IDS, default_environment_specs, primary_claims_payload
+from agrifusion_research.core.gates.validity_lifecycle.registry import assign_environment_id
+from agrifusion_research.core.gates.validity_lifecycle.reporting import build_validation_payload, render_validity_lifecycle_report
 
 
 class ValidityLifecycleTests(unittest.TestCase):

@@ -4,7 +4,11 @@ Nodes
   settings | io | ingest | canonical | cloud   src/agrifusion/<name>/**
   cli                                          src/agrifusion/cli.py, __main__.py
   agrifusion                                   other files directly in src/agrifusion/
-  Benchmark.<sub>                              Backend/Benchmark/<sub>/**   (Benchmark = files directly in Benchmark/)
+  research                                     files directly in research/agrifusion_research/ (cli)
+  core.<sub> | external.<sub> | experiments.<sub>
+                                               research/agrifusion_research/<group>/<sub>/**
+                                               (core.gates = pretrain_audit + validity_lifecycle;
+                                               files directly in <group>/ map to <group>)
   Backend                                      Backend/main.py (deprecated shim), Backend/__init__.py
 
 Only edges between two different nodes are recorded. Backend/tests/ is not part of the graph.
@@ -18,6 +22,10 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SRC_ROOT = REPO_ROOT / "src"
+RESEARCH_ROOT = REPO_ROOT / "research"
+RESEARCH_PACKAGE = "agrifusion_research"
+RESEARCH_DIR = RESEARCH_ROOT / RESEARCH_PACKAGE
+RESEARCH_GROUPS = ("core", "external", "experiments")
 BACKEND_DIR = REPO_ROOT / "Backend"
 
 AGRIFUSION_SUBPACKAGES = ("settings", "io", "ingest", "canonical", "cloud")
@@ -39,17 +47,21 @@ def node_for_parts(parts: list[str]) -> str | None:
     if parts[0] == "Backend":
         if len(parts) == 1 or parts[1] == "main":
             return "Backend"
-        if parts[1] == "Benchmark":
-            if len(parts) >= 3 and (BACKEND_DIR / "Benchmark" / parts[2]).is_dir():
-                return f"Benchmark.{parts[2]}"
-            return "Benchmark"
+        return None
+    if parts[0] == RESEARCH_PACKAGE:
+        if len(parts) == 1 or parts[1] not in RESEARCH_GROUPS:
+            return "research"
+        group = parts[1]
+        if len(parts) >= 3 and (RESEARCH_DIR / group / parts[2]).is_dir():
+            return f"{group}.{parts[2]}"
+        return group
     return None  # tests, third-party, stdlib
 
 
 def _module_parts(path: Path) -> list[str] | None:
     """Absolute dotted parts of a source file, or None when the file is outside the graph."""
     resolved = path.resolve()
-    for root in (SRC_ROOT, REPO_ROOT):
+    for root in (SRC_ROOT, RESEARCH_ROOT, REPO_ROOT):
         try:
             parts = list(resolved.relative_to(root).with_suffix("").parts)
         except ValueError:
@@ -99,8 +111,10 @@ def _imported_modules(tree: ast.AST, pkg_parts: list[str]) -> list[tuple[list[st
 def build_edges(repo_root: Path = REPO_ROOT) -> dict[tuple[str, str], list[str]]:
     """Return {(src_node, dst_node): ["relative/file.py:line", ...]} for cross-node imports."""
     edges: dict[tuple[str, str], set[str]] = {}
-    files = sorted((repo_root / "src" / "agrifusion").rglob("*.py")) + sorted(
-        (repo_root / "Backend").rglob("*.py")
+    files = (
+        sorted((repo_root / "src" / "agrifusion").rglob("*.py"))
+        + sorted((repo_root / "research" / RESEARCH_PACKAGE).rglob("*.py"))
+        + sorted((repo_root / "Backend").rglob("*.py"))
     )
     for path in files:
         if "__pycache__" in path.parts:

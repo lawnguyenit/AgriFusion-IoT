@@ -1,0 +1,75 @@
+from __future__ import annotations
+
+import json
+from datetime import datetime, timezone
+from pathlib import Path
+
+
+def create_run_directory(output_root: Path, prefix: str) -> tuple[str, Path]:
+    output_root.mkdir(parents=True, exist_ok=True)
+    now = datetime.now()
+    base_run_id = f"{prefix}_{now.strftime('%Y%m%d_%H%M%S')}"
+    for suffix_index in range(1000):
+        run_id = base_run_id if suffix_index == 0 else f"{base_run_id}_{suffix_index:03d}"
+        output_dir = output_root / run_id
+        try:
+            output_dir.mkdir(parents=True, exist_ok=False)
+        except FileExistsError:
+            continue
+        return run_id, output_dir
+    raise FileExistsError(f"Unable to allocate unique run directory under {output_root} for prefix={prefix!r}.")
+
+
+def utc_run_id(prefix: str) -> str:
+    """``<prefix>_<UTC %Y%m%dT%H%M%S%fZ>``: run-id format of the external lanes and pretrain_audit."""
+    return f"{prefix}_{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')}"
+
+
+def write_json(path: Path, payload: object) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+
+
+def write_text(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+
+
+def write_yaml(path: Path, payload: object) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(_to_yaml(payload).rstrip() + "\n", encoding="utf-8")
+
+
+def _to_yaml(payload: object, indent: int = 0) -> str:
+    prefix = " " * indent
+    if isinstance(payload, dict):
+        lines: list[str] = []
+        for key, value in payload.items():
+            if isinstance(value, (dict, list)):
+                lines.append(f"{prefix}{key}:")
+                lines.append(_to_yaml(value, indent + 2))
+            else:
+                lines.append(f"{prefix}{key}: {_yaml_scalar(value)}")
+        return "\n".join(lines)
+    if isinstance(payload, list):
+        lines: list[str] = []
+        for value in payload:
+            if isinstance(value, (dict, list)):
+                lines.append(f"{prefix}-")
+                lines.append(_to_yaml(value, indent + 2))
+            else:
+                lines.append(f"{prefix}- {_yaml_scalar(value)}")
+        return "\n".join(lines)
+    return f"{prefix}{_yaml_scalar(payload)}"
+
+
+def _yaml_scalar(value: object) -> str:
+    if value is None:
+        return "null"
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (int, float)):
+        return str(value)
+    text = str(value)
+    escaped = text.replace("\\", "\\\\").replace("\"", "\\\"")
+    return f"\"{escaped}\""

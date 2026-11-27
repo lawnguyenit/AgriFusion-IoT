@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from Backend.Benchmark.model_suite.validation import run_rule_controls
+from agrifusion_research.core.model_suite.validation import run_rule_controls
 
 
 class RuleControlTests(unittest.TestCase):

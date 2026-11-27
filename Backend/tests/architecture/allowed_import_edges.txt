@@ -1,4 +1,4 @@
-# Allowed import edges between top-level packages (src/agrifusion/* and Backend/Benchmark/*).
+# Allowed import edges between top-level packages (src/agrifusion/* and research/agrifusion_research/*).
 # Format: `<importer> -> <imported>   # optional comment`. Nodes: see Backend/tests/architecture_graph.py.
 # Backend/tests/test_architecture_import_graph.py fails when the code has an edge NOT listed here.
 # Removing an edge from the code is always fine (stale lines only produce a warning); delete the line then.
@@ -7,45 +7,6 @@
 # and justify the new line in the commit message.
 
 Backend -> cli
-Benchmark.common -> Benchmark.shared
-Benchmark.common -> settings
-Benchmark.dataset_views -> Benchmark.common
-Benchmark.dataset_views -> Benchmark.shared
-Benchmark.dataset_views -> io
-Benchmark.dataset_views -> settings
-Benchmark.evaluation_protocols -> Benchmark.common
-Benchmark.evaluation_protocols -> Benchmark.dataset_views
-Benchmark.evaluation_protocols -> Benchmark.model_suite   # cycle with model_suite -> evaluation_protocols: to remove in s5d
-Benchmark.evaluation_protocols -> Benchmark.protocol_registry
-Benchmark.evaluation_protocols -> Benchmark.shared
-Benchmark.evaluation_protocols -> Benchmark.weak_labels
-Benchmark.evaluation_protocols -> settings
-Benchmark.external_features -> Benchmark.dataset_views
-Benchmark.external_support_audit -> Benchmark.external_labels
-Benchmark.model_suite -> Benchmark.evaluation_protocols   # cycle with evaluation_protocols -> model_suite: to remove in s5d
-Benchmark.model_suite -> Benchmark.shared
-Benchmark.model_suite -> Benchmark.weak_labels
-Benchmark.model_suite -> settings
-Benchmark.pretrain_audit -> Benchmark.dataset_views
-Benchmark.protocol_registry -> Benchmark.common
-Benchmark.protocol_registry -> Benchmark.shared
-Benchmark.protocol_registry -> settings
-Benchmark.source_intake -> canonical
-Benchmark.source_intake -> io
-Benchmark.source_intake -> settings
-Benchmark.validity_lifecycle -> Benchmark.common
-Benchmark.validity_lifecycle -> Benchmark.dataset_views
-Benchmark.validity_lifecycle -> Benchmark.evaluation_protocols
-Benchmark.validity_lifecycle -> Benchmark.model_suite
-Benchmark.validity_lifecycle -> Benchmark.protocol_registry
-Benchmark.validity_lifecycle -> Benchmark.shared
-Benchmark.validity_lifecycle -> Benchmark.weak_labels
-Benchmark.weak_labels -> Benchmark.common
-Benchmark.weak_labels -> Benchmark.dataset_views
-Benchmark.weak_labels -> Benchmark.protocol_registry
-Benchmark.weak_labels -> Benchmark.shared
-Benchmark.weak_labels -> io
-Benchmark.weak_labels -> settings
 canonical -> ingest   # only agrifusion.ingest.record_store (reader of ingest's on-disk format, s4f); enforced by test_canonical_reads_ingest_only_through_record_store
 canonical -> io
 canonical -> settings
@@ -54,5 +15,56 @@ cli -> cloud
 cli -> ingest
 cli -> settings
 cloud -> settings
+core.common -> settings
+core.dataset_views -> core.common
+core.dataset_views -> io
+core.dataset_views -> settings
+core.evaluation_protocols -> core.common
+core.evaluation_protocols -> core.dataset_views
+core.evaluation_protocols -> core.protocol_registry
+core.evaluation_protocols -> core.weak_labels
+core.evaluation_protocols -> settings
+core.gates -> core.common
+core.gates -> core.dataset_views
+core.gates -> core.evaluation_protocols
+core.gates -> core.protocol_registry
+core.gates -> core.weak_labels
+core.model_suite -> core.common
+core.model_suite -> core.evaluation_protocols
+core.protocol_registry -> core.common
+core.protocol_registry -> settings
+core.weak_labels -> core.common
+core.weak_labels -> core.protocol_registry
+core.weak_labels -> io
+experiments.k_window_variants -> core.common
+experiments.k_window_variants -> core.model_suite
+experiments.posthoc_model_analysis -> core.common
+experiments.posthoc_model_analysis -> core.model_suite
+experiments.posthoc_model_analysis -> core.weak_labels
+experiments.source_intake -> canonical
+experiments.source_intake -> core.common
+experiments.source_intake -> io
+experiments.source_intake -> settings
+experiments.stuard_controls -> core.model_suite
+experiments.temporary_robustness_probe -> core.common
+experiments.wade_calibration -> core.common
+experiments.wade_calibration -> core.model_suite
+experiments.weak_labels_phases -> core.common
+experiments.weak_labels_phases -> core.dataset_views
+experiments.weak_labels_phases -> core.protocol_registry
+experiments.weak_labels_phases -> core.weak_labels
+experiments.weak_labels_phases -> io
+experiments.weak_labels_phases -> settings
+external.claims -> core.common
+external.features -> core.common
+external.features -> external
+external.intake -> core.common
+external.intake -> external
+external.intake -> settings
+external.labels -> core.common
+external.labels -> external
+external.splits -> core.common
+external.support_audit -> core.common
+external.support_audit -> external.labels
 ingest -> io
 ingest -> settings

@@ -58,7 +58,7 @@ git clone https://github.com/lawnguyenit/AgriFusion-IoT.git
 Set-Location AgriFusion-IoT
 git checkout paper-v1.0
 python -m pip install -r Docs/research/reproducibility/paper-v1.0/paper-requirements.txt
-python -m Backend.Benchmark.model_suite.reporting.paper_tables_main --bundle C:\path\to\paper-v1.0-results.zip --output-dir output\paper-v1.0\tables
+python -m agrifusion_research.core.model_suite.reporting.paper_tables_main --bundle C:\path\to\paper-v1.0-results.zip --output-dir output\paper-v1.0\tables
 ```
 
 The command verifies every file against `package_manifest.json`, then writes
@@ -68,7 +68,7 @@ bootstrap results; it does not train or evaluate another model.
 To download and re-hash the official Stuard inputs into a new raw release:
 
 ```powershell
-python -m Backend.Benchmark.external_intake.main --dataset stuard_tomato_irrigation_2023 --download --release-id stuard-mendeley-v2-recheck
+python -m agrifusion_research.external.intake.main --dataset stuard_tomato_irrigation_2023 --download --release-id stuard-mendeley-v2-recheck
 ```
 
 This writes a new immutable raw release and canonical intake run under

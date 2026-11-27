@@ -1,0 +1,4 @@
+description: >
+  Phase A requires --protocol-registry-run-dir; phase B subcommands require their run dirs (see main.py --help).
+  No historical run is recorded for it; pass the paths on the command line.
+inputs: {}

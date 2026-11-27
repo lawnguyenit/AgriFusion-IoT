@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from Backend.Benchmark.model_suite.reporting.plots import write_classification_plots
+from agrifusion_research.core.model_suite.reporting.plots import write_classification_plots
 
 
 class ModelPlotTests(unittest.TestCase):

@@ -8,14 +8,14 @@ from pathlib import Path
 
 import pandas as pd
 
-from Backend.Benchmark.dataset_views.validators import dataframe_schema_hash, hash_dataframe_rows, stable_hash_object
-from Backend.Benchmark.pretrain_audit import PretrainAuditConfig, run_pretrain_audit
-from Backend.Benchmark.model_suite.multilabel import MultiLabelRunConfig, run_independent_binary_heads
-from Backend.Benchmark.model_suite.multilabel.runner import _derive_joint_predictions
-from Backend.Benchmark.model_suite.multilabel.entity_metrics import build_entity_metrics
-from Backend.Benchmark.model_suite.multilabel.temporal_bootstrap import build_temporal_bootstrap_metrics
-from Backend.Benchmark.model_suite.multilabel.stuard_controls import StuardControlConfig, run_stuard_control_arms
-from Backend.Benchmark.model_suite.multilabel.stuard_acquisition_controls import run_stuard_acquisition_controls
+from agrifusion_research.core.common.digests import dataframe_schema_hash, hash_dataframe_rows, stable_hash_object
+from agrifusion_research.core.gates.pretrain_audit import PretrainAuditConfig, run_pretrain_audit
+from agrifusion_research.core.model_suite.multilabel import MultiLabelRunConfig, run_independent_binary_heads
+from agrifusion_research.core.model_suite.multilabel.runner import _derive_joint_predictions
+from agrifusion_research.core.model_suite.multilabel.entity_metrics import build_entity_metrics
+from agrifusion_research.core.model_suite.multilabel.temporal_bootstrap import build_temporal_bootstrap_metrics
+from agrifusion_research.experiments.stuard_controls.stuard_controls import StuardControlConfig, run_stuard_control_arms
+from agrifusion_research.experiments.stuard_controls.stuard_acquisition_controls import run_stuard_acquisition_controls
 
 
 class MultiLabelRunnerTests(unittest.TestCase):

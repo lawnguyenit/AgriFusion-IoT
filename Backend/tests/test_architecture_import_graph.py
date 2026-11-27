@@ -18,6 +18,7 @@ from Backend.tests.architecture_graph import (
     mutual_pairs,
 )
 
+RESEARCH_NODE_PREFIXES = ("research", "core", "external", "experiments")
 ALLOWLIST = Path(__file__).resolve().parent / "architecture" / "allowed_import_edges.txt"
 REGENERATE = "python Backend/tests/architecture/update_allowlist.py"
 
@@ -76,27 +77,41 @@ class ArchitectureImportGraphTests(unittest.TestCase):
                     undocumented.append(f"{edge[0]} -> {edge[1]}")
         self.assertEqual(undocumented, [], "Cycle edges need a '# ... to remove in <stage>' comment")
 
-    def test_known_cycle_is_present(self) -> None:
-        allowed = load_allowlist()
-        for edge in (
-            ("Benchmark.evaluation_protocols", "Benchmark.model_suite"),
-            ("Benchmark.model_suite", "Benchmark.evaluation_protocols"),
-        ):
-            self.assertIn(edge, allowed)
-            self.assertIn("to remove in s5d", allowed[edge])
+    def test_no_import_cycles(self) -> None:
+        """s5d removed the last cycle (evaluation_protocols <-> model_suite); keep it that way."""
+        self.assertEqual(mutual_pairs(set(build_edges())), [])
+
+    def test_evaluation_protocols_does_not_import_model_suite(self) -> None:
+        """evaluation_protocols defines protocol/fold contracts; model fitting lives in model_suite."""
+        self.assertNotIn(("core.evaluation_protocols", "core.model_suite"), set(build_edges()))
+
+    def test_core_never_imports_external_or_experiments(self) -> None:
+        """Dependencies flow experiments -> external -> core -> agrifusion, never back."""
+        offending = [
+            f"{src} -> {dst}" for (src, dst) in build_edges()
+            if src.split(".")[0] == "core" and dst.split(".")[0] in {"external", "experiments", "research"}
+        ]
+        self.assertEqual(offending, [])
+
+    def test_external_never_imports_experiments(self) -> None:
+        offending = [
+            f"{src} -> {dst}" for (src, dst) in build_edges()
+            if src.split(".")[0] == "external" and dst.split(".")[0] in {"experiments", "research"}
+        ]
+        self.assertEqual(offending, [])
 
     def test_graph_detects_a_new_edge(self) -> None:
         """Guard the guard: the comparison reports an edge missing from the allow-list."""
-        actual = {("ingest", "Benchmark.model_suite"): ["x.py:1"], **{e: ["y.py:1"] for e in load_allowlist()}}
+        actual = {("ingest", "core.model_suite"): ["x.py:1"], **{e: ["y.py:1"] for e in load_allowlist()}}
         new, stale = diff_edges(actual, load_allowlist())
-        self.assertEqual(new, [("ingest", "Benchmark.model_suite")])
+        self.assertEqual(new, [("ingest", "core.model_suite")])
         self.assertEqual(stale, [])
 
     def test_agrifusion_does_not_import_backend_or_benchmark(self) -> None:
-        """Hard rule, independent of the allow-list: the installable package never depends on Backend/."""
+        """Hard rule, independent of the allow-list: agrifusion never depends on Backend/ or agrifusion_research."""
         offending = [
             f"{src} -> {dst}" for (src, dst) in build_edges()
-            if src in AGRIFUSION_NODES and (dst.startswith("Benchmark") or dst == "Backend")
+            if src in AGRIFUSION_NODES and (dst in RESEARCH_NODE_PREFIXES or dst.startswith(RESEARCH_NODE_PREFIXES) or dst == "Backend")
         ]
         self.assertEqual(offending, [])
 

@@ -1,0 +1,215 @@
+# `dataset_views`
+
+`dataset_views` materializes benchmark-facing feature views directly
+from frozen Layer1 canonical telemetry without mutating Layer0 or
+Layer1.
+
+As of Wednesday, July 29, 2026, the active runtime surface is limited to
+families `v0`, `v1`, and `v2`. Historical `v3`, `v5`, and `v6` family
+code has been removed from the active pipeline and is rejected at view
+resolution time.
+
+## Active Taxonomy
+
+Public supported views:
+
+- `v0_minimal_sensor`
+- full snapshot row view
+- features: `sht.temp_c`, `sht.humidity_pct`,
+  `npk.soil_temp_c`, `npk.soil_moisture_pct`, `npk.ec`, `npk.ph`,
+  `npk.n_proxy`, `npk.p_proxy`, `npk.k_proxy`
+- `v1_sensor_row`
+- reduced snapshot row view
+- features: `sht.temp_c`, `sht.humidity_pct`,
+  `npk.soil_temp_c`, `npk.soil_moisture_pct`, `npk.ec`
+- `v2_minimal_sensor_window_3h`
+- `v2_minimal_sensor_window_8h`
+- `v2_sensor_row_window_3h`
+- `v2_sensor_row_window_8h`
+
+Compatibility-only non-public view:
+
+- `v2_sensor_window`
+
+Reserved but not implemented:
+
+- `v4_hybrid`
+
+Aliases:
+
+- `v0 -> v0_minimal_sensor`
+- `v1 -> v1_sensor_row`
+- `v2 ->` the two primary 3h V2 subviews; 8h views must be selected explicitly
+
+## Semantic feature arms
+
+The full nine-channel matrix is the materialization source. Evaluation selects
+the scientific arm before training through an allowlist:
+
+- `base_5`: the five-channel baseline (legacy `v1_point`)
+- `plus_ph`: `base_5` plus pH
+- `plus_npk`: `base_5` plus N/P/K proxies
+- `full_9`: `base_5` plus pH and N/P/K proxies (legacy `v0_point`)
+
+The arm identity and ordered feature list are recorded in the evaluation and
+model manifests. Separate dataset files are not required for these arms.
+
+Rejected legacy or removed ids include:
+
+- `v1_full_sensor`
+- `v3`
+- `v3_direct`
+- `v3_derived`
+- `v3_independent`
+- `v3_pre_onset`
+- `v3_metadata_only`
+- `v5`
+- `v5_proxy_reduced`
+- `v5_proxy_reduced_draft`
+- `v6`
+- `v6_proxy_reduced`
+- `v6_event_level`
+- `v6a_window_45m`
+- `v6a_window_90m`
+- `v6a_window_180m`
+- `v6b_continuous_sequence`
+- `v6c_decoded_episode_registry`
+
+## Current Behavior
+
+- `v0` and `v1` materialize explicit row-wise feature matrices from
+  canonical measurement columns.
+- `v2` materializes continuity-aware observed-only window features for
+  `3h` and `8h`.
+- Invalid sensor measurements are masked consistently across row and
+  window views using per-field validity when available, with the historical
+  aggregate validity as a backward-compatible fallback. Semantic audit
+  fields (source, calibration, protocol/value validity, and error class) are
+  not additional feature channels.
+- `feature-only` mode writes feature artifacts only.
+- `benchmark-ready` mode requires an explicit label artifact keyed by
+  `record.id`.
+- Each materialization also writes `shared/feature_superset.parquet`, a
+  row-identified union of the selected view matrices. Its adjacent
+  `feature_group_registry.json` records ordered columns, hashes, and the
+  `values`, `window_3h`, and `window_8h` groups present in that run. This is a
+  materialization foundation: downstream evaluation still consumes its
+  established per-view contracts, and generic group selection is not yet
+  wired into a pre-train audit or model runner.
+- The original per-view `views/<view_id>/X.parquet` contracts remain available
+  for existing protocol and analysis consumers during migration.
+
+There is no active support for operational-lineage (`v3`), proxy
+reduction (`v5`), or environmental sequence (`v6`) dataset families.
+
+## Inputs
+
+The active runtime reads:
+
+- `output/Layer1/canonical/telemetry_history.csv`
+- `output/Layer1/canonical/feature_catalog.csv`
+- `output/Layer1/manifest.json`
+- `output/Layer1/segments/segments_manifest.json`
+  for V2 continuity-aware windows
+
+It does not require any legacy weak-label bridge CSV.
+
+## New flattened Firebase exports
+
+For a newly formatted Firebase CSV, run the non-mutating intake audit first:
+
+```powershell
+python research\agrifusion_research\experiments\source_intake\main.py --source-csv C:\path\AgriFusion_Node1_only_clean.csv
+```
+
+The run writes an additive artifact under
+`output/research/source_intake/artifacts/<run_id>/` containing:
+
+- `canonical_candidate.csv` in the current Layer1 field contract;
+- `canonical_legacy_compatible.csv` with the old canonical column order;
+- `source_auxiliary.csv` retaining every source-only field;
+  - `segments_manifest.json` and `candidate_layer1_manifest.json` for opt-in
+    continuity-aware view validation;
+  - overlap, missingness, duplicate, anomaly, comparison, gap-episode,
+    sensorless-run, and replay-delay-proxy tables;
+  - `report.md` and `manifest.json`.
+
+  The existing Layer1 canonical history is never overwritten by this command.
+Review gap geometry and replay/buffer handling and regenerate labels before
+using the candidate for a benchmark run. Preserve all rows until temporal
+segmentation is complete; otherwise an outage can be converted into false
+adjacency between two observations.
+
+## Architecture
+
+Primary modules:
+
+- `main.py`
+  - CLI entrypoint
+- `pipelines/materialize.py`
+  - end-to-end orchestration
+- `pipelines/runtime.py`
+  - view resolution and runtime validation
+- `pipelines/shared_outputs.py`
+  - shared row index, metadata, labels, and source manifest
+- `pipelines/standard_views.py`
+  - dispatch for explicit row views and V2 window views
+- `row_views/`
+  - explicit row-view materialization for `v0` and `v1`
+- `windowing/`
+  - continuity-aware V2 feature generation
+
+## Outputs
+
+Each run creates:
+
+- `output/research/dataset_views/artifacts/<run_id>/`
+
+Shared outputs:
+
+- `shared/row_index.parquet`
+- `shared/row_index.csv`
+- `shared/metadata.parquet`
+- `shared/metadata.csv`
+- `shared/source_manifest.json`
+- `shared/labels.parquet` when labels are attached
+- `shared/labels.csv` when labels are attached
+
+Per-view outputs:
+
+- `views/<view_id>/X.parquet`
+- `views/<view_id>/X.csv`
+- `views/<view_id>/manifest.json`
+- `views/<view_id>/schema.json`
+- `views/<view_id>/quality_report.json`
+
+Additional V2 outputs:
+
+- `views/<view_id>/window_quality_audit.parquet`
+- `views/<view_id>/window_quality_audit.csv`
+
+## Commands
+
+Default supported public views:
+
+```powershell
+python research\agrifusion_research\core\dataset_views\main.py
+```
+
+All public V2 subviews:
+
+```powershell
+python research\agrifusion_research\core\dataset_views\main.py --mode feature-only --views v2
+```
+
+One V2 subview:
+
+```powershell
+python research\agrifusion_research\core\dataset_views\main.py --mode feature-only --views v2_sensor_row_window_3h
+```
+
+Benchmark-ready with explicit labels:
+
+```powershell
+python research\agrifusion_research\core\dataset_views\main.py --mode benchmark-ready --views v0 v1 --label-artifact D:\path\labels.parquet --label-columns target
+```

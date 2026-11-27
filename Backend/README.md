@@ -19,8 +19,8 @@ src/agrifusion/                     installable telemetry package (pip install -
 |-- ingest/                         Layer0: source ingestion and raw artifacts
 |-- canonical/                      Layer1: canonical telemetry processing
 `-- cloud/                          Firebase RTDB client
+research/agrifusion_research/       research package (pip install -e ".[research]"): core/, external/, experiments/, cli.py
 Backend/
-|-- Benchmark/                      research dataset/evaluation lanes (not packaged)
 |-- main.py                         deprecated shim for `python -m Backend.main`
 `-- tests/                          contract and processing tests
 output/                             generated local artifacts (gitignored)
@@ -115,9 +115,9 @@ flowchart LR
     contract --> models
 ```
 
-Read [Benchmark README](Benchmark/README.md),
+Read [Benchmark README](../research/agrifusion_research/README.md),
 [Backend pipeline flow](PIPELINE_FLOW.md), and the
-[Benchmark-to-model handoff](Benchmark/BENCHMARK_TO_MODEL_SUITE_SPEC.md).
+[Benchmark-to-model handoff](../research/agrifusion_research/core/BENCHMARK_TO_MODEL_SUITE_SPEC.md).
 
 ## Generated outputs
 
@@ -151,7 +151,7 @@ python -m unittest Backend.tests.test_model_suite
   research-label owner.
 - `agrifusion.ingest` / `agrifusion.canonical` preserve observed/provenance
   data and do not create benchmark targets.
-- `Backend/Benchmark` owns labels, splits, leakage controls, training and
+- `research/agrifusion_research` owns labels, splits, leakage controls, training and
   scientific interpretation.
 - The static frontend reads a separate `result/*` presentation contract; the
   current backend CLI does not automatically publish that contract.

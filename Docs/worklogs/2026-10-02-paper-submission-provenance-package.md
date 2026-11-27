@@ -44,9 +44,9 @@ The user says the scientific core is frozen and wants submission packaging. The 
 
 ## Affected Modules and Files
 
-- Backend/Benchmark/external_intake/sources.py: official Stuard Version 2 file URLs and official dataset title/citation.
-- Backend/Benchmark/external_intake/README.md and FLOW.md: document the current official download behavior and verification.
-- Backend/Benchmark/model_suite/reporting/paper_tables.py and paper_tables_main.py: derive Tables 2–4, verify the result bundle inventory, and write CSV/Markdown outputs.
+- research/agrifusion_research/external/intake/sources.py: official Stuard Version 2 file URLs and official dataset title/citation.
+- research/agrifusion_research/external/intake/README.md and FLOW.md: document the current official download behavior and verification.
+- research/agrifusion_research/core/model_suite/reporting/paper_tables.py and paper_tables_main.py: derive Tables 2–4, verify the result bundle inventory, and write CSV/Markdown outputs.
 - Docs/research/reproducibility/paper-v1.0/: source verification manifest, table environment, and reproducibility guide.
 - README.md: entry link for paper reproduction.
 - Docs/worklogs/2026-10-02-paper-submission-provenance-package.md: this worklog.
@@ -77,7 +77,7 @@ Repository package and official Stuard verification are complete. Table regenera
 - Read the root and Benchmark AGENTS/READMEs, intake adapter and FLOW, frozen WADE framework, current project-state/worklogs, and V8 manuscript.
 - Queried the Mendeley Version 2 public metadata/files API. Downloaded all three required official CSV files to OS temporary storage.
 - Compared official API SHA-256, downloaded official SHA-256, local raw SHA-256 and byte size; all three inputs match.
-- Ran: python -m Backend.Benchmark.model_suite.reporting.paper_tables_main --bundle Backend/Output_data/three_dataset_web_analysis_20261001/three_dataset_web_analysis_20261001.zip --output-dir <OS-temp>. Passed verification of the 202-file manifest and regenerated Tables 2–4. Table 2 values (including pooled log-loss and fold-mean macro-F1), Table 3 values, and Table 4 nested contrasts match the V8 displayed values.
+- Ran: python -m agrifusion_research.core.model_suite.reporting.paper_tables_main --bundle Backend/Output_data/three_dataset_web_analysis_20261001/three_dataset_web_analysis_20261001.zip --output-dir <OS-temp>. Passed verification of the 202-file manifest and regenerated Tables 2–4. Table 2 values (including pooled log-loss and fold-mean macro-F1), Table 3 values, and Table 4 nested contrasts match the V8 displayed values.
 - The table rebuild read serialized model outputs; no model fitting, experiment, bootstrap resampling, or test suite was run.
 - Published https://github.com/lawnguyenit/AgriFusion-IoT/releases/tag/paper-v1.0 from the existing tag. Confirmed the displayed target commit is `c0fba870a285b6ac0404925bb8f6c8a0495e2da6`, the attached asset is named `paper-v1.0-results.zip`, and GitHub's displayed asset SHA-256 matches `499bb2fd9ed485073b8d27c40fdc0e01ed825b47db4766afffce7fe7f3d07479`.
 
