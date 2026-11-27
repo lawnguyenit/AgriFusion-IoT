@@ -301,7 +301,8 @@ class ExternalFeatureTests(unittest.TestCase):
         self.assertTrue(pd.isna(features.loc[1, "sensor.co"]))
         self.assertTrue(pd.isna(features.loc[2, "sensor.co"]))
         row = quality.loc[quality["feature"].eq("sensor.co")].iloc[0]
-        self.assertEqual(row["source_dtype"], "object")
+        # pandas 2 reports string columns as "object", pandas 3 as "str"
+        self.assertIn(row["source_dtype"], {"object", "str"})
         self.assertEqual(row["parse_failure_count"], 1)
         self.assertEqual(row["nonfinite_count"], 1)
         self.assertEqual(row["missing_count"], 2)

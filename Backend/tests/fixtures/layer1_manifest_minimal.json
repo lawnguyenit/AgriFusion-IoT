@@ -1,0 +1,5 @@
+{
+  "_comment": "Minimal stand-in for Backend/Output_data/Layer1/manifest.json. Tests only hash this file; its content is not interpreted.",
+  "schema": "layer1_manifest_fixture.v1",
+  "node_id": "Node2"
+}

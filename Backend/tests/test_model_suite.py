@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 import json
 import tempfile
 import unittest
@@ -23,6 +24,11 @@ from Backend.Benchmark.model_suite.registries import (
     list_model_profiles,
     resolve_model_profile,
 )
+
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+_HAS_PYTABKIT = importlib.util.find_spec("pytabkit") is not None and importlib.util.find_spec("torch") is not None
+_PYTABKIT_REASON = "optional packages pytabkit and torch are not installed (see requirements-dev.txt notes)"
 
 
 class ModelSuiteTests(unittest.TestCase):
@@ -156,7 +162,7 @@ class ModelSuiteTests(unittest.TestCase):
         )
         self.assertEqual(
             DEFAULT_ARTIFACT_ROOT,
-            Path("D:/AgriFusion-IoT/Backend/Benchmark/model_suite/artifacts"),
+            REPO_ROOT / "Backend" / "Benchmark" / "model_suite" / "artifacts",
         )
 
     def test_train_tabular_classifier_writes_bundle_and_manifest(self) -> None:
@@ -263,6 +269,7 @@ class ModelSuiteTests(unittest.TestCase):
             self.assertIsNotNone(info.note)
             self.assertIn("install_hint=", str(info.note))
 
+    @unittest.skipUnless(_HAS_PYTABKIT, _PYTABKIT_REASON)
     def test_realmlp_builder_matches_runtime_api(self) -> None:
         profile = resolve_model_profile("realmlp")
 
@@ -278,6 +285,7 @@ class ModelSuiteTests(unittest.TestCase):
         self.assertTrue(hasattr(estimator, "predict_proba"))
         self.assertIsInstance(library_version, str)
 
+    @unittest.skipUnless(_HAS_PYTABKIT, _PYTABKIT_REASON)
     def test_ft_transformer_builder_matches_runtime_api(self) -> None:
         profile = resolve_model_profile("ft_transformer")
 

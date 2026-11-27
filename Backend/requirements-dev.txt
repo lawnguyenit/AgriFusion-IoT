@@ -1,0 +1,7 @@
+# Test / CI dependencies. Install from the repo root:
+#   python -m pip install -r Backend/requirements-dev.txt
+-r requirements.txt
+pytest>=8
+
+# Optional (NOT installed in CI; tests that need them are skipped with a reason):
+#   torch, pytabkit, skorch   -> realmlp / ft_transformer builder tests in test_model_suite.py

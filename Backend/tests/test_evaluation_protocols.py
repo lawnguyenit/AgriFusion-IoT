@@ -26,6 +26,10 @@ from Backend.Benchmark.evaluation_protocols.pipeline.tranche0_contracts import (
 from Backend.Benchmark.evaluation_protocols.pipeline.reporting import write_benchmark_readiness_report
 
 
+# Purely nominal root for path-only fixtures (nothing is read or written under it).
+FAKE_ROOT = Path(tempfile.gettempdir()) / "agri-fake-root"
+
+
 class EvaluationProtocolsTests(unittest.TestCase):
     def test_primary_protocol_locks_7day_fold_and_runner_contract(self) -> None:
         fold_manifest = pd.DataFrame(
@@ -208,7 +212,7 @@ class EvaluationProtocolsTests(unittest.TestCase):
         self.assertEqual(resolved.sample_ids, frozenset({"r1", "r2"}))
 
     def test_task_training_manifest_reconciles_protocol_and_intrinsic_states(self) -> None:
-        feature_artifact_path = Path("D:/AgriFusion-IoT/Backend/Benchmark/dataset_views/artifacts/fake/views/v0_minimal_sensor/X.parquet")
+        feature_artifact_path = FAKE_ROOT / "Backend" / "Benchmark" / "dataset_views/artifacts/fake/views/v0_minimal_sensor/X.parquet"
         registry_df = pd.DataFrame(
             [
                 {
@@ -303,9 +307,9 @@ class EvaluationProtocolsTests(unittest.TestCase):
             registry_df=registry_df,
             view_assignments=view_assignments,
             label_frames={"v0_point_train": label_frame},
-            label_paths={"v0_point_train": Path("D:/AgriFusion-IoT/Backend/Benchmark/weak_labels/artifacts/fake/point/point_labels_train.parquet")},
+            label_paths={"v0_point_train": FAKE_ROOT / "Backend" / "Benchmark" / "weak_labels/artifacts/fake/point/point_labels_train.parquet"},
             label_hashes={"v0_point_train": "label_hash"},
-            protocol_artifact_path=Path("D:/AgriFusion-IoT/Backend/Benchmark/evaluation_protocols/artifacts/fake/primary_protocol/folds/view_effective_split_assignments.parquet"),
+            protocol_artifact_path=FAKE_ROOT / "Backend" / "Benchmark" / "evaluation_protocols/artifacts/fake/primary_protocol/folds/view_effective_split_assignments.parquet",
             protocol_artifact_hash="protocol_hash",
             feature_artifacts=feature_artifacts,
             cohort_manifests={},
@@ -468,7 +472,7 @@ class EvaluationProtocolsTests(unittest.TestCase):
         self.assertEqual(status_lookup["CMP_HISTORY_FULL_8H"], "SENSITIVITY_ONLY")
 
     def test_artifact_catalog_includes_reader_guides(self) -> None:
-        layout = build_evaluation_artifact_layout(Path("D:/fake-evaluation-protocol-run"))
+        layout = build_evaluation_artifact_layout(FAKE_ROOT / "fake-evaluation-protocol-run")
         catalog = pd.DataFrame(build_artifact_catalog(layout)).convert_dtypes()
         paths = set(catalog["path"].astype("string").tolist())
 

@@ -34,7 +34,8 @@ from Backend.Benchmark.weak_labels.lifecycle.phase_a_readiness.evidence import (
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PROTOCOL_CONFIG = REPO_ROOT / "Backend" / "Benchmark" / "protocol_registry" / "config" / "protocol_v1.yaml"
-LAYER1_MANIFEST = REPO_ROOT / "Backend" / "Output_data" / "Layer1" / "manifest.json"
+# Small fixture instead of the (git-ignored) real Layer1 output: the registry only hashes this file.
+LAYER1_MANIFEST = Path(__file__).resolve().parent / "fixtures" / "layer1_manifest_minimal.json"
 CANONICAL_HISTORY = REPO_ROOT / "Backend" / "Output_data" / "Layer1" / "canonical" / "telemetry_history.csv"
 
 

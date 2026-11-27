@@ -152,7 +152,7 @@ def _disrupt(
     frame = source.feature_bundle.frame.copy()
     rng = np.random.default_rng(seed)
     lag_count = len(lag_names) // len(snapshot_names)
-    values = frame.loc[:, lag_names].apply(pd.to_numeric, errors="coerce").to_numpy(dtype=float)
+    values = frame.loc[:, lag_names].apply(pd.to_numeric, errors="coerce").to_numpy(dtype=float, copy=True)
     original_values = values.copy()
     lag_index = {name: index for index, name in enumerate(lag_names)}
     for row_index in range(len(frame)):
