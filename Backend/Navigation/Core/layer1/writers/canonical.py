@@ -1,15 +1,11 @@
 from __future__ import annotations
 
-import importlib
 from pathlib import Path
 
 import pandas as pd
 
 from ...utils.storage import write_json
 from ..processors.common import nest_row_by_namespace
-
-
-PARQUET_ENGINE_CANDIDATES = ("pyarrow", "fastparquet")
 
 
 class CanonicalOutputWriter:
@@ -23,16 +19,10 @@ class CanonicalOutputWriter:
         self.excluded_root.mkdir(parents=True, exist_ok=True)
 
     def write_history(self, canonical_df: pd.DataFrame) -> tuple[Path, str]:
-        for engine_name in PARQUET_ENGINE_CANDIDATES:
-            if not self._parquet_engine_available(engine_name):
-                continue
-            canonical_history_path = self.canonical_root / "telemetry_history.parquet"
-            canonical_df.to_parquet(canonical_history_path, engine=engine_name, index=False)
-            return canonical_history_path, f"parquet:{engine_name}"
-
-        canonical_history_path = self.canonical_root / "telemetry_history.csv"
-        canonical_df.to_csv(canonical_history_path, index=False)
-        return canonical_history_path, "csv_fallback"
+        """Always write parquet (pyarrow is a required dependency; no CSV fallback)."""
+        canonical_history_path = self.canonical_root / "telemetry_history.parquet"
+        canonical_df.to_parquet(canonical_history_path, engine="pyarrow", index=False)
+        return canonical_history_path, "parquet:pyarrow"
 
     def write_latest_snapshot(self, canonical_df: pd.DataFrame) -> Path:
         latest_path = self.canonical_root / "telemetry_latest.json"
@@ -79,10 +69,3 @@ class CanonicalOutputWriter:
             return excluded_path
         excluded_df.to_csv(excluded_path, index=False)
         return excluded_path
-
-    def _parquet_engine_available(self, engine_name: str) -> bool:
-        try:
-            importlib.import_module(engine_name)
-            return True
-        except ImportError:
-            return False

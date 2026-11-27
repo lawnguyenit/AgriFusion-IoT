@@ -51,8 +51,7 @@ loaders/processors -> pipelines -> validation/writers/reporters/publishers
 
 ## Output chinh
 
-- `Output_data/Layer1/canonical/telemetry_history.parquet`
-- hoac fallback `Output_data/Layer1/canonical/telemetry_history.csv`
+- `Output_data/Layer1/canonical/telemetry_history.parquet` (luon parquet; pyarrow la dependency bat buoc)
 - `Output_data/Layer1/canonical/telemetry_latest.json`
 - `Output_data/Layer1/canonical/feature_catalog.csv`
 - `Output_data/Layer1/views/*.csv`

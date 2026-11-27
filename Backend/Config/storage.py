@@ -4,7 +4,10 @@ import gzip
 import hashlib
 import json
 from pathlib import Path
-from typing import Any, Iterable
+from typing import TYPE_CHECKING, Any, Iterable
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 
 def ensure_directory(path: Path) -> None:
@@ -93,3 +96,19 @@ def gzip_file_to(path: Path, gz_path: Path) -> Path:
     temp_gz_path.replace(gz_path)
     path.unlink()
     return gz_path
+
+
+def read_table(path: Path, **csv_kwargs: Any) -> "pd.DataFrame":
+    """Read a tabular artifact, choosing the reader by file extension.
+
+    ``.parquet`` is what Layer1 writes; ``.csv`` is kept for older snapshots.
+    ``csv_kwargs`` go to ``pandas.read_csv`` only.
+    """
+    import pandas as pd
+
+    suffix = Path(path).suffix.lower()
+    if suffix == ".parquet":
+        return pd.read_parquet(path)
+    if suffix == ".csv":
+        return pd.read_csv(path, **csv_kwargs)
+    raise ValueError(f"Unsupported table format {suffix!r} for {path}; expected .parquet or .csv.")

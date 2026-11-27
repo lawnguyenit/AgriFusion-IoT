@@ -17,6 +17,7 @@ from Backend.Benchmark.source_intake.adapter import (  # noqa: E402
 from Backend.Benchmark.source_intake.audit import build_audit  # noqa: E402
 from Backend.Benchmark.source_intake.reporting import write_intake_artifact  # noqa: E402
 from Backend.Config.paths import BACKEND_PATHS  # noqa: E402
+from Backend.Config.storage import read_table  # noqa: E402
 import pandas as pd  # noqa: E402
 
 
@@ -33,7 +34,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--old-canonical",
         type=Path,
-        default=BACKEND_PATHS.layer1_dir / "canonical" / "telemetry_history.csv",
+        default=BACKEND_PATHS.layer1_dir / "canonical" / "telemetry_history.parquet",
         help="Existing canonical history used for overlap and compatibility comparison.",
     )
     parser.add_argument(
@@ -48,7 +49,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     source = load_flattened_source(args.source_csv)
-    old_canonical = pd.read_csv(args.old_canonical.resolve(), low_memory=False)
+    old_canonical = read_table(args.old_canonical.resolve(), low_memory=False)
     candidate = build_canonical_candidate(source)
     old_columns = list(old_canonical.columns)
     legacy_projection = build_legacy_projection(candidate, old_columns)

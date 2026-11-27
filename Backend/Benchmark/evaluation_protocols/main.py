@@ -17,7 +17,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Build evaluation-protocol artifacts by joining canonical telemetry, dataset views, and a native label release."
     )
-    parser.add_argument("--canonical-history", type=Path, default=BACKEND_PATHS.layer1_dir / "canonical" / "telemetry_history.csv")
+    parser.add_argument("--canonical-history", type=Path, default=BACKEND_PATHS.layer1_dir / "canonical" / "telemetry_history.parquet")
     parser.add_argument("--protocol-registry-run-dir", type=Path, required=True)
     parser.add_argument(
         "--protocol-stage-id",

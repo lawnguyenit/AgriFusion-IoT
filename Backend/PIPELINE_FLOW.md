@@ -204,7 +204,7 @@ This is the current connection order:
   - `Backend/Output_data/Layer0/Firebase_data/history/**`
   - `Backend/Output_data/Layer0/Firebase_data/new_raw/**`
 - Layer1 -> benchmark lanes
-  - `Backend/Output_data/Layer1/canonical/telemetry_history.csv|parquet`
+  - `Backend/Output_data/Layer1/canonical/telemetry_history.parquet`
   - `Backend/Output_data/Layer1/canonical/feature_catalog.csv`
   - `Backend/Output_data/Layer1/manifest.json`
   - `Backend/Output_data/Layer1/segments/segments_manifest.json`

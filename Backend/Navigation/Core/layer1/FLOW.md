@@ -50,7 +50,7 @@ flowchart TD
 
 ## What goes out
 
-- `canonical/telemetry_history.parquet|csv`
+- `canonical/telemetry_history.parquet`
 - `canonical/telemetry_latest.json`
 - `canonical/feature_catalog.csv`
 - `segments/segments_manifest.json`

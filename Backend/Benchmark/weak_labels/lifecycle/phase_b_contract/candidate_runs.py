@@ -4,6 +4,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from Backend.Config.storage import read_table
+
 
 def load_e1_geometry_frame(
     canonical_history_path: Path,
@@ -16,7 +18,7 @@ def load_e1_geometry_frame(
     materialize labels or read any E2/E3 payload.
     """
 
-    canonical = pd.read_csv(canonical_history_path, low_memory=False)
+    canonical = read_table(canonical_history_path, low_memory=False)
     applicability = pd.read_parquet(
         phase_a_run_dir / "technical_applicability" / "rule_applicability.parquet"
     )[

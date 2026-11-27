@@ -33,7 +33,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--canonical-history",
         type=Path,
-        default=BACKEND_PATHS.layer1_dir / "canonical" / "telemetry_history.csv",
+        default=BACKEND_PATHS.layer1_dir / "canonical" / "telemetry_history.parquet",
         help="Frozen Layer1 canonical history CSV.",
     )
     parser.add_argument(
