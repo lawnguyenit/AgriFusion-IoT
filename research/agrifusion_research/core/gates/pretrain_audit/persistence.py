@@ -1,15 +1,15 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
+from agrifusion_research.core.common.artifacts import utc_run_id
 from agrifusion_research.core.common.digests import file_sha256
 
 
 def create_audit_dir(output_root: Path) -> tuple[str, Path]:
-    run_id = "pretrain_audit_" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+    run_id = utc_run_id("pretrain_audit")
     output_dir = (output_root / run_id).resolve()
     output_dir.mkdir(parents=True, exist_ok=False)
     return run_id, output_dir

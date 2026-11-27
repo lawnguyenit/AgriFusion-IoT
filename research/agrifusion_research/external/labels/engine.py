@@ -96,25 +96,14 @@ def _calibration_policy(
         "observed_data_end": observed_end.isoformat(),
         "source_scope": source_scope,
         "calibration_days": int(config.calibration_days),
-        "threshold_fit_pooling": (
-            "per-entity calibration ECDF primary with pooled sensitivity"
-            if profile.dataset_id == "stuard_tomato_irrigation_2023"
-            else "one calibration ECDF per registered target"
-        ),
+        "threshold_fit_pooling": profile.threshold_fit_pooling,
         "quantile_interpolation": "linear",
         "tail_shares": list(config.tail_shares),
         "tau_minutes": list(config.tau_minutes),
         "tau_selection_basis": profile.tau_basis,
         "tau_evidence_sources": list(profile.tau_sources),
         "declared_review_anchor": (
-            {
-                "tail_share": 0.10,
-                "tau_minutes": 1440,
-                "threshold_scope": "per_entity",
-                "status": "CONDITIONAL_ON_EXTERNAL_SUPPORT_GATE",
-                "selection_must_precede_model_scores": True,
-            }
-            if profile.dataset_id == "stuard_tomato_irrigation_2023" else None
+            dict(profile.declared_review_anchor) if profile.declared_review_anchor is not None else None
         ),
         "persistence_mapping": (
             "elapsed minutes since the first observation in the current tail run >= tau_minutes"
@@ -126,10 +115,6 @@ def _calibration_policy(
             config.min_gap_cadence_fraction,
             config.max_gap_cadence_fraction,
         ],
-        "continuity_policy": (
-            f"maximum gap only; no lower-gap bound; g_max={config.max_gap_cadence_fraction:g}x entity median cadence"
-            if profile.dataset_id == "stuard_tomato_irrigation_2023"
-            else "legacy 13/15 to 17/15 median cadence bounds retained for UCI"
-        ),
+        "continuity_policy": profile.continuity_policy.format(g_max=config.max_gap_cadence_fraction),
         "primary_candidate_selected": False,
     }

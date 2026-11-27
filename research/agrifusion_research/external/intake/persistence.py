@@ -4,14 +4,14 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
+from agrifusion_research.core.common.artifacts import utc_run_id
 from agrifusion_research.core.common.digests import bytes_sha256, file_sha256
 
 from .sources import DATASET_METADATA, SOURCE_FILES
 
 
 def make_run_id(dataset_id: str) -> str:
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
-    return f"external_intake_{dataset_id}_{stamp}"
+    return utc_run_id(f"external_intake_{dataset_id}")
 
 
 def prepare_raw_release(

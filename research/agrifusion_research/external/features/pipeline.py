@@ -126,11 +126,11 @@ def run_external_feature_processing(config: ExternalFeatureConfig) -> ExternalFe
 
 def _excluded_columns(manifest: dict[str, object]) -> list[str]:
     audit = manifest.get("adapter_audit", {})
-    dataset_id = manifest.get("dataset_id")
-    if dataset_id == "uci_air_quality_360":
+    rule = resolve_profile(str(manifest.get("dataset_id")), manifest).excluded_columns_rule
+    if rule == "criterion_only_roles":
         roles = audit.get("column_roles", {})
         return [name for name, role in roles.items() if role == "criterion_only"]
-    if dataset_id == "stuard_tomato_irrigation_2023":
+    if rule == "non_measurement_role_groups":
         role_groups = audit.get("feature_and_criterion_roles", {})
         return [
             name
@@ -143,8 +143,9 @@ def _excluded_columns(manifest: dict[str, object]) -> list[str]:
 
 def _feature_selection_policy(dataset_id: str, has_context: bool) -> str:
     policy = "strict sensor measurements and causal windows; target-defining reference measurements are excluded from learner-visible X"
-    if dataset_id == "uci_air_quality_360":
-        return policy + "; the criterion.* namespace is retained for compatibility"
+    note = resolve_profile(dataset_id, {}).feature_policy_note
+    if note:
+        return policy + "; " + note
     if has_context:
         return policy + "; Stuard irrigation-meter context is optional and separately selectable"
     return policy

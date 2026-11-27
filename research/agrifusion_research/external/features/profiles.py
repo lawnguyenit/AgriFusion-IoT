@@ -1,41 +1,14 @@
+"""External feature profiles; declared per dataset in external/datasets.py."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from agrifusion_research.external.datasets import get_dataset_profile
+from agrifusion_research.external.profile_types import ExternalFeatureProfile
 
-
-@dataclass(frozen=True)
-class ExternalFeatureProfile:
-    dataset_id: str
-    timestamp_column: str
-    group_columns: tuple[str, ...]
-    value_columns: tuple[str, ...]
-    context_columns: tuple[str, ...] = ()
-    excluded_target_source_columns: tuple[str, ...] = ()
-    scope_end_exclusive: str | None = None
+__all__ = ["ExternalFeatureProfile", "resolve_profile"]
 
 
 def resolve_profile(dataset_id: str, run_manifest: dict[str, object]) -> ExternalFeatureProfile:
-    if dataset_id == "stuard_tomato_irrigation_2023":
-        return ExternalFeatureProfile(
-            dataset_id=dataset_id,
-            timestamp_column="timestamp",
-            group_columns=("entity_id",),
-            value_columns=(
-                "soil_temperature_c", "soil_ec_us_cm",
-                "air_temperature_c", "air_humidity_pct", "air_co2_ppm", "air_pressure_hpa",
-            ),
-            context_columns=("water_volume_m3", "water_alignment_age_sec"),
-            excluded_target_source_columns=("soil_moisture_pct",),
-        )
-    if dataset_id == "uci_air_quality_360":
-        return ExternalFeatureProfile(
-            dataset_id=dataset_id,
-            timestamp_column="timestamp",
-            group_columns=(),
-            value_columns=(
-                "sensor.co", "sensor.nmhc", "sensor.nox", "sensor.no2", "sensor.o3",
-                "context.temperature_c", "context.relative_humidity_pct", "context.absolute_humidity",
-            ),
-            scope_end_exclusive="2005-03-01T00:00:00",
-        )
-    raise ValueError(f"No external feature profile is registered for {dataset_id!r}.")
+    try:
+        return get_dataset_profile(dataset_id).features
+    except ValueError as exc:
+        raise ValueError(f"No external feature profile is registered for {dataset_id!r}.") from exc

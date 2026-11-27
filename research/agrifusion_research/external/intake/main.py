@@ -8,11 +8,12 @@ ROOT_DIR = Path(__file__).resolve().parents[3]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
+from agrifusion_research.external.datasets import dataset_ids  # noqa: E402
 from agrifusion_research.external.intake.pipeline import ExternalIntakeConfig, run_external_intake  # noqa: E402
 
 
 DEFAULT_PACK_ROOT = ROOT_DIR / "Backend" / "Output_data" / "wade_external_validation_pack"
-DATASET_IDS = ("stuard_tomato_irrigation_2023", "uci_air_quality_360")
+DATASET_IDS = dataset_ids()
 
 
 def parse_args() -> argparse.Namespace:

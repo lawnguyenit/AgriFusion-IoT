@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -18,6 +18,11 @@ def create_run_directory(output_root: Path, prefix: str) -> tuple[str, Path]:
             continue
         return run_id, output_dir
     raise FileExistsError(f"Unable to allocate unique run directory under {output_root} for prefix={prefix!r}.")
+
+
+def utc_run_id(prefix: str) -> str:
+    """``<prefix>_<UTC %Y%m%dT%H%M%S%fZ>``: run-id format of the external lanes and pretrain_audit."""
+    return f"{prefix}_{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')}"
 
 
 def write_json(path: Path, payload: object) -> None:

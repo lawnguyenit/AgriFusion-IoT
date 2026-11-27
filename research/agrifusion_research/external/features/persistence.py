@@ -2,18 +2,17 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
 
+from agrifusion_research.core.common.artifacts import utc_run_id
 from agrifusion_research.core.common.digests import dataframe_schema_hash, hash_dataframe_rows, stable_hash_object
 from agrifusion_research.core.common.digests import file_sha256
 
 
 def make_run_id(dataset_id: str) -> str:
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
-    return f"external_features_{dataset_id}_{stamp}"
+    return utc_run_id(f"external_features_{dataset_id}")
 
 
 def write_feature_artifacts(

@@ -45,8 +45,11 @@ experiments.source_intake -> io
 experiments.source_intake -> settings
 external.claims -> core.common
 external.features -> core.common
+external.features -> external
 external.intake -> core.common
+external.intake -> external
 external.labels -> core.common
+external.labels -> external
 external.splits -> core.common
 external.support_audit -> core.common
 external.support_audit -> external.labels

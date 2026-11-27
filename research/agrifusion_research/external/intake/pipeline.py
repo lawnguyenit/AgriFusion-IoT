@@ -4,8 +4,9 @@ import json
 from datetime import datetime, timezone
 from hashlib import sha256
 
-from .adapters.stuard import build_stuard_candidate
-from .adapters.uci import build_uci_candidate
+from agrifusion_research.external.datasets import get_dataset_profile
+
+from .adapters import ADAPTERS
 from .contracts import ExternalIntakeConfig, ExternalIntakeResult
 from .persistence import make_run_id, prepare_raw_release, write_run_artifacts
 from .sources import DATASET_METADATA, validate_dataset_id
@@ -23,15 +24,7 @@ def run_external_intake(config: ExternalIntakeConfig) -> ExternalIntakeResult:
     raw_manifest_path = raw_dir / "raw_manifest.json"
     raw_manifest_hash = sha256(raw_manifest_path.read_bytes()).hexdigest()
 
-    if config.dataset_id == "stuard_tomato_irrigation_2023":
-        adapted = build_stuard_candidate(raw_dir)
-        canonical, excluded, audit = adapted.canonical, adapted.excluded, adapted.audit
-        roles = audit["feature_and_criterion_roles"]
-    elif config.dataset_id == "uci_air_quality_360":
-        canonical, excluded, audit = build_uci_candidate(raw_dir / "air+quality.zip")
-        roles = audit["column_roles"]
-    else:  # guarded by validate_dataset_id; kept explicit for a closed registry.
-        raise ValueError(f"No adapter registered for {config.dataset_id!r}")
+    canonical, excluded, audit, roles = ADAPTERS[get_dataset_profile(config.dataset_id).intake_adapter](raw_dir)
 
     run_id = make_run_id(config.dataset_id)
     output_dir = (config.processed_root / config.dataset_id / run_id).resolve()
@@ -101,11 +94,8 @@ def _render_report(manifest: dict[str, object]) -> str:
             "```",
             "",
             *(
-                [
-                    "UCI `(GT)` columns are reference-analyzer measurements; the CO and NOx references define their respective targets. `criterion.*` is a legacy namespace and exclusion-role label, not an independent criterion claim.",
-                    "",
-                ]
-                if manifest.get("dataset_id") == "uci_air_quality_360"
+                [*get_dataset_profile(str(manifest.get("dataset_id"))).intake_report_notes, ""]
+                if get_dataset_profile(str(manifest.get("dataset_id"))).intake_report_notes
                 else []
             ),
             "No labels, model features, splits, or predictions are created by intake.",

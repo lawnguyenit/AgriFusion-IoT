@@ -1,16 +1,15 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
+from agrifusion_research.core.common.artifacts import utc_run_id
 from agrifusion_research.core.common.digests import file_sha256
 
 
 def make_run_id(dataset_id: str) -> str:
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
-    return f"external_labels_{dataset_id}_{stamp}"
+    return utc_run_id(f"external_labels_{dataset_id}")
 
 
 def write_label_artifacts(
