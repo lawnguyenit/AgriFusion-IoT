@@ -12,7 +12,7 @@ runtime and no build-time npm dependency.
   `resultPath`.
 
 The dashboard is presentation-only. It does not read
-`Backend/Output_data/Layer1` directly.
+`output/Layer1` directly.
 
 ## Firebase contract
 

@@ -10,7 +10,7 @@ different owners and release gates.
 ## Naming note
 
 - Older high-level docs refer to the processing lane as `Core` or
-  `Backend/Navigation/Core/`.
+  `Backend/Navigation/Core/` (no longer exists).
 - In the current workspace, that code is the installable package
   `src/agrifusion/` (`ingest` = Layer0, `canonical` = Layer1).
 - When reading the implementation, follow the actual directory tree in

@@ -34,7 +34,7 @@ Verified from code, tests and docs in this repo.
 
 ### Not yet done / not verified
 
-- The dashboard contract (`docs/contracts/result.md`) is defined, but the publisher that writes `result/*` is not merged yet, so live mode shows no data.
+- The dashboard contract (`docs/contracts/result.md`) is defined and the publisher that writes `result/*` exists (`src/agrifusion/publish`, `agrifusion publish`). It is tested against the contract with a fake client, but has not been run against live Firebase (needs the owner's service account), so live mode is unverified.
 - Physical sensor, SIM, Firebase-rule and field-deployment claims have no runtime evidence in the repo.
 - torch-based models are installed separately and are not exercised in CI.
 - Which manuscript the "WADE paper v1.0" reproducibility guide corresponds to is not stated in the repo.
@@ -69,7 +69,7 @@ flowchart TB
     end
 ```
 
-The current tracked backend does not publish `result/*`. See the [system architecture](public-docs/architecture.md) for ownership boundaries and the [backend flow](Backend/PIPELINE_FLOW.md) for benchmark handoffs.
+`agrifusion publish` can write `result/*` (tested with a fake client, not yet run against live Firebase). See the [system architecture](public-docs/architecture.md) for ownership boundaries and the [backend flow](Backend/PIPELINE_FLOW.md) for benchmark handoffs.
 
 ## Quick start
 
@@ -87,6 +87,7 @@ Run Layer0 and Layer1 from Firebase or a JSON export:
 agrifusion --source firebase --node-id Node2 --full-history
 agrifusion --source json-export --input-json C:\path\export.json --node-id Node2 --full-history
 agrifusion --only-layer1   # node id is read from the Layer0 manifest if --node-id is omitted
+agrifusion publish --dry-run   # plan the dashboard result/* update from Layer1; writes nothing, no network
 ```
 
 The backend has no default node id: pass `--node-id` (or set `EXPORT_NODE_ID` in `.env`, see `.env.example`). Match the value to the source path; the firmware currently publishes Node2 data. Generated data goes to `output/` (gitignored). `python -m Backend.main` still works as a deprecated alias.

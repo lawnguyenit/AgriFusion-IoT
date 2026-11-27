@@ -45,6 +45,7 @@ agrifusion-research = "agrifusion_research.cli:main"
 where = ["src", "research"]
 
 [tool.setuptools.package-data]
+agrifusion = ["publish/result.schema.json"]
 agrifusion_research = ["**/*.yaml", "**/*.json", "**/*.csv"]
 
 [tool.pytest.ini_options]

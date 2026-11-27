@@ -6,9 +6,8 @@ import math
 from pathlib import Path
 from typing import Any
 
-from agrifusion.settings.env import PROJECT_ROOT
-
-SCHEMA_PATH = PROJECT_ROOT / "docs" / "contracts" / "result.schema.json"
+# Packaged copy, independent of AGRIFUSION_HOME; a test keeps it equal to docs/contracts/result.schema.json.
+SCHEMA_PATH = Path(__file__).resolve().parent / "result.schema.json"
 TS_COLUMN = "record.ts_sample"
 NODE_COLUMN = "record.node_id"
 
@@ -17,7 +16,7 @@ def load_schema(path: Path | None = None) -> dict[str, Any]:
     target = path or SCHEMA_PATH
     if not target.is_file():
         raise FileNotFoundError(
-            f"Contract schema not found: {target} (run from a repository checkout or set AGRIFUSION_HOME)."
+            f"Contract schema not found: {target} (packaged schema missing; reinstall the package)."
         )
     return json.loads(target.read_text(encoding="utf-8"))
 

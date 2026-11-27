@@ -201,3 +201,25 @@ class ArchitectureTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SchemaLocationTests(unittest.TestCase):
+    def test_packaged_schema_equals_contract_doc(self):
+        import agrifusion.publish.mapping as mapping
+
+        repo = Path(__file__).resolve().parents[2]
+        doc = (repo / "docs" / "contracts" / "result.schema.json").read_bytes()
+        self.assertEqual(mapping.SCHEMA_PATH.read_bytes(), doc)
+
+    def test_schema_found_with_agrifusion_home_elsewhere(self):
+        import os
+        import subprocess
+        import sys
+
+        with tempfile.TemporaryDirectory() as home:
+            src = str(Path(__file__).resolve().parents[2] / "src")
+            env = {**os.environ, "AGRIFUSION_HOME": home, "PYTHONPATH": src}
+            code = "from agrifusion.publish import load_schema; print(bool(load_schema()))"
+            proc = subprocess.run([sys.executable, "-c", code], env=env, capture_output=True, text=True)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(proc.stdout.strip(), "True")

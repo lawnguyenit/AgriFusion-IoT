@@ -22,5 +22,5 @@ artifact, it must be labelled as such instead of being presented as a
 production guarantee.
 
 The canonical telemetry-processing package is
-`Backend/Navigation/Core`. The benchmark lane consumes the canonical Layer1
-artifacts; it does not rewrite Layer0 evidence or Layer1 outputs in place.
+`src/agrifusion` (`ingest` = Layer0, `canonical` = Layer1). The benchmark
+lane consumes the canonical Layer1 artifacts; it does not rewrite Layer0 evidence or Layer1 outputs in place.

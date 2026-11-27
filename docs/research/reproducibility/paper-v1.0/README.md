@@ -1,5 +1,8 @@
 # WADE paper v1.0 reproducibility
 
+> Note: the commands in this guide apply to the git tag `paper-v1.0` (the
+> tagged paper code), not to `main`, where modules and paths have moved.
+
 This folder documents the frozen analysis behind the current WADE manuscript
 draft. The research configuration remains frozen: no model, target, split,
 seed, or bootstrap is changed by the table-rebuild command below.

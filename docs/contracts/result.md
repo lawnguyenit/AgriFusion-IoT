@@ -90,7 +90,7 @@ Publisher cập nhật `latest` và `history` trong cùng một multi-path updat
 - Trần số điểm: 800 mỗi nhóm (`HISTORY_MAX_POINTS`). Chu kỳ lấy mẫu vận hành của firmware là 15 phút, tức 672 điểm/7 ngày; 800 chừa dư cho mẫu bù/replay. Nếu bật chế độ debug 2 phút thì trần 800 cắt còn ~27 giờ.
 - Quy tắc cắt: sau mỗi lần ghi, publisher xóa (set `null` trong cùng multi-path update) mọi key có `ts < ts_mới_nhất - 7 ngày`, rồi nếu còn hơn 800 key thì xóa các key `ts` nhỏ nhất.
 - Dashboard đọc bằng `limitToLast(800)` theo key. Do key là chuỗi số cùng độ dài (epoch giây 10 chữ số) nên thứ tự key = thứ tự thời gian. Phía đọc cũng chịu được khi publisher chưa kịp cắt.
-- Dữ liệu cũ hơn 7 ngày vẫn nằm ở `Backend/Output_data/*`, không ở RTDB.
+- Dữ liệu cũ hơn 7 ngày vẫn nằm ở `output/*`, không ở RTDB.
 
 ## 7. Ai ghi, ai đọc
 
