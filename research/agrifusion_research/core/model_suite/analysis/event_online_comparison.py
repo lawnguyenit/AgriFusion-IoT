@@ -10,7 +10,7 @@ from pathlib import Path
 import pandas as pd
 
 from agrifusion_research.core.model_suite.evaluation.metrics import summarize_protocol_classification
-from agrifusion_research.core.shared.artifacts import create_run_directory, write_json, write_text
+from agrifusion_research.core.common.artifacts import create_run_directory, write_json, write_text
 from agrifusion_research.core.weak_labels.analysis.temporal_target_views import Y_EVENT, Y_ONLINE
 from agrifusion_research.core.weak_labels.infrastructure.hashing import file_sha256
 

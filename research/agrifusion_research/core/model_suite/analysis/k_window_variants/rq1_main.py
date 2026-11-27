@@ -38,7 +38,7 @@ from agrifusion_research.core.model_suite.analysis.k_window_variants.rq1_statist
 )
 from agrifusion_research.core.model_suite.analysis.k_window_variants.runner import load_feature_matrix
 from agrifusion_research.core.model_suite.analysis.k_window_variants.semantic_targets import load_online_event_target_frame
-from agrifusion_research.core.shared.artifacts import create_run_directory
+from agrifusion_research.core.common.artifacts import create_run_directory
 
 
 def build_parser() -> argparse.ArgumentParser:

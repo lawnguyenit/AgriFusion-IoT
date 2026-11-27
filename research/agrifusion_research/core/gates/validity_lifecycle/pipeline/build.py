@@ -7,7 +7,7 @@ import pandas as pd
 
 from agrifusion_research.core.dataset_views.validators import ensure_parquet_engine
 from agrifusion_research.core.protocol_registry import load_protocol_registry
-from agrifusion_research.core.shared.artifacts import create_run_directory, write_yaml
+from agrifusion_research.core.common.artifacts import create_run_directory, write_yaml
 from agrifusion_research.core.gates.validity_lifecycle.audits import (
     build_class_day_segment_support,
     build_comparison_hash_audit,

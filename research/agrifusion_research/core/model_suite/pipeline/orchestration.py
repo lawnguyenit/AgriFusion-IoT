@@ -18,7 +18,7 @@ from agrifusion_research.core.model_suite.pipeline.tuning import resolve_smoke_h
 from agrifusion_research.core.model_suite.registries import assert_models_available
 from agrifusion_research.core.model_suite.reporting.markdown import build_run_report_markdown
 from agrifusion_research.core.model_suite.reporting.progress import SmokeJobProgress, SmokeSuiteProgressReporter
-from agrifusion_research.core.shared.artifacts import create_run_directory, write_json, write_text
+from agrifusion_research.core.common.artifacts import create_run_directory, write_json, write_text
 
 from agrifusion_research.core.model_suite.config import ARTIFACT_POLICY_PATH, MODEL_REGISTRY_PATH, TRAINING_PROFILES_PATH
 

@@ -17,7 +17,7 @@ from agrifusion_research.core.model_suite.analysis.k_window_variants.runner impo
 from agrifusion_research.core.model_suite.analysis.k_window_variants.semantic_reporting import write_semantic_outputs
 from agrifusion_research.core.model_suite.analysis.k_window_variants.semantic_runner import build_semantic_variants, run_semantic_variants
 from agrifusion_research.core.model_suite.analysis.k_window_variants.semantic_targets import load_online_event_target_frame
-from agrifusion_research.core.shared.artifacts import create_run_directory
+from agrifusion_research.core.common.artifacts import create_run_directory
 
 
 def build_parser() -> argparse.ArgumentParser:

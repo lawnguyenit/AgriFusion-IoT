@@ -10,7 +10,7 @@ import yaml
 
 from agrifusion_research.core.common.digests import dataframe_digest, file_sha256, stable_digest
 from agrifusion_research.core.protocol_registry import load_protocol_registry
-from agrifusion_research.core.shared.artifacts import create_run_directory, write_json, write_yaml
+from agrifusion_research.core.common.artifacts import create_run_directory, write_json, write_yaml
 from agrifusion_research.core.weak_labels.lifecycle.phase_b_contract.contracts import PhaseBConfig, PhaseBResult
 from agrifusion_research.core.weak_labels.lifecycle.phase_b_contract.anchor_audit import (
     aggregate_fold_support_for_b2,

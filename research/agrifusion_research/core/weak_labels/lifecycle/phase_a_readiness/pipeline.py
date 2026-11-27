@@ -9,7 +9,7 @@ from agrifusion_research.core.common.paths import REPO_ROOT
 from agrifusion_research.core.common.digests import file_sha256
 from agrifusion_research.core.common.provenance import resolve_code_commit
 from agrifusion_research.core.protocol_registry import authorize_operation, load_protocol_registry
-from agrifusion_research.core.shared.artifacts import create_run_directory, write_json, write_yaml
+from agrifusion_research.core.common.artifacts import create_run_directory, write_json, write_yaml
 from agrifusion_research.core.weak_labels.lifecycle.phase_a_readiness.canonical import load_canonical_audit_inputs
 from agrifusion_research.core.weak_labels.lifecycle.phase_a_readiness.continuity import (
     attach_observed_low_runs,

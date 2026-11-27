@@ -10,7 +10,7 @@ from agrifusion_research.core.common.digests import file_sha256, stable_digest
 from agrifusion_research.core.common.paths import PROTOCOL_REGISTRY_ROOT, REPO_ROOT
 from agrifusion_research.core.common.provenance import resolve_code_commit
 from agrifusion_research.core.protocol_registry.contracts import AuthorizationDecision, ProtocolRegistry
-from agrifusion_research.core.shared.artifacts import create_run_directory, write_json
+from agrifusion_research.core.common.artifacts import create_run_directory, write_json
 
 
 REGISTRY_FILES = {

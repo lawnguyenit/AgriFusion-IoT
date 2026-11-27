@@ -25,7 +25,7 @@ from agrifusion_research.core.model_suite.analysis.k_window_variants.robustness_
 from agrifusion_research.core.model_suite.analysis.k_window_variants.representations import build_representation_bundles
 from agrifusion_research.core.model_suite.analysis.k_window_variants.semantic_targets import load_online_event_target_frame
 from agrifusion_research.core.model_suite.analysis.k_window_variants.targets import AUX_POINT, LOW_POINT, REF_POINT, LOW_TEMPORAL, REF_TEMPORAL, UNRES_TEMPORAL
-from agrifusion_research.core.shared.artifacts import create_run_directory
+from agrifusion_research.core.common.artifacts import create_run_directory
 
 
 DEFAULT_SEEDS = (20260717, 20260718, 20260719, 20260720, 20260721)

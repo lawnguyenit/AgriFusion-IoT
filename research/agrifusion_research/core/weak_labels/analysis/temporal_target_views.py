@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from agrifusion_research.core.shared.artifacts import create_run_directory, write_json, write_text
+from agrifusion_research.core.common.artifacts import create_run_directory, write_json, write_text
 
 Y_EVENT = "temporal_event_3h"
 Y_ONLINE = "temporal_online_3h"

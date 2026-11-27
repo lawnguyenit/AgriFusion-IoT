@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from agrifusion_research.core.shared.artifacts import write_json, write_yaml
+from agrifusion_research.core.common.artifacts import write_json, write_yaml
 
 
 def write_parquet(dataframe: pd.DataFrame, path: Path, *, engine: str) -> None:

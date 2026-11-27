@@ -13,7 +13,7 @@ import yaml
 
 from agrifusion_research.core.common.digests import file_sha256, stable_digest
 from agrifusion_research.core.protocol_registry import load_protocol_registry
-from agrifusion_research.core.shared.artifacts import write_json, write_yaml
+from agrifusion_research.core.common.artifacts import write_json, write_yaml
 from agrifusion_research.core.weak_labels.contracts.native import NativeContract
 from agrifusion_research.core.weak_labels.lifecycle.phase_b_contract.contracts import (
     PhaseB2Config,

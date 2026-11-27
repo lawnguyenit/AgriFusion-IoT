@@ -74,7 +74,7 @@ from agrifusion_research.core.evaluation_protocols.scope import (
     PRIMARY_FEATURE_VIEW_IDS,
     RUNNER_FEATURE_VIEW_IDS,
 )
-from agrifusion_research.core.shared.artifacts import create_run_directory
+from agrifusion_research.core.common.artifacts import create_run_directory
 from agrifusion_research.core.weak_labels.infrastructure.io import (
     load_canonical_history,
     load_feature_catalog,

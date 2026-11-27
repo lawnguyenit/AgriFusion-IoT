@@ -14,17 +14,14 @@ cli -> cloud
 cli -> ingest
 cli -> settings
 cloud -> settings
-core.common -> core.shared
 core.common -> settings
 core.dataset_views -> core.common
-core.dataset_views -> core.shared
 core.dataset_views -> io
 core.dataset_views -> settings
 core.evaluation_protocols -> core.common
 core.evaluation_protocols -> core.dataset_views
 core.evaluation_protocols -> core.model_suite   # cycle with model_suite -> evaluation_protocols: to remove in s5d
 core.evaluation_protocols -> core.protocol_registry
-core.evaluation_protocols -> core.shared
 core.evaluation_protocols -> core.weak_labels
 core.evaluation_protocols -> settings
 core.gates -> core.common
@@ -32,19 +29,15 @@ core.gates -> core.dataset_views
 core.gates -> core.evaluation_protocols
 core.gates -> core.model_suite
 core.gates -> core.protocol_registry
-core.gates -> core.shared
 core.gates -> core.weak_labels
 core.model_suite -> core.common
 core.model_suite -> core.evaluation_protocols   # cycle with evaluation_protocols -> model_suite: to remove in s5d
-core.model_suite -> core.shared
 core.model_suite -> core.weak_labels
 core.protocol_registry -> core.common
-core.protocol_registry -> core.shared
 core.protocol_registry -> settings
 core.weak_labels -> core.common
 core.weak_labels -> core.dataset_views
 core.weak_labels -> core.protocol_registry
-core.weak_labels -> core.shared
 core.weak_labels -> io
 core.weak_labels -> settings
 experiments.source_intake -> canonical

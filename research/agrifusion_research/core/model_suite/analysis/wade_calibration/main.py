@@ -11,7 +11,7 @@ ROOT_DIR = Path(__file__).resolve().parents[5]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from agrifusion_research.core.shared.artifacts import create_run_directory
+from agrifusion_research.core.common.artifacts import create_run_directory
 
 from .reporting import build_report_tables, render_markdown
 from .representations import build_representations

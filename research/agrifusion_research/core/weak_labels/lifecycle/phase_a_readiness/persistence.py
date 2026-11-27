@@ -5,7 +5,7 @@ from pathlib import Path
 import pandas as pd
 
 from agrifusion_research.core.common.digests import file_sha256
-from agrifusion_research.core.shared.artifacts import write_json, write_text, write_yaml
+from agrifusion_research.core.common.artifacts import write_json, write_text, write_yaml
 
 
 def persist_readiness_artifacts(**artifacts: object) -> None:
