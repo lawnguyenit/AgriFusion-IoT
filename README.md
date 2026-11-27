@@ -27,7 +27,7 @@ Verified from code, tests and docs in this repo.
 
 - Telemetry pipeline: `agrifusion` (package `src/agrifusion`) reads Firebase or a JSON export, writes Layer0 raw evidence and Layer1 canonical data (see [Backend README](Backend/README.md)).
 - Benchmark lane: dataset views, weak labels, protocol registry, evaluation protocols (temporal folds), model suite, validity audits (see [Benchmark README](research/agrifusion_research/README.md)).
-- Paper v1.0 reproducibility: result bundle of 202 files with SHA-256 manifest, source hashes for the official Stuard dataset, and a table rebuild command ([guide](Docs/research/reproducibility/paper-v1.0/README.md)). Not re-run for this README (it needs the release ZIP).
+- Paper v1.0 reproducibility: result bundle of 202 files with SHA-256 manifest, source hashes for the official Stuard dataset, and a table rebuild command ([guide](docs/research/reproducibility/paper-v1.0/README.md)). Not re-run for this README (it needs the release ZIP).
 - Firmware for ESP32-S3 (PlatformIO) with wake cycle, buffering/replay and Firebase publishing ([firmware README](firmware/README.md)). CI compiles the production env and 7 probe envs on every firmware change; not flashed to hardware by CI.
 - Static dashboard in safe demo mode (no credentials needed) ([Frontend README](Frontend/README.md)).
 - Tests: 233 `unittest` cases in `Backend/tests/` (contracts, processing logic, a golden test of the JSON-export → Layer0 → Layer1 chain, and an architecture test that blocks new cross-layer imports). On 2026-11-28 CI on Python 3.11 and 3.12 ran them with 0 failures and 4 skips (2 need a real Layer1 snapshot, 2 need torch/pytabkit). They do not exercise Firebase or hardware.
@@ -100,7 +100,7 @@ python -m agrifusion_research evaluation-protocols --help
 python -m agrifusion_research model --help
 ```
 
-Start with [Backend/PIPELINE_FLOW.md](Backend/PIPELINE_FLOW.md) and the [benchmark handoff contract](research/agrifusion_research/core/BENCHMARK_TO_MODEL_SUITE_SPEC.md). For the frozen paper results, see the [paper reproducibility guide](Docs/research/reproducibility/paper-v1.0/README.md); it maps the release bundle to manuscript Tables 2-4 and records the official Stuard Version 2 source hashes.
+Start with [Backend/PIPELINE_FLOW.md](Backend/PIPELINE_FLOW.md) and the [benchmark handoff contract](research/agrifusion_research/core/BENCHMARK_TO_MODEL_SUITE_SPEC.md). For the frozen paper results, see the [paper reproducibility guide](docs/research/reproducibility/paper-v1.0/README.md); it maps the release bundle to manuscript Tables 2-4 and records the official Stuard Version 2 source hashes.
 
 Dashboard (demo mode by default; live Firebase mode needs an untracked local `Frontend/public/config.local.json`):
 
@@ -117,7 +117,7 @@ Backend/       tests (Backend/tests) and the deprecated `python -m Backend.main`
 output/        generated Layer0/Layer1 data (gitignored)
 firmware/      ESP32-S3 firmware (PlatformIO)
 Frontend/      static Firebase RTDB dashboard (demo mode by default)
-Docs/          paper reproducibility guide, diagrams, a static web page, worklogs
+docs/          paper reproducibility guide, diagrams, a static web page, worklogs
 public-docs/   architecture and repository hygiene notes
 .github/       CI: backend tests, firmware build, frontend contract test; GitHub Pages
 ```

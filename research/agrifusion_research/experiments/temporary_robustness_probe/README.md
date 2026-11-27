@@ -2,7 +2,7 @@
 
 This is an isolated research probe for the current weak-target direction. It
 reads existing Phase B/Phase C/protocol artifacts and writes a sibling report
-under `Docs/Temp`; it does not modify Core, Layer1 canonical outputs, native
+under `docs/Temp`; it does not modify Core, Layer1 canonical outputs, native
 label releases, protocol registries, or model-suite artifacts.
 
 Run from the repository root:
@@ -23,6 +23,6 @@ Outputs:
 - `probe_report.md`: compact handoff for the next GPT analysis.
 
 The lane is intentionally temporary. If the direction is rejected, remove
-this directory and `Docs/Temp/temporal_weak_target_probe_20260907`. If it is
+this directory and `docs/Temp/temporal_weak_target_probe_20260907`. If it is
 accepted, migrate only the reviewed logic into the appropriate Benchmark
 owner after a new decision is recorded.

@@ -57,7 +57,7 @@ table-rendering environment:
 git clone https://github.com/lawnguyenit/AgriFusion-IoT.git
 Set-Location AgriFusion-IoT
 git checkout paper-v1.0
-python -m pip install -r Docs/research/reproducibility/paper-v1.0/paper-requirements.txt
+python -m pip install -r docs/research/reproducibility/paper-v1.0/paper-requirements.txt
 python -m agrifusion_research.core.model_suite.reporting.paper_tables_main --bundle C:\path\to\paper-v1.0-results.zip --output-dir output\paper-v1.0\tables
 ```
 

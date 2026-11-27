@@ -12,7 +12,7 @@ The user says the scientific core is frozen and wants submission packaging. The 
 
 - The V8 manuscript states the experimental core is frozen at V6 and retains submission TODOs for Stuard source verification, artifact archiving, authorship/admin details, journal formatting, and final table/figure exports.
 - The external intake lane previously recorded Stuard Mendeley metadata while downloading raw streams from a GitHub mirror. Each existing raw release manifest records SHA-256 and original origin.
-- The frozen research framework and exact artifact locations are documented in Docs/research/WADE_RESEARCH_FRAMEWORK_FROZEN.md. Generated model and bootstrap artifacts are under ignored Backend/Output_data paths.
+- The frozen research framework and exact artifact locations are documented in docs/research/WADE_RESEARCH_FRAMEWORK_FROZEN.md. Generated model and bootstrap artifacts are under ignored Backend/Output_data paths.
 - The existing three-dataset ZIP contains 202 files indexed by package_manifest.json; 23,862,096 bytes compressed and 74,821,193 bytes uncompressed.
 - Current main was 1cac56f before this task. The user has an unrelated working change in IoT_Node/lib/Config/src/Config.h and untracked tmp/. Preserve and exclude both from the paper release.
 
@@ -47,9 +47,9 @@ The user says the scientific core is frozen and wants submission packaging. The 
 - research/agrifusion_research/external/intake/sources.py: official Stuard Version 2 file URLs and official dataset title/citation.
 - research/agrifusion_research/external/intake/README.md and FLOW.md: document the current official download behavior and verification.
 - research/agrifusion_research/core/model_suite/reporting/paper_tables.py and paper_tables_main.py: derive Tables 2–4, verify the result bundle inventory, and write CSV/Markdown outputs.
-- Docs/research/reproducibility/paper-v1.0/: source verification manifest, table environment, and reproducibility guide.
+- docs/research/reproducibility/paper-v1.0/: source verification manifest, table environment, and reproducibility guide.
 - README.md: entry link for paper reproduction.
-- Docs/worklogs/2026-10-02-paper-submission-provenance-package.md: this worklog.
+- docs/worklogs/2026-10-02-paper-submission-provenance-package.md: this worklog.
 - Ignored raw/result artifacts were inspected but not modified.
 
 ## Implementation Plan
@@ -62,7 +62,7 @@ The user says the scientific core is frozen and wants submission packaging. The 
 
 ## Architectural Decisions
 
-- Keep research provenance in Docs/research/reproducibility, separate from production telemetry Core and generated outputs.
+- Keep research provenance in docs/research/reproducibility, separate from production telemetry Core and generated outputs.
 - Let reproduction docs reference authoritative Benchmark manifests and run outputs rather than duplicate training logic or move generated artifacts.
 - Keep table transformations as reporting functions and source ZIP loading/integrity/output orchestration in a small CLI module. Table generation consumes saved outputs and performs no fitting or resampling.
 - Commit small verification metadata and the table builder; attach the existing 24 MB result archive to the GitHub release and keep raw source downloads at their official repositories.

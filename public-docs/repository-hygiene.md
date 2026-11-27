@@ -16,7 +16,7 @@ The following must remain local or be handled as explicit release artifacts:
 - `Frontend/tmp-edge-profile/` — browser profile state;
 - `Secrets/`, `.env` (and legacy `Backend/.env`), frontend local Firebase config and
   `IoT_Node/lib/Config/src/Config.private.h` — credentials or local secrets;
-- large research datasets and dated local evidence under `Docs/`.
+- large research datasets and dated local evidence under `docs/`.
 
 Do not add a generated output to the source tree merely to make a README
 example appear to work. Use a small fixture or a documented local input

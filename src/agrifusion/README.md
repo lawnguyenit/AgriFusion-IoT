@@ -40,7 +40,7 @@ Firebase RTDB / JSON export
 -> output/Layer0
 -> src/agrifusion/canonical
 -> output/Layer1
--> Backend/Benchmark consumers
+-> research/agrifusion_research consumers
 ```
 
 ## Notes
@@ -55,6 +55,6 @@ Firebase RTDB / JSON export
 
 ## Risks
 
-- Changing agrifusion outputs can affect `Benchmark` and `Frontend` consumers.
+- Changing agrifusion outputs can affect `research/agrifusion_research` and `Frontend` consumers.
 - Deleting compatibility outputs before migrating consumers will break
   downstream pipelines.
