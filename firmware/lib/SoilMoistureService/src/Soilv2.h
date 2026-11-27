@@ -1,5 +1,5 @@
-#ifndef Soilv2
-#define Soilv2
+#ifndef SOILV2_H
+#define SOILV2_H
 
 #include <Arduino.h>
 

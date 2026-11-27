@@ -1,4 +1,4 @@
-# Storge
+# Storage
 
 Purpose: simple LittleFS helpers for offline data persistence.
 

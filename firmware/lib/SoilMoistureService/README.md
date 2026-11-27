@@ -24,3 +24,7 @@ field observations at the actual installation depth.
 `AppRuntime` and `AllSensorsProbe` use this service and inject a valid
 percentage into the existing NPK humidity field. The service does not create
 a separate canonical moisture sensor branch.
+
+`Soilv2.h/.cpp` (class `SoilV2`, the low-level ADC sampler with two-point
+mapping) used to be a separate lib; it is now part of this lib because this
+service was its only production user.
