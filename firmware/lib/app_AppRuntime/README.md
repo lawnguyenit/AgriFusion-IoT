@@ -16,7 +16,7 @@ Wake-cycle contract:
 - If the SHT30 returns a transport-valid but semantically invalid frame (for example `-45 C`/`0 %`), the raw observed values and error label remain in read-status diagnostics while canonical air values stay null.
 - Finalization rechecks the current transport, replays backlog, uploads or buffers the packet, publishes status, and selects the next deep-sleep interval.
 
-Production entry is restored through `IoT_Node/src/main.cpp -> AppEntry ->
+Production entry is restored through `firmware/src/main.cpp -> AppEntry ->
 AppRuntime`. The old NPK payload-fit harness remains in `main.cpp` behind
 `#if 0` for repeatable diagnostics, but it is not the active runtime.
 

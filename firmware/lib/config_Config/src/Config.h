@@ -63,8 +63,13 @@
 #endif
 
 // ================= [NODE IDENTITY] =================
-#define APP_NODE_SLOT_KEY              "Node2"              // key dinh danh node trong app/cloud
-#define APP_NODE_ID                    "Node2"              // id node dung trong payload va cloud
+// NODE_ID la nguon su that duy nhat cho id node va moi path RTDB ben duoi.
+// Doi node: sua dong nay (hoac -DNODE_ID=\"Node3\" / Config.private.h), khong sua path rieng le.
+#ifndef NODE_ID
+#define NODE_ID                        "Node2"
+#endif
+#define APP_NODE_SLOT_KEY              NODE_ID              // key dinh danh node trong app/cloud
+#define APP_NODE_ID                    NODE_ID              // id node dung trong payload va cloud
 #define APP_NODE_NAME                  "Vuon sau rieng A"   // ten hien thi cua node
 #define APP_NODE_SITE_ID               "Binh Phu, Vinh Long" // vi tri/cum trien khai
 #define APP_NODE_DEVICE_UID            "esp32s3_node2"      // uid thiet bi phan biet voi cac node khac
@@ -91,16 +96,16 @@
 
 // Cac path duoi day la schema cloud hien tai.
 // Neu doi ten node/path tren RTDB thi sua tai day thay vi sua trong code runtime.
-#define APP_RTDB_PATH_NODE_ROOT        "/Node2"             // root du lieu cua node tren RTDB
-#define APP_RTDB_PATH_NODE_INFO        "/Node2/info"        // metadata tinh do admin ghi tay
-#define APP_RTDB_PATH_NODE_LATEST      "/Node2/latest/current" // ban ghi moi nhat, tuong thich latest/current cua Node1
-#define APP_RTDB_PATH_NODE_LATEST_META "/Node2/latest/meta" // metadata dieu phoi latest cho Backend/Layer0
-#define APP_RTDB_PATH_NODE_TELEMETRY   "/Node2/telemetry"   // root telemetry thuc te cua node
-#define APP_RTDB_PATH_NODE_TELEMETRY_PROBE "/debug/Node2/telemetry_probe" // path probe/debug khong chen vao canonical telemetry
-#define APP_RTDB_PATH_NODE_DEBUG_ROOT  "/debug/Node2"       // root debug/ops phu tro
-#define APP_RTDB_PATH_NODE_DEBUG_STATUS "/debug/Node2/status" // snapshot trang thai runtime de debug
-#define APP_RTDB_PATH_NODE_DEBUG_TELEMETRY "/debug/Node2/telemetry" // debug channel cho publish/replay
-#define APP_RTDB_PATH_NODE_NPK_TEST     "/debug/Node2/npk_test/latest" // ban ghi test canonical NPK, khong vao telemetry chinh
+#define APP_RTDB_PATH_NODE_ROOT        "/" NODE_ID             // root du lieu cua node tren RTDB
+#define APP_RTDB_PATH_NODE_INFO        "/" NODE_ID "/info"        // metadata tinh do admin ghi tay
+#define APP_RTDB_PATH_NODE_LATEST      "/" NODE_ID "/latest/current" // ban ghi moi nhat, tuong thich latest/current cua Node1
+#define APP_RTDB_PATH_NODE_LATEST_META "/" NODE_ID "/latest/meta" // metadata dieu phoi latest cho Backend/Layer0
+#define APP_RTDB_PATH_NODE_TELEMETRY   "/" NODE_ID "/telemetry"   // root telemetry thuc te cua node
+#define APP_RTDB_PATH_NODE_TELEMETRY_PROBE "/debug/" NODE_ID "/telemetry_probe" // path probe/debug khong chen vao canonical telemetry
+#define APP_RTDB_PATH_NODE_DEBUG_ROOT  "/debug/" NODE_ID       // root debug/ops phu tro
+#define APP_RTDB_PATH_NODE_DEBUG_STATUS "/debug/" NODE_ID "/status" // snapshot trang thai runtime de debug
+#define APP_RTDB_PATH_NODE_DEBUG_TELEMETRY "/debug/" NODE_ID "/telemetry" // debug channel cho publish/replay
+#define APP_RTDB_PATH_NODE_NPK_TEST     "/debug/" NODE_ID "/npk_test/latest" // ban ghi test canonical NPK, khong vao telemetry chinh
 #define APP_OFFLINE_RAW_FILE           "/offline_data.txt"  // file dem khi mat mang
 // Production khong ghi snapshot/trang thai vao nhanh /debug. Bat lai tam
 // thoi khi can chan doan cloud; serial log van hoat dong theo DEBUG_MODE.
@@ -111,15 +116,6 @@
 #define APP_EDGE_SYSTEM_ID_NPK         "edge_npk"           // id he thong NPK trong payload
 #define APP_EDGE_SYSTEM_SHT            "air_climate_edge"   // ten nhom he thong cho SHT30
 #define APP_EDGE_SYSTEM_ID_SHT         "edge_sht30"         // id he thong SHT30 trong payload
-
-// ================= [OTA] =================
-#define APP_RTDB_PATH_OTA_STATUS       "/ops/Node1/ota_state" // path ghi trang thai OTA hien tai
-#define APP_RTDB_PATH_OTA_HISTORY      "/debug/Node1/ota_events" // path luu lich su su kien OTA
-#define APP_RTDB_PATH_OTA_COMMAND      "/control/Node1/ota_commands" // path doc lenh OTA tu cloud
-
-#define APP_OTA_POLL_INTERVAL_MS       60000UL              // chu ky kiem tra lenh OTA
-#define APP_OTA_CONFIRM_HEALTH_MS      60000UL              // thoi gian node phai chay on truoc khi confirm OTA
-#define APP_OTA_MAX_PENDING_BOOTS      3UL                  // so lan boot toi da khi OTA dang cho xac nhan
 
 // ================= [TASK / APP TIMING] =================
 // Day la nhom QUAN TRONG NHAT de dieu chinh nhip hoat dong:
@@ -194,7 +190,6 @@
 #define APP_LOG_SENSOR_TAG     "[SENSOR]"   // nhan log cam bien
 #define APP_LOG_NET_TAG        "[NET]"      // nhan log mang
 #define APP_LOG_CLOUD_TAG      "[CLOUD]"    // nhan log Firebase/cloud
-#define APP_LOG_OTA_TAG        "[OTA]"      // nhan log cap nhat firmware
 
 // ================= [SIM PINS / MODEM] =================
 // Day la nhom tham so de doi nha mang / module / cach cap nguon modem.

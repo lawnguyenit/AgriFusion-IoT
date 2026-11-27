@@ -1,5 +1,3 @@
-.pio
-.vscode/.browse.c_cpp.db*
-.vscode/c_cpp_properties.json
-.vscode/launch.json
-.vscode/ipch
+# Local secrets: copy lib/config_Config/src/Config.private.example.h to Config.private.h
+lib/config_Config/src/Config.private.h
+.pio/

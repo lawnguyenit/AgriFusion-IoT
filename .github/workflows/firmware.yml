@@ -1,0 +1,50 @@
+name: firmware
+
+on:
+  push:
+    paths:
+      - "firmware/**"
+      - ".github/workflows/firmware.yml"
+  pull_request:
+    paths:
+      - "firmware/**"
+      - ".github/workflows/firmware.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        env:
+          - esp32-s3-n16r8
+          - probe_sht30
+          - probe_ds18b20
+          - probe_soil_moisture
+          - probe_all_sensors
+          - probe_raw_truth
+          - probe_sim_pure
+          - probe_npk_matrix
+    defaults:
+      run:
+        working-directory: firmware
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-${{ runner.os }}-${{ hashFiles('firmware/platformio.ini') }}
+          restore-keys: pio-${{ runner.os }}-
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: pip install platformio
+
+      # Placeholder credentials only; real values stay on the owner's machine.
+      - name: Create Config.private.h from example
+        run: cp lib/config_Config/src/Config.private.example.h lib/config_Config/src/Config.private.h
+
+      - run: pio run -e ${{ matrix.env }}

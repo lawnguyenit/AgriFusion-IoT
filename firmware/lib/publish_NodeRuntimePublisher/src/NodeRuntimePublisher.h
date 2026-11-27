@@ -4,20 +4,21 @@
 #include <Arduino.h>
 #include <FirebaseESP32.h>
 
+#include "Config.h"
 #include "DeviceContext.h"
 #include "RawTelemetryReporter.h"
 
 struct NodeRuntimeConfig {
-    const char *nodeRootPath = "/Node2";
-    const char *nodeInfoPath = "/Node2/info";
-    const char *nodeLatestPath = "/Node2/latest/current";
-    const char *nodeLatestMetaPath = "/Node2/latest/meta";
-    const char *nodeDebugRootPath = "/debug/Node2";
-    const char *nodeDebugStatusPath = "/debug/Node2/status";
-    const char *nodeDebugTelemetryPath = "/debug/Node2/telemetry";
+    const char *nodeRootPath = APP_RTDB_PATH_NODE_ROOT;
+    const char *nodeInfoPath = APP_RTDB_PATH_NODE_INFO;
+    const char *nodeLatestPath = APP_RTDB_PATH_NODE_LATEST;
+    const char *nodeLatestMetaPath = APP_RTDB_PATH_NODE_LATEST_META;
+    const char *nodeDebugRootPath = APP_RTDB_PATH_NODE_DEBUG_ROOT;
+    const char *nodeDebugStatusPath = APP_RTDB_PATH_NODE_DEBUG_STATUS;
+    const char *nodeDebugTelemetryPath = APP_RTDB_PATH_NODE_DEBUG_TELEMETRY;
 
-    const char *nodeId = "Node2";
-    const char *deviceUid = "esp32s3_node2";
+    const char *nodeId = APP_NODE_ID;
+    const char *deviceUid = APP_NODE_DEVICE_UID;
     const char *siteId = "farm_a_zone_2";
     const char *powerType = "solar_battery";
     const char *timezone = "Asia/Ho_Chi_Minh";
